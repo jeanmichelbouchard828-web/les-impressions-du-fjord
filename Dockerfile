@@ -1,4 +1,7 @@
-FROM python:3.12-alpine
+FROM python:3.12-slim
 WORKDIR /app
-COPY index.html .
-CMD python -m http.server ${PORT:-8080} --bind 0.0.0.0
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py .
+CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 60 app:app
