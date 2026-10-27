@@ -18,6 +18,7 @@ def init():
   c.execute("""CREATE TABLE IF NOT EXISTS requests(id BIGSERIAL PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT,material TEXT,description TEXT NOT NULL,filename TEXT,filedata BYTEA,created TIMESTAMPTZ DEFAULT NOW(),status TEXT DEFAULT 'Demande reçue')""")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery(id BIGSERIAL PRIMARY KEY,title TEXT NOT NULL,category TEXT NOT NULL,description TEXT NOT NULL,photo BYTEA,mime TEXT,created TIMESTAMPTZ DEFAULT NOW())""")
   c.execute("""CREATE TABLE IF NOT EXISTS sessions(tokenhash TEXT PRIMARY KEY,expires TIMESTAMPTZ NOT NULL)""")
+  c.execute("""CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)""")
 init()
 STYLE="""<style>*{box-sizing:border-box}body{margin:0;background:#071321;color:#f2faff;font:16px system-ui,Arial}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 5%;border-bottom:1px solid #2a4a62;background:#091a2b;flex-wrap:wrap}nav{display:flex;gap:15px;flex-wrap:wrap}a{color:#7fe4ff;text-decoration:none}.brand{font-weight:900;letter-spacing:.6px}main{max-width:1100px;margin:auto;padding:28px 20px 70px}.hero{padding:70px 0 90px;background:radial-gradient(ellipse at 80% 10%,#15618a77,transparent 60%)}h1{font-size:clamp(38px,7vw,78px);line-height:1.06;margin:15px 0}h2{font-size:30px}p{color:#c6d7e7;line-height:1.65}.eyebrow{color:#80dfff;letter-spacing:3px;text-transform:uppercase;font-size:13px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{background:#10283b;border:1px solid #2d526d;padding:22px;border-radius:16px;overflow:hidden}.card img{width:100%;height:220px;object-fit:cover;border-radius:10px}input,textarea,select{display:block;width:100%;padding:12px;margin:7px 0 17px;background:#081827;color:white;border:1px solid #47718b;border-radius:9px;font:inherit}label{display:block;font-weight:600}textarea{min-height:110px}button,.btn{display:inline-block;padding:13px 20px;border:0;border-radius:9px;background:#5ad7f5;color:#061b2a;font-weight:800;cursor:pointer;font:inherit;text-decoration:none}form{max-width:650px}.muted{color:#a9c3d3}.alert{padding:14px;background:#163e50;border-radius:9px;margin:15px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row form{display:inline}.small{font-size:13px}footer{padding:25px 5%;border-top:1px solid #294b62;color:#a9c3d3}@media(max-width:600px){.hero{padding:40px 0}header{align-items:flex-start}nav{font-size:14px}}</style>"""
 BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Les Impressions du Fjord — impression 3D sur mesure au Saguenay."><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""</head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/#galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/contact">Contact</a><a href="/admin">Administration</a></nav></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}</main><footer>© 2026 Les Impressions du Fjord · Saguenay, Québec</footer></body></html>"""
@@ -83,14 +84,44 @@ def submission(kind):
 def quote():return submission("Soumission")
 @app.route("/contact",methods=["GET","POST"])
 def contact():return submission("Contact")
+@app.route("/admin/setup",methods=["GET","POST"])
+def setup():
+ # Requires a one-time secret configured by the owner in Railway, never shown publicly.
+ setup_token=os.getenv("ADMIN_SETUP_TOKEN","")
+ with db() as c:already=c.execute("SELECT 1 FROM settings WHERE key='admin_password_hash'").fetchone()
+ if already or os.getenv("ADMIN_PASSWORD_HASH"):abort(404)
+ if len(setup_token)<24:return page("Configuration",'<h1>Configuration indisponible</h1><p>Configurez ADMIN_SETUP_TOKEN (au moins 24 caractères) dans les variables Railway du service site-web avant de continuer.</p>')
+ if request.method=="POST":
+  verify()
+  token=request.form.get("token","")
+  password=request.form.get("password","")
+  confirm=request.form.get("confirm","")
+  if not hmac.compare_digest(token,setup_token):
+   flash("Code de configuration incorrect.")
+  elif len(password)<12 or len(password)>256 or password!=confirm:
+   flash("Utilisez un mot de passe de 12 caractères minimum, identique dans les deux champs.")
+  else:
+   salt=secrets.token_bytes(16)
+   hashed=hashlib.pbkdf2_hmac("sha256",password.encode(),salt,350000).hex()
+   value=salt.hex()+"$"+hashed
+   with db() as c:
+    # One-time, atomic insertion; never overwrites an existing password.
+    result=c.execute("INSERT INTO settings(key,value) VALUES('admin_password_hash',%s) ON CONFLICT (key) DO NOTHING RETURNING key",(value,)).fetchone()
+   if result:
+    flash("Mot de passe créé! Connectez-vous.")
+    return redirect("/admin/login")
+   abort(409)
+ return page("Première configuration",'''<h1>Créer mon accès administrateur</h1><p>Cette page fonctionne une seule fois. Votre code de configuration est celui que vous avez choisi dans Railway.</p><form method="post">{{csrf|safe}}<label>Code de configuration<input name="token" type="password" minlength="24" required autocomplete="off"></label><label>Nouveau mot de passe administrateur<input name="password" type="password" minlength="12" required autocomplete="new-password"></label><label>Confirmer le mot de passe<input name="confirm" type="password" minlength="12" required autocomplete="new-password"></label><button>Créer mon compte administrateur</button></form>''',csrf=csrfinput())
 @app.route("/admin/login",methods=["GET","POST"])
 def login():
- if not os.getenv("ADMIN_PASSWORD_HASH"):
-  return page("Administration",'<h1>Administration non activée</h1><p>Le propriétaire doit configurer le mot de passe administrateur dans Railway.</p>')
+ with db() as c:
+  setting=c.execute("SELECT value FROM settings WHERE key='admin_password_hash'").fetchone()
+ configured=setting["value"] if setting else os.getenv("ADMIN_PASSWORD_HASH","")
+ if not configured:
+  return page("Administration",'<h1>Administration non activée</h1><p>Pour créer votre accès sur téléphone, configurez ADMIN_SETUP_TOKEN dans Railway puis ouvrez <a href="/admin/setup">la configuration initiale</a>.</p>')
  if request.method=="POST":
   verify()
   entered=request.form.get("password","")
-  configured=os.environ["ADMIN_PASSWORD_HASH"]
   try:
    salt,hashval=configured.split("$",1)
    actual=hashlib.pbkdf2_hmac("sha256",entered.encode(),bytes.fromhex(salt),350000).hex()
