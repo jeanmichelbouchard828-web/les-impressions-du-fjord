@@ -19,9 +19,10 @@ def init():
   c.execute("""CREATE TABLE IF NOT EXISTS gallery(id BIGSERIAL PRIMARY KEY,title TEXT NOT NULL,category TEXT NOT NULL,description TEXT NOT NULL,photo BYTEA,mime TEXT,created TIMESTAMPTZ DEFAULT NOW())""")
   c.execute("""CREATE TABLE IF NOT EXISTS sessions(tokenhash TEXT PRIMARY KEY,expires TIMESTAMPTZ NOT NULL)""")
   c.execute("""CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)""")
+  c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
 init()
-STYLE="""<style>*{box-sizing:border-box}body{margin:0;background:#071321;color:#f2faff;font:16px system-ui,Arial}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 5%;border-bottom:1px solid #2a4a62;background:#091a2b;flex-wrap:wrap}nav{display:flex;gap:15px;flex-wrap:wrap}a{color:#7fe4ff;text-decoration:none}.brand{font-weight:900;letter-spacing:.6px}main{max-width:1100px;margin:auto;padding:28px 20px 70px}.hero{padding:70px 0 90px;background:radial-gradient(ellipse at 80% 10%,#15618a77,transparent 60%)}h1{font-size:clamp(38px,7vw,78px);line-height:1.06;margin:15px 0}h2{font-size:30px}p{color:#c6d7e7;line-height:1.65}.eyebrow{color:#80dfff;letter-spacing:3px;text-transform:uppercase;font-size:13px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{background:#10283b;border:1px solid #2d526d;padding:22px;border-radius:16px;overflow:hidden}.card img{width:100%;height:220px;object-fit:cover;border-radius:10px}input,textarea,select{display:block;width:100%;padding:12px;margin:7px 0 17px;background:#081827;color:white;border:1px solid #47718b;border-radius:9px;font:inherit}label{display:block;font-weight:600}textarea{min-height:110px}button,.btn{display:inline-block;padding:13px 20px;border:0;border-radius:9px;background:#5ad7f5;color:#061b2a;font-weight:800;cursor:pointer;font:inherit;text-decoration:none}form{max-width:650px}.muted{color:#a9c3d3}.alert{padding:14px;background:#163e50;border-radius:9px;margin:15px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row form{display:inline}.small{font-size:13px}footer{padding:25px 5%;border-top:1px solid #294b62;color:#a9c3d3}@media(max-width:600px){.hero{padding:40px 0}header{align-items:flex-start}nav{font-size:14px}}</style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Les Impressions du Fjord — impression 3D sur mesure au Saguenay."><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""</head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/#galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/contact">Contact</a><a href="/admin">Administration</a></nav></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}</main><footer>© 2026 Les Impressions du Fjord · Saguenay, Québec</footer></body></html>"""
+STYLE="""<style>*{box-sizing:border-box}body{margin:0;background:#071321;color:#f2faff;font:16px system-ui,Arial}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 5%;border-bottom:1px solid #2a4a62;background:#091a2b;flex-wrap:wrap}nav{display:flex;gap:15px;flex-wrap:wrap}a{color:#7fe4ff;text-decoration:none}.brand{font-weight:900;letter-spacing:.6px}main{max-width:1100px;margin:auto;padding:28px 20px 70px}.hero{padding:70px 0 90px;background:radial-gradient(ellipse at 80% 10%,#15618a77,transparent 60%)}h1{font-size:clamp(38px,7vw,78px);line-height:1.06;margin:15px 0}h2{font-size:30px}p{color:#c6d7e7;line-height:1.65}.eyebrow{color:#80dfff;letter-spacing:3px;text-transform:uppercase;font-size:13px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{background:#10283b;border:1px solid #2d526d;padding:22px;border-radius:16px;overflow:hidden}.card img{width:100%;height:220px;object-fit:cover;border-radius:10px}.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:14px}.gallery-grid img{width:100%;height:145px;object-fit:cover;border-radius:9px}.gallery-tile{background:#10283b;padding:12px;border-radius:12px}.gallery-tile h3{font-size:15px}.zoom{background:#071321;color:white;border:0;max-width:96vw;max-height:95vh}.zoom::backdrop{background:#000d}.zoom img{max-width:90vw;max-height:78vh;object-fit:contain}input,textarea,select{display:block;width:100%;padding:12px;margin:7px 0 17px;background:#081827;color:white;border:1px solid #47718b;border-radius:9px;font:inherit}label{display:block;font-weight:600}textarea{min-height:110px}button,.btn{display:inline-block;padding:13px 20px;border:0;border-radius:9px;background:#5ad7f5;color:#061b2a;font-weight:800;cursor:pointer;font:inherit;text-decoration:none}form{max-width:650px}.muted{color:#a9c3d3}.alert{padding:14px;background:#163e50;border-radius:9px;margin:15px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row form{display:inline}.small{font-size:13px}footer{padding:25px 5%;border-top:1px solid #294b62;color:#a9c3d3}@media(max-width:600px){.hero{padding:40px 0}header{align-items:flex-start}nav{font-size:14px}}</style>"""
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Les Impressions du Fjord — impression 3D sur mesure au Saguenay."><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""</head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/contact">Contact</a><a href="/admin">Administration</a></nav></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}</main><footer>© 2026 Les Impressions du Fjord · Saguenay, Québec</footer></body></html>"""
 def page(title,body,**kwargs):
  from flask import render_template_string
  return render_template_string(BASE,title=title,body=render_template_string(body,**kwargs))
@@ -57,8 +58,29 @@ def notify(kind,name,email):
  except Exception:app.logger.exception("Notification email failed")
 @app.get("/")
 def home():
- with db() as c:gallery=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo FROM gallery ORDER BY id DESC LIMIT 12").fetchall()
- return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay. Pièces pratiques, prototypes et créations uniques avec une finition soignée.</p><a class="btn" href="/soumission">Demander une soumission</a></div><section id="services"><div class="eyebrow">Notre savoir-faire</div><h2>Nos services</h2><div class="grid"><div class="card"><h3>Pièces personnalisées</h3><p>Supports, adaptateurs et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Transformez vos idées en objets concrets.</p></div><div class="card"><h3>Objets et cadeaux</h3><p>Créations uniques et personnalisées.</p></div></div></section><section id="galerie"><h2>Nos réalisations</h2><div class="grid">{% for item in gallery %}<article class="card">{% if item.has_photo %}<img loading="lazy" src="/photo/{{item.id}}" alt="{{item.title}}">{% endif %}<h3>{{item.title}}</h3><div class="eyebrow">{{item.category}}</div><p>{{item.description}}</p></article>{% else %}<p>De nouvelles réalisations seront bientôt présentées ici.</p>{% endfor %}</div></section>''',gallery=gallery)
+ return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><a class="btn" href="/soumission">Demander une soumission</a></div><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''')
+@app.get("/galerie")
+def gallery_page():
+ with db() as c:items=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo FROM gallery ORDER BY id DESC").fetchall()
+ return page("Galerie",'''<h1>Galerie de réalisations</h1><p>Appuyez sur une création pour agrandir ses photos.</p><div class="gallery-grid">{% for i in items %}<a class="gallery-tile" href="/galerie/{{i.id}}"><img src="{{'/photo/' ~ i.id if i.has_photo else '/gallery/cover/' ~ i.id}}" alt="{{i.title}}" onerror="this.style.display='none'"><h3>{{i.title}}</h3><div class="eyebrow">{{i.category}}</div></a>{% else %}<p>Réalisations à venir.</p>{% endfor %}</div>''',items=items)
+@app.get("/gallery/cover/<int:id>")
+def cover(id):
+ with db() as c:r=c.execute("SELECT photo,mime FROM gallery_photos WHERE gallery_id=%s ORDER BY id LIMIT 1",(id,)).fetchone()
+ if not r:abort(404)
+ return send_file(io.BytesIO(r["photo"]),mimetype=r["mime"])
+@app.get("/gallery/image/<int:id>")
+def gallery_image(id):
+ with db() as c:r=c.execute("SELECT photo,mime FROM gallery_photos WHERE id=%s",(id,)).fetchone()
+ if not r:abort(404)
+ return send_file(io.BytesIO(r["photo"]),mimetype=r["mime"])
+@app.get("/galerie/<int:id>")
+def gallery_item(id):
+ with db() as c:
+  item=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo FROM gallery WHERE id=%s",(id,)).fetchone()
+  if not item:abort(404)
+  photos=c.execute("SELECT id FROM gallery_photos WHERE gallery_id=%s ORDER BY id",(id,)).fetchall()
+ urls=(["/photo/"+str(id)] if item["has_photo"] else [])+["/gallery/image/"+str(p["id"]) for p in photos]
+ return page(item["title"],'''<a href="/galerie">← Galerie</a><h1>{{item.title}}</h1><div class="eyebrow">{{item.category}}</div><p>{{item.description}}</p><div class="gallery-grid">{% for url in urls %}<button type="button" onclick="show({{loop.index0}})" style="background:none;border:0;padding:0;cursor:zoom-in"><img src="{{url}}" alt="Photo {{loop.index}}"></button>{% endfor %}</div><dialog id="viewer" class="zoom"><div class="row"><button onclick="move(-1)">❮</button><span id="count"></span><button onclick="move(1)">❯</button><button onclick="document.getElementById('viewer').close()">Fermer ✕</button></div><img id="large" alt="{{item.title}}"></dialog><script>const images={{urls|tojson}};let index=0;function show(n){index=n;refresh();document.getElementById('viewer').showModal()}function move(n){index=(index+n+images.length)%images.length;refresh()}function refresh(){document.getElementById('large').src=images[index];document.getElementById('count').textContent=(index+1)+' / '+images.length)}</script>''',item=item,urls=urls)
 FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p><form method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Votre nom<input name="name" maxlength="120" required></label><label>Courriel<input type="email" name="email" maxlength="200" required></label><label>Téléphone (facultatif)<input name="phone" maxlength="40"></label>{% if quote %}<label>Matériau souhaité<select name="material">{% for m in materials %}<option>{{m}}</option>{% endfor %}</select></label>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" required></textarea></label>{% if quote %}<label>Fichier STL ou 3MF (facultatif, maximum 8 Mo)<input type="file" name="model" accept=".stl,.3mf"></label>{% endif %}<button type="submit">Envoyer la demande</button></form>'''
 def submission(kind):
  if request.method=="GET":
@@ -139,7 +161,7 @@ def admin():
  with db() as c:
   reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status FROM requests ORDER BY id DESC LIMIT 200").fetchall()
   gallery=c.execute("SELECT id,title,category FROM gallery ORDER BY id DESC").fetchall()
- return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><h2>Galerie</h2><div class="grid">{% for g in gallery %}<div class="card"><strong>{{g.title}}</strong><p>{{g.category}}</p><form method="post" action="/admin/delete/{{g.id}}" onsubmit="return confirm('Supprimer cette réalisation?')">{{csrf|safe}}<button>Supprimer</button></form></div>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
+ return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><h2>Galerie</h2><div class="grid">{% for g in gallery %}<div class="card"><strong>{{g.title}}</strong><p>{{g.category}}</p><a href="/admin/edit/{{g.id}}">Modifier / Photos</a><form method="post" action="/admin/delete/{{g.id}}" onsubmit="return confirm('Supprimer cette réalisation?')">{{csrf|safe}}<button>Supprimer</button></form></div>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
 @app.post("/admin/status/<int:id>")
 @admin_required
 def status(id):
@@ -153,24 +175,47 @@ def file(id):
  with db() as c:r=c.execute("SELECT filename,filedata FROM requests WHERE id=%s",(id,)).fetchone()
  if not r or not r["filedata"]:abort(404)
  return send_file(io.BytesIO(r["filedata"]),as_attachment=True,download_name=r["filename"],mimetype="application/octet-stream")
+def image_uploads(files):
+ images=[]
+ for f in files:
+  if not f or not f.filename:continue
+  data=f.read(5*1024*1024+1)
+  if len(data)>5*1024*1024:abort(413)
+  mime="image/jpeg" if data.startswith(bytes.fromhex("ffd8ff")) else "image/png" if data.startswith(bytes.fromhex("89504e470d0a1a0a")) else "image/webp" if data.startswith(b"RIFF") and data[8:12]==b"WEBP" else None
+  if not mime:abort(400)
+  images.append((data,mime))
+ return images
+GALLERY_FORM='''<h1>{{heading}}</h1><form method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Titre<input name="title" value="{{item.title if item else ''}}" maxlength="120" required></label><label>Catégorie<input name="category" value="{{item.category if item else ''}}" maxlength="120" required></label><label>Description<textarea name="description" maxlength="2000" required>{{item.description if item else ''}}</textarea></label><label>Ajouter des photos (6 à la fois, 5 Mo chacune)<input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp"></label><button>Enregistrer</button></form>{% for p in photos %}<div class="row"><img src="/gallery/image/{{p.id}}" width="85"><form method="post" action="/admin/photo/delete/{{p.id}}">{{csrf|safe}}<button>Supprimer cette photo</button></form></div>{% endfor %}'''
 @app.route("/admin/new",methods=["GET","POST"])
 @admin_required
-def new():
- if request.method=="POST":
-  verify()
-  title=request.form.get("title","").strip();category=request.form.get("category","").strip();description=request.form.get("description","").strip()
-  if not title or not category or not description or max(len(title),len(category))>120 or len(description)>2000:abort(400)
-  photo=request.files.get("photo");data=None;mime=None
-  if photo and photo.filename:
-   data=photo.read(5*1024*1024+1)
-   if len(data)>5*1024*1024:abort(413)
-   if data.startswith(b"\xff\xd8\xff"):mime="image/jpeg"
-   elif data.startswith(b"\x89PNG\r\n\x1a\n"):mime="image/png"
-   elif data.startswith(b"RIFF") and data[8:12]==b"WEBP":mime="image/webp"
-   else:abort(400)
-  with db() as c:c.execute("INSERT INTO gallery(title,category,description,photo,mime) VALUES(%s,%s,%s,%s,%s)",(title,category,description,data,mime))
-  return redirect("/admin")
- return page("Ajouter une réalisation",'''<h1>Nouvelle réalisation</h1><form method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Titre<input name="title" maxlength="120" required></label><label>Catégorie<input name="category" maxlength="120" required></label><label>Description<textarea name="description" maxlength="2000" required></textarea></label><label>Photo JPG, PNG ou WebP (maximum 5 Mo)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><button>Publier</button></form>''',csrf=csrfinput())
+def new():return gallery_edit(None)
+@app.route("/admin/edit/<int:id>",methods=["GET","POST"])
+@admin_required
+def edit(id):return gallery_edit(id)
+def gallery_edit(id):
+ with db() as c:
+  item=c.execute("SELECT id,title,category,description FROM gallery WHERE id=%s",(id,)).fetchone() if id else None
+  if id and not item:abort(404)
+  if request.method=="POST":
+   verify()
+   title=request.form.get("title","").strip();category=request.form.get("category","").strip();description=request.form.get("description","").strip()
+   if not title or not category or not description or max(len(title),len(category))>120 or len(description)>2000:abort(400)
+   files=request.files.getlist("photos")
+   if len(files)>6:abort(400)
+   images=image_uploads(files)
+   if id:c.execute("UPDATE gallery SET title=%s,category=%s,description=%s WHERE id=%s",(title,category,description,id))
+   else:id=c.execute("INSERT INTO gallery(title,category,description) VALUES(%s,%s,%s) RETURNING id",(title,category,description)).fetchone()["id"]
+   for data,mime in images:c.execute("INSERT INTO gallery_photos(gallery_id,photo,mime) VALUES(%s,%s,%s)",(id,data,mime))
+   return redirect("/admin/edit/"+str(id))
+  photos=c.execute("SELECT id FROM gallery_photos WHERE gallery_id=%s ORDER BY id",(id,)).fetchall() if id else []
+ return page("Galerie",GALLERY_FORM,heading="Modifier la réalisation" if id else "Nouvelle réalisation",item=item,photos=photos,csrf=csrfinput())
+@app.post("/admin/photo/delete/<int:id>")
+@admin_required
+def remove_photo(id):
+ verify()
+ with db() as c:r=c.execute("DELETE FROM gallery_photos WHERE id=%s RETURNING gallery_id",(id,)).fetchone()
+ if not r:abort(404)
+ return redirect("/admin/edit/"+str(r["gallery_id"]))
 @app.get("/photo/<int:id>")
 def photo(id):
  with db() as c:r=c.execute("SELECT photo,mime FROM gallery WHERE id=%s",(id,)).fetchone()
