@@ -69,6 +69,14 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 @media(max-width:850px){.tool-row{flex-direction:column}.tool-row button{width:100%}}
 @media(max-width:850px){.shell{grid-template-columns:155px minmax(210px,1fr) 185px}.sidebar{padding:9px}.tools{grid-template-columns:1fr}}
 @media(max-width:620px){.shell{height:auto;display:flex;flex-wrap:wrap}.stage{width:100%;height:49vh;min-height:340px;order:1}.sidebar{width:50%;max-height:420px;order:2}.tools{grid-template-columns:1fr 1fr}header{gap:10px}.top-actions button{padding:7px}}
+
+.generator-block{border:1px solid var(--border);background:var(--field);border-radius:10px;padding:10px;margin:8px 0 15px}
+.generator-block label{display:block;margin:9px 0 4px;font-size:12px;color:var(--muted)}
+.generator-block select{width:100%}.generator-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px 9px}
+.generator-fields label{line-height:1.3}.generator-fields input{width:100%;min-width:0}
+.generator-actions{display:flex;gap:6px;margin-top:12px}.generator-actions button{flex:1;min-width:0;font-size:12px}
+.generator-help,.generator-message{font-size:11px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+.generator-message{color:var(--accent);min-height:16px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -116,6 +124,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div>
+<h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
+<div class="generator-block">
+<label for="generatorKind" data-i18n="generatorChoose">Type de pièce</label>
+<select id="generatorKind" aria-label="Générateur de pièce 3D"></select>
+<div id="generatorFields" class="generator-fields"></div>
+<div class="generator-actions">
+<button type="button" id="generatorShow" data-i18n="generatorShow">👁 Aperçu</button>
+<button type="button" class="primary" id="generatorAdd" data-i18n="generatorAdd">+ Créer la pièce</button>
+</div>
+<p id="generatorMessage" class="generator-message" role="status" aria-live="polite"></p>
+<p class="generator-help" data-i18n="generatorHelp">Aperçu transparent non exporté. Les engrenages et filetages sont des géométries simplifiées à vérifier avant assemblage.</p>
+</div>
 <h3 data-i18n="cutGroup">✂️ Découpe</h3>
 <div class="tool-control"><label for="cutHeight" data-i18n="cutHeightLabel">Hauteur de coupe Z (mm)</label><input id="cutHeight" type="number" step="0.1" value="10" aria-label="Hauteur de coupe Z"></div>
 <div class="tool-control"><input id="cutSlider" type="range" min="0" max="30" value="10" step="0.1" aria-label="Déplacer le plan de coupe" disabled></div>
@@ -200,14 +220,17 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {generatorKinds,defaultParams,generateGeometry} from '/static/generateurs3d.js';
 const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
 const langText={
 fr:{
+ generatorTitle:'⚙️ Générateurs 3D',generatorChoose:'Type de pièce',generatorShow:'👁 Aperçu',generatorAdd:'+ Créer la pièce',generatorHelp:'Aperçu transparent non exporté. Les engrenages et filetages sont simplifiés et doivent être vérifiés avant un assemblage mécanique.',generatorCreated:'Pièce créée ! Enregistre ton projet ou exporte le STL.',generatorInvalid:'Dimensions invalides.',
  cutPreview:'✂️ Préparer la coupe',cutApply:'✓ Appliquer la coupe',cutFloatLabel:'✂️ Plan de coupe',cutDragHint:'Glisse le plan orange en hauteur ou utilise les poignées bleue et verte pour le pivoter.',cutGuide:'Glisse le plan orange pour monter ou descendre, les poignées bleue et verte pour pivoter.',cutPosition:'↕ Hauteur',cutTiltX:'🔵 Avant / arrière',cutTiltY:'🟢 Gauche / droite',cutResetAngle:'↺ Remettre à plat',
  quickTools:'OUTILS',quickbarHint:'Glisser pour déplacer · Clic droit pour les outils',contextHeading:'Outils de la pièce',contextCreate:'Créer une pièce',
  measure:'📏 Mesurer',measureHint:'Cliquez deux points sur la pièce pour mesurer la distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Mode mesure : clique deux points sur une pièce.',measureValue:'Distance mesurée : {distance} mm',toolSize:'Taille rapide',half:'½ Réduire',double:'×2 Agrandir',fitBed:'Ajuster X2D',centerXY:'Centrer XY',dropToBed:'Poser au sol',mirrorX:'Miroir X',mirrorY:'Miroir Y',mirrorZ:'Miroir Z',cutGroup:'✂️ Découpe',cutHeightLabel:'Hauteur de coupe Z (mm)',cutZ:'✂️ Préparer la coupe',cutNotice:'Prépare la coupe, glisse le plan orange ou le curseur, puis applique. Fonctionne actuellement sur les formes simples; les STL complexes suivront.',views:'Vues rapides',viewIso:'◈ 3D',viewTop:'▣ Dessus',viewFront:'▤ Avant',viewSide:'▥ Côté',viewFit:'⌗ Cadrer',objectListTitle:'Mes pièces',shortcuts:'Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.',cutUnsupported:'Cette première découpe avec fermeture fonctionne sur cube, cylindre, sphère et cône. Pour une pièce complexe importée, la découpe avancée reste à développer.',cutOutside:'La coupe doit traverser la pièce : choisis une hauteur entre son bas et son haut.',cutSuccess:'Pièce découpée en deux éléments fermés. Vérifie le résultat avant impression.',noCut:'Sélectionne une pièce pour la découper.',emptyList:'Aucune pièce pour le moment.',mirrorDone:'Miroir appliqué.',fitDone:'Objet ajusté au volume X2D.',placed:'Pièce posée sur le plateau.',centered:'Pièce centrée sur le plateau.',sizeDone:'Taille modifiée.',cutError:'La découpe de cette pièce n’a pas pu être réalisée.',
  estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser la pièce : déplacer · Fond : orbite · Molette : zoom sur la pièce',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
 en:{
+ generatorTitle:'⚙️ 3D Generators',generatorChoose:'Part type',generatorShow:'👁 Preview',generatorAdd:'+ Create part',generatorHelp:'Transparent preview is not exported. Gears and threads are approximate and should be verified before mechanical use.',generatorCreated:'Part created! Save your project or export the STL.',generatorInvalid:'Invalid dimensions.',
  cutPreview:'✂️ Prepare cut',cutApply:'✓ Apply cut',cutFloatLabel:'✂️ Cutting plane',cutDragHint:'Drag the orange plane to move it or use the blue and green handles to tilt.',cutGuide:'Drag the orange plane up or down, or use blue and green handles to tilt.',cutPosition:'↕ Height',cutTiltX:'🔵 Forward / back',cutTiltY:'🟢 Left / right',cutResetAngle:'↺ Reset tilt',
  quickTools:'TOOLS',quickbarHint:'Drag to move · Right-click for tools',contextHeading:'Part tools',contextCreate:'Create a part',
  measure:'📏 Measure',measureHint:'Click two points on the part to measure the distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Measure mode: click two points on a part.',measureValue:'Measured distance: {distance} mm',toolSize:'Quick size',half:'½ Shrink',double:'×2 Enlarge',fitBed:'Fit X2D bed',centerXY:'Center XY',dropToBed:'Place on bed',mirrorX:'Mirror X',mirrorY:'Mirror Y',mirrorZ:'Mirror Z',cutGroup:'✂️ Cutting',cutHeightLabel:'Z cut height (mm)',cutZ:'✂️ Prepare cut',cutNotice:'Prepare the cut, drag the orange plane or slider, then apply. Simple shapes are supported; complex STLs will come later.',views:'Quick views',viewIso:'◈ 3D',viewTop:'▣ Top',viewFront:'▤ Front',viewSide:'▥ Side',viewFit:'⌗ Fit view',objectListTitle:'My parts',shortcuts:'Shortcuts: W move · E rotate · R scale · Delete remove · Ctrl+Z undo.',cutUnsupported:'The first capped cutting tool supports cube, cylinder, sphere, and cone. Cutting complex imported shapes is not yet available.',cutOutside:'The cut must cross the object. Choose a height between its bottom and top.',cutSuccess:'Part split into two closed objects. Check the result before printing.',noCut:'Select an object to cut.',emptyList:'No parts yet.',mirrorDone:'Mirror applied.',fitDone:'Object scaled to the X2D build volume.',placed:'Part placed on the print bed.',centered:'Part centered on the print bed.',sizeDone:'Object resized.',cutError:'This part could not be cut.',
@@ -764,6 +787,91 @@ function cutSelected(){
  bottom.material.color.setHex(color);top.material.color.setHex(color);
  pick(top);say('cutSuccess');
 }
+
+/* Parametric part generator: temporary translucent preview, then a real STL-ready mesh. */
+const generatorState=Object.fromEntries(generatorKinds.map(k=>[k.id,defaultParams(k.id)]));
+let generatorGhost=null,generatorTimer=null,generatorPreviewEnabled=true;
+function clearGeneratorGhost(){
+ if(!generatorGhost)return;
+ scene.remove(generatorGhost);generatorGhost.geometry.dispose();generatorGhost.material.dispose();generatorGhost=null;
+}
+function generatorDefinition(){
+ return generatorKinds.find(k=>k.id===$('generatorKind').value)||generatorKinds[0];
+}
+function generatorMessage(message){
+ $('generatorMessage').textContent=message;
+}
+function generatorRebuildFields(){
+ const cfg=generatorDefinition(),fr=currentLang()==='fr';
+ const fields=$('generatorFields');fields.replaceChildren();
+ for(const [id,nameFR,nameEN,initial,min,max,step] of cfg.fields){
+  const wrap=document.createElement('div'),label=document.createElement('label'),input=document.createElement('input');
+  input.type='number';input.id='generator-'+id;input.min=min;input.max=max;input.step=step;
+  input.value=generatorState[cfg.id][id];input.setAttribute('inputmode','decimal');
+  label.htmlFor=input.id;label.textContent=(fr?nameFR:nameEN)+(id==='bendAngle'?'':' (mm)');
+  if(id==='teeth')label.textContent=fr?nameFR:nameEN;
+  wrap.append(label,input);fields.append(wrap);
+  input.addEventListener('input',()=>{
+   if(input.value.trim()!=='')generatorState[cfg.id][id]=Number(input.value);
+   generatorPreviewEnabled=true;queueGeneratorPreview();
+  });
+ }
+}
+function generatorRebuild(){
+ const cfg=generatorDefinition(),current=cfg.id,selector=$('generatorKind');
+ selector.replaceChildren(...generatorKinds.map(k=>new Option(currentLang()==='en'?k.en:k.fr,k.id)));
+ selector.value=current;
+ generatorRebuildFields();
+ if(generatorPreviewEnabled)queueGeneratorPreview();
+}
+function generatorGeometry(){
+ return generateGeometry(THREE,generatorDefinition().id,generatorState[generatorDefinition().id]);
+}
+function generatorDrawGhost(){
+ generatorTimer=null;clearGeneratorGhost();
+ if(!generatorPreviewEnabled)return;
+ try{
+  const geometry=generatorGeometry();
+  const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({
+   color:0xf4b64f,transparent:true,opacity:.49,metalness:0,roughness:.68,
+   side:THREE.DoubleSide,depthWrite:false
+  }));
+  mesh.position.z=-geometry.boundingBox.min.z;
+  scene.add(mesh);generatorGhost=mesh;
+  const size=geometry.boundingBox.getSize(new THREE.Vector3());
+  const fmt=v=>v.toFixed(1);
+  generatorMessage((currentLang()==='en'?'Preview: ':'Aperçu : ')+
+    [fmt(size.x),fmt(size.y),fmt(size.z)].join(' × ')+' mm');
+ }catch(error){generatorMessage(error.message||langText[currentLang()].generatorInvalid)}
+}
+function queueGeneratorPreview(){
+ if(generatorTimer!==null)clearTimeout(generatorTimer);
+ generatorTimer=setTimeout(generatorDrawGhost,120);
+}
+$('generatorKind').addEventListener('change',()=>{
+ generatorPreviewEnabled=true;generatorRebuild();
+});
+$('generatorShow').addEventListener('click',()=>{
+ generatorPreviewEnabled=true;generatorDrawGhost();
+});
+$('generatorAdd').addEventListener('click',()=>{
+ if(generatorTimer!==null){clearTimeout(generatorTimer);generatorTimer=null}
+ let geometry;
+ try{geometry=generatorGeometry()}catch(e){generatorMessage(e.message||langText[currentLang()].generatorInvalid);return}
+ remember();
+ clearGeneratorGhost();generatorPreviewEnabled=false;
+ const cfg=generatorDefinition();
+ const title=currentLang()==='en'?cfg.en:cfg.fr;
+ const m=makeMesh(geometry,'imported',title+' '+(++counter));
+ m.position.z=-geometry.boundingBox.min.z;
+ pick(m);
+ generatorMessage(langText[currentLang()].generatorCreated);
+});
+$('language').addEventListener('change',generatorRebuild);
+$('generatorKind').value=generatorKinds[0].id;
+generatorRebuild();
+/* End parametric generators */
+
 // Cutting is applied only after the preview height has been chosen.
 document.addEventListener('keydown',e=>{
  if(e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
