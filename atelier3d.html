@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atelier 3D du Fjord</title>
+<style>
+:root{color-scheme:dark;--bg:#0a1320;--panel:#112136;--field:#152940;--text:#ecf6ff;--muted:#b5c7d9;--border:#36516c;--accent:#45c4ec}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,Arial,sans-serif}
+body.light{color-scheme:light;--bg:#f0f5fa;--panel:#fff;--field:#f7fbff;--text:#192c40;--muted:#4b6378;--border:#b2c7d9;--accent:#006b9b}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{font-weight:850;font-size:18px}.subtitle{color:var(--muted);font-size:12px}
+a{color:var(--accent);text-decoration:none}button,select,input{font:inherit}button,select{border:1px solid var(--border);background:var(--field);color:var(--text);border-radius:7px;padding:9px;cursor:pointer}button:hover{border-color:var(--accent)}button.primary{background:#167cae;color:#fff;border-color:#1c99d1}
+input{background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:8px;max-width:100%;width:100%}
+.top-actions,.top-preferences{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.top-preferences select{max-width:120px}
+.shell{display:grid;grid-template-columns:210px minmax(260px,1fr) 246px;height:calc(100dvh - 75px);min-height:560px}
+.sidebar{background:var(--panel);border-right:1px solid var(--border);padding:14px;overflow-y:auto}.sidebar.right{border-right:0;border-left:1px solid var(--border)}
+.sidebar h2{font-size:15px;margin:0 0 13px}.sidebar h3{font-size:13px;margin:20px 0 10px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tools button{min-height:55px}.muted{color:var(--muted)}
+.stage{min-height:0;position:relative;background:#101a28}.stage canvas{display:block;width:100%;height:100%}
+.hint{position:absolute;bottom:12px;left:12px;font-size:12px;padding:9px;border-radius:8px;background:#142b41e8;color:#d8eafc;pointer-events:none}
+.field{margin:12px 0}.field label{display:block;color:var(--muted);margin-bottom:5px}.triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#info{font-size:12px;color:var(--accent);line-height:1.5;margin-top:13px}
+.note{font-size:12px;line-height:1.5;margin-top:20px;color:var(--muted)}
+@media(max-width:850px){.shell{grid-template-columns:155px minmax(210px,1fr) 185px}.sidebar{padding:9px}.tools{grid-template-columns:1fr}}
+@media(max-width:620px){.shell{height:auto;display:flex;flex-wrap:wrap}.stage{width:100%;height:49vh;min-height:340px;order:1}.sidebar{width:50%;max-height:420px;order:2}.tools{grid-template-columns:1fr 1fr}header{gap:10px}.top-actions button{padding:7px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+</head><body>
+<header>
+<div><div class="brand">🏔️ Atelier 3D du Fjord</div><div class="subtitle" data-i18n="tagline">Les impressions du Fjord · Création 3D</div></div>
+<div class="top-actions">
+<a href="/" data-i18n="back">← Retour au site</a>
+<button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
+<button id="import" data-i18n="import">Importer STL</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
+<button id="export" data-i18n="export">Exporter STL</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
+</div>
+<div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
+<select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
+<input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl" hidden>
+</header>
+<div class="shell">
+<aside class="sidebar"><h2 data-i18n="shapes">Créer des formes</h2><div class="tools">
+<button data-shape="cube" data-i18n="cube">⬜ Cube</button><button data-shape="cylinder" data-i18n="cylinder">◯ Cylindre</button>
+<button data-shape="sphere" data-i18n="sphere">● Sphère</button><button data-shape="cone" data-i18n="cone">△ Cône</button>
+<button data-shape="torus" data-i18n="torus">◎ Tore</button><button data-shape="tube" data-i18n="tube">▣ Tube</button>
+</div><h3 data-i18n="edit">Modifier</h3><div class="tools">
+<button id="move" data-i18n="move">Déplacer</button><button id="rotate" data-i18n="rotate">Tourner</button>
+<button id="scale" data-i18n="scale">Échelle</button><button id="duplicate" data-i18n="duplicate">Dupliquer</button>
+<button id="remove" data-i18n="remove">Supprimer</button><button id="undo" data-i18n="undo">Annuler</button>
+</div><h3 data-i18n="bed">Plateau</h3><select id="bed"><option value="256">Bambu P1S · 256 × 256 mm</option><option value="256">Bambu X2D · 256 × 256 mm</option></select>
+<p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></aside>
+<div class="stage" id="stage"><div class="hint" data-i18n="hint">Clic : sélectionner · Glisser : orbite · Molette : zoom</div></div>
+<aside class="sidebar right"><h2 data-i18n="properties">Propriétés de la pièce</h2>
+<div class="field"><label for="name" data-i18n="name">Nom de la pièce</label><input id="name" placeholder="Aucune pièce sélectionnée"></div>
+<div class="field"><label data-i18n="dimensions">Dimensions (mm) — X, Y, Z</label><div class="triple"><input id="sx" type="number" step="0.1" min="0.1" aria-label="Dimension X"><input id="sy" type="number" step="0.1" min="0.1" aria-label="Dimension Y"><input id="sz" type="number" step="0.1" min="0.1" aria-label="Dimension Z"></div></div>
+<div class="field"><label data-i18n="position">Position (mm) — X, Y, Z</label><div class="triple"><input id="px" type="number" step="0.1" aria-label="Position X"><input id="py" type="number" step="0.1" aria-label="Position Y"><input id="pz" type="number" step="0.1" aria-label="Position Z"></div></div>
+<div class="field"><label data-i18n="rotation">Rotation (°) — X, Y, Z</label><div class="triple"><input id="rx" type="number" step="1" aria-label="Rotation X"><input id="ry" type="number" step="1" aria-label="Rotation Y"><input id="rz" type="number" step="1" aria-label="Rotation Z"></div></div>
+<div id="info" role="status" aria-live="polite"></div>
+<p class="note" data-i18n="disclaimer">Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.</p></aside>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {TransformControls} from 'three/addons/controls/TransformControls.js';
+import {STLExporter} from 'three/addons/exporters/STLExporter.js';
+import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
+const langText={
+fr:{tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser : orbite · Molette : zoom',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
+en:{tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag: orbit · Scroll: zoom',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
+};
+function currentLang(){return localStorage.getItem('fjord-lang')==='en'?'en':'fr'}
+function say(key){status.textContent=langText[currentLang()][key]||key}
+function applyPrefs(){const theme=localStorage.getItem('fjord-theme')==='light'?'light':'dark';const l=currentLang();document.body.classList.toggle('light',theme==='light');document.documentElement.lang=l==='en'?'en-CA':'fr-CA';$('language').value=l;$('theme').value=theme;document.querySelectorAll('[data-i18n]').forEach(e=>{e.textContent=langText[l][e.dataset.i18n]||e.textContent});$('name').placeholder=langText[l].noName}
+$('language').addEventListener('change',e=>{localStorage.setItem('fjord-lang',e.target.value);applyPrefs()});
+$('theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);applyPrefs()});
+applyPrefs();
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);
+const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(255,-295,235);camera.up.set(0,0,1);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));stage.insertBefore(renderer.domElement,stage.firstChild);
+const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,15);orbit.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));
+const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(-90,-130,230);scene.add(sun);
+const grid=new THREE.GridHelper(256,32,0x638db0,0x40536a);grid.rotation.x=Math.PI/2;scene.add(grid);
+const outlinePoints=[[-128,-128,0],[-128,128,0],[128,128,0],[128,-128,0]].map(p=>new THREE.Vector3(...p));
+const border=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(outlinePoints),new THREE.LineBasicMaterial({color:0x65c9ff}));scene.add(border);
+const transform=new TransformControls(camera,renderer.domElement);scene.add(transform.getHelper());
+transform.addEventListener('dragging-changed',e=>orbit.enabled=!e.value);
+let models=[], selected=null, undoStack=[], counter=0;
+const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
+function shapeGeometry(type){
+let g;
+switch(type){
+case 'cube':g=new THREE.BoxGeometry(25,25,25);break;
+case 'cylinder':g=new THREE.CylinderGeometry(12.5,12.5,28,64);g.rotateX(Math.PI/2);break;
+case 'sphere':g=new THREE.SphereGeometry(14,40,24);break;
+case 'cone':g=new THREE.ConeGeometry(13,30,64);g.rotateX(Math.PI/2);break;
+case 'torus':g=new THREE.TorusGeometry(14,4.5,16,64);break;
+case 'tube':{const s=new THREE.Shape();s.absarc(0,0,17,0,Math.PI*2,false);const hole=new THREE.Path();hole.absarc(0,0,11,0,Math.PI*2,true);s.holes.push(hole);g=new THREE.ExtrudeGeometry(s,{depth:24,bevelEnabled:false,curveSegments:64});g.translate(0,0,-12);break}
+default:throw Error('Unknown shape')
+}
+g.computeBoundingBox();return g
+}
+function makeMesh(g,type,name){const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x5bc6eb,metalness:0.2,roughness:0.5,side:THREE.DoubleSide}));m.userData.type=type;m.name=name;scene.add(m);models.push(m);return m}
+function dims(m){m.geometry.computeBoundingBox();const box=m.geometry.boundingBox, size=new THREE.Vector3();box.getSize(size);return [size.x*Math.abs(m.scale.x),size.y*Math.abs(m.scale.y),size.z*Math.abs(m.scale.z)]}
+function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:m.material.color.getHex(),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
+function restore(data){if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
+function remember(){undoStack.push(JSON.stringify(serialize()));if(undoStack.length>15)undoStack.shift()}
+function pick(m){selected=m;if(m){transform.attach(m);say('selected')}else{transform.detach();say('empty')}sync()}
+function sync(){const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
+$('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
+document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
+const dragStart={x:0,y:0};renderer.domElement.addEventListener('pointerdown',e=>{dragStart.x=e.clientX;dragStart.y=e.clientY});
+renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;const rect=renderer.domElement.getBoundingClientRect();pointer.set(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(models,false)[0];if(hit)pick(hit.object)});
+transform.addEventListener('mouseDown',()=>remember());transform.addEventListener('objectChange',sync);
+[['move','translate'],['rotate','rotate'],['scale','scale']].forEach(([id,mode])=>$(id).addEventListener('click',()=>transform.setMode(mode)));
+$('duplicate').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=makeMesh(selected.geometry.clone(),selected.userData.type,selected.name+' copie');m.position.copy(selected.position);m.position.x+=15;m.rotation.copy(selected.rotation);m.scale.copy(selected.scale);m.material.color.copy(selected.material.color);pick(m)});
+$('remove').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=selected;models=models.filter(x=>x!==m);scene.remove(m);transform.detach();m.geometry.dispose();m.material.dispose();pick(null)});
+$('undo').addEventListener('click',()=>{if(undoStack.length){restore(JSON.parse(undoStack.pop()));say('loaded')}});
+$('name').addEventListener('change',e=>{if(!selected)return;remember();selected.name=e.target.value.slice(0,120)||'Pièce'});
+['sx','sy','sz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)||v<=0||v>2000){sync();return}remember();const cur=dims(selected)[i];if(cur>0)selected.scale.setComponent(i,selected.scale.getComponent(i)*v/cur);sync()}));
+['px','py','pz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();selected.position.setComponent(i,v);sync()}));
+['rx','ry','rz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();const r=[selected.rotation.x,selected.rotation.y,selected.rotation.z];r[i]=THREE.MathUtils.degToRad(v);selected.rotation.set(...r);sync()}));
+function download(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
+$('save').addEventListener('click',()=>{download(new Blob([JSON.stringify(serialize())],{type:'application/json'}),'Projet-3D-du-Fjord.json');say('saved')});
+$('open').addEventListener('click',()=>$('projectFile').click());
+$('projectFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());restore(data);undoStack=[];say('loaded')}catch(err){console.warn(err);say('invalid')}e.target.value=''});
+$('import').addEventListener('click',()=>$('stlFile').click());
+$('stlFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('too large');const g=new STLLoader().parse(await f.arrayBuffer());g.computeBoundingBox();const center=g.boundingBox.getCenter(new THREE.Vector3());g.translate(-center.x,-center.y,-center.z);g.computeBoundingBox();remember();const m=makeMesh(g,'imported',f.name.slice(0,120));m.position.z=g.boundingBox.getSize(new THREE.Vector3()).z/2;pick(m);say('imported')}catch(err){console.warn(err);say('error')}e.target.value=''});
+function exportSTL(){if(!models.length){say('missing');return false}const group=new THREE.Group();models.forEach(m=>{const c=m.clone();c.geometry=m.geometry;c.material=m.material;group.add(c)});const data=new STLExporter().parse(group,{binary:true});download(new Blob([data],{type:'model/stl'}),'Creation-du-Fjord.stl');say('exported');return true}
+$('export').addEventListener('click',exportSTL);
+$('quote').addEventListener('click',()=>{if(exportSTL()){window.open('/soumission','_blank','noopener');say('quoteInfo')}});
+$('new').addEventListener('click',()=>{if(models.length&&!confirm(langText[currentLang()].reset))return;remember();restore({version:1,objects:[]});say('empty')});
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+new ResizeObserver(resize).observe(stage);resize();
+function animate(){requestAnimationFrame(animate);orbit.update();renderer.render(scene,camera)}animate();pick(null);
+</script></body></html>
