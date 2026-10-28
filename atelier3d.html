@@ -31,6 +31,18 @@ input{background:var(--field);color:var(--text);border:1px solid var(--border);b
 .estimate-method{padding:9px 10px;background:var(--field);border-left:3px solid var(--accent);border-radius:5px;font-size:12px;line-height:1.5;color:var(--muted);margin:10px 0}
 .estimate-manual[hidden]{display:none}
 .estimate-stats{font-size:13px;line-height:1.6;color:var(--text)}
+.scene-list{display:grid;gap:5px;max-height:200px;overflow-y:auto}
+.scene-item{width:100%;text-align:left;padding:8px 7px;min-height:33px;overflow-wrap:anywhere}
+.scene-item.active{border:2px solid var(--accent);background:var(--field);font-weight:800}
+.tool-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.tool-row button{flex:1;min-width:0}
+.tool-note{font-size:11px;color:var(--muted);line-height:1.4}
+.tool-control{margin:8px 0}
+.tool-control label{display:block;color:var(--muted);margin:3px 0 5px}
+.tool-control select{width:100%}
+.tool-btn.active{border-color:var(--accent);background:#1a709d;color:white}
+body.light .tool-btn.active{background:#e1f4fc;color:#094864}
+@media(max-width:850px){.tool-row{flex-direction:column}.tool-row button{width:100%}}
 @media(max-width:850px){.shell{grid-template-columns:155px minmax(210px,1fr) 185px}.sidebar{padding:9px}.tools{grid-template-columns:1fr}}
 @media(max-width:620px){.shell{height:auto;display:flex;flex-wrap:wrap}.stage{width:100%;height:49vh;min-height:340px;order:1}.sidebar{width:50%;max-height:420px;order:2}.tools{grid-template-columns:1fr 1fr}header{gap:10px}.top-actions button{padding:7px}}
 </style>
@@ -57,7 +69,22 @@ input{background:var(--field);color:var(--text);border:1px solid var(--border);b
 <button id="move" data-i18n="move">Déplacer</button><button id="rotate" data-i18n="rotate">Tourner</button>
 <button id="scale" data-i18n="scale">Échelle</button><button id="duplicate" data-i18n="duplicate">Dupliquer</button>
 <button id="remove" data-i18n="remove">Supprimer</button><button id="undo" data-i18n="undo">Annuler</button>
-</div><h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
+</div>
+<h3 data-i18n="toolSize">Taille rapide</h3><div class="tools"><button id="half" data-i18n="half">½ Réduire</button><button id="double" data-i18n="double">×2 Agrandir</button>
+<button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
+<button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
+<button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div>
+<h3 data-i18n="cutGroup">✂️ Découpe</h3>
+<div class="tool-control"><label for="cutHeight" data-i18n="cutHeightLabel">Hauteur de coupe Z (mm)</label><input id="cutHeight" type="number" step="0.1" value="10" aria-label="Hauteur de coupe Z"></div>
+<button id="cutZ" style="width:100%" data-i18n="cutZ">✂️ Couper en deux</button>
+<p class="tool-note" data-i18n="cutNotice">Découpe horizontale avec faces refermées pour cube, cylindre, sphère et cône. Les STL complexes suivront.</p>
+<h3 data-i18n="views">Vues rapides</h3>
+<div class="tools"><button id="viewIso" data-i18n="viewIso">◈ 3D</button><button id="viewTop" data-i18n="viewTop">▣ Dessus</button>
+<button id="viewFront" data-i18n="viewFront">▤ Avant</button><button id="viewSide" data-i18n="viewSide">▥ Côté</button>
+<button id="viewFit" data-i18n="viewFit">⌗ Cadrer</button></div>
+<h3 data-i18n="objectListTitle">Mes pièces</h3><div id="sceneList" class="scene-list" aria-label="Pièces 3D"></div>
+<p class="tool-note" data-i18n="shortcuts">Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.</p>
+<h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></aside>
 <div class="stage" id="stage"><div class="hint" data-i18n="hint">Clic : sélectionner · Glisser : orbite · Molette : zoom</div></div>
 <aside class="sidebar right"><h2 data-i18n="properties">Propriétés de la pièce</h2>
@@ -101,8 +128,12 @@ import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
 const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
 const langText={
-fr:{estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser : orbite · Molette : zoom',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
-en:{estimateSourceModel:'Calculated from all objects on the print bed.',estimateSourceManual:'No 3D model: estimate from approximate dimensions.',estimateManualHelp:'No model yet? Just enter your object’s approximate dimensions:',estimateShapeLabel:'Approximate shape',estimateShapeBox:'Box or block',estimateShapeCylinder:'Cylinder',estimateShapeSphere:'Sphere',estimateManualDimensions:'Approximate dimensions (mm) — L, W, H',estimateManualOverridesTitle:'Optional settings (known weight or time)',estimateManualOverridesHelp:'Fill these in only if you already know the weight or time. Otherwise we estimate both automatically.',estimateStats:'Estimated weight: {weight} g · Estimated time: {hours} h',estimateEmptyManual:'Create a 3D shape or enter all three dimensions for a rough estimate.',estimateOutOfBed:'Warning: at least one piece exceeds the X2D 256 × 256 × 256 mm build volume.',estimateButton:'💰 Price estimator',estimateTitle:'💰 Estimate printing cost',estimateHelp:'No extra software required: the studio estimates weight and print time from your 3D objects or their dimensions.',estimateMaterialLabel:'Material',estimateWeightLabel:'Known weight (g, optional)',estimateHoursLabel:'Known print time (hours, optional)',estimateRatesTitle:'Calculation settings (editable)',estimateKgLabel:'Filament cost (CAD/kg)',estimateHourRateLabel:'Machine rate (CAD/hour)',estimateSetupLabel:'Preparation (CAD)',estimateMarginLabel:'Markup (%)',estimateResultTitle:'Estimated price (before tax)',estimateDisclaimer:'Approximate calculation, not a slicer result: assumes 18% infill, approximate walls, and 10% waste. Supports, hollow shapes and finishing can change the price. The final quote is authoritative.',estimateEnter:'Enter the estimated weight and duration from Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Setup {setup} · Markup {margin}',tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag: orbit · Scroll: zoom',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
+fr:{
+ toolSize:'Taille rapide',half:'½ Réduire',double:'×2 Agrandir',fitBed:'Ajuster X2D',centerXY:'Centrer XY',dropToBed:'Poser au sol',mirrorX:'Miroir X',mirrorY:'Miroir Y',mirrorZ:'Miroir Z',cutGroup:'✂️ Découpe',cutHeightLabel:'Hauteur de coupe Z (mm)',cutZ:'✂️ Couper en deux',cutNotice:'Découpe horizontale avec faces refermées pour cube, cylindre, sphère et cône. Les STL complexes suivront.',views:'Vues rapides',viewIso:'◈ 3D',viewTop:'▣ Dessus',viewFront:'▤ Avant',viewSide:'▥ Côté',viewFit:'⌗ Cadrer',objectListTitle:'Mes pièces',shortcuts:'Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.',cutUnsupported:'Cette première découpe avec fermeture fonctionne sur cube, cylindre, sphère et cône. Pour une pièce complexe importée, la découpe avancée reste à développer.',cutOutside:'La coupe doit traverser la pièce : choisis une hauteur entre son bas et son haut.',cutSuccess:'Pièce découpée en deux éléments fermés. Vérifie le résultat avant impression.',noCut:'Sélectionne une pièce pour la découper.',emptyList:'Aucune pièce pour le moment.',mirrorDone:'Miroir appliqué.',fitDone:'Objet ajusté au volume X2D.',placed:'Pièce posée sur le plateau.',centered:'Pièce centrée sur le plateau.',sizeDone:'Taille modifiée.',cutError:'La découpe de cette pièce n’a pas pu être réalisée.',
+ estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser : orbite · Molette : zoom',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
+en:{
+ toolSize:'Quick size',half:'½ Shrink',double:'×2 Enlarge',fitBed:'Fit X2D bed',centerXY:'Center XY',dropToBed:'Place on bed',mirrorX:'Mirror X',mirrorY:'Mirror Y',mirrorZ:'Mirror Z',cutGroup:'✂️ Cutting',cutHeightLabel:'Z cut height (mm)',cutZ:'✂️ Cut in two',cutNotice:'Horizontal cut with closed caps for cube, cylinder, sphere, and cone. Complex STL support will come later.',views:'Quick views',viewIso:'◈ 3D',viewTop:'▣ Top',viewFront:'▤ Front',viewSide:'▥ Side',viewFit:'⌗ Fit view',objectListTitle:'My parts',shortcuts:'Shortcuts: W move · E rotate · R scale · Delete remove · Ctrl+Z undo.',cutUnsupported:'The first capped cutting tool supports cube, cylinder, sphere, and cone. Cutting complex imported shapes is not yet available.',cutOutside:'The cut must cross the object. Choose a height between its bottom and top.',cutSuccess:'Part split into two closed objects. Check the result before printing.',noCut:'Select an object to cut.',emptyList:'No parts yet.',mirrorDone:'Mirror applied.',fitDone:'Object scaled to the X2D build volume.',placed:'Part placed on the print bed.',centered:'Part centered on the print bed.',sizeDone:'Object resized.',cutError:'This part could not be cut.',
+ estimateSourceModel:'Calculated from all objects on the print bed.',estimateSourceManual:'No 3D model: estimate from approximate dimensions.',estimateManualHelp:'No model yet? Just enter your object’s approximate dimensions:',estimateShapeLabel:'Approximate shape',estimateShapeBox:'Box or block',estimateShapeCylinder:'Cylinder',estimateShapeSphere:'Sphere',estimateManualDimensions:'Approximate dimensions (mm) — L, W, H',estimateManualOverridesTitle:'Optional settings (known weight or time)',estimateManualOverridesHelp:'Fill these in only if you already know the weight or time. Otherwise we estimate both automatically.',estimateStats:'Estimated weight: {weight} g · Estimated time: {hours} h',estimateEmptyManual:'Create a 3D shape or enter all three dimensions for a rough estimate.',estimateOutOfBed:'Warning: at least one piece exceeds the X2D 256 × 256 × 256 mm build volume.',estimateButton:'💰 Price estimator',estimateTitle:'💰 Estimate printing cost',estimateHelp:'No extra software required: the studio estimates weight and print time from your 3D objects or their dimensions.',estimateMaterialLabel:'Material',estimateWeightLabel:'Known weight (g, optional)',estimateHoursLabel:'Known print time (hours, optional)',estimateRatesTitle:'Calculation settings (editable)',estimateKgLabel:'Filament cost (CAD/kg)',estimateHourRateLabel:'Machine rate (CAD/hour)',estimateSetupLabel:'Preparation (CAD)',estimateMarginLabel:'Markup (%)',estimateResultTitle:'Estimated price (before tax)',estimateDisclaimer:'Approximate calculation, not a slicer result: assumes 18% infill, approximate walls, and 10% waste. Supports, hollow shapes and finishing can change the price. The final quote is authoritative.',estimateEnter:'Enter the estimated weight and duration from Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Setup {setup} · Markup {margin}',tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag: orbit · Scroll: zoom',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
 };
 function currentLang(){return localStorage.getItem('fjord-lang')==='en'?'en':'fr'}
 function say(key){status.textContent=langText[currentLang()][key]||key}
@@ -141,8 +172,8 @@ function dims(m){m.geometry.computeBoundingBox();const box=m.geometry.boundingBo
 function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:m.material.color.getHex(),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
 function restore(data){if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
 function remember(){undoStack.push(JSON.stringify(serialize()));if(undoStack.length>15)undoStack.shift()}
-function pick(m){selected=m;if(m){transform.attach(m);say('selected')}else{transform.detach();say('empty')}sync()}
-function sync(){if(!$('estimatePanel').hidden)updateEstimate();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
+function pick(m){selected=m;if(m){transform.attach(m);say('selected');const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}else{transform.detach();say('empty')}sync()}
+function sync(){if(!$('estimatePanel').hidden)updateEstimate();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
 const dragStart={x:0,y:0};renderer.domElement.addEventListener('pointerdown',e=>{dragStart.x=e.clientX;dragStart.y=e.clientY});
@@ -152,7 +183,7 @@ transform.addEventListener('mouseDown',()=>remember());transform.addEventListene
 $('duplicate').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=makeMesh(selected.geometry.clone(),selected.userData.type,selected.name+' copie');m.position.copy(selected.position);m.position.x+=15;m.rotation.copy(selected.rotation);m.scale.copy(selected.scale);m.material.color.copy(selected.material.color);pick(m)});
 $('remove').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=selected;models=models.filter(x=>x!==m);scene.remove(m);transform.detach();m.geometry.dispose();m.material.dispose();pick(null)});
 $('undo').addEventListener('click',()=>{if(undoStack.length){restore(JSON.parse(undoStack.pop()));say('loaded')}});
-$('name').addEventListener('change',e=>{if(!selected)return;remember();selected.name=e.target.value.slice(0,120)||'Pièce'});
+$('name').addEventListener('change',e=>{if(!selected)return;remember();selected.name=e.target.value.slice(0,120)||'Pièce';renderSceneList()});
 ['sx','sy','sz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)||v<=0||v>2000){sync();return}remember();const cur=dims(selected)[i];if(cur>0)selected.scale.setComponent(i,selected.scale.getComponent(i)*v/cur);sync()}));
 ['px','py','pz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();selected.position.setComponent(i,v);sync()}));
 ['rx','ry','rz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();const r=[selected.rotation.x,selected.rotation.y,selected.rotation.z];r[i]=THREE.MathUtils.degToRad(v);selected.rotation.set(...r);sync()}));
@@ -268,9 +299,156 @@ $('estimateToggle').addEventListener('click',()=>{
 $('estimateMaterial').addEventListener('change',e=>{$('estimateKg').value=materialRates[e.target.value];updateEstimate()});
 estimateIds.forEach(id=>$(id).addEventListener('input',updateEstimate));
 $('estimateShape').addEventListener('change',updateEstimate);
-$('language').addEventListener('change',updateEstimate);
+$('language').addEventListener('change',()=>{updateEstimate();renderSceneList()});
 if(location.hash==='#estimateur'||location.hash==='#estimator')showEstimate();
 updateEstimate();
+
+/* Basic modelling workbench — original implementation for the Fjord studio. */
+function modelWorldBounds(m){m.updateMatrixWorld(true);return new THREE.Box3().setFromObject(m)}
+function renderSceneList(){
+ const list=$('sceneList');if(!list)return;list.replaceChildren();
+ if(!models.length){const p=document.createElement('p');p.className='tool-note';p.textContent=langText[currentLang()].emptyList;list.append(p);return}
+ models.forEach((m,i)=>{
+   const b=document.createElement('button');b.type='button';b.className='scene-item'+(m===selected?' active':'');
+   b.textContent=(i+1)+'. '+m.name;b.title=m.name;
+   b.addEventListener('click',()=>pick(m));list.append(b);
+ });
+}
+function changeModel(action,confirmation){
+ if(!selected){say('noSelection');return}
+ if(confirmation===false)return;
+ remember();action(selected);sync();
+}
+function rescaleSelected(factor){
+ changeModel(m=>{m.scale.multiplyScalar(factor);say('sizeDone')});
+}
+$('half').addEventListener('click',()=>rescaleSelected(.5));
+$('double').addEventListener('click',()=>rescaleSelected(2));
+$('centerXY').addEventListener('click',()=>changeModel(m=>{
+ const center=modelWorldBounds(m).getCenter(new THREE.Vector3());
+ m.position.x-=center.x;m.position.y-=center.y;say('centered')
+}));
+$('dropToBed').addEventListener('click',()=>changeModel(m=>{
+ const bottom=modelWorldBounds(m).min.z;m.position.z-=bottom;say('placed')
+}));
+$('fitBed').addEventListener('click',()=>changeModel(m=>{
+ const b=modelWorldBounds(m),size=b.getSize(new THREE.Vector3());
+ const factor=Math.min(246/Math.max(size.x,.00001),246/Math.max(size.y,.00001),246/Math.max(size.z,.00001),1);
+ m.scale.multiplyScalar(factor);
+ const center=modelWorldBounds(m).getCenter(new THREE.Vector3());
+ m.position.x-=center.x;m.position.y-=center.y;
+ m.position.z-=modelWorldBounds(m).min.z;say('fitDone')
+}));
+for(const [id,axis] of [['mirrorX','x'],['mirrorY','y'],['mirrorZ','z']]){
+ $(id).addEventListener('click',()=>changeModel(m=>{m.scale[axis]*=-1;say('mirrorDone')}));
+}
+function setView(direction,center){
+ const target=center||new THREE.Vector3(0,0,15),distance=Math.max(120,camera.position.distanceTo(orbit.target));
+ orbit.target.copy(target);
+ camera.position.copy(target).add(direction.clone().normalize().multiplyScalar(distance));
+ camera.lookAt(target);orbit.update()
+}
+$('viewIso').addEventListener('click',()=>setView(new THREE.Vector3(1,-1,1)));
+$('viewTop').addEventListener('click',()=>setView(new THREE.Vector3(0,0,1)));
+$('viewFront').addEventListener('click',()=>setView(new THREE.Vector3(0,-1,.00001)));
+$('viewSide').addEventListener('click',()=>setView(new THREE.Vector3(1,0,.00001)));
+$('viewFit').addEventListener('click',()=>{
+ const b=selected?modelWorldBounds(selected):models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
+ if(b.isEmpty()){setView(new THREE.Vector3(1,-1,1),new THREE.Vector3(0,0,10));return}
+ const c=b.getCenter(new THREE.Vector3()),size=b.getSize(new THREE.Vector3()),r=Math.max(size.x,size.y,size.z,30);
+ orbit.target.copy(c);camera.position.copy(c).add(new THREE.Vector3(1,-1,1).normalize().multiplyScalar(r*2.9));camera.lookAt(c);orbit.update()
+});
+function cutConvexMeshZ(m,z){
+ // World-space convex mesh split by a horizontal plane, with convex caps.
+ // For complex/hollow imported geometries, do not pretend a cap is watertight.
+ const bbox=modelWorldBounds(m);
+ if(!Number.isFinite(z)||z<=bbox.min.z+.01||z>=bbox.max.z-.01)throw Error('outside');
+ m.updateMatrixWorld(true);
+ const attr=m.geometry.getAttribute('position'),index=m.geometry.getIndex();
+ if(!attr||attr.count>600000)return null;
+ const sides=[[],[]],crossings=[];
+ const v=new THREE.Vector3();
+ const eps=.00001;
+ const triangleCount=index?index.count/3:attr.count/3;
+ const split=(a,b)=>{const d=a.z-z,e=b.z-z;const t=d/(d-e);return a.clone().lerp(b,Math.max(0,Math.min(1,t)))};
+ function clip(poly,keepHigh){
+  const out=[];
+  for(let i=0;i<poly.length;i++){
+   const a=poly[i],b=poly[(i+1)%poly.length];
+   const insideA=keepHigh?a.z>=z-eps:a.z<=z+eps;
+   const insideB=keepHigh?b.z>=z-eps:b.z<=z+eps;
+   if(insideA&&insideB)out.push(b);
+   else if(insideA&&!insideB)out.push(split(a,b));
+   else if(!insideA&&insideB){out.push(split(a,b));out.push(b)}
+  }
+  return out
+ }
+ function triPush(buffer,a,b,c){buffer.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z)}
+ for(let t=0;t<triangleCount;t++){
+  const tri=[];
+  for(let k=0;k<3;k++){const i=index?index.getX(t*3+k):t*3+k;v.fromBufferAttribute(attr,i).applyMatrix4(m.matrixWorld);tri.push(v.clone())}
+  for(let half=0;half<2;half++){
+   const poly=clip(tri,half===1);
+   for(let j=1;j<poly.length-1;j++)triPush(sides[half],poly[0],poly[j],poly[j+1]);
+  }
+  const intersections=[];
+  for(let k=0;k<3;k++){
+   const a=tri[k],b=tri[(k+1)%3],da=a.z-z,db=b.z-z;
+   if((da>eps&&db< -eps)||(da< -eps&&db>eps))intersections.push(split(a,b));
+   else if(Math.abs(da)<=eps)intersections.push(a);
+  }
+  for(const x of intersections)crossings.push(x)
+ }
+ if(!sides[0].length||!sides[1].length)return null;
+ // Unique intersection points, then monotone-chain convex hull; safe for convex primitives.
+ const unique=new Map();
+ for(const p of crossings){const key=Math.round(p.x*1000)+':'+Math.round(p.y*1000);unique.set(key,{x:p.x,y:p.y})}
+ const pts=[...unique.values()].sort((a,b)=>a.x-b.x||a.y-b.y);
+ if(pts.length<3)return null;
+ const orient=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+ const lower=[],upper=[];
+ for(const p of pts){while(lower.length>=2&&orient(lower[lower.length-2],lower[lower.length-1],p)<=0)lower.pop();lower.push(p)}
+ for(let i=pts.length-1;i>=0;i--){const p=pts[i];while(upper.length>=2&&orient(upper[upper.length-2],upper[upper.length-1],p)<=0)upper.pop();upper.push(p)}
+ const hull=lower.slice(0,-1).concat(upper.slice(0,-1));
+ if(hull.length<3)return null;
+ const cap=hull.map(p=>new THREE.Vector3(p.x,p.y,z));
+ for(let i=1;i<cap.length-1;i++){
+   triPush(sides[0],cap[0],cap[i],cap[i+1]); // lower half: +Z cap
+   triPush(sides[1],cap[0],cap[i+1],cap[i]); // upper half: -Z cap
+ }
+ const geos=[];
+ for(const arr of sides){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));g.computeVertexNormals();geos.push(g)}
+ return geos
+}
+function cutSelected(){
+ if(!selected){say('noCut');return}
+ if(!['cube','sphere','cylinder','cone'].includes(selected.userData.type)){say('cutUnsupported');return}
+ const z=Number($('cutHeight').value);
+ if(!Number.isFinite(z)){say('cutOutside');return}
+ let geos;
+ try{geos=cutConvexMeshZ(selected,z)}
+ catch(e){say(e.message==='outside'?'cutOutside':'cutError');return}
+ if(!geos){say('cutError');return}
+ remember();
+ const original=selected,idx=models.indexOf(original);
+ const color=original.material.color.getHex();
+ transform.detach();models.splice(idx,1);scene.remove(original);original.geometry.dispose();original.material.dispose();
+ const bottom=makeMesh(geos[0],'imported',original.name+' - bas');
+ const top=makeMesh(geos[1],'imported',original.name+' - haut');
+ bottom.material.color.setHex(color);top.material.color.setHex(color);
+ pick(top);say('cutSuccess');
+}
+$('cutZ').addEventListener('click',cutSelected);
+document.addEventListener('keydown',e=>{
+ if(e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
+ const key=e.key.toLowerCase();
+ if((e.ctrlKey||e.metaKey)&&key==='z'){e.preventDefault();$('undo').click();return}
+ if(e.ctrlKey||e.altKey||e.metaKey)return;
+ if(key==='w')$('move').click();
+ if(key==='e')$('rotate').click();
+ if(key==='r')$('scale').click();
+ if(key==='delete'||key==='backspace'){$('remove').click()}
+});
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
 function animate(){requestAnimationFrame(animate);orbit.update();renderer.render(scene,camera)}animate();pick(null);
