@@ -44,6 +44,15 @@ body.light .quick-button.active{background:#deeffa;color:#064c74}
 .context-menu button:hover,.context-menu button:focus-visible{background:var(--field);outline:1px solid var(--accent)}
 .context-heading{font-size:11px;font-weight:800;color:var(--muted);padding:8px 10px 5px;border-bottom:1px solid var(--border)}
 .stage.grab-active canvas{cursor:grabbing!important}
+.cut-float{position:absolute;z-index:25;right:13px;top:15px;width:min(225px,50%);padding:12px;background:var(--panel);color:var(--text);border:1px solid var(--accent);border-radius:12px;box-shadow:0 8px 22px #0007}
+.cut-float[hidden],#cutApply[hidden]{display:none!important}
+.cut-float-title{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.cut-float-title button{font-size:18px;line-height:1;padding:2px 7px}
+.cut-float-value{font-weight:750;font-size:15px;margin:9px 0 5px;color:var(--accent)}
+.cut-float input[type=range],#cutSlider{width:100%;accent-color:var(--accent);cursor:grab}
+.cut-float input[type=range]:active,#cutSlider:active{cursor:grabbing}
+.cut-float .primary{width:100%;margin-top:9px;font-size:12px}
+@media(max-width:620px){.cut-float{right:7px;top:8px;width:min(205px,60%);padding:8px}}
 @media(max-width:620px){.quickbar{padding:5px 8px}.quickbar-tip{display:none}.quick-button{width:33px;height:32px}}
 .scene-list{display:grid;gap:5px;max-height:200px;overflow-y:auto}
 .scene-item{width:100%;text-align:left;padding:8px 7px;min-height:33px;overflow-wrap:anywhere}
@@ -108,7 +117,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div>
 <h3 data-i18n="cutGroup">✂️ Découpe</h3>
 <div class="tool-control"><label for="cutHeight" data-i18n="cutHeightLabel">Hauteur de coupe Z (mm)</label><input id="cutHeight" type="number" step="0.1" value="10" aria-label="Hauteur de coupe Z"></div>
-<button id="cutZ" style="width:100%" data-i18n="cutZ">✂️ Couper en deux</button>
+<div class="tool-control"><input id="cutSlider" type="range" min="0" max="30" value="10" step="0.1" aria-label="Déplacer le plan de coupe" disabled></div>
+<button id="cutZ" style="width:100%" data-i18n="cutPreview">✂️ Préparer la coupe</button>
+<button id="cutApply" class="primary" style="width:100%;margin-top:7px" data-i18n="cutApply" hidden>✓ Appliquer la coupe</button>
 <p class="tool-note" data-i18n="cutNotice">Découpe horizontale avec faces refermées pour cube, cylindre, sphère et cône. Les STL complexes suivront.</p>
 <h3 data-i18n="views">Vues rapides</h3>
 <div class="tools"><button id="viewIso" data-i18n="viewIso">◈ 3D</button><button id="viewTop" data-i18n="viewTop">▣ Dessus</button>
@@ -119,6 +130,12 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></aside>
 <div class="stage" id="stage"><div class="hint" data-i18n="hint">Clic : sélectionner · Glisser : orbite · Molette : zoom</div>
+<div id="cutFloat" class="cut-float" hidden>
+<div class="cut-float-title"><strong data-i18n="cutFloatLabel">✂️ Plan de coupe</strong><button type="button" id="cutClose" aria-label="Fermer l'aperçu de coupe">×</button></div>
+<div id="cutFloatZ" class="cut-float-value">Z : 10 mm</div>
+<input type="range" id="cutStageSlider" min="0" max="30" value="10" step="0.1" aria-label="Déplacer le plan de coupe">
+<button type="button" class="primary" id="cutFloatApply" data-i18n="cutApply">✓ Appliquer la coupe</button>
+</div>
 <div id="contextMenu" class="context-menu" role="menu" hidden>
 <div class="context-heading part-action" data-i18n="contextHeading">Outils de la pièce</div>
 <button type="button" class="part-action" role="menuitem" data-context-action="move" data-i18n="move">Déplacer</button>
@@ -178,10 +195,12 @@ import {STLLoader} from 'three/addons/loaders/STLLoader.js';
 const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
 const langText={
 fr:{
+ cutPreview:'✂️ Préparer la coupe',cutApply:'✓ Appliquer la coupe',cutFloatLabel:'✂️ Plan de coupe',cutDragHint:'Glisse la barre orange sur la pièce ou le curseur pour choisir la hauteur de coupe.',
  quickTools:'OUTILS',quickbarHint:'Glisser pour déplacer · Clic droit pour les outils',contextHeading:'Outils de la pièce',contextCreate:'Créer une pièce',
  measure:'📏 Mesurer',measureHint:'Cliquez deux points sur la pièce pour mesurer la distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Mode mesure : clique deux points sur une pièce.',measureValue:'Distance mesurée : {distance} mm',toolSize:'Taille rapide',half:'½ Réduire',double:'×2 Agrandir',fitBed:'Ajuster X2D',centerXY:'Centrer XY',dropToBed:'Poser au sol',mirrorX:'Miroir X',mirrorY:'Miroir Y',mirrorZ:'Miroir Z',cutGroup:'✂️ Découpe',cutHeightLabel:'Hauteur de coupe Z (mm)',cutZ:'✂️ Couper en deux',cutNotice:'Découpe horizontale avec faces refermées pour cube, cylindre, sphère et cône. Les STL complexes suivront.',views:'Vues rapides',viewIso:'◈ 3D',viewTop:'▣ Dessus',viewFront:'▤ Avant',viewSide:'▥ Côté',viewFit:'⌗ Cadrer',objectListTitle:'Mes pièces',shortcuts:'Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.',cutUnsupported:'Cette première découpe avec fermeture fonctionne sur cube, cylindre, sphère et cône. Pour une pièce complexe importée, la découpe avancée reste à développer.',cutOutside:'La coupe doit traverser la pièce : choisis une hauteur entre son bas et son haut.',cutSuccess:'Pièce découpée en deux éléments fermés. Vérifie le résultat avant impression.',noCut:'Sélectionne une pièce pour la découper.',emptyList:'Aucune pièce pour le moment.',mirrorDone:'Miroir appliqué.',fitDone:'Objet ajusté au volume X2D.',placed:'Pièce posée sur le plateau.',centered:'Pièce centrée sur le plateau.',sizeDone:'Taille modifiée.',cutError:'La découpe de cette pièce n’a pas pu être réalisée.',
  estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser la pièce : déplacer · Fond : orbite · Molette : zoom sur la pièce',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
 en:{
+ cutPreview:'✂️ Prepare cut',cutApply:'✓ Apply cut',cutFloatLabel:'✂️ Cutting plane',cutDragHint:'Drag the orange bar on the part or the slider to choose the cut height.',
  quickTools:'TOOLS',quickbarHint:'Drag to move · Right-click for tools',contextHeading:'Part tools',contextCreate:'Create a part',
  measure:'📏 Measure',measureHint:'Click two points on the part to measure the distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Measure mode: click two points on a part.',measureValue:'Measured distance: {distance} mm',toolSize:'Quick size',half:'½ Shrink',double:'×2 Enlarge',fitBed:'Fit X2D bed',centerXY:'Center XY',dropToBed:'Place on bed',mirrorX:'Mirror X',mirrorY:'Mirror Y',mirrorZ:'Mirror Z',cutGroup:'✂️ Cutting',cutHeightLabel:'Z cut height (mm)',cutZ:'✂️ Cut in two',cutNotice:'Horizontal cut with closed caps for cube, cylinder, sphere, and cone. Complex STL support will come later.',views:'Quick views',viewIso:'◈ 3D',viewTop:'▣ Top',viewFront:'▤ Front',viewSide:'▥ Side',viewFit:'⌗ Fit view',objectListTitle:'My parts',shortcuts:'Shortcuts: W move · E rotate · R scale · Delete remove · Ctrl+Z undo.',cutUnsupported:'The first capped cutting tool supports cube, cylinder, sphere, and cone. Cutting complex imported shapes is not yet available.',cutOutside:'The cut must cross the object. Choose a height between its bottom and top.',cutSuccess:'Part split into two closed objects. Check the result before printing.',noCut:'Select an object to cut.',emptyList:'No parts yet.',mirrorDone:'Mirror applied.',fitDone:'Object scaled to the X2D build volume.',placed:'Part placed on the print bed.',centered:'Part centered on the print bed.',sizeDone:'Object resized.',cutError:'This part could not be cut.',
  estimateSourceModel:'Calculated from all objects on the print bed.',estimateSourceManual:'No 3D model: estimate from approximate dimensions.',estimateManualHelp:'No model yet? Just enter your object’s approximate dimensions:',estimateShapeLabel:'Approximate shape',estimateShapeBox:'Box or block',estimateShapeCylinder:'Cylinder',estimateShapeSphere:'Sphere',estimateManualDimensions:'Approximate dimensions (mm) — L, W, H',estimateManualOverridesTitle:'Optional settings (known weight or time)',estimateManualOverridesHelp:'Fill these in only if you already know the weight or time. Otherwise we estimate both automatically.',estimateStats:'Estimated weight: {weight} g · Estimated time: {hours} h',estimateEmptyManual:'Create a 3D shape or enter all three dimensions for a rough estimate.',estimateOutOfBed:'Warning: at least one piece exceeds the X2D 256 × 256 × 256 mm build volume.',estimateButton:'💰 Price estimator',estimateTitle:'💰 Estimate printing cost',estimateHelp:'No extra software required: the studio estimates weight and print time from your 3D objects or their dimensions.',estimateMaterialLabel:'Material',estimateWeightLabel:'Known weight (g, optional)',estimateHoursLabel:'Known print time (hours, optional)',estimateRatesTitle:'Calculation settings (editable)',estimateKgLabel:'Filament cost (CAD/kg)',estimateHourRateLabel:'Machine rate (CAD/hour)',estimateSetupLabel:'Preparation (CAD)',estimateMarginLabel:'Markup (%)',estimateResultTitle:'Estimated price (before tax)',estimateDisclaimer:'Approximate calculation, not a slicer result: assumes 18% infill, approximate walls, and 10% waste. Supports, hollow shapes and finishing can change the price. The final quote is authoritative.',estimateEnter:'Enter the estimated weight and duration from Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Setup {setup} · Markup {margin}',tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag the part: move · Background: orbit · Wheel: zoom on part',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
@@ -204,6 +223,14 @@ const border=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(outline
 const transform=new TransformControls(camera,renderer.domElement);scene.add(transform.getHelper());
 transform.addEventListener('dragging-changed',e=>orbit.enabled=!e.value);
 let models=[], selected=null, undoStack=[], counter=0;
+let cutPreviewActive=false,cutDrag=null;
+const cutPreviewView=new THREE.Group();cutPreviewView.visible=false;cutPreviewView.renderOrder=980;
+const cutPreviewPlane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0xffac35,transparent:true,opacity:.20,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));
+cutPreviewPlane.renderOrder=980;cutPreviewView.add(cutPreviewPlane);
+const cutPreviewFrame=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-.5,-.5,0),new THREE.Vector3(.5,-.5,0),new THREE.Vector3(.5,.5,0),new THREE.Vector3(-.5,.5,0)]),new THREE.LineBasicMaterial({color:0xffa734,depthTest:false,depthWrite:false}));
+cutPreviewFrame.renderOrder=981;cutPreviewView.add(cutPreviewFrame);
+const cutPreviewHandle=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:0xffba48,depthTest:false,depthWrite:false}));
+cutPreviewHandle.renderOrder=982;cutPreviewView.add(cutPreviewHandle);scene.add(cutPreviewView);
 const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
 function shapeGeometry(type){
 let g;
@@ -223,8 +250,8 @@ function dims(m){m.geometry.computeBoundingBox();const box=m.geometry.boundingBo
 function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:m.material.color.getHex(),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
 function restore(data){if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
 function remember(){undoStack.push(JSON.stringify(serialize()));if(undoStack.length>15)undoStack.shift()}
-function pick(m){selected=m;if(m){transform.attach(m);say('selected');const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}else{transform.detach();say('empty')}sync()}
-function sync(){if(!$('estimatePanel').hidden)updateEstimate();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
+function pick(m){const changed=selected!==m;if(changed&&cutPreviewActive)hideCutPreview();selected=m;if(m){transform.attach(m);say('selected');if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}}else{transform.detach();say('empty')}sync()}
+function sync(){if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
 // Mouse interactions: click to select, drag object in move mode, right-click for tools.
@@ -265,6 +292,19 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  if(e.button===2){e.stopImmediatePropagation();return}
  if(e.button!==0){hideContext();return}
  hideContext();dragStart.x=e.clientX;dragStart.y=e.clientY;
+ if(cutPreviewActive && cutPreviewView.visible){
+   findHit(e);const h=raycaster.intersectObject(cutPreviewHandle,false)[0];
+   if(h){
+      const center=cutPreviewHandle.getWorldPosition(new THREE.Vector3());
+      const one=center.clone().add(new THREE.Vector3(0,0,1));
+      const a=center.project(camera).y,b=one.project(camera).y;
+      const pxPerMm=(a-b)*renderer.domElement.clientHeight/2;
+      cutDrag={pointerId:e.pointerId,startY:e.clientY,startZ:Number($('cutHeight').value),pxPerMm};
+      orbit.enabled=false;
+      try{renderer.domElement.setPointerCapture(e.pointerId)}catch{}
+      e.stopImmediatePropagation();return;
+   }
+ }
  if(measureMode||activeTool!=='translate'||transform.dragging||transform.axis)return;
  const hit=findHit(e);if(!hit)return;
  const plane=new THREE.Plane(new THREE.Vector3(0,0,1),-hit.point.z);
@@ -277,6 +317,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  e.stopImmediatePropagation();
 },true);
 renderer.domElement.addEventListener('pointermove',e=>{
+ if(cutDrag&&cutDrag.pointerId===e.pointerId){
+   const box=activeCutBounds();
+   const mmPerPixel= Math.abs(cutDrag.pxPerMm)>.01 ? 1/cutDrag.pxPerMm : (box ? (box.max.z-box.min.z)/220 : .1);
+   changeCutHeight(cutDrag.startZ+(cutDrag.startY-e.clientY)*mmPerPixel);
+   e.stopImmediatePropagation();return;
+ }
  if(!directDrag||directDrag.pointerId!==e.pointerId)return;
  const rect=renderer.domElement.getBoundingClientRect();
  pointer.set(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);
@@ -297,11 +343,19 @@ function finishDrag(e){
  return true
 }
 renderer.domElement.addEventListener('pointerup',e=>{
+ if(cutDrag&&cutDrag.pointerId===e.pointerId){
+   cutDrag=null;orbit.enabled=true;
+   try{if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId)}catch{}
+   e.stopImmediatePropagation();return
+ }
  if(finishDrag(e)){e.stopImmediatePropagation();return}
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
  const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point);else pick(hit.object)}
 },true);
-renderer.domElement.addEventListener('pointercancel',e=>{if(finishDrag(e))e.stopImmediatePropagation()},true);
+renderer.domElement.addEventListener('pointercancel',e=>{
+ if(cutDrag&&cutDrag.pointerId===e.pointerId){cutDrag=null;orbit.enabled=true;return}
+ if(finishDrag(e))e.stopImmediatePropagation()
+},true);
 contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventListener('click',()=>{
  const action=btn.dataset.contextAction;hideContext();
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
@@ -553,6 +607,57 @@ $('viewFit').addEventListener('click',()=>{
  const c=b.getCenter(new THREE.Vector3()),size=b.getSize(new THREE.Vector3()),r=Math.max(size.x,size.y,size.z,30);
  orbit.target.copy(c);camera.position.copy(c).add(new THREE.Vector3(1,-1,1).normalize().multiplyScalar(r*2.9));camera.lookAt(c);orbit.update()
 });
+
+function activeCutBounds(){
+ if(!selected)return null;
+ const box=modelWorldBounds(selected);
+ return Number.isFinite(box.min.z)&&Number.isFinite(box.max.z)?box:null
+}
+function hideCutPreview(){
+ cutPreviewActive=false;cutPreviewView.visible=false;cutDrag=null;
+ $('cutFloat').hidden=true;$('cutApply').hidden=true;$('cutSlider').disabled=true;
+ if(!transform.dragging)orbit.enabled=true
+}
+function updateCutPreview(){
+ if(!cutPreviewActive||!selected)return;
+ const box=activeCutBounds();
+ if(!box || box.max.z-box.min.z<.05){hideCutPreview();return}
+ const low=box.min.z+.02,high=box.max.z-.02;
+ const raw=Number($('cutHeight').value);
+ const z=THREE.MathUtils.clamp(Number.isFinite(raw)?raw:(low+high)/2,low,high);
+ const stageValue=z.toFixed(2);$('cutHeight').value=stageValue;
+ for(const id of ['cutSlider','cutStageSlider']){
+   const input=$(id);input.min=low.toFixed(2);input.max=high.toFixed(2);input.step='.01';input.value=stageValue;
+ }
+ $('cutFloatZ').textContent='Z : '+stageValue+' mm';
+ const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+ const width=Math.max(25,size.x*1.14),depth=Math.max(25,size.y*1.14);
+ cutPreviewView.position.set(center.x,center.y,z);
+ cutPreviewPlane.scale.set(width,depth,1);
+ cutPreviewFrame.scale.set(width,depth,1);
+ cutPreviewHandle.position.set(width*.5,0,0);
+ cutPreviewView.visible=true;
+ $('cutFloat').hidden=false;$('cutApply').hidden=false;$('cutSlider').disabled=false;
+}
+function changeCutHeight(value){
+ if(!selected || !cutPreviewActive)return;
+ if(!Number.isFinite(Number(value)))return;
+ $('cutHeight').value=Number(value).toFixed(2);
+ updateCutPreview();
+}
+function showCutPreview(){
+ if(!selected){say('noCut');return}
+ if(!['cube','sphere','cylinder','cone'].includes(selected.userData.type)){say('cutUnsupported');return}
+ cutPreviewActive=true;updateCutPreview();status.textContent=langText[currentLang()].cutDragHint;
+}
+$('cutZ').addEventListener('click',showCutPreview);
+$('cutClose').addEventListener('click',hideCutPreview);
+for(const id of ['cutSlider','cutStageSlider']){
+ $(id).addEventListener('input',e=>changeCutHeight(e.target.value));
+}
+$('cutHeight').addEventListener('input',e=>{if(cutPreviewActive)changeCutHeight(e.target.value)});
+$('cutApply').addEventListener('click',cutSelected);
+$('cutFloatApply').addEventListener('click',cutSelected);
 function cutConvexMeshZ(m,z){
  // World-space convex mesh split by a horizontal plane, with convex caps.
  // For complex/hollow imported geometries, do not pretend a cap is watertight.
@@ -625,6 +730,7 @@ function cutSelected(){
  catch(e){say(e.message==='outside'?'cutOutside':'cutError');return}
  if(!geos){say('cutError');return}
  remember();
+ hideCutPreview();
  const original=selected,idx=models.indexOf(original);
  const color=original.material.color.getHex();
  transform.detach();models.splice(idx,1);scene.remove(original);original.geometry.dispose();original.material.dispose();
@@ -633,7 +739,7 @@ function cutSelected(){
  bottom.material.color.setHex(color);top.material.color.setHex(color);
  pick(top);say('cutSuccess');
 }
-$('cutZ').addEventListener('click',cutSelected);
+// Cutting is applied only after the preview height has been chosen.
 document.addEventListener('keydown',e=>{
  if(e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
  const key=e.key.toLowerCase();
@@ -647,5 +753,5 @@ document.addEventListener('keydown',e=>{
 });
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
-function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMarkerSizes();renderer.render(scene,camera)}animate();pick(null);
+function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMarkerSizes();if(cutPreviewView.visible){const point=cutPreviewHandle.getWorldPosition(new THREE.Vector3());const distance=camera.position.distanceTo(point);const worldPerPixel=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/Math.max(stage.clientHeight,1);const k=worldPerPixel*19;cutPreviewHandle.scale.set(k,k,k)}renderer.render(scene,camera)}animate();pick(null);
 </script></body></html>
