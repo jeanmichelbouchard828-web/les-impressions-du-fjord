@@ -77,6 +77,68 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .generator-actions{display:flex;gap:6px;margin-top:12px}.generator-actions button{flex:1;min-width:0;font-size:12px}
 .generator-help,.generator-message{font-size:11px;line-height:1.45;color:var(--muted);margin:8px 0 0}
 .generator-message{color:var(--accent);min-height:16px}
+
+/* Mobile-first editor layout. Desktop grid stays unchanged. */
+.mobile-nav,.touch-move{display:none}
+#generatorSection{min-width:0}
+@media(max-width:760px){
+ html{scroll-padding-top:46px}
+ body{font-size:14px;overflow-x:hidden}
+ header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:10px 12px 8px}
+ .brand{font-size:16px;line-height:1.2}.subtitle{font-size:11px}
+ .top-preferences{grid-column:2;grid-row:1;gap:4px;justify-content:flex-end}
+ .top-preferences select{max-width:105px;padding:7px 4px;font-size:12px}
+ .top-actions{grid-column:1/-1;display:flex;flex-wrap:nowrap;overflow-x:auto;gap:7px;padding:0 0 6px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+ .top-actions button,.top-actions a{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:9px 12px;white-space:nowrap;border-radius:9px}
+ .quickbar{padding:6px 10px;gap:7px;scrollbar-width:thin}
+ .quickbar-label,.quickbar-tip{display:none}
+ .quick-button{width:44px;height:44px;font-size:20px;min-height:44px;border-radius:9px}
+ .mobile-nav{display:grid;position:sticky;top:0;z-index:35;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:0 3px 10px #0003}
+ .mobile-nav button{min-height:45px;padding:7px 3px;font-size:12px;font-weight:750}
+ .mobile-nav button[aria-pressed=true]{background:#17638b;border-color:var(--accent);color:#fff}
+ body.light .mobile-nav button[aria-pressed=true]{background:#d7f1ff;color:#10455e}
+ .shell{display:flex;flex-direction:column;min-height:0;height:auto;gap:0}
+ .stage{width:100%;height:40dvh;min-height:265px;max-height:420px;flex:none;order:0;position:sticky;top:57px;z-index:15;border-bottom:2px solid var(--border)}
+ .stage canvas{width:100%;height:100%;touch-action:none}
+ .sidebar,.sidebar.right{display:none;order:1;width:100%;max-height:none;overflow:visible;border:0;border-bottom:1px solid var(--border);padding:15px 14px 24px}
+ body[data-mobile-panel=tools] .sidebar.left,body[data-mobile-panel=generators] .sidebar.left{display:block}
+ body[data-mobile-panel=properties] .sidebar.right{display:block}
+ .sidebar h2{font-size:17px}.sidebar h3{font-size:15px}
+ .tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .tools button,.tool-row button,.generator-actions button,.scene-item{min-height:44px;padding:9px;font-size:14px}
+ .tool-row{flex-direction:row;flex-wrap:wrap}
+ .tool-row button{width:auto;min-width:72px}
+ .generator-block{padding:13px;margin-top:11px}
+ .generator-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .generator-block label{font-size:13px;line-height:1.35}
+ .generator-actions{gap:9px}.generator-actions button{font-size:14px}
+ input,select,button{font-size:16px}
+ input[type=range]{height:36px;touch-action:pan-y}
+ .field input{font-size:16px}
+ .triple{gap:7px}
+ .hint{bottom:60px;left:8px;right:8px;font-size:11px;line-height:1.35;padding:6px 8px;max-width:calc(100% - 16px)}
+ .touch-move{display:inline-flex;position:absolute;bottom:10px;right:9px;align-items:center;justify-content:center;z-index:20;min-height:44px;padding:7px 12px;max-width:65%;font-size:12px;font-weight:750;box-shadow:0 4px 12px #0006}
+ .touch-move[aria-pressed=true]{border-color:#87e0ff;background:#145e85;color:white}
+ .cut-float{position:absolute;right:6px;top:7px;width:min(235px,67%);max-height:calc(100% - 12px);padding:10px;z-index:26;overscroll-behavior:contain}
+ .cut-float label{font-size:12px}.cut-float button{min-height:40px}
+ .cut-float .cut-guide{display:none}
+ .cut-float input[type=range]{height:29px}
+ .context-menu{max-width:calc(100vw - 14px)}
+ #generatorSection,.sidebar.right{scroll-margin-top:calc(40dvh + 67px)}
+ #generatorSection{scroll-margin-top:calc(40dvh + 72px)}
+}
+@media(max-width:380px){
+ .stage{height:37dvh;min-height:245px}
+ .brand{font-size:14px}.top-preferences select{max-width:94px;font-size:11px}
+ .mobile-nav button{font-size:11px}
+ .generator-fields{gap:9px}
+ .cut-float{width:min(205px,65%)}
+ #generatorSection,.sidebar.right{scroll-margin-top:calc(37dvh + 72px)}
+}
+@media(orientation:landscape) and (max-width:950px) and (max-height:470px){
+ .stage{height:52dvh;min-height:185px;max-height:none}
+ #generatorSection,.sidebar.right{scroll-margin-top:calc(52dvh + 75px)}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -109,8 +171,14 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button" data-quick-action="undo" data-tooltip="undo">↶</button>
 <span class="quickbar-tip" data-i18n="quickbarHint">Glisser pour déplacer · Clic droit pour les outils</span>
 </div>
+<nav id="mobileNav" class="mobile-nav" aria-label="Sections de l'atelier">
+<button type="button" data-mobile-go="tools" data-i18n="mobileCreate" aria-pressed="true">➕ Créer</button>
+<button type="button" data-mobile-go="generators" data-i18n="mobileGenerators" aria-pressed="false">⚙️ Générateurs</button>
+<button type="button" data-mobile-go="properties" data-i18n="mobileProperties" aria-pressed="false">📐 Réglages</button>
+<button type="button" data-mobile-go="view" data-i18n="mobileView" aria-pressed="false">👁 Vue</button>
+</nav>
 <div class="shell">
-<aside class="sidebar"><h2 data-i18n="shapes">Créer des formes</h2><div class="tools">
+<aside class="sidebar left" id="toolsPanel"><h2 data-i18n="shapes">Créer des formes</h2><div class="tools">
 <button data-shape="cube" data-i18n="cube">⬜ Cube</button><button data-shape="cylinder" data-i18n="cylinder">◯ Cylindre</button>
 <button data-shape="sphere" data-i18n="sphere">● Sphère</button><button data-shape="cone" data-i18n="cone">△ Cône</button>
 <button data-shape="torus" data-i18n="torus">◎ Tore</button><button data-shape="tube" data-i18n="tube">▣ Tube</button>
@@ -124,7 +192,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div>
-<h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
+<section id="generatorSection"><h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
 <div class="generator-block">
 <label for="generatorKind" data-i18n="generatorChoose">Type de pièce</label>
 <select id="generatorKind" aria-label="Générateur de pièce 3D"></select>
@@ -135,7 +203,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <p id="generatorMessage" class="generator-message" role="status" aria-live="polite"></p>
 <p class="generator-help" data-i18n="generatorHelp">Aperçu transparent non exporté. Les engrenages et filetages sont des géométries simplifiées à vérifier avant assemblage.</p>
-</div>
+</div></section>
 <h3 data-i18n="cutGroup">✂️ Découpe</h3>
 <div class="tool-control"><label for="cutHeight" data-i18n="cutHeightLabel">Hauteur de coupe Z (mm)</label><input id="cutHeight" type="number" step="0.1" value="10" aria-label="Hauteur de coupe Z"></div>
 <div class="tool-control"><input id="cutSlider" type="range" min="0" max="30" value="10" step="0.1" aria-label="Déplacer le plan de coupe" disabled></div>
@@ -151,6 +219,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></aside>
 <div class="stage" id="stage"><div class="hint" data-i18n="hint">Clic : sélectionner · Glisser : orbite · Molette : zoom</div>
+<button type="button" id="touchMoveBtn" class="touch-move" aria-pressed="false" data-i18n="touchMove">☝️ Déplacer la pièce</button>
 <div id="cutFloat" class="cut-float" hidden>
 <div class="cut-float-title"><strong data-i18n="cutFloatLabel">✂️ Plan de coupe</strong><button type="button" id="cutClose" aria-label="Fermer l'aperçu de coupe">×</button></div>
 <p class="cut-guide" data-i18n="cutGuide">Glisse le plan orange pour monter ou descendre, les poignées bleue et verte pour pivoter.</p>
@@ -181,7 +250,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cylinder" data-i18n="cylinder">Cylindre</button>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-sphere" data-i18n="sphere">Sphère</button>
 </div></div>
-<aside class="sidebar right"><h2 data-i18n="properties">Propriétés de la pièce</h2>
+<aside class="sidebar right" id="propertiesPanel"><h2 data-i18n="properties">Propriétés de la pièce</h2>
 <div class="field"><label for="name" data-i18n="name">Nom de la pièce</label><input id="name" placeholder="Aucune pièce sélectionnée"></div>
 <div class="field"><label data-i18n="dimensions">Dimensions (mm) — X, Y, Z</label><div class="triple"><input id="sx" type="number" step="0.1" min="0.1" aria-label="Dimension X"><input id="sy" type="number" step="0.1" min="0.1" aria-label="Dimension Y"><input id="sz" type="number" step="0.1" min="0.1" aria-label="Dimension Z"></div></div>
 <div class="field"><label data-i18n="position">Position (mm) — X, Y, Z</label><div class="triple"><input id="px" type="number" step="0.1" aria-label="Position X"><input id="py" type="number" step="0.1" aria-label="Position Y"><input id="pz" type="number" step="0.1" aria-label="Position Z"></div></div>
@@ -224,12 +293,14 @@ import {generatorKinds,defaultParams,generateGeometry} from '/static/generateurs
 const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
 const langText={
 fr:{
+ mobileCreate:'➕ Créer',mobileGenerators:'⚙️ Générateurs',mobileProperties:'📐 Réglages',mobileView:'👁 Vue',touchMove:'☝️ Déplacer la pièce',touchMoveStop:'✋ Tourner / zoomer',touchHint:'1 doigt : tourner · 2 doigts : zoomer · toucher la pièce : sélectionner.',
  generatorTitle:'⚙️ Générateurs 3D',generatorChoose:'Type de pièce',generatorShow:'👁 Aperçu',generatorAdd:'+ Créer la pièce',generatorHelp:'Aperçu transparent non exporté. Les engrenages et filetages sont simplifiés et doivent être vérifiés avant un assemblage mécanique.',generatorCreated:'Pièce créée ! Enregistre ton projet ou exporte le STL.',generatorInvalid:'Dimensions invalides.',
  cutPreview:'✂️ Préparer la coupe',cutApply:'✓ Appliquer la coupe',cutFloatLabel:'✂️ Plan de coupe',cutDragHint:'Glisse le plan orange en hauteur ou utilise les poignées bleue et verte pour le pivoter.',cutGuide:'Glisse le plan orange pour monter ou descendre, les poignées bleue et verte pour pivoter.',cutPosition:'↕ Hauteur',cutTiltX:'🔵 Avant / arrière',cutTiltY:'🟢 Gauche / droite',cutResetAngle:'↺ Remettre à plat',
  quickTools:'OUTILS',quickbarHint:'Glisser pour déplacer · Clic droit pour les outils',contextHeading:'Outils de la pièce',contextCreate:'Créer une pièce',
  measure:'📏 Mesurer',measureHint:'Cliquez deux points sur la pièce pour mesurer la distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Mode mesure : clique deux points sur une pièce.',measureValue:'Distance mesurée : {distance} mm',toolSize:'Taille rapide',half:'½ Réduire',double:'×2 Agrandir',fitBed:'Ajuster X2D',centerXY:'Centrer XY',dropToBed:'Poser au sol',mirrorX:'Miroir X',mirrorY:'Miroir Y',mirrorZ:'Miroir Z',cutGroup:'✂️ Découpe',cutHeightLabel:'Hauteur de coupe Z (mm)',cutZ:'✂️ Préparer la coupe',cutNotice:'Prépare la coupe, glisse le plan orange ou le curseur, puis applique. Fonctionne actuellement sur les formes simples; les STL complexes suivront.',views:'Vues rapides',viewIso:'◈ 3D',viewTop:'▣ Dessus',viewFront:'▤ Avant',viewSide:'▥ Côté',viewFit:'⌗ Cadrer',objectListTitle:'Mes pièces',shortcuts:'Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.',cutUnsupported:'Cette première découpe avec fermeture fonctionne sur cube, cylindre, sphère et cône. Pour une pièce complexe importée, la découpe avancée reste à développer.',cutOutside:'La coupe doit traverser la pièce : choisis une hauteur entre son bas et son haut.',cutSuccess:'Pièce découpée en deux éléments fermés. Vérifie le résultat avant impression.',noCut:'Sélectionne une pièce pour la découper.',emptyList:'Aucune pièce pour le moment.',mirrorDone:'Miroir appliqué.',fitDone:'Objet ajusté au volume X2D.',placed:'Pièce posée sur le plateau.',centered:'Pièce centrée sur le plateau.',sizeDone:'Taille modifiée.',cutError:'La découpe de cette pièce n’a pas pu être réalisée.',
  estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser la pièce : déplacer · Fond : orbite · Molette : zoom sur la pièce',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
 en:{
+ mobileCreate:'➕ Create',mobileGenerators:'⚙️ Generators',mobileProperties:'📐 Settings',mobileView:'👁 View',touchMove:'☝️ Move part',touchMoveStop:'✋ Orbit / zoom',touchHint:'One finger: orbit · Two fingers: zoom · Tap the part to select.',
  generatorTitle:'⚙️ 3D Generators',generatorChoose:'Part type',generatorShow:'👁 Preview',generatorAdd:'+ Create part',generatorHelp:'Transparent preview is not exported. Gears and threads are approximate and should be verified before mechanical use.',generatorCreated:'Part created! Save your project or export the STL.',generatorInvalid:'Invalid dimensions.',
  cutPreview:'✂️ Prepare cut',cutApply:'✓ Apply cut',cutFloatLabel:'✂️ Cutting plane',cutDragHint:'Drag the orange plane to move it or use the blue and green handles to tilt.',cutGuide:'Drag the orange plane up or down, or use blue and green handles to tilt.',cutPosition:'↕ Height',cutTiltX:'🔵 Forward / back',cutTiltY:'🟢 Left / right',cutResetAngle:'↺ Reset tilt',
  quickTools:'TOOLS',quickbarHint:'Drag to move · Right-click for tools',contextHeading:'Part tools',contextCreate:'Create a part',
@@ -246,6 +317,7 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);functio
 const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(255,-295,235);camera.up.set(0,0,1);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));stage.insertBefore(renderer.domElement,stage.firstChild);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,15);orbit.enableDamping=true;
+orbit.touches.ONE=THREE.TOUCH.ROTATE;orbit.touches.TWO=THREE.TOUCH.DOLLY_PAN;
 scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));
 const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(-90,-130,230);scene.add(sun);
 const grid=new THREE.GridHelper(256,32,0x638db0,0x40536a);grid.rotation.x=Math.PI/2;scene.add(grid);
@@ -290,7 +362,30 @@ function sync(){if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActi
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
 // Mouse interactions: click to select, drag object in move mode, right-click for tools.
-const dragStart={x:0,y:0};let directDrag=null,activeTool='translate';
+const dragStart={x:0,y:0};let directDrag=null,activeTool='translate',touchMoveEnabled=false;
+document.body.dataset.mobilePanel='tools';
+const mobileView=()=>window.matchMedia('(max-width:760px)').matches;
+function mobilePanel(go,scroll=true){
+ document.body.dataset.mobilePanel=go;
+ for(const button of document.querySelectorAll('[data-mobile-go]'))button.setAttribute('aria-pressed',String(button.dataset.mobileGo===go));
+ if(!mobileView()||!scroll)return;
+ const destination=go==='generators' ? $('generatorSection') : go==='properties' ? $('propertiesPanel') : $('stage');
+ if(destination)requestAnimationFrame(()=>destination.scrollIntoView({behavior:'smooth',block:go==='generators'||go==='properties'?'start':'start'}));
+}
+document.querySelectorAll('[data-mobile-go]').forEach(button=>button.addEventListener('click',()=>mobilePanel(button.dataset.mobileGo)));
+function syncTouchMoveButton(){
+ const btn=$('touchMoveBtn');
+ btn.textContent=langText[currentLang()][touchMoveEnabled?'touchMoveStop':'touchMove'];
+ btn.setAttribute('aria-pressed',String(touchMoveEnabled));
+ $('stage').querySelector('.hint').textContent=mobileView()?langText[currentLang()].touchHint:langText[currentLang()].hint;
+}
+$('touchMoveBtn').addEventListener('click',()=>{
+ touchMoveEnabled=!touchMoveEnabled;syncTouchMoveButton();
+ if(touchMoveEnabled&&!selected)status.textContent=currentLang()==='en'?'Tap a part, then drag it with one finger.':'Choisis une pièce, puis glisse-la avec un doigt.';
+});
+$('language').addEventListener('change',syncTouchMoveButton);
+window.matchMedia('(max-width:760px)').addEventListener('change',syncTouchMoveButton);
+syncTouchMoveButton();
 const contextMenu=$('contextMenu');
 function findHit(e){
  const rect=renderer.domElement.getBoundingClientRect();
@@ -343,6 +438,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
      e.stopImmediatePropagation();return;
    }
  }
+ if(e.pointerType==='touch'&&!touchMoveEnabled)return; // Keep native OrbitControls pinch/two-finger gestures.
  if(measureMode||activeTool!=='translate'||transform.dragging||transform.axis)return;
  const hit=findHit(e);if(!hit)return;
  const plane=new THREE.Plane(new THREE.Vector3(0,0,1),-hit.point.z);
