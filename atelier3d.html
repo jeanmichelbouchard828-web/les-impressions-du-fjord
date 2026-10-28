@@ -19,6 +19,15 @@ input{background:var(--field);color:var(--text);border:1px solid var(--border);b
 .field{margin:12px 0}.field label{display:block;color:var(--muted);margin-bottom:5px}.triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 #info{font-size:12px;color:var(--accent);line-height:1.5;margin-top:13px}
 .note{font-size:12px;line-height:1.5;margin-top:20px;color:var(--muted)}
+.estimate-panel{border-top:1px solid var(--border);margin-top:17px;padding:8px 0 14px}
+.estimate-panel[hidden]{display:none}
+.estimate-panel h3{font-size:16px;margin:12px 0}
+.estimate-panel .estimate-help{font-size:12px;line-height:1.5;color:var(--muted)}
+.estimate-advanced{padding:11px;border:1px solid var(--border);border-radius:9px;margin:13px 0}
+.estimate-advanced summary{cursor:pointer;color:var(--accent);font-weight:700}
+.estimate-result{border:1px solid var(--accent);background:var(--field);border-radius:10px;padding:12px;margin-top:14px}
+.estimate-result strong{font-size:26px;display:block;margin:8px 0;color:var(--accent)}
+.estimate-result p{font-size:12px;line-height:1.6;color:var(--muted)}
 @media(max-width:850px){.shell{grid-template-columns:155px minmax(210px,1fr) 185px}.sidebar{padding:9px}.tools{grid-template-columns:1fr}}
 @media(max-width:620px){.shell{height:auto;display:flex;flex-wrap:wrap}.stage{width:100%;height:49vh;min-height:340px;order:1}.sidebar{width:50%;max-height:420px;order:2}.tools{grid-template-columns:1fr 1fr}header{gap:10px}.top-actions button{padding:7px}}
 </style>
@@ -30,7 +39,7 @@ input{background:var(--field);color:var(--text);border:1px solid var(--border);b
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
 <button id="import" data-i18n="import">Importer STL</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
-<button id="export" data-i18n="export">Exporter STL</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
+<button id="export" data-i18n="export">Exporter STL</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
 </div>
 <div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
@@ -54,6 +63,22 @@ input{background:var(--field);color:var(--text);border:1px solid var(--border);b
 <div class="field"><label data-i18n="position">Position (mm) — X, Y, Z</label><div class="triple"><input id="px" type="number" step="0.1" aria-label="Position X"><input id="py" type="number" step="0.1" aria-label="Position Y"><input id="pz" type="number" step="0.1" aria-label="Position Z"></div></div>
 <div class="field"><label data-i18n="rotation">Rotation (°) — X, Y, Z</label><div class="triple"><input id="rx" type="number" step="1" aria-label="Rotation X"><input id="ry" type="number" step="1" aria-label="Rotation Y"><input id="rz" type="number" step="1" aria-label="Rotation Z"></div></div>
 <div id="info" role="status" aria-live="polite"></div>
+<section id="estimatePanel" class="estimate-panel" hidden>
+<h3 data-i18n="estimateTitle">💰 Estimer le prix d'impression</h3>
+<p class="estimate-help" data-i18n="estimateHelp">Inscris le poids en grammes et le temps d'impression prévus dans Bambu Studio. Les tarifs sont des exemples ajustables, et non un prix garanti.</p>
+<div class="field"><label for="estimateMaterial" data-i18n="estimateMaterialLabel">Matériau</label>
+<select id="estimateMaterial"><option value="PLA">PLA</option><option value="PETG" selected>PETG</option><option value="ASA">ASA</option><option value="TPU">TPU</option><option value="Autre">Autre / Other</option></select></div>
+<div class="field"><label for="estimateWeight" data-i18n="estimateWeightLabel">Poids estimé (g)</label><input id="estimateWeight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Ex. 120"></div>
+<div class="field"><label for="estimateHours" data-i18n="estimateHoursLabel">Durée d'impression (heures)</label><input id="estimateHours" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Ex. 5.5"></div>
+<details class="estimate-advanced"><summary data-i18n="estimateRatesTitle">Réglages du calcul (modifiables)</summary>
+<div class="field"><label for="estimateKg" data-i18n="estimateKgLabel">Coût du filament ($ CA/kg)</label><input id="estimateKg" type="number" min="0" step="0.5" value="32"></div>
+<div class="field"><label for="estimateHourRate" data-i18n="estimateHourRateLabel">Machine ($ CA/heure)</label><input id="estimateHourRate" type="number" min="0" step="0.5" value="3"></div>
+<div class="field"><label for="estimateSetup" data-i18n="estimateSetupLabel">Préparation ($ CA)</label><input id="estimateSetup" type="number" min="0" step="0.5" value="8"></div>
+<div class="field"><label for="estimateMargin" data-i18n="estimateMarginLabel">Majoration (%)</label><input id="estimateMargin" type="number" min="0" max="500" step="1" value="25"></div>
+</details>
+<div class="estimate-result"><div data-i18n="estimateResultTitle">Prix approximatif (avant taxes)</div><strong id="estimateTotal">—</strong><p id="estimateBreakdown"></p></div>
+<p class="estimate-help" data-i18n="estimateDisclaimer">Calcul indicatif avec 10 % de perte de filament. Supports, finition, complexité et soumission finale peuvent modifier le prix.</p>
+</section>
 <p class="note" data-i18n="disclaimer">Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.</p></aside>
 </div>
 <script type="module">
@@ -64,8 +89,8 @@ import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
 const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
 const langText={
-fr:{tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser : orbite · Molette : zoom',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
-en:{tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag: orbit · Scroll: zoom',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
+fr:{estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Inscris le poids en grammes et le temps d’impression prévus dans Bambu Studio. Les tarifs sont des exemples ajustables, et non un prix garanti.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids estimé (g)',estimateHoursLabel:'Durée d’impression (heures)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif avec 10 % de perte de filament. Supports, finition, complexité et soumission finale peuvent modifier le prix.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser : orbite · Molette : zoom',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
+en:{estimateButton:'💰 Price estimator',estimateTitle:'💰 Estimate printing cost',estimateHelp:'Enter the weight in grams and the estimated print time from Bambu Studio. Rates are editable examples, not guaranteed prices.',estimateMaterialLabel:'Material',estimateWeightLabel:'Estimated weight (g)',estimateHoursLabel:'Printing time (hours)',estimateRatesTitle:'Calculation settings (editable)',estimateKgLabel:'Filament cost (CAD/kg)',estimateHourRateLabel:'Machine rate (CAD/hour)',estimateSetupLabel:'Preparation (CAD)',estimateMarginLabel:'Markup (%)',estimateResultTitle:'Estimated price (before tax)',estimateDisclaimer:'Illustrative estimate including 10% material waste. Supports, finishing, complexity and the final quote may change the price.',estimateEnter:'Enter the estimated weight and duration from Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Setup {setup} · Markup {margin}',tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag: orbit · Scroll: zoom',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
 };
 function currentLang(){return localStorage.getItem('fjord-lang')==='en'?'en':'fr'}
 function say(key){status.textContent=langText[currentLang()][key]||key}
@@ -129,6 +154,40 @@ function exportSTL(){if(!models.length){say('missing');return false}const group=
 $('export').addEventListener('click',exportSTL);
 $('quote').addEventListener('click',()=>{if(exportSTL()){window.open('/soumission','_blank','noopener');say('quoteInfo')}});
 $('new').addEventListener('click',()=>{if(models.length&&!confirm(langText[currentLang()].reset))return;remember();restore({version:1,objects:[]});say('empty')});
+
+const materialRates={PLA:25,PETG:32,ASA:42,TPU:55,Autre:40};
+const estimateIds=['estimateWeight','estimateHours','estimateKg','estimateHourRate','estimateSetup','estimateMargin'];
+function estimateFormat(value){return new Intl.NumberFormat(currentLang()==='en'?'en-CA':'fr-CA',{style:'currency',currency:'CAD'}).format(value)}
+function updateEstimate(){
+ const weight=Number($('estimateWeight').value),hours=Number($('estimateHours').value);
+ const kg=Number($('estimateKg').value),hourRate=Number($('estimateHourRate').value),setup=Number($('estimateSetup').value),markup=Number($('estimateMargin').value);
+ const valid=['estimateWeight','estimateHours','estimateKg','estimateHourRate','estimateSetup','estimateMargin'].every(id=>$(''+id).value.trim()!=='') &&
+ [weight,hours,kg,hourRate,setup,markup].every(Number.isFinite) && weight>0 && weight<=100000 && hours>0 && hours<=1000 &&
+ [kg,hourRate,setup,markup].every(x=>x>=0&&x<=100000) && markup<=500;
+ if(!valid){$('estimateTotal').textContent='—';$('estimateBreakdown').textContent=langText[currentLang()].estimateEnter;return}
+ const material=weight/1000*kg*1.1, machine=hours*hourRate;
+ const base=material+machine+setup,margin=base*markup/100,total=base+margin;
+ $('estimateTotal').textContent=estimateFormat(total);
+ const fmt=langText[currentLang()].estimateParts;
+ $('estimateBreakdown').textContent=fmt.replace('{mat}',estimateFormat(material)).replace('{machine}',estimateFormat(machine)).replace('{setup}',estimateFormat(setup)).replace('{margin}',estimateFormat(margin));
+}
+function showEstimate(){
+ $('estimatePanel').hidden=false;
+ $('estimateToggle').setAttribute('aria-expanded','true');
+ $('estimatePanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+ updateEstimate();
+}
+$('estimateToggle').setAttribute('aria-expanded','false');
+$('estimateToggle').setAttribute('aria-controls','estimatePanel');
+$('estimateToggle').addEventListener('click',()=>{
+ if($('estimatePanel').hidden)showEstimate();
+ else{$('estimatePanel').hidden=true;$('estimateToggle').setAttribute('aria-expanded','false')}
+});
+$('estimateMaterial').addEventListener('change',e=>{$('estimateKg').value=materialRates[e.target.value];updateEstimate()});
+estimateIds.forEach(id=>$(id).addEventListener('input',updateEstimate));
+$('language').addEventListener('change',updateEstimate);
+if(location.hash==='#estimateur'||location.hash==='#estimator')showEstimate();
+updateEstimate();
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
 function animate(){requestAnimationFrame(animate);orbit.update();renderer.render(scene,camera)}animate();pick(null);
