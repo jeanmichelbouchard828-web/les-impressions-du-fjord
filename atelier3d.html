@@ -487,18 +487,47 @@ for(const axis of ['X','Y','Z']){
  }));
 }
 let measureMode=false,measureStart=null,measureLine=null;
+const measureMarkers=[];
+function measureMarker(point,label){
+ const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+ const ctx=canvas.getContext('2d');
+ ctx.beginPath();ctx.arc(64,64,48,0,Math.PI*2);
+ ctx.fillStyle=label===1?'#ffae38':'#46ddf8';ctx.fill();
+ ctx.lineWidth=8;ctx.strokeStyle='#ffffff';ctx.stroke();
+ ctx.font='bold 62px Arial,sans-serif';ctx.fillStyle='#071625';
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(label),64,69);
+ const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+ const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false,transparent:true}));
+ sprite.position.copy(point);sprite.renderOrder=1000;sprite.userData.markerTexture=texture;
+ scene.add(sprite);measureMarkers.push(sprite);
+ return sprite;
+}
 function clearMeasureLine(){
  if(measureLine){scene.remove(measureLine);measureLine.geometry.dispose();measureLine.material.dispose();measureLine=null}
- measureStart=null
+ for(const marker of measureMarkers){scene.remove(marker);marker.material.dispose();marker.userData.markerTexture.dispose()}
+ measureMarkers.length=0;measureStart=null
 }
 function measurePoint(point){
- if(!measureStart){clearMeasureLine();measureStart=point.clone();say('measureActive');return}
- const d=measureStart.distanceTo(point);
- const material=new THREE.LineBasicMaterial({color:0xffad49,depthTest:false});
- measureLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([measureStart.clone(),point.clone()]),material);
+ if(!measureStart){
+  clearMeasureLine();measureStart=point.clone();measureMarker(point,1);say('measureActive');return
+ }
+ const start=measureStart.clone(),distance=start.distanceTo(point);
+ measureMarker(point,2);
+ const material=new THREE.LineBasicMaterial({color:0xffad49,depthTest:false,depthWrite:false});
+ measureLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([start,point.clone()]),material);
  measureLine.renderOrder=999;scene.add(measureLine);
- status.textContent=langText[currentLang()].measureValue.replace('{distance}',d.toFixed(2));
+ status.textContent=langText[currentLang()].measureValue.replace('{distance}',distance.toFixed(2));
  measureStart=null;
+}
+function updateMeasureMarkerSizes(){
+ if(!measureMarkers.length)return;
+ const viewportHeight=Math.max(stage.clientHeight,1);
+ for(const marker of measureMarkers){
+  const distance=camera.position.distanceTo(marker.position);
+  const worldPixels=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/viewportHeight;
+  const size=Math.max(.12,worldPixels*24);
+  marker.scale.set(size,size,1);
+ }
 }
 $('measure').addEventListener('click',()=>{
  measureMode=!measureMode;
@@ -618,5 +647,5 @@ document.addEventListener('keydown',e=>{
 });
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
-function animate(){requestAnimationFrame(animate);orbit.update();renderer.render(scene,camera)}animate();pick(null);
+function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMarkerSizes();renderer.render(scene,camera)}animate();pick(null);
 </script></body></html>
