@@ -504,12 +504,27 @@ function dims(m){m.geometry.computeBoundingBox();const box=m.geometry.boundingBo
 function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:m.material.color.getHex(),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
 function restore(data){if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
 function remember(){undoStack.push(JSON.stringify(serialize()));if(undoStack.length>15)undoStack.shift()}
-function pick(m){const changed=selected!==m;if(changed&&cutPreviewActive)hideCutPreview();selected=m;if(m){transform.attach(m);say('selected');if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}}else{transform.detach();say('empty')}sync()}
+function pick(m){
+ const changed=selected!==m;
+ if(changed&&cutPreviewActive)hideCutPreview();
+ if(changed&&selected?.material?.emissive){selected.material.emissive.setHex(0);selected.material.emissiveIntensity=1}
+ selected=m;
+ if(m){
+  // Provide obvious on-model selection feedback on a phone, where the properties panel may be below.
+  if(m.material?.emissive){m.material.emissive.setHex(0x14517e);m.material.emissiveIntensity=.55}
+  transform.attach(m);say('selected');
+  if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}
+ }else{transform.detach();say('empty')}
+ sync();
+}
 function sync(){if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
 // Mouse interactions: click to select, drag object in move mode, right-click for tools.
 const dragStart={x:0,y:0};let directDrag=null,activeTool='translate',touchMoveEnabled=false;
+let touchTap=null; // Use a generous finger-tap tolerance, without affecting pinch/orbit gestures.
+const activeTouchIds=new Set();
+const touchTapTolerance=18;
 const mobileView=()=>window.matchMedia('(max-width:620px)').matches;
 function syncTouchMoveButton(){
  const btn=$('touchMoveBtn');
@@ -522,7 +537,7 @@ $('touchMoveBtn').addEventListener('click',()=>{
  if(touchMoveEnabled&&!selected)status.textContent=currentLang()==='en'?'Tap a part, then drag it with one finger.':'Choisis une pièce, puis glisse-la avec un doigt.';
 });
 $('language').addEventListener('change',syncTouchMoveButton);
-window.matchMedia('(max-width:760px)').addEventListener('change',syncTouchMoveButton);
+window.matchMedia('(max-width:620px)').addEventListener('change',syncTouchMoveButton);
 syncTouchMoveButton();
 const contextMenu=$('contextMenu');
 function findHit(e){
@@ -557,6 +572,13 @@ renderer.domElement.addEventListener('contextmenu',e=>{
  contextMenu.style.top=Math.max(5,Math.min(e.clientY-rect.top,stage.clientHeight-contextMenu.offsetHeight-7))+'px';
 });
 renderer.domElement.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='touch'){
+  activeTouchIds.add(e.pointerId);
+  if(activeTouchIds.size===1){
+   const hit=findHit(e);
+   touchTap={pointerId:e.pointerId,x:e.clientX,y:e.clientY,point:hit?.point.clone()||null,mesh:hit?.object||null};
+  }else touchTap=null; // Two fingers are for navigation, not selection.
+ }
  if(e.button===2){e.stopImmediatePropagation();return}
  if(e.button!==0){hideContext();return}
  hideContext();dragStart.x=e.clientX;dragStart.y=e.clientY;
@@ -576,7 +598,11 @@ renderer.domElement.addEventListener('pointerdown',e=>{
      e.stopImmediatePropagation();return;
    }
  }
- if(e.pointerType==='touch'&&!touchMoveEnabled)return; // Keep native OrbitControls pinch/two-finger gestures.
+ if(e.pointerType==='touch'&&!touchMoveEnabled){
+   // Capture selection immediately; OrbitControls may move the camera before pointerup.
+   if(touchTap && !measureMode && touchTap.mesh && !cutPreviewActive)pick(touchTap.mesh);
+   return; // Keep native one-finger orbit and two-finger zoom.
+ }
  if(measureMode||activeTool!=='translate'||transform.dragging||transform.axis)return;
  const hit=findHit(e);if(!hit)return;
  const plane=new THREE.Plane(new THREE.Vector3(0,0,1),-hit.point.z);
@@ -624,16 +650,31 @@ function finishDrag(e){
  return true
 }
 renderer.domElement.addEventListener('pointerup',e=>{
+ const tap=e.pointerType==='touch' && touchTap?.pointerId===e.pointerId &&
+  activeTouchIds.size===1 &&
+  Math.hypot(e.clientX-touchTap.x,e.clientY-touchTap.y)<=touchTapTolerance ? touchTap : null;
+ if(e.pointerType==='touch'){
+  activeTouchIds.delete(e.pointerId);
+  touchTap=null;
+ }
  if(cutDrag&&cutDrag.pointerId===e.pointerId){
    cutDrag=null;orbit.enabled=true;renderer.domElement.style.cursor='';
    try{if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId)}catch{}
    e.stopImmediatePropagation();return
  }
  if(finishDrag(e)){e.stopImmediatePropagation();return}
+ if(e.pointerType==='touch'){
+  if(tap && !cutPreviewActive){
+   if(measureMode && tap.point)measurePoint(tap.point);
+   else if(tap.mesh)pick(tap.mesh);
+  }
+  return;
+ }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
  const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point);else pick(hit.object)}
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
+ if(e.pointerType==='touch'){activeTouchIds.delete(e.pointerId);touchTap=null}
  if(cutDrag&&cutDrag.pointerId===e.pointerId){cutDrag=null;orbit.enabled=true;renderer.domElement.style.cursor='';return}
  if(finishDrag(e))e.stopImmediatePropagation()
 },true);
