@@ -22,7 +22,61 @@ def init():
   c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
 init()
 STYLE="""<style>*{box-sizing:border-box}body{margin:0;background:#071321;color:#f2faff;font:16px system-ui,Arial}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 5%;border-bottom:1px solid #2a4a62;background:#091a2b;flex-wrap:wrap}nav{display:flex;gap:15px;flex-wrap:wrap}a{color:#7fe4ff;text-decoration:none}.brand{font-weight:900;letter-spacing:.6px}main{max-width:1100px;margin:auto;padding:28px 20px 70px}.hero{padding:70px 0 90px;background:radial-gradient(ellipse at 80% 10%,#15618a77,transparent 60%)}h1{font-size:clamp(38px,7vw,78px);line-height:1.06;margin:15px 0}h2{font-size:30px}p{color:#c6d7e7;line-height:1.65}.eyebrow{color:#80dfff;letter-spacing:3px;text-transform:uppercase;font-size:13px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{background:#10283b;border:1px solid #2d526d;padding:22px;border-radius:16px;overflow:hidden}.card img{width:100%;height:220px;object-fit:cover;border-radius:10px}.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:14px}.gallery-grid img{width:100%;height:145px;object-fit:cover;border-radius:9px}.gallery-tile{background:#10283b;padding:12px;border-radius:12px}.gallery-tile h3{font-size:15px}.zoom{background:#071321;color:white;border:0;max-width:96vw;max-height:95vh}.zoom::backdrop{background:#000d}.zoom img{max-width:90vw;max-height:78vh;object-fit:contain}.gallery-detail h1{font-size:clamp(26px,4vw,42px);line-height:1.15;overflow-wrap:anywhere;max-width:850px}.gallery-detail .gallery-grid{margin-top:22px}.gallery-photo-link{display:block;cursor:zoom-in}.gallery-photo-link img{display:block;width:100%;height:160px;object-fit:cover;border-radius:10px}.zoom[open]{display:block;position:fixed;inset:0;margin:auto;padding:12px;box-shadow:0 20px 80px #000b}.zoom .row{justify-content:center;margin-bottom:10px}.zoom img{display:block;margin:auto;max-width:min(90vw,1100px);max-height:75vh}@media(max-width:600px){.gallery-detail h1{font-size:clamp(24px,7vw,32px)}.gallery-detail .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}input,textarea,select{display:block;width:100%;padding:12px;margin:7px 0 17px;background:#081827;color:white;border:1px solid #47718b;border-radius:9px;font:inherit}label{display:block;font-weight:600}textarea{min-height:110px}button,.btn{display:inline-block;padding:13px 20px;border:0;border-radius:9px;background:#5ad7f5;color:#061b2a;font-weight:800;cursor:pointer;font:inherit;text-decoration:none}form{max-width:650px}.muted{color:#a9c3d3}.alert{padding:14px;background:#163e50;border-radius:9px;margin:15px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row form{display:inline}.small{font-size:13px}.contact-actions{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 28px}.contact-actions a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:13px 18px;border-radius:10px;background:#163e59;border:1px solid #4a91b6;color:#f2faff;font-weight:750}.contact-actions a:hover{background:#215b7d}.contact-actions a:focus-visible{outline:3px solid #7fe4ff;outline-offset:3px}footer{padding:25px 5%;border-top:1px solid #294b62;color:#a9c3d3}@media(max-width:600px){.hero{padding:40px 0}header{align-items:flex-start}nav{font-size:14px}}</style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Les Impressions du Fjord — impression 3D sur mesure au Saguenay."><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""</head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/admin/atelier-3d">Atelier 3D 🔒</a><a href="/admin">Administration</a></nav></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer>© 2026 Les Impressions du Fjord · Saguenay, Québec</footer></body></html>"""
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Les Impressions du Fjord — impression 3D sur mesure au Saguenay."><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""<style>
+body.light{background:#f4f8fc;color:#14283c}
+body.light header{background:#fff;border-color:#ccdae8}
+body.light footer{border-color:#ccdae8;color:#466073}
+body.light p,body.light .muted{color:#42566b}
+body.light .card,body.light .gallery-tile{background:#fff;border-color:#c7d8e7}
+body.light input,body.light textarea,body.light select{background:#fff;color:#14283c;border-color:#8da8c0}
+body.light .zoom{background:#fff;color:#14283c}
+body.light .hero{background:radial-gradient(ellipse at 80% 10%,#a6dfff88,transparent 60%)}
+body.light a{color:#075f90}body.light .btn,body.light button{color:#06283d}
+body.light .contact-actions a{background:#e3f3fc;color:#153c58}
+.pref-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pref-controls select{display:inline-block;width:auto;min-width:100px;margin:0;padding:8px;font-size:14px}
+</style></head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/admin/atelier-3d">Atelier 3D 🔒</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer>© 2026 Les Impressions du Fjord · Saguenay, Québec</footer><script>
+(function(){
+const translations={
+"Services":"Services","Galerie":"Gallery","Soumission":"Quote","Nous joindre":"Contact us","Formulaire":"Contact form","Administration":"Administration",
+"Atelier 3D 🔒":"3D Studio 🔒","Création · Précision · Innovation":"Creation · Precision · Innovation",
+"Vos idées prennent forme.":"Your ideas take shape.","Impression 3D sur mesure au Saguenay.":"Custom 3D printing in Saguenay.",
+"Demander une soumission":"Request a quote","Nos services":"Our services","Impression 3D personnalisée":"Custom 3D printing",
+"Pièces et accessoires sur mesure.":"Custom parts and accessories.","Prototypage":"Prototyping",
+"Conception et essais de pièces.":"Part design and testing.","Créations décoratives":"Decorative creations",
+"Objets et cadeaux personnalisés.":"Personalized objects and gifts.","Voir nos réalisations":"View our creations",
+"Contactez-nous":"Contact us","Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!":"Have a 3D idea? Message us on Facebook or call us!",
+"ⓕ Notre page Facebook":"ⓕ Our Facebook page","💬 Nous écrire sur Facebook":"💬 Message us on Facebook",
+"📍 Nous trouver sur Google Maps":"📍 Find us on Google Maps",
+"Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».":"For Messenger, open our Facebook page and select “Send message”.",
+"Galerie de réalisations":"Our creations","Appuyez sur une création pour agrandir ses photos.":"Select a creation to view its photos.",
+"Demande reçue":"Request received","Soumission envoyée":"Quote sent","En impression":"Printing","Terminée":"Completed",
+"Votre nom":"Your name","Courriel":"Email","Téléphone (facultatif)":"Phone (optional)","Description de votre projet":"Describe your project",
+"Description de votre message":"Your message","Envoyer la demande":"Send request",
+"Nous contacter":"Contact us","Envoyez-nous votre message directement depuis ce formulaire.":"Send your message directly from this form.",
+"Décrivez votre projet et joignez votre modèle 3D si vous en avez un.":"Describe your project and attach your 3D model if available.",
+"Matériau souhaité":"Preferred material","Fichier STL ou 3MF (facultatif, maximum 8 Mo)":"STL or 3MF file (optional, 8 MB maximum)",
+"Votre demande a bien été enregistrée. Nous vous répondrons dès que possible.":"Your request has been received. We will reply as soon as possible.",
+"Retour à l’accueil":"Back to home","Merci!":"Thank you!"
+};
+const originals=new WeakMap();
+function apply(){
+const lang=localStorage.getItem('fjord-lang')==='en'?'en':'fr';
+const theme=localStorage.getItem('fjord-theme')==='light'?'light':'dark';
+document.body.classList.toggle('light',theme==='light');document.documentElement.lang=lang==='en'?'en-CA':'fr-CA';
+document.getElementById('fjord-lang').value=lang;document.getElementById('fjord-theme').value=theme;
+const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+while(walker.nextNode()){const n=walker.currentNode;if(n.parentElement&&/^(SCRIPT|STYLE|TEXTAREA|OPTION)$/i.test(n.parentElement.tagName))continue;
+if(!originals.has(n))originals.set(n,n.textContent);
+const original=originals.get(n);const trimmed=original.trim();
+if(translations[trimmed])n.textContent=lang==='en'?original.replace(trimmed,translations[trimmed]):original;
+}
+}
+document.getElementById('fjord-lang').addEventListener('change',e=>{localStorage.setItem('fjord-lang',e.target.value);apply()});
+document.getElementById('fjord-theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);apply()});
+apply();
+})();
+</script></body></html>"""
 def page(title,body,**kwargs):
  from flask import render_template_string
  return render_template_string(BASE,title=title,body=render_template_string(body,**kwargs))
