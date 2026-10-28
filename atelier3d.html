@@ -101,13 +101,13 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 
 /* One-tap mobile menus, keeping original working editor controls and desktop layout. */
 .project-menu{display:contents}
-.project-menu>summary{display:none}
+#projectMenuButton{display:none}
 .mobile-iconbar,.mobile-menu-drawer,.mobile-menu-backdrop,.mobile-stage-info{display:none}
 @media(max-width:760px){
  .project-menu{display:block;position:relative;flex:0 0 auto}
- .project-menu>summary{display:flex;min-height:44px;align-items:center;justify-content:center;cursor:pointer;list-style:none;padding:7px 13px;background:var(--field);border:1px solid var(--border);border-radius:9px;font-size:14px;font-weight:750}
- .project-menu>summary::-webkit-details-marker{display:none}
- .project-menu .top-actions{position:absolute;z-index:95;top:calc(100% + 7px);left:0;width:min(285px,calc(100vw - 26px));max-height:65dvh;overflow:auto;display:flex;flex-direction:column;gap:7px;padding:12px;background:var(--panel);border:1px solid var(--accent);border-radius:12px;box-shadow:0 8px 25px #0009}
+ #projectMenuButton{display:flex;min-height:44px;align-items:center;justify-content:center;cursor:pointer;padding:7px 13px;background:var(--field);border:1px solid var(--border);border-radius:9px;font-size:14px;font-weight:750}
+ .project-menu .top-actions{display:none;position:absolute;z-index:95;top:calc(100% + 7px);left:0;width:min(285px,calc(100vw - 26px));max-height:65dvh;overflow:auto;flex-direction:column;gap:7px;padding:12px;background:var(--panel);border:1px solid var(--accent);border-radius:12px;box-shadow:0 8px 25px #0009}
+ .project-menu.is-open .top-actions{display:flex}
  .project-menu .top-actions a,.project-menu .top-actions button{display:block;flex:0 0 auto;width:100%;min-height:44px;text-align:left;white-space:normal;font-size:14px;padding:10px}
  header{display:flex;gap:8px;padding:9px 12px;align-items:center}
  header .brand{font-size:17px}
@@ -145,12 +145,12 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </head><body>
 <header>
 <div><div class="brand">🏔️ Atelier 3D du Fjord</div><div class="subtitle" data-i18n="tagline">Les impressions du Fjord · Création 3D</div></div>
-<details id="projectMenu" class="project-menu"><summary data-i18n="mobileProject">📁 Projet</summary><div class="top-actions">
+<div id="projectMenu" class="project-menu"><button type="button" id="projectMenuButton" aria-expanded="false" data-i18n="mobileProject">📁 Projet</button><div class="top-actions">
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
 <button id="import" data-i18n="import">Importer STL</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
 <button id="export" data-i18n="export">Exporter STL</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
-</div></details>
+</div></div>
 <div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
 <input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl" hidden>
@@ -1287,8 +1287,23 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mobileMenuActive){e
 document.querySelectorAll('[data-shape]').forEach(button=>button.addEventListener('click',()=>{if(isCompactEditor())closeMobileMenu()}));
 const mobileStatus=$('mobileStageInfo');
 new MutationObserver(()=>{mobileStatus.textContent=status.textContent||''}).observe(status,{childList:true,characterData:true,subtree:true});
-$('estimateToggle').addEventListener('click',()=>{if(isCompactEditor()){document.getElementById('projectMenu').open=false;if(!$('estimatePanel').hidden)openMobileMenu('properties',document.querySelector('[data-open-tools="properties"]'))}});
-document.querySelectorAll('.project-menu .top-actions button').forEach(b=>b.addEventListener('click',()=>{$('projectMenu').open=false}));
+$('estimateToggle').addEventListener('click',()=>{if(isCompactEditor()){document.getElementById('projectMenu').classList.remove('is-open');$('projectMenuButton').setAttribute('aria-expanded','false');if(!$('estimatePanel').hidden)openMobileMenu('properties',document.querySelector('[data-open-tools="properties"]'))}});
+$('projectMenuButton').addEventListener('click',()=>{
+ const opening=!$('projectMenu').classList.contains('is-open');
+ $('projectMenu').classList.toggle('is-open',opening);
+ $('projectMenuButton').setAttribute('aria-expanded',String(opening));
+ if(opening&&mobileMenuActive)closeMobileMenu();
+});
+document.querySelectorAll('.project-menu .top-actions button,.project-menu .top-actions a').forEach(b=>b.addEventListener('click',()=>{
+ $('projectMenu').classList.remove('is-open');
+ $('projectMenuButton').setAttribute('aria-expanded','false');
+}));
+document.addEventListener('pointerdown',e=>{
+ if(!$('projectMenu').contains(e.target)){
+  $('projectMenu').classList.remove('is-open');
+  $('projectMenuButton').setAttribute('aria-expanded','false');
+ }
+});
 
 
 // Cutting is applied only after the preview height has been chosen.
