@@ -71,9 +71,9 @@ function currentLang(){return localStorage.getItem('fjord-lang')==='en'?'en':'fr
 function say(key){status.textContent=langText[currentLang()][key]||key}
 function applyPrefs(){const theme=localStorage.getItem('fjord-theme')==='light'?'light':'dark';const l=currentLang();document.body.classList.toggle('light',theme==='light');document.documentElement.lang=l==='en'?'en-CA':'fr-CA';$('language').value=l;$('theme').value=theme;document.querySelectorAll('[data-i18n]').forEach(e=>{e.textContent=langText[l][e.dataset.i18n]||e.textContent});$('name').placeholder=langText[l].noName}
 $('language').addEventListener('change',e=>{localStorage.setItem('fjord-lang',e.target.value);applyPrefs()});
-$('theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);applyPrefs()});
+$('theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);applyPrefs();syncCanvasTheme()});
 applyPrefs();
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);function syncCanvasTheme(){scene.background.set(localStorage.getItem('fjord-theme')==='light'?0xe8f2fa:0x172333)}syncCanvasTheme();
 const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(255,-295,235);camera.up.set(0,0,1);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));stage.insertBefore(renderer.domElement,stage.firstChild);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,15);orbit.enableDamping=true;
