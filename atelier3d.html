@@ -1347,6 +1347,11 @@ mobileMenuBackdrop.addEventListener('click',closeMobileMenu);
 window.matchMedia('(max-width:760px)').addEventListener('change',()=>{if(!isCompactEditor())closeMobileMenu()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mobileMenuActive){e.preventDefault();closeMobileMenu()}});
 document.querySelectorAll('[data-shape]').forEach(button=>button.addEventListener('click',()=>{if(isCompactEditor())closeMobileMenu()}));
+for(const toolId of ['move','rotate','scale','measure','cutZ','viewIso','viewTop','viewFront','viewSide','viewFit','centerXY','dropToBed','half','double','fitBed','mirrorX','mirrorY','mirrorZ','duplicate','remove','rotX90','rotY90','rotZ90','generatorShow','generatorAdd']){
+ $(toolId)?.addEventListener('click',()=>{
+  if(isCompactEditor() && mobileMenuActive)closeMobileMenu();
+ });
+}
 const mobileStatus=$('mobileStageInfo');
 new MutationObserver(()=>{mobileStatus.textContent=status.textContent||''}).observe(status,{childList:true,characterData:true,subtree:true});
 $('estimateToggle').addEventListener('click',()=>{if(isCompactEditor()){document.getElementById('projectMenu').classList.remove('is-open');$('projectMenuButton').setAttribute('aria-expanded','false');if(!$('estimatePanel').hidden)openMobileMenu('properties',document.querySelector('[data-open-tools="properties"]'))}});
