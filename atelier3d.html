@@ -505,6 +505,7 @@ function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.t
 function restore(data){if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
 function remember(){undoStack.push(JSON.stringify(serialize()));if(undoStack.length>15)undoStack.shift()}
 function pick(m){
+ if(m && generatorPreviewEnabled)stopGeneratorPreview(); // Real parts take priority over temporary ghosts.
  const changed=selected!==m;
  if(changed&&cutPreviewActive)hideCutPreview();
  if(changed&&selected?.material?.emissive){selected.material.emissive.setHex(0);selected.material.emissiveIntensity=1}
@@ -1065,10 +1066,19 @@ function cutSelected(){
 
 /* Parametric part generator: temporary translucent preview, then a real STL-ready mesh. */
 const generatorState=Object.fromEntries(generatorKinds.map(k=>[k.id,defaultParams(k.id)]));
-let generatorGhost=null,generatorTimer=null,generatorPreviewEnabled=true;
+let generatorGhost=null,generatorTimer=null,generatorPreviewEnabled=false; // Preview only on request.
 function clearGeneratorGhost(){
  if(!generatorGhost)return;
  scene.remove(generatorGhost);generatorGhost.geometry.dispose();generatorGhost.material.dispose();generatorGhost=null;
+}
+function generatorPreviewButtonText(){
+ $('generatorShow').textContent=generatorPreviewEnabled ? (currentLang()==='fr'?'✕ Masquer aperçu':'✕ Hide preview') : langText[currentLang()].generatorShow;
+}
+function stopGeneratorPreview(){
+ generatorPreviewEnabled=false;
+ if(generatorTimer!==null){clearTimeout(generatorTimer);generatorTimer=null}
+ clearGeneratorGhost();
+ generatorPreviewButtonText();
 }
 function generatorDefinition(){
  return generatorKinds.find(k=>k.id===$('generatorKind').value)||generatorKinds[0];
@@ -1088,7 +1098,7 @@ function generatorRebuildFields(){
   wrap.append(label,input);fields.append(wrap);
   input.addEventListener('input',()=>{
    if(input.value.trim()!=='')generatorState[cfg.id][id]=Number(input.value);
-   generatorPreviewEnabled=true;queueGeneratorPreview();
+   if(generatorPreviewEnabled)queueGeneratorPreview();
   });
  }
 }
@@ -1098,6 +1108,7 @@ function generatorRebuild(){
  selector.value=current;
  generatorRebuildFields();
  if(generatorPreviewEnabled)queueGeneratorPreview();
+ generatorPreviewButtonText();
 }
 function generatorGeometry(){
  return generateGeometry(THREE,generatorDefinition().id,generatorState[generatorDefinition().id]);
@@ -1123,18 +1134,17 @@ function queueGeneratorPreview(){
  if(generatorTimer!==null)clearTimeout(generatorTimer);
  generatorTimer=setTimeout(generatorDrawGhost,120);
 }
-$('generatorKind').addEventListener('change',()=>{
- generatorPreviewEnabled=true;generatorRebuild();
-});
+$('generatorKind').addEventListener('change',()=>generatorRebuild());
 $('generatorShow').addEventListener('click',()=>{
- generatorPreviewEnabled=true;generatorDrawGhost();
+ if(generatorPreviewEnabled){stopGeneratorPreview();generatorMessage('');return}
+ generatorPreviewEnabled=true;generatorDrawGhost();generatorPreviewButtonText();
 });
 $('generatorAdd').addEventListener('click',()=>{
  if(generatorTimer!==null){clearTimeout(generatorTimer);generatorTimer=null}
  let geometry;
  try{geometry=generatorGeometry()}catch(e){generatorMessage(e.message||langText[currentLang()].generatorInvalid);return}
  remember();
- clearGeneratorGhost();generatorPreviewEnabled=false;
+ stopGeneratorPreview();
  const cfg=generatorDefinition();
  const title=currentLang()==='en'?cfg.en:cfg.fr;
  const m=makeMesh(geometry,'imported',title+' '+(++counter));
