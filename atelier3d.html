@@ -751,7 +751,10 @@ renderer.domElement.addEventListener('pointermove',e=>{
 },true);
 function finishDrag(e){
  if(!directDrag||e.pointerId!==directDrag.pointerId)return false;
+ const {mesh,startPosition}=directDrag;
+ const moved=mesh.position.distanceToSquared(startPosition)>.000001;
  directDrag=null;orbit.enabled=true;stage.classList.remove('grab-active');
+ if(moved){snapPartToBed(mesh);sync()}
  try{if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId)}catch{}
  return true
 }
@@ -838,7 +841,10 @@ transform.addEventListener('mouseDown',()=>remember());
 transform.addEventListener('objectChange',sync);
 // After a completed drag, return to a clean, uncluttered plateau.
 transform.addEventListener('mouseUp',()=>requestAnimationFrame(()=>{
- if(!transform.dragging)deactivateGizmo();
+ if(!transform.dragging){
+  if(activeTool==='translate' && selected){snapPartToBed(selected);sync()}
+  deactivateGizmo();
+ }
 }));
 [['move','translate'],['rotate','rotate'],['scale','scale']].forEach(([id,mode])=>
  $(id).addEventListener('click',()=>chooseGizmo(mode)));
@@ -857,7 +863,9 @@ $('redo').addEventListener('click',()=>{
 });
 $('name').addEventListener('change',e=>{if(!selected)return;remember();selected.name=e.target.value.slice(0,120)||'Pièce';renderSceneList()});
 ['sx','sy','sz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)||v<=0||v>2000){sync();return}remember();const cur=dims(selected)[i];if(cur>0)selected.scale.setComponent(i,selected.scale.getComponent(i)*v/cur);sync()}));
-['px','py','pz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();selected.position.setComponent(i,v);sync()}));
+['px','py','pz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();selected.position.setComponent(i,v);
+ if(i!==2)snapPartToBed(selected); // X/Y edits behave like dragging; Z remains manually editable.
+ sync()}));
 ['rx','ry','rz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();const r=[selected.rotation.x,selected.rotation.y,selected.rotation.z];r[i]=THREE.MathUtils.degToRad(v);selected.rotation.set(...r);sync()}));
 function download(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
 $('save').addEventListener('click',()=>{download(new Blob([JSON.stringify(serialize())],{type:'application/json'}),'Projet-3D-du-Fjord.json');say('saved')});
@@ -988,6 +996,21 @@ updateEstimate();
 
 /* Basic modelling workbench — original implementation for the Fjord studio. */
 function modelWorldBounds(m){m.updateMatrixWorld(true);return new THREE.Box3().setFromObject(m)}
+// Magnetic plate: after moving a part within the print bed, set its lowest
+// world-space point exactly on Z=0. Do not modify rotation or X/Y placement.
+// Keep deliberate height entry in the Z field available for advanced work.
+function snapPartToBed(m){
+ if(!m||!models.includes(m))return false;
+ const bounds=modelWorldBounds(m);
+ if(bounds.isEmpty()||![bounds.min.x,bounds.min.y,bounds.min.z,bounds.max.x,bounds.max.y].every(Number.isFinite))return false;
+ // Never attract objects that are fully outside the physical build plate.
+ if(bounds.max.x < -128 || bounds.min.x > 128 || bounds.max.y < -128 || bounds.min.y > 128)return false;
+ const z=bounds.min.z;
+ if(Math.abs(z)<=.001)return false;
+ m.position.z-=z;
+ m.updateMatrixWorld(true);
+ return true;
+}
 function renderSceneList(){
  const list=$('sceneList');if(!list)return;list.replaceChildren();
  if(!models.length){const p=document.createElement('p');p.className='tool-note';p.textContent=langText[currentLang()].emptyList;list.append(p);return}
