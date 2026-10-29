@@ -1076,49 +1076,122 @@ const slicePlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
 let sliceActive=false,sliceBounds=null,sliceMaxLayers=1;
 
 let sliceRealData=null,sliceRequestToken=0,sliceToolpathOffset={x:0,y:0};
+let sliceTimeline=[],sliceLayerEnds=[],sliceExtrudePrefix=null,sliceTravelPrefix=null;
+let slicePlaying=false,slicePlaybackFrame=0,slicePlaybackLast=0,slicePlaybackFraction=0;
+const sliceModelVisibility=new Map();
 const sliceMotionGroup=new THREE.Group();
 sliceMotionGroup.visible=false;
 scene.add(sliceMotionGroup);
-const sliceMotionExtrusion=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffbb45,depthTest:false,transparent:true,opacity:.95}));
-const sliceMotionTravel=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x49caff,depthTest:false,transparent:true,opacity:.55}));
+const sliceMotionExtrusion=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffbb45,depthTest:true,depthWrite:false,transparent:true,opacity:.98}));
+const sliceMotionTravel=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x49caff,depthTest:true,depthWrite:false,transparent:true,opacity:.30}));
 const sliceMotionHead=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),new THREE.MeshBasicMaterial({color:0xff4b5f,depthTest:false,depthWrite:false}));
 sliceMotionGroup.add(sliceMotionExtrusion,sliceMotionTravel,sliceMotionHead);
+sliceMotionExtrusion.frustumCulled=false;sliceMotionTravel.frustumCulled=false;
+
+function slicePause(){
+ slicePlaying=false;
+ if(slicePlaybackFrame)cancelAnimationFrame(slicePlaybackFrame);
+ slicePlaybackFrame=0;slicePlaybackLast=0;slicePlaybackFraction=0;
+ $('slicePlayPause').textContent=langText[currentLang()].slicePlay;
+}
+function sliceRestoreSourceModels(){
+ for(const [part,visible] of sliceModelVisibility)part.visible=visible;
+ sliceModelVisibility.clear();
+}
 function clearRealToolpath(){
+ slicePause();sliceRestoreSourceModels();
+ sliceTimeline=[];sliceLayerEnds=[];sliceExtrudePrefix=null;sliceTravelPrefix=null;
  for(const line of [sliceMotionExtrusion,sliceMotionTravel]){
   line.geometry.dispose();line.geometry=new THREE.BufferGeometry();
  }
  sliceMotionHead.visible=false;sliceMotionGroup.visible=false;
+ $('slicePlayPause').disabled=true;$('sliceRestart').disabled=true;
+ $('sliceHeadSlider').disabled=true;
+}
+function buildRealTimeline(data){
+ clearRealToolpath();
+ const total=data.layers.reduce((sum,layer)=>sum+(layer.moves?.length||0),0);
+ if(!total)throw Error('Aucun mouvement G-code exploitable');
+ const printCoords=new Float32Array(total*6),travelCoords=new Float32Array(total*6);
+ sliceExtrudePrefix=new Uint32Array(total+1);sliceTravelPrefix=new Uint32Array(total+1);
+ let index=0,prints=0,travels=0;
+ for(let layerIndex=0;layerIndex<data.layers.length;layerIndex++){
+  const layer=data.layers[layerIndex],z=Number(layer.z)||0;
+  for(const move of layer.moves||[]){
+   const row=move[4]?printCoords:travelCoords;
+   const at=(move[4]?prints++:travels++)*6;
+   row[at]=move[0]+sliceToolpathOffset.x;row[at+1]=move[1]+sliceToolpathOffset.y;row[at+2]=z+.13;
+   row[at+3]=move[2]+sliceToolpathOffset.x;row[at+4]=move[3]+sliceToolpathOffset.y;row[at+5]=z+.13;
+   sliceTimeline.push({move,layerIndex,z});
+   sliceExtrudePrefix[++index]=prints;
+   sliceTravelPrefix[index]=travels;
+  }
+  sliceLayerEnds.push(index);
+ }
+ for(const [line,coords,count] of [[sliceMotionExtrusion,printCoords,prints],[sliceMotionTravel,travelCoords,travels]]){
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.BufferAttribute(coords.subarray(0,count*6),3));
+  geometry.setDrawRange(0,0);
+  line.geometry.dispose();line.geometry=geometry;
+ }
+ sliceMotionGroup.visible=true;
+ sliceModelVisibility.clear();
+ for(const part of models){sliceModelVisibility.set(part,part.visible);part.visible=false}
+ const scrubber=$('sliceHeadSlider');
+ scrubber.max=String(total);scrubber.step='1';scrubber.value='0';scrubber.disabled=false;
+ $('slicePlayPause').disabled=false;$('sliceRestart').disabled=false;
+ redrawRealHead();
 }
 function redrawRealHead(){
- if(!sliceActive||!sliceRealData)return;
- const data=sliceRealData.layers[Number($('sliceLayerSlider').value)-1];
- const moves=data?.moves||[], fraction=Math.max(0,Math.min(1,Number($('sliceHeadSlider').value)/1000));
- const count=Math.min(moves.length,Math.round(fraction*moves.length));
- const extrusions=[],travels=[];
- let last=null;
- const z=(data?.z||0)+.13;
- for(let i=0;i<count;i++){
-  const p=moves[i],target=p[4]?extrusions:travels;
-  target.push(p[0]+sliceToolpathOffset.x,p[1]+sliceToolpathOffset.y,z,
-              p[2]+sliceToolpathOffset.x,p[3]+sliceToolpathOffset.y,z);
-  last=p;
- }
- for(const [line,points] of [[sliceMotionExtrusion,extrusions],[sliceMotionTravel,travels]]){
-  line.geometry.dispose();line.geometry=new THREE.BufferGeometry();
-  if(points.length)line.geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
-  line.visible=!!points.length;
- }
- sliceMotionHead.visible=!!moves.length;
- if(moves.length){
-  const p=last||moves[0];
-  sliceMotionHead.position.set((last?p[2]:p[0])+sliceToolpathOffset.x,
-    (last?p[3]:p[1])+sliceToolpathOffset.y,z+.5);
- }
- $('sliceHeadValue').textContent=moves.length?langText[currentLang()].sliceHeadCount
-  .replace('{i}',String(count)).replace('{n}',String(moves.length))
-  .replace('{type}',last?.[4]?langText[currentLang()].sliceHeadPrint:langText[currentLang()].sliceHeadTravel):
-  langText[currentLang()].sliceHeadEmpty;
+ if(!sliceActive||!sliceRealData||!sliceTimeline.length)return;
+ const slider=$('sliceHeadSlider');
+ const index=Math.max(0,Math.min(sliceTimeline.length,Math.round(Number(slider.value)||0)));
+ slider.value=String(index);
+ sliceMotionExtrusion.geometry.setDrawRange(0,(sliceExtrudePrefix?.[index]||0)*2);
+ sliceMotionTravel.geometry.setDrawRange(0,(sliceTravelPrefix?.[index]||0)*2);
+ sliceMotionExtrusion.visible=sliceExtrudePrefix[index]>0;
+ sliceMotionTravel.visible=sliceTravelPrefix[index]>0;
+ const event=sliceTimeline[Math.max(0,index-1)];
+ const p=event.move,atEnd=index>0;
+ sliceMotionHead.visible=true;
+ sliceMotionHead.position.set((atEnd?p[2]:p[0])+sliceToolpathOffset.x,
+  (atEnd?p[3]:p[1])+sliceToolpathOffset.y,event.z+.6);
  sliceMotionGroup.visible=true;
+ const layerNumber=event.layerIndex+1;
+ $('sliceLayerSlider').value=String(layerNumber);
+ slicePlane.constant=event.z;
+ $('sliceLayerValue').textContent=langText[currentLang()].sliceCountText
+  .replace('{i}',String(layerNumber)).replace('{n}',String(sliceMaxLayers)).replace('{z}',event.z.toFixed(2));
+ $('sliceHeadValue').textContent=langText[currentLang()].sliceHeadCount
+  .replace('{i}',String(index)).replace('{n}',String(sliceTimeline.length))
+  .replace('{layer}',String(layerNumber)).replace('{layers}',String(sliceMaxLayers))
+  .replace('{type}',atEnd?(p[4]?langText[currentLang()].sliceHeadPrint:langText[currentLang()].sliceHeadTravel):'—');
+}
+function slicePlaybackStep(timestamp){
+ if(!slicePlaying||!sliceActive||!sliceRealData)return;
+ if(!slicePlaybackLast)slicePlaybackLast=timestamp;
+ const duration=Math.max(0,Math.min(.1,(timestamp-slicePlaybackLast)/1000));
+ slicePlaybackLast=timestamp;
+ const pace=Math.max(1,Number($('sliceSpeed').value)||600);
+ slicePlaybackFraction+=duration*pace;
+ const advance=Math.floor(slicePlaybackFraction);
+ slicePlaybackFraction-=advance;
+ const slider=$('sliceHeadSlider');
+ const current=Number(slider.value)||0;
+ if(advance){
+  slider.value=String(Math.min(sliceTimeline.length,current+advance));
+  redrawRealHead();
+ }
+ if(Number(slider.value)>=sliceTimeline.length){slicePause();return}
+ slicePlaybackFrame=requestAnimationFrame(slicePlaybackStep);
+}
+function sliceTogglePlayback(){
+ if(!sliceRealData||!sliceTimeline.length)return;
+ if(slicePlaying){slicePause();return}
+ if(Number($('sliceHeadSlider').value)>=sliceTimeline.length)$('sliceHeadSlider').value='0';
+ slicePlaying=true;slicePlaybackLast=0;slicePlaybackFraction=0;
+ $('slicePlayPause').textContent=langText[currentLang()].slicePause;
+ slicePlaybackFrame=requestAnimationFrame(slicePlaybackStep);
 }
 function alignRealToolpath(data){
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
