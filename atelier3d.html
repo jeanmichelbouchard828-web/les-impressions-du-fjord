@@ -140,6 +140,32 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 }
 @media(max-width:380px){.mobile-iconbar button{font-size:13px;padding:8px 10px}.stage{min-height:290px;height:45dvh}.mobile-menu-drawer:not([hidden]){max-height:76dvh}}
 @media(orientation:landscape) and (max-width:950px) and (max-height:470px){.mobile-menu-drawer:not([hidden]){max-height:83dvh}}
+
+.slice-float{position:absolute;right:12px;top:9px;z-index:24;width:min(295px,calc(100% - 24px));max-height:calc(100% - 18px);overflow:auto;overscroll-behavior:contain;padding:12px;background:var(--panel);border:1px solid var(--accent);border-radius:12px;box-shadow:0 7px 28px #0009;color:var(--text)}
+.slice-float[hidden]{display:none!important}
+.slice-float-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.slice-float-header strong{font-size:14px}
+.slice-float-header button{min-width:34px;min-height:34px}
+.slice-settings{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:9px 0}
+.slice-settings label,.slice-label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.slice-settings select{width:100%;font-size:13px;padding:7px}
+.slice-float input[type=range]{width:100%;accent-color:var(--accent);min-height:23px}
+.slice-level{font-size:12px;color:var(--accent);margin-bottom:8px;font-weight:700}
+.slice-price-row{display:flex;align-items:baseline;justify-content:space-between;gap:7px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px}
+.slice-price-row strong{font-size:23px;color:var(--accent)}
+.slice-metrics{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 0;font-size:12px}
+.slice-metrics>span{color:var(--muted)}.slice-metrics>b{text-align:right;font-weight:750}
+.slice-warning{font-size:11px;color:#ffca74;line-height:1.4}
+.slice-disclaimer{font-size:11px;color:var(--muted);line-height:1.4;margin:9px 0}
+.slice-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.slice-actions button{font-size:12px;padding:9px 4px;min-height:40px}
+@media(max-width:760px){
+ .slice-float{width:min(240px,67%);right:7px;top:7px;padding:9px;max-height:calc(100% - 14px)}
+ .slice-float-header strong{font-size:12px}.slice-settings{grid-template-columns:1fr 1fr;gap:5px}
+ .slice-settings label{font-size:10px}.slice-settings select{font-size:12px;padding:5px 2px}
+ .slice-price-row strong{font-size:19px}.slice-metrics{font-size:11px;gap:4px 7px}
+ .slice-disclaimer{font-size:10px}.slice-actions button{font-size:11px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -149,7 +175,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
 <button id="import" data-i18n="import">Importer STL</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
-<button id="export" data-i18n="export">Exporter STL</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
+<button id="export" data-i18n="export">Exporter STL</button><button id="sliceTop" data-i18n="slicePreview">▥ Trancher</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
 </div></div>
 <div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
@@ -166,6 +192,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button quick-tool" data-quick-action="rotate" data-tooltip="rotate">⟳</button>
 <button type="button" class="quick-button quick-tool" data-quick-action="scale" data-tooltip="scale">⤢</button><span class="quick-divider"></span>
 <button type="button" class="quick-button" data-quick-action="cutZ" data-tooltip="cutZ">✂</button>
+<button type="button" class="quick-button" data-quick-action="slicePreview" data-tooltip="slicePreview" aria-pressed="false">▥</button>
 <button type="button" class="quick-button" data-quick-action="measure" data-tooltip="measure">📏</button>
 <button type="button" class="quick-button" data-quick-action="duplicate" data-tooltip="duplicate">▢+</button>
 <button type="button" class="quick-button" data-quick-action="centerXY" data-tooltip="centerXY">⊕</button>
@@ -184,6 +211,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" data-open-tools="size" data-i18n="mobileSize" aria-expanded="false">📏 Taille</button>
 <button type="button" data-open-tools="generators" data-i18n="mobileGenerate" aria-expanded="false">⚙️ Générer</button>
 <button type="button" data-open-tools="cut" data-i18n="mobileCut" aria-expanded="false">✂️ Couper</button>
+<button type="button" id="mobileSliceBtn" data-i18n="slicePreview">▥ Trancher</button>
 <button type="button" data-open-tools="views" data-i18n="mobileViews" aria-expanded="false">👁 Vues</button>
 <button type="button" data-open-tools="parts" data-i18n="mobileParts" aria-expanded="false">🧩 Pièces</button>
 <button type="button" data-open-tools="properties" data-i18n="mobileProperties" aria-expanded="false">📐 Réglages</button>
@@ -231,7 +259,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <section data-tool-panel="views"><h3 data-i18n="views">Vues rapides</h3>
 <div class="tools"><button id="viewIso" data-i18n="viewIso">◈ 3D</button><button id="viewTop" data-i18n="viewTop">▣ Dessus</button>
 <button id="viewFront" data-i18n="viewFront">▤ Avant</button><button id="viewSide" data-i18n="viewSide">▥ Côté</button>
-<button id="viewFit" data-i18n="viewFit">⌗ Cadrer</button></div></section>
+<button id="viewFit" data-i18n="viewFit">⌗ Cadrer</button><button type="button" id="slicePreview" class="tool-btn" data-i18n="slicePreview" aria-pressed="false">▥ Trancher</button></div></section>
 <section data-tool-panel="parts"><h3 data-i18n="objectListTitle">Mes pièces</h3><div id="sceneList" class="scene-list" aria-label="Pièces 3D"></div>
 <p class="tool-note" data-i18n="shortcuts">Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.</p>
 <h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
@@ -243,6 +271,29 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" id="editorRetry" onclick="location.reload()">Réessayer</button>
 </div>
 <button type="button" id="touchMoveBtn" class="touch-move" aria-pressed="false" data-i18n="touchMove">☝️ Déplacer la pièce</button>
+<section id="sliceFloat" class="slice-float" hidden aria-label="Trancher la pièce">
+ <div class="slice-float-header"><strong data-i18n="sliceTitle">▥ Aperçu du tranchage</strong><button type="button" id="sliceClose" aria-label="Fermer le tranchage">✕</button></div>
+ <div class="slice-settings">
+  <div><label for="sliceMaterial" data-i18n="sliceMaterialLabel">Matériau</label><select id="sliceMaterial"><option>PLA</option><option selected>PETG</option><option>ASA</option><option>TPU</option><option value="Autre">Autre</option></select></div>
+  <div><label for="sliceLayerHeight" data-i18n="sliceLayerLabel">Hauteur de couche</label><select id="sliceLayerHeight"><option value="0.08">0,08 mm</option><option value="0.12">0,12 mm</option><option value="0.2" selected>0,20 mm</option><option value="0.28">0,28 mm</option></select></div>
+ </div>
+ <label class="slice-label" for="sliceLayerSlider" data-i18n="sliceLayersLabel">Couches visibles</label>
+ <input type="range" min="1" max="1" value="1" step="1" id="sliceLayerSlider" aria-label="Parcourir les couches">
+ <div class="slice-level" id="sliceLayerValue">Couche 1 / 1 · 0,20 mm</div>
+ <div class="slice-price-row"><span data-i18n="slicePriceLabel">Prix estimé (avant taxes)</span><strong id="slicePrice">—</strong></div>
+ <div class="slice-metrics">
+  <span data-i18n="slicePieces">Pièces</span><b id="slicePiecesValue">—</b>
+  <span data-i18n="sliceWeight">Filament estimé</span><b id="sliceWeightValue">—</b>
+  <span data-i18n="sliceTime">Temps estimé</span><b id="sliceTimeValue">—</b>
+  <span data-i18n="sliceLayersCount">Nombre de couches</span><b id="sliceLayersValue">—</b>
+  <span data-i18n="sliceMaterialCost">Filament + perte</span><b id="sliceMaterialCostValue">—</b>
+  <span data-i18n="sliceMachineCost">Machine</span><b id="sliceMachineCostValue">—</b>
+  <span data-i18n="sliceSetupMarkup">Préparation + majoration</span><b id="sliceSetupMarkupValue">—</b>
+ </div>
+ <div id="sliceWarning" class="slice-warning" role="status"></div>
+ <p class="slice-disclaimer" data-i18n="sliceDisclaimer">Aperçu des couches et estimation automatique, pas un vrai tranchage ni du G-code. Remplissage estimé à 18 %, supports et rétractions non calculés. Prix à confirmer.</p>
+ <div class="slice-actions"><button id="sliceEstimator" type="button" data-i18n="sliceEditPrice">⚙️ Ajuster le prix</button><button id="sliceExport" type="button" class="primary" data-i18n="sliceExport">Exporter STL</button></div>
+</section>
 <div id="cutFloat" class="cut-float" hidden>
 <div class="cut-float-title"><strong data-i18n="cutFloatLabel">✂️ Plan de coupe</strong><button type="button" id="cutClose" aria-label="Fermer l'aperçu de coupe">×</button></div>
 <p class="cut-guide" data-i18n="cutGuide">Glisse le plan orange pour monter ou descendre, les poignées bleue et verte pour pivoter.</p>
@@ -507,6 +558,7 @@ function generateGeometry(T,kind,raw){
 const $=id=>document.getElementById(id), stage=$('stage'), status=$('info');
 const langText={
 fr:{
+ slicePreview:'▥ Trancher',sliceTitle:'▥ Aperçu du tranchage',sliceMaterialLabel:'Matériau',sliceLayerLabel:'Hauteur de couche',sliceLayersLabel:'Couches visibles',slicePriceLabel:'Prix estimé (avant taxes)',slicePieces:'Pièces',sliceWeight:'Filament estimé',sliceTime:'Temps estimé',sliceLayersCount:'Nombre de couches',sliceMaterialCost:'Filament + perte',sliceMachineCost:'Machine',sliceSetupMarkup:'Préparation + majoration',sliceDisclaimer:'Aperçu géométrique des couches, sans vrais trajets de buse ni G-code. Estimation à 18 % de remplissage, sans supports calculés. Prix à confirmer.',sliceEditPrice:'⚙️ Ajuster le prix',sliceExport:'Exporter STL',sliceCountText:'Couche {i} / {n} · {z} mm',sliceWeightUnit:'{n} g',sliceHourUnit:'{n} h',sliceOutOfBed:'⚠️ Pièce hors du volume X2D (256 × 256 × 256 mm).',sliceMissing:'Ajoute au moins une pièce pour trancher.',slicePriceInvalid:'Impossible de calculer le prix. Vérifie les réglages de l’estimateur.',
  layFace:'▱ Poser sur une face',layFacePrompt:'Mode face : touche la surface qui doit reposer sur le plateau. Retouche le bouton pour annuler.',layFaceDone:'La face choisie repose maintenant sur le plateau.',layFaceInvalid:'Impossible de placer cette face. Essaie une autre surface.',layFacePick:'Touche une face visible de la pièce sélectionnée.',layFaceHint:'Touche la face à poser à plat · 2 doigts : zoomer',
  mobileProject:'📁 Projet',mobileForms:'➕ Formes',mobileEdit:'✥ Modifier',mobileSize:'📏 Taille',mobileGenerate:'⚙️ Générer',mobileCut:'✂️ Couper',mobileViews:'👁 Vues',mobileParts:'🧩 Pièces',mobileProperties:'📐 Réglages',
  redo:'↷ Rétablir',resetProject:'⟲ Réinitialiser',resetDone:'Plateau réinitialisé. Tu peux annuler pour récupérer tes pièces.',undoDone:'Modification annulée.',redoDone:'Modification rétablie.',
@@ -517,6 +569,7 @@ fr:{
  measure:'📏 Mesurer',measureHint:'Cliquez deux points sur la pièce pour mesurer la distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Mode mesure : clique deux points sur une pièce.',measureValue:'Distance mesurée : {distance} mm',toolSize:'Taille rapide',half:'½ Réduire',double:'×2 Agrandir',fitBed:'Ajuster X2D',centerXY:'Centrer XY',dropToBed:'Poser au sol',mirrorX:'Miroir X',mirrorY:'Miroir Y',mirrorZ:'Miroir Z',cutGroup:'✂️ Découpe',cutHeightLabel:'Hauteur de coupe Z (mm)',cutZ:'✂️ Préparer la coupe',cutNotice:'Prépare la coupe, glisse le plan orange ou le curseur, puis applique. Fonctionne actuellement sur les formes simples; les STL complexes suivront.',views:'Vues rapides',viewIso:'◈ 3D',viewTop:'▣ Dessus',viewFront:'▤ Avant',viewSide:'▥ Côté',viewFit:'⌗ Cadrer',objectListTitle:'Mes pièces',shortcuts:'Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler · Ctrl+Y rétablir.',cutUnsupported:'Cette première découpe avec fermeture fonctionne sur cube, cylindre, sphère et cône. Pour une pièce complexe importée, la découpe avancée reste à développer.',cutOutside:'La coupe doit traverser la pièce : choisis une hauteur entre son bas et son haut.',cutSuccess:'Pièce découpée en deux éléments fermés. Vérifie le résultat avant impression.',noCut:'Sélectionne une pièce pour la découper.',emptyList:'Aucune pièce pour le moment.',mirrorDone:'Miroir appliqué.',fitDone:'Objet ajusté au volume X2D.',placed:'Pièce posée sur le plateau.',centered:'Pièce centrée sur le plateau.',sizeDone:'Taille modifiée.',cutError:'La découpe de cette pièce n’a pas pu être réalisée.',
  estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser la pièce : déplacer · Fond : orbite · Molette : zoom sur la pièce',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
 en:{
+ slicePreview:'▥ Slice',sliceTitle:'▥ Layer preview',sliceMaterialLabel:'Material',sliceLayerLabel:'Layer height',sliceLayersLabel:'Visible layers',slicePriceLabel:'Estimated price (before tax)',slicePieces:'Parts',sliceWeight:'Estimated filament',sliceTime:'Estimated time',sliceLayersCount:'Layer count',sliceMaterialCost:'Filament + waste',sliceMachineCost:'Machine',sliceSetupMarkup:'Preparation + markup',sliceDisclaimer:'Geometric layer preview, not actual toolpaths or G-code. Assumes 18% infill; supports are not calculated. Price requires confirmation.',sliceEditPrice:'⚙️ Adjust price',sliceExport:'Export STL',sliceCountText:'Layer {i} / {n} · {z} mm',sliceWeightUnit:'{n} g',sliceHourUnit:'{n} h',sliceOutOfBed:'⚠️ Part exceeds X2D (256 × 256 × 256 mm).',sliceMissing:'Add at least one part to slice.',slicePriceInvalid:'Could not estimate price. Check price estimator settings.',
  layFace:'▱ Lay on face',layFacePrompt:'Face mode: tap the surface that should touch the print bed. Tap the tool again to cancel.',layFaceDone:'Selected face now rests on the print bed.',layFaceInvalid:'Could not place this face. Try another surface.',layFacePick:'Tap a visible face of the selected object.',layFaceHint:'Tap the face to place on bed · Two fingers: zoom',
  mobileProject:'📁 Project',mobileForms:'➕ Shapes',mobileEdit:'✥ Edit',mobileSize:'📏 Size',mobileGenerate:'⚙️ Generate',mobileCut:'✂️ Cut',mobileViews:'👁 Views',mobileParts:'🧩 Parts',mobileProperties:'📐 Settings',
  redo:'↷ Redo',resetProject:'⟲ Reset',resetDone:'Build plate reset. Undo to restore your parts.',undoDone:'Change undone.',redoDone:'Change redone.',
@@ -597,7 +650,7 @@ function addSelectionTint(m){
  if(m.material.emissive){m.material.emissive.setHex(0x783d0e);m.material.emissiveIntensity=.36}
 }
 function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:basePartColor(m),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
-function restore(data){if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');exitLayFaceMode();deactivateGizmo();for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
+function restore(data){sliceClose();if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');exitLayFaceMode();deactivateGizmo();for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
 function remember(){
  undoStack.push(JSON.stringify(serialize()));
  if(undoStack.length>15)undoStack.shift();
@@ -621,7 +674,7 @@ function pick(m){
  }else{deactivateGizmo();say('empty')}
  sync();
 }
-function sync(){if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
+function sync(){if(sliceActive)sliceUpdateAll();if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
 // Mouse interactions: click to select, drag object in move mode, right-click for tools.
@@ -703,7 +756,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
      e.stopImmediatePropagation();return;
    }
  }
- if(layFaceMode)return; // Tap chooses a surface; dragging still orbits for a better viewing angle.
+ if(layFaceMode||sliceActive)return; // These modes are for previews/taps, never direct object drag.
  if(e.pointerType==='touch'&&!touchMoveEnabled){
    // Capture selection immediately; OrbitControls may move the camera before pointerup.
    if(touchTap && !measureMode && touchTap.mesh && !cutPreviewActive)pick(touchTap.mesh);
@@ -826,7 +879,7 @@ function deactivateGizmo(){
  updateGizmoButtons();
 }
 function chooseGizmo(mode){
- exitLayFaceMode();
+ sliceClose();exitLayFaceMode();
  if(!selected){deactivateGizmo();say('noSelection');return}
  if(activeTool===mode){deactivateGizmo();return} // Tap again to hide.
  if(measureMode)$('measure').click(); // Never display two different active tools.
@@ -878,6 +931,7 @@ $('export').addEventListener('click',exportSTL);
 $('quote').addEventListener('click',()=>{if(exportSTL()){window.open('/soumission','_blank','noopener');say('quoteInfo')}});
 function resetWorkspace(){
  if(models.length&&!confirm(langText[currentLang()].reset))return;
+ sliceClose();
  if(models.length)remember();
  stopGeneratorPreview();
  hideCutPreview();
@@ -994,6 +1048,131 @@ $('language').addEventListener('change',()=>{updateEstimate();renderSceneList()}
 if(location.hash==='#estimateur'||location.hash==='#estimator')showEstimate();
 updateEstimate();
 
+
+/* Studio layer preview. It clips the visible mesh at successive Z levels;
+   it does NOT calculate nozzle paths, supports, walls or printer G-code. */
+const slicePlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
+let sliceActive=false,sliceBounds=null,sliceMaxLayers=1;
+const sliceSavedMaterials=new Map();
+function sliceRestoreMaterials(){
+ for(const [material,original] of sliceSavedMaterials.entries())material.clippingPlanes=original;
+ sliceSavedMaterials.clear();
+ renderer.localClippingEnabled=false;
+}
+function sliceClipModels(){
+ if(!sliceActive)return;
+ const current=new Set(models.map(m=>m.material));
+ for(const [material,original] of [...sliceSavedMaterials.entries()]){
+  if(!current.has(material)){material.clippingPlanes=original;sliceSavedMaterials.delete(material)}
+ }
+ for(const m of models){
+  const mat=m.material;
+  if(!sliceSavedMaterials.has(mat))sliceSavedMaterials.set(mat,mat.clippingPlanes||[]);
+  mat.clippingPlanes=[slicePlane];
+  mat.clipIntersection=false;
+ }
+ renderer.localClippingEnabled=true;
+}
+function sliceUpdateRange(){
+ if(!sliceActive)return;
+ sliceBounds=models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
+ const height=Math.max(.001,sliceBounds.max.z);
+ const step=Number($('sliceLayerHeight').value)||.2;
+ sliceMaxLayers=Math.max(1,Math.ceil(height/step));
+ const slider=$('sliceLayerSlider');
+ slider.max=String(sliceMaxLayers);
+ slider.value=String(Math.max(1,Math.min(Number(slider.value)||sliceMaxLayers,sliceMaxLayers)));
+ sliceUpdateLayer();
+ sliceClipModels();
+}
+function sliceUpdateLayer(){
+ if(!sliceActive||!sliceBounds)return;
+ const index=Number($('sliceLayerSlider').value)||1;
+ const step=Number($('sliceLayerHeight').value)||.2;
+ const z=Math.min(index*step,Math.max(0,sliceBounds.max.z));
+ slicePlane.constant=z;
+ $('sliceLayerValue').textContent=langText[currentLang()].sliceCountText
+   .replace('{i}',String(index)).replace('{n}',String(sliceMaxLayers)).replace('{z}',z.toFixed(2));
+}
+function sliceUpdatePrice(){
+ if(!sliceActive)return;
+ const estimate=getEstimate(),dict=langText[currentLang()];
+ $('slicePiecesValue').textContent=String(models.length);
+ $('sliceLayersValue').textContent=String(sliceMaxLayers);
+ if(!estimate)return;
+ const overridesWeight=$('estimateWeight').value.trim(),overridesHours=$('estimateHours').value.trim();
+ const kg=Number($('estimateKg').value),rate=Number($('estimateHourRate').value);
+ const setup=Number($('estimateSetup').value),markup=Number($('estimateMargin').value);
+ const layer=Number($('sliceLayerHeight').value)||.2;
+ const weight=overridesWeight ? Number(overridesWeight) : Math.max(.1,estimate.materialVolume/1000*(materialDensity[$('sliceMaterial').value]||1.2));
+ const hours=overridesHours ? Number(overridesHours) : Math.max(.3,estimate.materialVolume/6/3600+(estimate.height/layer)*5/3600+.25);
+ const valid=Number.isFinite(weight)&&Number.isFinite(hours)&&weight>0&&hours>0&&
+  [kg,rate,setup,markup].every(v=>Number.isFinite(v)&&v>=0&&v<=100000)&&markup<=500&&
+  weight<=100000&&hours<=1000;
+ if(!valid){
+  for(const id of ['slicePrice','sliceWeightValue','sliceTimeValue','sliceMaterialCostValue','sliceMachineCostValue','sliceSetupMarkupValue'])$(id).textContent='—';
+  $('sliceWarning').textContent=dict.slicePriceInvalid;return;
+ }
+ const filament=weight/1000*kg*1.1,machine=hours*rate,base=filament+machine+setup,margin=base*markup/100,total=base+margin;
+ $('sliceWeightValue').textContent=dict.sliceWeightUnit.replace('{n}',estimateN(weight));
+ $('sliceTimeValue').textContent=dict.sliceHourUnit.replace('{n}',estimateN(hours));
+ $('sliceMaterialCostValue').textContent=estimateFormat(filament);
+ $('sliceMachineCostValue').textContent=estimateFormat(machine);
+ $('sliceSetupMarkupValue').textContent=estimateFormat(setup+margin);
+ $('slicePrice').textContent=estimateFormat(total);
+ $('sliceWarning').textContent=estimate.tooLarge?dict.sliceOutOfBed:'';
+}
+function sliceUpdateAll(){if(sliceActive){sliceUpdateRange();sliceUpdatePrice()}}
+function sliceClose(){
+ if(!sliceActive)return;
+ sliceActive=false;$('sliceFloat').hidden=true;
+ sliceRestoreMaterials();
+ $('slicePreview').classList.remove('active');$('slicePreview').setAttribute('aria-pressed','false');
+ document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','false'));
+ $('mobileSliceBtn').setAttribute('aria-pressed','false');
+}
+function sliceOpen(){
+ if(sliceActive){sliceClose();return}
+ if(!models.length){say('sliceMissing');return}
+ if(cutPreviewActive)hideCutPreview();
+ if(layFaceMode)exitLayFaceMode();
+ if(measureMode)$('measure').click();
+ deactivateGizmo();stopGeneratorPreview();
+ sliceActive=true;$('sliceFloat').hidden=false;
+ $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
+ document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
+ $('mobileSliceBtn').setAttribute('aria-pressed','true');
+ $('sliceMaterial').value=$('estimateMaterial').value;
+ // Show the entire part initially, then move the slider downward to reveal layers.
+ sliceBounds=models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
+ const step=Number($('sliceLayerHeight').value)||.2;
+ $('sliceLayerSlider').value=String(Math.ceil(Math.max(.001,sliceBounds.max.z)/step));
+ sliceUpdateAll();
+}
+$('slicePreview').addEventListener('click',sliceOpen);
+$('sliceTop').addEventListener('click',()=>$('slicePreview').click());
+$('mobileSliceBtn').addEventListener('click',()=>{$('slicePreview').click()});
+$('sliceClose').addEventListener('click',sliceClose);
+$('sliceLayerSlider').addEventListener('input',sliceUpdateLayer);
+$('sliceLayerHeight').addEventListener('change',()=>{if(!sliceActive)return;
+ $('sliceLayerSlider').value=String(Math.ceil(Math.max(.001,sliceBounds.max.z)/Number($('sliceLayerHeight').value)));
+ sliceUpdateAll();
+});
+$('sliceMaterial').addEventListener('change',e=>{
+ $('estimateMaterial').value=e.target.value;
+ $('estimateKg').value=materialRates[e.target.value]??40;
+ updateEstimate();
+ sliceUpdatePrice();
+});
+$('sliceEstimator').addEventListener('click',()=>{
+ showEstimate();
+ if(isCompactEditor())openMobileMenu('properties',document.querySelector('[data-open-tools="properties"]'));
+});
+$('sliceExport').addEventListener('click',()=>exportSTL());
+for(const id of [...estimateIds,'estimateMaterial'])$(id)?.addEventListener('input',sliceUpdatePrice);
+$('language').addEventListener('change',()=>{sliceUpdateLayer();sliceUpdatePrice()});
+/* End layer preview */
+
 /* Basic modelling workbench — original implementation for the Fjord studio. */
 function modelWorldBounds(m){m.updateMatrixWorld(true);return new THREE.Box3().setFromObject(m)}
 // Magnetic plate: after moving a part within the print bed, set its lowest
@@ -1039,7 +1218,7 @@ function updateLayFaceButton(){
  if(hint)hint.textContent=layFaceMode?langText[currentLang()].layFaceHint:(mobileView()?langText[currentLang()].touchHint:langText[currentLang()].hint);
 }
 function toggleLayFace(){
- if(layFaceMode){exitLayFaceMode();say('selected');return}
+ sliceClose();if(layFaceMode){exitLayFaceMode();say('selected');return}
  if(!selected){say('noSelection');return}
  deactivateGizmo();
  if(measureMode)$('measure').click();
@@ -1159,7 +1338,7 @@ function updateMeasureMarkerSizes(){
  }
 }
 $('measure').addEventListener('click',()=>{
- exitLayFaceMode();deactivateGizmo();
+ sliceClose();exitLayFaceMode();deactivateGizmo();
  measureMode=!measureMode;
  $('measure').classList.toggle('active',measureMode);
  $('measure').setAttribute('aria-pressed',String(measureMode));
@@ -1226,7 +1405,7 @@ function changeCutHeight(value){
 }
 function showCutPreview(){
  if(!selected){say('noCut');return}
- exitLayFaceMode();deactivateGizmo();
+ sliceClose();exitLayFaceMode();deactivateGizmo();
  if(!['cube','sphere','cylinder','cone'].includes(selected.userData.type)){say('cutUnsupported');return}
  if(!cutPreviewActive){$('cutAngleX').value='0';$('cutAngleY').value='0'}
  cutPreviewActive=true;updateCutPreview();status.textContent=langText[currentLang()].cutDragHint;
@@ -1448,7 +1627,7 @@ mobileMenuBackdrop.addEventListener('click',closeMobileMenu);
 window.matchMedia('(max-width:760px)').addEventListener('change',()=>{if(!isCompactEditor())closeMobileMenu()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mobileMenuActive){e.preventDefault();closeMobileMenu()}});
 document.querySelectorAll('[data-shape]').forEach(button=>button.addEventListener('click',()=>{if(isCompactEditor())closeMobileMenu()}));
-for(const toolId of ['move','rotate','scale','measure','cutZ','layFace','viewIso','viewTop','viewFront','viewSide','viewFit','centerXY','dropToBed','half','double','fitBed','mirrorX','mirrorY','mirrorZ','duplicate','remove','rotX90','rotY90','rotZ90','generatorShow','generatorAdd']){
+for(const toolId of ['move','rotate','scale','measure','cutZ','layFace','slicePreview','viewIso','viewTop','viewFront','viewSide','viewFit','centerXY','dropToBed','half','double','fitBed','mirrorX','mirrorY','mirrorZ','duplicate','remove','rotX90','rotY90','rotZ90','generatorShow','generatorAdd']){
  $(toolId)?.addEventListener('click',()=>{
   if(isCompactEditor() && mobileMenuActive)closeMobileMenu();
  });
