@@ -1062,6 +1062,105 @@ updateEstimate();
    it does NOT calculate nozzle paths, supports, walls or printer G-code. */
 const slicePlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
 let sliceActive=false,sliceBounds=null,sliceMaxLayers=1;
+
+let sliceRealData=null,sliceRequestToken=0,sliceToolpathOffset={x:0,y:0};
+const sliceMotionGroup=new THREE.Group();
+sliceMotionGroup.visible=false;
+scene.add(sliceMotionGroup);
+const sliceMotionExtrusion=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffbb45,depthTest:false,transparent:true,opacity:.95}));
+const sliceMotionTravel=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x49caff,depthTest:false,transparent:true,opacity:.55}));
+const sliceMotionHead=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),new THREE.MeshBasicMaterial({color:0xff4b5f,depthTest:false,depthWrite:false}));
+sliceMotionGroup.add(sliceMotionExtrusion,sliceMotionTravel,sliceMotionHead);
+function clearRealToolpath(){
+ for(const line of [sliceMotionExtrusion,sliceMotionTravel]){
+  line.geometry.dispose();line.geometry=new THREE.BufferGeometry();
+ }
+ sliceMotionHead.visible=false;sliceMotionGroup.visible=false;
+}
+function redrawRealHead(){
+ if(!sliceActive||!sliceRealData)return;
+ const data=sliceRealData.layers[Number($('sliceLayerSlider').value)-1];
+ const moves=data?.moves||[], fraction=Math.max(0,Math.min(1,Number($('sliceHeadSlider').value)/1000));
+ const count=Math.min(moves.length,Math.round(fraction*moves.length));
+ const extrusions=[],travels=[];
+ let last=null;
+ const z=(data?.z||0)+.13;
+ for(let i=0;i<count;i++){
+  const p=moves[i],target=p[4]?extrusions:travels;
+  target.push(p[0]+sliceToolpathOffset.x,p[1]+sliceToolpathOffset.y,z,
+              p[2]+sliceToolpathOffset.x,p[3]+sliceToolpathOffset.y,z);
+  last=p;
+ }
+ for(const [line,points] of [[sliceMotionExtrusion,extrusions],[sliceMotionTravel,travels]]){
+  line.geometry.dispose();line.geometry=new THREE.BufferGeometry();
+  if(points.length)line.geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
+  line.visible=!!points.length;
+ }
+ sliceMotionHead.visible=!!moves.length;
+ if(moves.length){
+  const p=last||moves[0];
+  sliceMotionHead.position.set((last?p[2]:p[0])+sliceToolpathOffset.x,
+    (last?p[3]:p[1])+sliceToolpathOffset.y,z+.5);
+ }
+ $('sliceHeadValue').textContent=moves.length?langText[currentLang()].sliceHeadCount
+  .replace('{i}',String(count)).replace('{n}',String(moves.length))
+  .replace('{type}',last?.[4]?langText[currentLang()].sliceHeadPrint:langText[currentLang()].sliceHeadTravel):
+  langText[currentLang()].sliceHeadEmpty;
+ sliceMotionGroup.visible=true;
+}
+function alignRealToolpath(data){
+ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+ for(const layer of data.layers)for(const p of layer.moves){
+  if(!p[4])continue;
+  minX=Math.min(minX,p[0],p[2]);maxX=Math.max(maxX,p[0],p[2]);
+  minY=Math.min(minY,p[1],p[3]);maxY=Math.max(maxY,p[1],p[3]);
+ }
+ const center=sliceBounds.getCenter(new THREE.Vector3());
+ sliceToolpathOffset=Number.isFinite(minX)?
+  {x:center.x-(minX+maxX)/2,y:center.y-(minY+maxY)/2}:{x:-128,y:-128};
+}
+async function requestRealSlice(){
+ if(!sliceActive||!models.length)return;
+ const token=++sliceRequestToken;
+ sliceRealData=null;
+ $('sliceHeadSlider').disabled=true;$('sliceHeadValue').textContent=langText[currentLang()].sliceHeadWaiting;
+ $('sliceEngineState').textContent=langText[currentLang()].sliceRealLoading;
+ clearRealToolpath();
+ try{
+  const group=new THREE.Group();
+  for(const m of models){
+   const clone=m.clone();clone.material=m.material;clone.geometry=m.geometry;group.add(clone);
+  }
+  const binary=new STLExporter().parse(group,{binary:true});
+  const blob=new Blob([binary],{type:'application/octet-stream'});
+  if(blob.size>8*1024*1024)throw Error('STL de plus de 8 Mo');
+  const form=new FormData();
+  form.append('stl',blob,'atelier-du-fjord.stl');
+  form.append('material',$('sliceMaterial').value);
+  form.append('layer_height',$('sliceLayerHeight').value);
+  const response=await fetch('/api/slice/real',{method:'POST',body:form,credentials:'same-origin'});
+  const parsed=await response.json();
+  if(!response.ok)throw Error(parsed.error||('Erreur '+response.status));
+  if(!sliceActive||token!==sliceRequestToken)return;
+  if(!Array.isArray(parsed.layers)||!parsed.layers.length)throw Error('Aucune couche G-code');
+  sliceRealData=parsed;
+  alignRealToolpath(parsed);
+  $('sliceEngineState').textContent=langText[currentLang()].sliceRealReady+
+    (parsed.preview_sampled?' · Trajets échantillonnés.':'');
+  $('sliceHeadSlider').disabled=false;$('sliceHeadSlider').value='0';
+  $('sliceLayerSlider').max=String(parsed.layer_count);
+  $('sliceLayerSlider').value=String(parsed.layer_count);
+  sliceUpdateAll();
+ }catch(err){
+  if(token!==sliceRequestToken||!sliceActive)return;
+  console.warn('Real slicer failed',err);
+  $('sliceEngineState').textContent=langText[currentLang()].sliceRealFailure
+    .replace('{reason}',String(err.message||err).slice(0,140));
+  $('sliceHeadValue').textContent='—';
+  clearRealToolpath();
+ }
+}
+
 const sliceSavedMaterials=new Map();
 function sliceRestoreMaterials(){
  for(const [material,original] of sliceSavedMaterials.entries())material.clippingPlanes=original;
