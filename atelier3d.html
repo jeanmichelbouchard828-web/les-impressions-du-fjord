@@ -1186,7 +1186,7 @@ function sliceUpdateRange(){
  sliceBounds=models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
  const height=Math.max(.001,sliceBounds.max.z);
  const step=Number($('sliceLayerHeight').value)||.2;
- sliceMaxLayers=Math.max(1,Math.ceil(height/step));
+ sliceMaxLayers=sliceRealData?.layer_count||Math.max(1,Math.ceil(height/step));
  const slider=$('sliceLayerSlider');
  slider.max=String(sliceMaxLayers);
  slider.value=String(Math.max(1,Math.min(Number(slider.value)||sliceMaxLayers,sliceMaxLayers)));
@@ -1197,10 +1197,12 @@ function sliceUpdateLayer(){
  if(!sliceActive||!sliceBounds)return;
  const index=Number($('sliceLayerSlider').value)||1;
  const step=Number($('sliceLayerHeight').value)||.2;
- const z=Math.min(index*step,Math.max(0,sliceBounds.max.z));
+ const z=sliceRealData?(sliceRealData.layers[index-1]?.z??index*step):
+  Math.min(index*step,Math.max(0,sliceBounds.max.z));
  slicePlane.constant=z;
  $('sliceLayerValue').textContent=langText[currentLang()].sliceCountText
    .replace('{i}',String(index)).replace('{n}',String(sliceMaxLayers)).replace('{z}',z.toFixed(2));
+ if(sliceRealData){$('sliceHeadSlider').value='0';redrawRealHead()}
 }
 function sliceUpdatePrice(){
  if(!sliceActive)return;
@@ -1218,8 +1220,10 @@ function sliceUpdatePrice(){
  const kg=Number($('estimateKg').value),rate=Number($('estimateHourRate').value);
  const setup=Number($('estimateSetup').value),markup=Number($('estimateMargin').value);
  const layer=Number($('sliceLayerHeight').value)||.2;
- const weight=overridesWeight ? Number(overridesWeight) : Math.max(.1,estimate.materialVolume/1000*(materialDensity[$('sliceMaterial').value]||1.2));
- const hours=overridesHours ? Number(overridesHours) : Math.max(.3,estimate.materialVolume/6/3600+(estimate.height/layer)*5/3600+.25);
+ const weight=overridesWeight?Number(overridesWeight):sliceRealData?
+  sliceRealData.filament_grams:Math.max(.1,estimate.materialVolume/1000*(materialDensity[$('sliceMaterial').value]||1.2));
+ const hours=overridesHours?Number(overridesHours):sliceRealData?
+  sliceRealData.estimated_seconds/3600:Math.max(.3,estimate.materialVolume/6/3600+(estimate.height/layer)*5/3600+.25);
  const valid=Number.isFinite(weight)&&Number.isFinite(hours)&&weight>0&&hours>0&&
   [kg,rate,setup,markup].every(v=>Number.isFinite(v)&&v>=0&&v<=100000)&&markup<=500&&
   weight<=100000&&hours<=1000;
@@ -1229,7 +1233,8 @@ function sliceUpdatePrice(){
  }
  const filament=weight/1000*kg*1.1,machine=hours*rate,base=filament+machine+setup,margin=base*markup/100,total=base+margin;
  $('sliceWeightValue').textContent=dict.sliceWeightUnit.replace('{n}',estimateN(weight));
- const filamentLengthMetres=(weight/(materialDensity[$('sliceMaterial').value]||1.2)*1000)/(Math.PI*.875*.875)/1000;
+ const filamentLengthMetres=sliceRealData?sliceRealData.filament_mm/1000:
+  (weight/(materialDensity[$('sliceMaterial').value]||1.2)*1000)/(Math.PI*.875*.875)/1000;
  $('sliceLengthValue').textContent=dict.sliceMeterUnit.replace('{n}',estimateN(filamentLengthMetres));
  $('sliceTimeValue').textContent=dict.sliceHourUnit.replace('{n}',estimateN(hours));
  $('sliceMaterialCostValue').textContent=estimateFormat(filament);
@@ -1242,6 +1247,7 @@ function sliceUpdateAll(){if(sliceActive){sliceUpdateRange();sliceUpdatePrice()}
 function sliceClose(){
  if(!sliceActive)return;
  sliceActive=false;$('sliceFloat').hidden=true;
+ ++sliceRequestToken;sliceRealData=null;clearRealToolpath();
  sliceRestoreMaterials();
  $('slicePreview').classList.remove('active');$('slicePreview').setAttribute('aria-pressed','false');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','false'));
@@ -1254,7 +1260,7 @@ function sliceOpen(){
  if(layFaceMode)exitLayFaceMode();
  if(measureMode)$('measure').click();
  deactivateGizmo();stopGeneratorPreview();
- sliceActive=true;$('sliceFloat').hidden=false;
+ sliceActive=true;sliceRealData=null;$('sliceFloat').hidden=false;
  $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
  $('mobileSliceBtn').setAttribute('aria-pressed','true');
@@ -1264,21 +1270,25 @@ function sliceOpen(){
  const step=Number($('sliceLayerHeight').value)||.2;
  $('sliceLayerSlider').value=String(Math.ceil(Math.max(.001,sliceBounds.max.z)/step));
  sliceUpdateAll();
+ requestRealSlice();
 }
 $('slicePreview').addEventListener('click',sliceOpen);
 $('sliceTop').addEventListener('click',()=>$('slicePreview').click());
 $('mobileSliceBtn').addEventListener('click',()=>{$('slicePreview').click()});
 $('sliceClose').addEventListener('click',sliceClose);
 $('sliceLayerSlider').addEventListener('input',sliceUpdateLayer);
+$('sliceHeadSlider').addEventListener('input',redrawRealHead);
 $('sliceLayerHeight').addEventListener('change',()=>{if(!sliceActive)return;
+ sliceRealData=null;clearRealToolpath();
  $('sliceLayerSlider').value=String(Math.ceil(Math.max(.001,sliceBounds.max.z)/Number($('sliceLayerHeight').value)));
- sliceUpdateAll();
+ sliceUpdateAll();requestRealSlice();
 });
 $('sliceMaterial').addEventListener('change',e=>{
  $('estimateMaterial').value=e.target.value;
  $('estimateKg').value=materialRates[e.target.value]??40;
  updateEstimate();
  sliceUpdatePrice();
+ if(sliceActive)requestRealSlice();
 });
 $('sliceEstimator').addEventListener('click',()=>{
  showEstimate();
@@ -1286,7 +1296,9 @@ $('sliceEstimator').addEventListener('click',()=>{
 });
 $('sliceExport').addEventListener('click',()=>exportSTL());
 for(const id of [...estimateIds,'estimateMaterial'])$(id)?.addEventListener('input',sliceUpdatePrice);
-$('language').addEventListener('change',()=>{sliceUpdateLayer();sliceUpdatePrice()});
+$('language').addEventListener('change',()=>{sliceUpdateLayer();sliceUpdatePrice();
+ if(sliceActive&&sliceRealData)$('sliceEngineState').textContent=langText[currentLang()].sliceRealReady;
+});
 /* End layer preview */
 
 /* Basic modelling workbench — original implementation for the Fjord studio. */
@@ -1784,7 +1796,12 @@ document.addEventListener('keydown',e=>{
 });
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
-function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMarkerSizes();if(cutPreviewView.visible){for(const handle of [cutPreviewHandle,cutRotateXHandle,cutRotateYHandle]){const point=handle.getWorldPosition(new THREE.Vector3());const distance=camera.position.distanceTo(point);const worldPerPixel=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/Math.max(stage.clientHeight,1);const k=worldPerPixel*16;handle.scale.set(k,k,k)}}renderer.render(scene,camera)}animate();pick(null);window.__fjordEditorStarted=true;
+function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMarkerSizes();
+ if(sliceMotionHead.visible){
+  const d=camera.position.distanceTo(sliceMotionHead.position);
+  const scale=2*d*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/Math.max(stage.clientHeight,1);
+  sliceMotionHead.scale.setScalar(Math.max(.35,scale*10));
+ }if(cutPreviewView.visible){for(const handle of [cutPreviewHandle,cutRotateXHandle,cutRotateYHandle]){const point=handle.getWorldPosition(new THREE.Vector3());const distance=camera.position.distanceTo(point);const worldPerPixel=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/Math.max(stage.clientHeight,1);const k=worldPerPixel*16;handle.scale.set(k,k,k)}}renderer.render(scene,camera)}animate();pick(null);window.__fjordEditorStarted=true;
 </script>
 <script>
 (function(){
