@@ -1230,15 +1230,18 @@ async function requestRealSlice(){
   if(!Array.isArray(parsed.layers)||!parsed.layers.length)throw Error('Aucune couche G-code');
   sliceRealData=parsed;
   alignRealToolpath(parsed);
+  buildRealTimeline(parsed);
   $('sliceEngineState').textContent=langText[currentLang()].sliceRealReady+
     (parsed.preview_sampled?' · Trajets échantillonnés.':'');
-  $('sliceHeadSlider').disabled=false;$('sliceHeadSlider').value='0';
   $('sliceLayerSlider').max=String(parsed.layer_count);
-  $('sliceLayerSlider').value=String(parsed.layer_count);
   sliceUpdateAll();
+  // Begin in the completed-build view. Play restarts from the first movement.
+  $('sliceHeadSlider').value=String(sliceTimeline.length);
+  redrawRealHead();
  }catch(err){
   if(token!==sliceRequestToken||!sliceActive)return;
   console.warn('Real slicer failed',err);
+  sliceRealData=null;
   $('sliceEngineState').textContent=langText[currentLang()].sliceRealFailure
     .replace('{reason}',String(err.message||err).slice(0,140));
   $('sliceHeadValue').textContent='—';
@@ -1278,16 +1281,22 @@ function sliceUpdateRange(){
  sliceUpdateLayer();
  sliceClipModels();
 }
-function sliceUpdateLayer(){
+function sliceUpdateLayer(jumpToLayer=false){
  if(!sliceActive||!sliceBounds)return;
  const index=Number($('sliceLayerSlider').value)||1;
  const step=Number($('sliceLayerHeight').value)||.2;
- const z=sliceRealData?(sliceRealData.layers[index-1]?.z??index*step):
-  Math.min(index*step,Math.max(0,sliceBounds.max.z));
+ if(sliceRealData&&sliceTimeline.length){
+  if(jumpToLayer){
+   slicePause();
+   $('sliceHeadSlider').value=String(sliceLayerEnds[index-1]??0);
+  }
+  redrawRealHead();
+  return;
+ }
+ const z=Math.min(index*step,Math.max(0,sliceBounds.max.z));
  slicePlane.constant=z;
  $('sliceLayerValue').textContent=langText[currentLang()].sliceCountText
-   .replace('{i}',String(index)).replace('{n}',String(sliceMaxLayers)).replace('{z}',z.toFixed(2));
- if(sliceRealData){$('sliceHeadSlider').value='0';redrawRealHead()}
+  .replace('{i}',String(index)).replace('{n}',String(sliceMaxLayers)).replace('{z}',z.toFixed(2));
 }
 function sliceUpdatePrice(){
  if(!sliceActive)return;
@@ -1361,8 +1370,10 @@ $('slicePreview').addEventListener('click',sliceOpen);
 $('sliceTop').addEventListener('click',()=>$('slicePreview').click());
 $('mobileSliceBtn').addEventListener('click',()=>{$('slicePreview').click()});
 $('sliceClose').addEventListener('click',sliceClose);
-$('sliceLayerSlider').addEventListener('input',sliceUpdateLayer);
-$('sliceHeadSlider').addEventListener('input',redrawRealHead);
+$('sliceLayerSlider').addEventListener('input',()=>sliceUpdateLayer(true));
+$('sliceHeadSlider').addEventListener('input',()=>{slicePause();redrawRealHead()});
+$('slicePlayPause').addEventListener('click',sliceTogglePlayback);
+$('sliceRestart').addEventListener('click',()=>{slicePause();$('sliceHeadSlider').value='0';redrawRealHead()});
 $('sliceLayerHeight').addEventListener('change',()=>{if(!sliceActive)return;
  sliceRealData=null;clearRealToolpath();
  $('sliceLayerSlider').value=String(Math.ceil(Math.max(.001,sliceBounds.max.z)/Number($('sliceLayerHeight').value)));
@@ -1383,6 +1394,7 @@ $('sliceExport').addEventListener('click',()=>exportSTL());
 for(const id of [...estimateIds,'estimateMaterial'])$(id)?.addEventListener('input',sliceUpdatePrice);
 $('language').addEventListener('change',()=>{sliceUpdateLayer();sliceUpdatePrice();
  if(sliceActive&&sliceRealData)$('sliceEngineState').textContent=langText[currentLang()].sliceRealReady;
+ $('slicePlayPause').textContent=langText[currentLang()][slicePlaying?'slicePause':'slicePlay'];
 });
 /* End layer preview */
 
