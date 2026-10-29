@@ -1088,7 +1088,7 @@ updateEstimate();
 /* Studio layer preview. It clips the visible mesh at successive Z levels;
    it does NOT calculate nozzle paths, supports, walls or printer G-code. */
 const slicePlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
-let sliceActive=false,sliceBounds=null,sliceMaxLayers=1;
+let sliceActive=false,sliceBounds=null,sliceMaxLayers=1,sliceMode='layers';
 
 let sliceRealData=null,sliceRequestToken=0,sliceToolpathOffset={x:0,y:0};
 let sliceTimeline=[],sliceLayerEnds=[],sliceExtrudePrefix=null,sliceTravelPrefix=null;
@@ -1149,13 +1149,14 @@ function buildRealTimeline(data){
   geometry.setDrawRange(0,0);
   line.geometry.dispose();line.geometry=geometry;
  }
- sliceMotionGroup.visible=true;
+ sliceMotionGroup.visible=false;
  sliceModelVisibility.clear();
- for(const part of models){sliceModelVisibility.set(part,part.visible);part.visible=false}
+ for(const part of models)sliceModelVisibility.set(part,part.visible);
  const scrubber=$('sliceHeadSlider');
  scrubber.max=String(total);scrubber.step='1';scrubber.value='0';scrubber.disabled=false;
  $('slicePlayPause').disabled=false;$('sliceRestart').disabled=false;
  redrawRealHead();
+ applySlicePreviewMode();
 }
 function redrawRealHead(){
  if(!sliceActive||!sliceRealData||!sliceTimeline.length)return;
@@ -1172,12 +1173,9 @@ function redrawRealHead(){
  sliceMotionHead.position.set((atEnd?p[2]:p[0])+sliceToolpathOffset.x,
   (atEnd?p[3]:p[1])+sliceToolpathOffset.y,
   (atEnd?(Number(p[6])||event.z):(Number(p[5])||event.z))+.6);
- sliceMotionGroup.visible=true;
+ sliceMotionGroup.visible=sliceMode==='construction';
  const layerNumber=event.layerIndex+1;
- $('sliceLayerSlider').value=String(layerNumber);
- slicePlane.constant=event.z;
- $('sliceLayerValue').textContent=langText[currentLang()].sliceCountText
-  .replace('{i}',String(layerNumber)).replace('{n}',String(sliceMaxLayers)).replace('{z}',event.z.toFixed(2));
+ // Building animation never changes the independent layer preview cursor.
  $('sliceHeadValue').textContent=langText[currentLang()].sliceHeadCount
   .replace('{i}',String(index)).replace('{n}',String(sliceTimeline.length))
   .replace('{layer}',String(layerNumber)).replace('{layers}',String(sliceMaxLayers))
@@ -1299,22 +1297,15 @@ function sliceUpdateRange(){
  sliceUpdateLayer();
  sliceClipModels();
 }
-function sliceUpdateLayer(jumpToLayer=false){
+function sliceUpdateLayer(){
  if(!sliceActive||!sliceBounds)return;
  const index=Number($('sliceLayerSlider').value)||1;
  const step=Number($('sliceLayerHeight').value)||.2;
- if(sliceRealData&&sliceTimeline.length){
-  if(jumpToLayer){
-   slicePause();
-   $('sliceHeadSlider').value=String(sliceLayerEnds[index-1]??0);
-  }
-  redrawRealHead();
-  return;
- }
- const z=Math.min(index*step,Math.max(0,sliceBounds.max.z));
+ const z=sliceRealData?(sliceRealData.layers[index-1]?.z??index*step):
+  Math.min(index*step,Math.max(0,sliceBounds.max.z));
  slicePlane.constant=z;
  $('sliceLayerValue').textContent=langText[currentLang()].sliceCountText
-  .replace('{i}',String(index)).replace('{n}',String(sliceMaxLayers)).replace('{z}',z.toFixed(2));
+  .replace('{i}',String(index)).replace('{n}',String(sliceMaxLayers)).replace('{z}',Number(z).toFixed(2));
 }
 function sliceUpdatePrice(){
  if(!sliceActive)return;
@@ -1355,10 +1346,40 @@ function sliceUpdatePrice(){
  $('slicePrice').textContent=estimateFormat(total);
  $('sliceWarning').textContent=estimate.tooLarge?dict.sliceOutOfBed:'';
 }
-function sliceUpdateAll(){if(sliceActive){sliceUpdateRange();sliceUpdatePrice()}}
+function applySlicePreviewMode(){
+ const building=sliceMode==='construction';
+ $('sliceLayersTab').classList.toggle('active',!building);
+ $('sliceBuildTab').classList.toggle('active',building);
+ $('sliceLayersTab').setAttribute('aria-pressed',String(!building));
+ $('sliceBuildTab').setAttribute('aria-pressed',String(building));
+ $('sliceLayersPanel').hidden=building;
+ $('sliceBuildPanel').hidden=!building;
+ if(building && sliceRealData && sliceTimeline.length){
+  for(const part of models){
+   if(!sliceModelVisibility.has(part))sliceModelVisibility.set(part,part.visible);
+   part.visible=false;
+  }
+  sliceMotionGroup.visible=true;
+  renderer.localClippingEnabled=false;
+ }else{
+  if(!building)slicePause();
+  for(const part of models)part.visible=sliceModelVisibility.get(part)??true;
+  sliceMotionGroup.visible=false;
+  renderer.localClippingEnabled=sliceActive;
+ }
+}
+function setSliceMode(mode){
+ if(!sliceActive||!['layers','construction'].includes(mode)||sliceMode===mode)return;
+ sliceMode=mode;
+ applySlicePreviewMode();
+}
+$('sliceLayersTab').addEventListener('click',()=>setSliceMode('layers'));
+$('sliceBuildTab').addEventListener('click',()=>setSliceMode('construction'));
+function sliceUpdateAll(){if(sliceActive){sliceUpdateRange();sliceUpdatePrice();applySlicePreviewMode()}}
 function sliceClose(){
  if(!sliceActive)return;
  sliceActive=false;$('sliceFloat').hidden=true;
+ sliceMode='layers';
  ++sliceRequestToken;sliceRealData=null;clearRealToolpath();
  sliceRestoreMaterials();
  $('slicePreview').classList.remove('active');$('slicePreview').setAttribute('aria-pressed','false');
@@ -1372,7 +1393,7 @@ function sliceOpen(){
  if(layFaceMode)exitLayFaceMode();
  if(measureMode)$('measure').click();
  deactivateGizmo();stopGeneratorPreview();
- sliceActive=true;sliceRealData=null;$('sliceFloat').hidden=false;
+ sliceActive=true;sliceRealData=null;sliceMode='layers';$('sliceFloat').hidden=false;
  $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
  $('mobileSliceBtn').setAttribute('aria-pressed','true');
@@ -1388,7 +1409,7 @@ $('slicePreview').addEventListener('click',sliceOpen);
 $('sliceTop').addEventListener('click',()=>$('slicePreview').click());
 $('mobileSliceBtn').addEventListener('click',()=>{$('slicePreview').click()});
 $('sliceClose').addEventListener('click',sliceClose);
-$('sliceLayerSlider').addEventListener('input',()=>sliceUpdateLayer(true));
+$('sliceLayerSlider').addEventListener('input',sliceUpdateLayer);
 $('sliceHeadSlider').addEventListener('input',()=>{slicePause();redrawRealHead()});
 $('slicePlayPause').addEventListener('click',sliceTogglePlayback);
 $('sliceRestart').addEventListener('click',()=>{slicePause();$('sliceHeadSlider').value='0';redrawRealHead()});
