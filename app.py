@@ -6,6 +6,10 @@ import psycopg
 from psycopg.rows import dict_row
 from werkzeug.utils import secure_filename
 app=Flask(__name__)
+# Actual server-side slicing / layer toolpaths. The resulting generic G-code
+# is NOT downloadable or intended for direct use on a Bambu X2D printer.
+from real_slicer import slicer_bp
+app.register_blueprint(slicer_bp)
 app.secret_key=os.environ.get("SECRET_KEY",secrets.token_hex(32))
 app.config.update(MAX_CONTENT_LENGTH=10*1024*1024,SESSION_COOKIE_SECURE=True,SESSION_COOKIE_HTTPONLY=True,SESSION_COOKIE_SAMESITE="Lax")
 DB=os.environ["DATABASE_URL"]
