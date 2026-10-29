@@ -696,18 +696,28 @@ function pick(m){
  if(m && generatorPreviewEnabled)stopGeneratorPreview(); // Preview is never selectable.
  const changed=selected!==m;
  if(changed){
-  exitLayFaceMode();
   if(cutPreviewActive)hideCutPreview();
   removeSelectionTint(selected);
-  deactivateGizmo(); // Selecting an object alone never shows the arrows.
  }
  selected=m;
  if(m){
   addSelectionTint(m);
-  // No transform.attach() here: only the explicit tool buttons activate the gizmo.
+  // Selected tools follow the part. Selecting alone never makes arrows appear.
+  if(activeTool){
+   transform.setMode(activeTool);
+   transform.attach(m);
+   transform.getHelper().visible=true;
+  }else{
+   transform.detach();
+   transform.getHelper().visible=false;
+  }
   say('selected');
   if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}
- }else{deactivateGizmo();say('empty')}
+ }else{
+  exitLayFaceMode();
+  deactivateGizmo();
+  say('empty');
+ }
  sync();
 }
 function sync(){if(sliceActive){if(models.length)sliceUpdateAll();else sliceClose()}if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
@@ -867,7 +877,9 @@ renderer.domElement.addEventListener('pointerup',e=>{
     if(tap.faceHit?.object===selected)layOnClickedFace(tap.faceHit);
     else say('layFacePick');
    }else if(measureMode && tap.point)measurePoint(tap.point);
-   else pick(tap.mesh||null);
+   else if(tap.mesh)pick(tap.mesh);
+   else if(!activeTool&&!touchMoveEnabled)pick(null);
+   // A tap on the empty build plate must not cancel the active modelling tool.
   }
   return;
  }
@@ -881,7 +893,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
  }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
  const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point);else pick(hit.object)}
- else if(!measureMode&&!cutPreviewActive)pick(null);
+ else if(!measureMode&&!cutPreviewActive&&!activeTool&&!touchMoveEnabled)pick(null);
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
  if(e.pointerType==='touch'){activeTouchIds.delete(e.pointerId);touchTap=null}
@@ -916,25 +928,31 @@ function deactivateGizmo(){
 }
 function chooseGizmo(mode){
  sliceClose();exitLayFaceMode();
- if(!selected){deactivateGizmo();say('noSelection');return}
- if(activeTool===mode){deactivateGizmo();return} // Tap again to hide.
+ if(activeTool===mode){deactivateGizmo();return} // Same button turns the tool off.
  if(measureMode)$('measure').click(); // Never display two different active tools.
  if(cutPreviewActive)hideCutPreview();
  activeTool=mode;
  transform.setMode(mode);
- transform.attach(selected);
- transform.getHelper().visible=true;
+ if(selected){
+  transform.attach(selected);
+  transform.getHelper().visible=true;
+ }else{
+  transform.detach();
+  transform.getHelper().visible=false;
+  say('noSelection'); // Tool stays active until a part is selected.
+ }
  updateGizmoButtons();
 }
 transform.addEventListener('mouseDown',()=>remember());
 transform.addEventListener('objectChange',sync);
-// After a completed drag, return to a clean, uncluttered plateau.
-transform.addEventListener('mouseUp',()=>requestAnimationFrame(()=>{
- if(!transform.dragging){
-  if(activeTool==='translate' && selected){snapPartToBed(selected);sync()}
-  deactivateGizmo();
+// Keep the selected tool and its gizmo active after each manipulation.
+transform.addEventListener('mouseUp',()=>{
+ if(activeTool==='translate' && selected){
+  requestAnimationFrame(()=>{
+   if(!transform.dragging && selected){snapPartToBed(selected);sync()}
+  });
  }
-}));
+});
 [['move','translate'],['rotate','rotate'],['scale','scale']].forEach(([id,mode])=>
  $(id).addEventListener('click',()=>chooseGizmo(mode)));
 updateGizmoButtons();
@@ -1515,7 +1533,7 @@ function layOnClickedFace(hit){
  const box=modelWorldBounds(object);
  if(!Number.isFinite(box.min.z)){say('layFaceInvalid');return}
  object.position.z-=box.min.z;
- exitLayFaceMode();
+ // Keep this tool selected so another face can be chosen.
  sync();
  say('layFaceDone');
 }
@@ -1611,7 +1629,7 @@ $('measure').addEventListener('click',()=>{
 });
 $('measure').setAttribute('aria-pressed','false');
 function setView(direction,center){
- deactivateGizmo();
+ // View presets must not turn off the current modelling tool.
  const target=center||new THREE.Vector3(0,0,15),distance=Math.max(120,camera.position.distanceTo(orbit.target));
  orbit.target.copy(target);
  camera.position.copy(target).add(direction.clone().normalize().multiplyScalar(distance));
@@ -1622,7 +1640,6 @@ $('viewTop').addEventListener('click',()=>setView(new THREE.Vector3(0,0,1)));
 $('viewFront').addEventListener('click',()=>setView(new THREE.Vector3(0,-1,.00001)));
 $('viewSide').addEventListener('click',()=>setView(new THREE.Vector3(1,0,.00001)));
 $('viewFit').addEventListener('click',()=>{
- deactivateGizmo();
  const b=selected?modelWorldBounds(selected):models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
  if(b.isEmpty()){setView(new THREE.Vector3(1,-1,1),new THREE.Vector3(0,0,10));return}
  const c=b.getCenter(new THREE.Vector3()),size=b.getSize(new THREE.Vector3()),r=Math.max(size.x,size.y,size.z,30);
