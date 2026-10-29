@@ -104,7 +104,7 @@ def parse_gcode(filename, density):
                 time_seconds += distance / (nf / 60)
             if delta_e > 0 and distance > 0:
                 filament_mm += delta_e
-            if distance > 1e-6 and (abs(nx-x) > 1e-6 or abs(ny-y) > 1e-6):
+            if distance > 1e-6:
                 extruding = delta_e > 0
                 if extruding:
                     total_extrusions += 1
@@ -118,7 +118,8 @@ def parse_gcode(filename, density):
                     if seen % stride == 0 and samples < MAX_SAMPLES:
                         layer["moves"].append([round(x, 3), round(y, 3),
                                                round(nx, 3), round(ny, 3),
-                                               1 if extruding else 0])
+                                               1 if extruding else 0,
+                                               round(z, 3), round(nz, 3)])
                         samples += 1
                     elif samples >= MAX_SAMPLES:
                         skipped = True
