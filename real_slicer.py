@@ -15,8 +15,8 @@ from flask import Blueprint, jsonify, request
 slicer_bp = Blueprint("real_slicer", __name__)
 DENSITIES = {"PLA": 1.24, "PETG": 1.27, "ASA": 1.07, "TPU": 1.20}
 TOOL = shutil.which("prusa-slicer")
-ARG = re.compile(r"([XYZEFS])([-+]?(?:\\d+\\.?\\d*|\\.\\d+))")
-FLOAT = r"([-+]?(?:\\d+\\.?\\d*|\\.\\d+))"
+ARG = re.compile(r"([XYZEFS])([-+]?(?:\d+\.?\d*|\.\d+))")
+FLOAT = r"([-+]?(?:\d+\.?\d*|\.\d+))"
 MAX_SAMPLES = 80000
 MAX_UPLOAD = 8 * 1024 * 1024
 
@@ -66,7 +66,7 @@ def parse_gcode(filename, density):
                 try:
                     clock = line.split("=", 1)[1]
                     file_time = sum(float(v) * {"d": 86400, "h": 3600, "m": 60, "s": 1}[unit]
-                                    for v, unit in re.findall(r"([0-9.]+)\\s*([dhms])", clock))
+                                    for v, unit in re.findall(r"([0-9.]+)\s*([dhms])", clock))
                 except (ValueError, IndexError):
                     pass
                 continue
@@ -90,7 +90,7 @@ def parse_gcode(filename, density):
                 z = args.get("Z", z)
                 e = args.get("E", e)
                 continue
-            if not re.match(r"^G0?1?0?\\s|^G0?1\\s", cmd):
+            if not cmd.startswith(("G0 ", "G1 ", "G00 ", "G01 ")):
                 continue
             args = dict((key, float(value)) for key, value in ARG.findall(cmd))
             nx = x + args.get("X", 0) if xy_relative else args.get("X", x)
