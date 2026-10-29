@@ -1120,8 +1120,8 @@ function buildRealTimeline(data){
   for(const move of layer.moves||[]){
    const row=move[4]?printCoords:travelCoords;
    const at=(move[4]?prints++:travels++)*6;
-   row[at]=move[0]+sliceToolpathOffset.x;row[at+1]=move[1]+sliceToolpathOffset.y;row[at+2]=z+.13;
-   row[at+3]=move[2]+sliceToolpathOffset.x;row[at+4]=move[3]+sliceToolpathOffset.y;row[at+5]=z+.13;
+   row[at]=move[0]+sliceToolpathOffset.x;row[at+1]=move[1]+sliceToolpathOffset.y;row[at+2]=(Number(move[5])||z)+.13;
+   row[at+3]=move[2]+sliceToolpathOffset.x;row[at+4]=move[3]+sliceToolpathOffset.y;row[at+5]=(Number(move[6])||z)+.13;
    sliceTimeline.push({move,layerIndex,z});
    sliceExtrudePrefix[++index]=prints;
    sliceTravelPrefix[index]=travels;
@@ -1155,7 +1155,8 @@ function redrawRealHead(){
  const p=event.move,atEnd=index>0;
  sliceMotionHead.visible=true;
  sliceMotionHead.position.set((atEnd?p[2]:p[0])+sliceToolpathOffset.x,
-  (atEnd?p[3]:p[1])+sliceToolpathOffset.y,event.z+.6);
+  (atEnd?p[3]:p[1])+sliceToolpathOffset.y,
+  (atEnd?(Number(p[6])||event.z):(Number(p[5])||event.z))+.6);
  sliceMotionGroup.visible=true;
  const layerNumber=event.layerIndex+1;
  $('sliceLayerSlider').value=String(layerNumber);
@@ -1188,7 +1189,9 @@ function slicePlaybackStep(timestamp){
 function sliceTogglePlayback(){
  if(!sliceRealData||!sliceTimeline.length)return;
  if(slicePlaying){slicePause();return}
- if(Number($('sliceHeadSlider').value)>=sliceTimeline.length)$('sliceHeadSlider').value='0';
+ if(Number($('sliceHeadSlider').value)>=sliceTimeline.length){
+  $('sliceHeadSlider').value='0';redrawRealHead();
+ }
  slicePlaying=true;slicePlaybackLast=0;slicePlaybackFraction=0;
  $('slicePlayPause').textContent=langText[currentLang()].slicePause;
  slicePlaybackFrame=requestAnimationFrame(slicePlaybackStep);
