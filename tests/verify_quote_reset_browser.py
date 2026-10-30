@@ -1,4 +1,9 @@
 """Browser check: quote reset must clear unsaved edits without deleting saved data."""
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
 from flask import Flask, render_template_string
 from playwright.sync_api import sync_playwright
 
