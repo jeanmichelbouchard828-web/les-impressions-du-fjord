@@ -91,6 +91,9 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn(b"Soumissions PRO", r.data)
         self.assertIn(b"Majoration", r.data)
+        self.assertIn(b'id="fjUpload"', r.data)
+        self.assertIn(b'/admin/soumissions-pro/estimer', r.data)
+        self.assertIn(b'PETG-CF', r.data)
 
     def test_pdf(self):
         r = self.client.get("/admin/soumissions-pro/1/pdf")
