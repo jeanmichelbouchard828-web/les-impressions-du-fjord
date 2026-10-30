@@ -30,11 +30,11 @@ class ModelDB:
                         return {"id": row["id"]}
             return None
         if "INSERT INTO private_models" in self.sql:
-            model = {"id": self.next_id, "name": self.params[0],
+            model = {"id": ModelDB.next_id, "name": self.params[0],
                      "filename": self.params[1], "blob": self.params[2],
                      "sha": self.params[5], "preview": self.params[3]}
             self.records.append(model)
-            self.next_id += 1
+            ModelDB.next_id += 1
             return {"id": model["id"]}
         return None
 
