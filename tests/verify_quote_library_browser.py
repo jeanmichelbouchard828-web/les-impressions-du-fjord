@@ -89,6 +89,7 @@ def run():
             assert page.locator("#fjLibraryDialog").is_hidden()
             page.locator("#fjPickLibrary").click()
             assert page.locator("#fjLibraryDialog").is_visible()
+            page.locator(".fj-library-item").first.wait_for(timeout=10000)
             assert page.locator(".fj-library-item").count() == 2
             page.locator("#fjLibrarySearch").fill("engrenage")
             assert page.locator(".fj-library-item").count() == 1
