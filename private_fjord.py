@@ -11,6 +11,7 @@ import secrets
 
 from flask import abort, flash, make_response, redirect, render_template_string, request, send_file, url_for
 from werkzeug.utils import secure_filename
+from model_preview import make_model_preview
 
 MATERIALS = ("PLA", "PETG", "PETG-CF", "ASA", "TPU", "Autre")
 MODEL_EXT = (".stl", ".3mf", ".json")
@@ -278,6 +279,11 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             except (ValueError, UnicodeDecodeError):
                 abort(400, "Projet JSON invalide.")
         preview = _image(request.files.get("preview"))
+        if not preview and filename.lower().endswith((".stl", ".3mf")):
+            try:
+                preview = make_model_preview(data, filename)
+            except (ValueError, OverflowError):
+                preview = None  # Keep the model if rendering fails.
         with db() as c:
             row = c.execute("""INSERT INTO private_models(name,filename,filedata,preview,preview_mime)
                 VALUES (%s,%s,%s,%s,%s) RETURNING id""",
@@ -295,10 +301,17 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             if not source or source["kind"]!="Soumission" or not source["filedata"]:
                 abort(404)
             if len(source["filedata"])>MAX_MODEL:abort(413)
-            result=c.execute("""INSERT INTO private_models(name,filename,filedata)
-                VALUES(%s,%s,%s) RETURNING id""",
+            try:
+                preview = make_model_preview(source["filedata"], source["filename"])
+            except (ValueError, OverflowError):
+                preview = None
+            result=c.execute("""INSERT INTO private_models
+                (name,filename,filedata,preview,preview_mime)
+                VALUES(%s,%s,%s,%s,%s) RETURNING id""",
                 ("Demande #"+str(request_id)+" - "+source["name"],
-                 source["filename"],source["filedata"])).fetchone()
+                 source["filename"],source["filedata"],
+                 preview[1] if preview else None,
+                 preview[0] if preview else None)).fetchone()
         return redirect("/admin/soumissions-pro?model_id="+str(result["id"])+
                         "&request_id="+str(request_id))
 
@@ -307,7 +320,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_models():
         with db() as c:
             models = c.execute("""SELECT id,name,filename,octet_length(filedata) AS bytes,
-                  preview IS NOT NULL AS has_preview,created
+                  (preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview,created
                   FROM private_models ORDER BY created DESC LIMIT 300""").fetchall()
         return page("Mes modèles 3D", r"""
 <style>
@@ -320,7 +333,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <div class="eyebrow">Administration privée</div><h1>Ma bibliothèque 3D</h1>
 <p>Tes modèles sont conservés dans la base de données du site. Retrouve-les sur ton ordinateur ou ton téléphone, télécharge leur STL/3MF ou démarre une soumission.</p>
 <div class="fjord-actions"><a class="btn" href="/admin/atelier-3d">✦ Ouvrir mon Atelier 3D</a><a class="btn" href="/admin/soumissions-pro">📄 Soumissions PRO</a><a href="/admin">← Administration</a></div>
-<div class="card"><h2>Importer un modèle existant</h2><p class="muted small">STL, 3MF ou projet JSON de l'Atelier (8 Mo maximum). Ajoute une image pour voir la pièce dans tes soumissions.</p>
+<div class="card"><h2>Importer un modèle existant</h2><p class="muted small">STL, 3MF ou projet JSON de l'Atelier (8 Mo maximum). L'aperçu des STL et 3MF est généré automatiquement; tu peux ajouter une autre image.</p>
 <form method="post" action="/admin/modeles/upload" enctype="multipart/form-data">{{csrf|safe}}
 <label>Nom du modèle<input name="name" maxlength="120" required placeholder="Ex. Support de téléphone RAM"></label>
 <label>Fichier 3D<input type="file" name="model" accept=".stl,.3mf,.json" required></label>
@@ -362,7 +375,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @admin_required
     def fjord_model_list_json():
         with db() as c:
-            rows=c.execute("""SELECT id,name,filename,preview IS NOT NULL AS has_preview
+            rows=c.execute("""SELECT id,name,filename,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview
                                FROM private_models ORDER BY created DESC LIMIT 500""").fetchall()
         return {"ok":True,"models":[{"id":m["id"],"name":m["name"],
                   "filename":m["filename"],"has_preview":m["has_preview"]}
@@ -391,11 +404,22 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @admin_required
     def fjord_model_preview(model_id):
         with db() as c:
-            model=c.execute("SELECT preview,preview_mime FROM private_models WHERE id=%s",
+            model=c.execute("""SELECT preview,preview_mime,filename,filedata
+                               FROM private_models WHERE id=%s""",
                             (model_id,)).fetchone()
-        if not model or not model["preview"]:abort(404)
-        return send_file(io.BytesIO(model["preview"]),mimetype=model["preview_mime"],
-                         max_age=0)
+            if not model:abort(404)
+            preview=(model["preview_mime"],model["preview"]) if model["preview"] else None
+            if not preview and model["filename"].lower().endswith((".stl", ".3mf")):
+                try:
+                    preview = make_model_preview(model["filedata"], model["filename"])
+                except (ValueError, OverflowError):
+                    preview = None
+                if preview:
+                    c.execute("""UPDATE private_models SET preview=%s,preview_mime=%s
+                                 WHERE id=%s AND preview IS NULL""",
+                              (preview[1], preview[0], model_id))
+        if not preview:abort(404)
+        return send_file(io.BytesIO(preview[1]),mimetype=preview[0],max_age=0)
 
     @app.post("/admin/modeles/supprimer/<int:model_id>")
     @admin_required
@@ -409,7 +433,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @admin_required
     def fjord_quotes():
         with db() as c:
-            models=c.execute("SELECT id,name,preview IS NOT NULL AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
+            models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,payment_status,paid_at,created
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
@@ -433,7 +457,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-summary{background:#132e43;border:1px solid #58bce8;border-radius:12px;padding:20px}
 .fj-summary strong{display:block;font-size:30px;color:#7ee7ff}
 .fj-summary p{margin:5px 0}.fj-card{margin:18px 0}
-.fj-model-photo{display:block;width:240px;height:150px;object-fit:contain;border-radius:11px;background:#061421;margin:10px 0}
+.fj-preview-box{max-width:460px;margin:14px 0;padding:12px;background:#eaf4fa;border-radius:12px}
+.fj-preview-box[hidden]{display:none!important}
+.fj-preview-box .fj-help{color:#32546a!important}
+.fj-model-photo{display:block;width:100%;height:auto;max-height:320px;object-fit:contain;border-radius:9px;background:#f0f7fb}
 .fj-import-panel{background:#102b40;border:1px solid #426c83;border-radius:11px;padding:16px;margin:10px 0 18px}
 .fj-import-panel label{margin-bottom:8px}
 .fj-import-panel .fj-help{margin:7px 0 0}
@@ -467,9 +494,9 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <label>Remplissage<select id="fjInfill"><option value="10">10 %</option><option value="15">15 %</option><option value="18" selected>18 %</option><option value="20">20 %</option><option value="30">30 %</option><option value="40">40 %</option><option value="50">50 %</option><option value="75">75 %</option><option value="100">100 %</option></select></label>
 </div>
 <p role="status" id="fjEstimateStatus" class="fj-help">Sélectionne un modèle ou importe un fichier pour estimer le poids, le temps et le prix automatiquement.</p>
+<div class="fj-preview-box" id="fjPreviewBox" hidden><img id="fjPreview" class="fj-model-photo" alt="Aperçu 3D généré de la pièce"><p class="fj-help">Aperçu automatique de la pièce, également ajouté à la soumission PDF.</p></div>
 <p class="fj-help">Le modèle importé est conservé dans ta bibliothèque privée. Le tranchage est une estimation générique (buse 0,4 mm), pas un profil d'impression X2D. Vérifie le prix avec Bambu Studio avant de l'envoyer.</p>
 </div>
-<img id="fjPreview" class="fj-model-photo" alt="Aperçu de la pièce" hidden>
 <label>Ou ajouter une photo 3D personnalisée<input type="file" name="preview" accept="image/jpeg,image/png,image/webp"></label>
 <label>Description du travail<textarea name="description" maxlength="2500" placeholder="Couleur, finition, dimensions, inclusions…">{{incoming.description if incoming else ''}}</textarea></label>
 <div class="fj-two">
@@ -518,6 +545,9 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 (function(){
  const f=document.getElementById("fjQuote"),o=document.getElementById("fjTotal"),d=document.getElementById("fjBreakdown");
  const selector=document.getElementById("fjModel"),image=document.getElementById("fjPreview");
+ const previewBox=document.getElementById("fjPreviewBox");
+ image.onload=()=>{previewBox.hidden=false};
+ image.onerror=()=>{previewBox.hidden=true};
  const status=document.getElementById("fjEstimateStatus"),fileInput=document.getElementById("fjUpload");
  const save=document.getElementById("fjSaveQuote");
  const grams=f.elements.namedItem("grams"),hours=f.elements.namedItem("hours");
@@ -540,7 +570,12 @@ body.light .fj-import-panel .fj-help{color:#30556a}
  f.addEventListener("input",update);f.addEventListener("change",update);
  function message(text){status.textContent=text}
  function busy(value){save.disabled=value;save.textContent=value?"Calcul en cours…":"Enregistrer la soumission"}
- function updateImage(){const src=selector.selectedOptions[0]?.dataset.preview||"";image.hidden=!src;if(src)image.src=src}
+ function updateImage(){
+   const src=selector.selectedOptions[0]?.dataset.preview||"";
+   previewBox.hidden=true;
+   if(src)image.src=src;
+   else image.removeAttribute("src");
+ }
  async function estimate(){
   const id=selector.value,serial=++requestNumber;
   updateImage();
@@ -595,7 +630,8 @@ body.light .fj-import-panel .fj-help{color:#30556a}
    if(!response.ok||!result.ok)throw Error(result.error||"Importation impossible.");
    if(serial!==requestNumber)return;
    const opt=new Option(file.name,result.id,true,true);
-   opt.dataset.preview="";selector.add(opt);selector.value=String(result.id);
+   opt.dataset.preview="/admin/modeles/apercu/"+result.id;
+   selector.add(opt);selector.value=String(result.id);
    const title=f.elements.namedItem("title");
    if(!title.value.trim())title.value=file.name.replace(/\.(stl|3mf)$/i,"");
    fileInput.value="";await estimate();
@@ -700,10 +736,21 @@ body.light .fj-import-panel .fj-help{color:#30556a}
         preview=_image(request.files.get("preview"))
         with db() as c:
             if model_id:
-                model=c.execute("SELECT preview,preview_mime FROM private_models WHERE id=%s",(model_id,)).fetchone()
+                model=c.execute("""SELECT preview,preview_mime,filename,filedata
+                                   FROM private_models WHERE id=%s""",(model_id,)).fetchone()
                 if not model:abort(400,"Modèle introuvable")
-                if not preview and model["preview"]:
-                    preview=(model["preview_mime"],model["preview"])
+                if not preview:
+                    if model["preview"]:
+                        preview=(model["preview_mime"],model["preview"])
+                    elif model["filename"].lower().endswith((".stl", ".3mf")):
+                        try:
+                            preview=make_model_preview(model["filedata"],model["filename"])
+                        except (ValueError, OverflowError):
+                            preview=None
+                        if preview:
+                            c.execute("""UPDATE private_models SET preview=%s,preview_mime=%s
+                                         WHERE id=%s AND preview IS NULL""",
+                                      (preview[1],preview[0],model_id))
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
                 shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
