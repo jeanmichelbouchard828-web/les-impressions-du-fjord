@@ -245,8 +245,13 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           grams DOUBLE PRECISION, hours DOUBLE PRECISION, filament_kg DOUBLE PRECISION,
           machine_hour DOUBLE PRECISION, setup_cost DOUBLE PRECISION,
           markup DOUBLE PRECISION, payment_token TEXT UNIQUE,
+          payment_status TEXT NOT NULL DEFAULT 'En attente',
+          paid_at TIMESTAMPTZ,
           created TIMESTAMPTZ DEFAULT NOW())""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS payment_token TEXT")
+        c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
+                     payment_status TEXT NOT NULL DEFAULT 'En attente'""")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ")
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
                      ON private_quotes(payment_token)""")
 
@@ -406,7 +411,8 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,preview IS NOT NULL AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,created FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
+                     apply_taxes,payment_status,paid_at,created
+                     FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         interac_email=payment_setting["value"] if payment_setting else ""
         chosen=request.args.get("model_id","",type=str)
@@ -434,6 +440,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-import-panel [role=status]{min-height:24px;white-space:normal;overflow-wrap:anywhere}
 body.light .fj-import-panel{background:#ecf7fd;border-color:#a7cfdf}
 body.light .fj-import-panel .fj-help{color:#30556a}
+.fj-payment-form{max-width:360px;margin:12px 0 6px}
+.fj-payment-form label{font-size:14px;margin:0}
+.fj-payment-form select{margin:6px 0;padding:10px}
+.fj-payment-date{font-size:13px;color:#b4d1e1;margin:4px 0}
 @media(max-width:700px){.fj-two{grid-template-columns:1fr}}
 </style>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
@@ -491,8 +501,16 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
-<h2>Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<h2 id="soumissions-enregistrees">Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p>
+<form class="fj-payment-form" method="post" action="/admin/soumissions-pro/{{q.id}}/statut-paiement">{{csrf|safe}}
+<label for="fj-payment-{{q.id}}">Statut du paiement</label>
+<select id="fj-payment-{{q.id}}" name="payment_status" onchange="this.form.requestSubmit()" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
+<option value="En attente" {% if q.payment_status=='En attente' %}selected{% endif %}>En attente</option>
+<option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
+<option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
+</select><noscript><button type="submit">Enregistrer le statut</button></noscript></form>
+{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
 {% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
@@ -605,6 +623,24 @@ body.light .fj-import-panel .fj-help{color:#30556a}
         flash("Paramètres Interac enregistrés. " +
               ("Les liens de paiement sont actifs." if address else "Le paiement Interac est désactivé."))
         return redirect("/admin/soumissions-pro")
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/statut-paiement")
+    @admin_required
+    def fjord_quote_payment_status(quote_id):
+        verify()
+        status=request.form.get("payment_status","")
+        if status not in ("En attente","Paiement partiel","Payée"):
+            abort(400,"Statut de paiement invalide.")
+        with db() as c:
+            result=c.execute("""UPDATE private_quotes
+                SET payment_status=%s,
+                    paid_at=CASE WHEN %s='Payée'
+                                 THEN COALESCE(paid_at,NOW()) ELSE NULL END
+                WHERE id=%s RETURNING id""",(status,status,quote_id)).fetchone()
+        if not result:abort(404)
+        flash("Soumission FJ-{:05d} : statut de paiement « {} » enregistré.".format(quote_id,status))
+        return redirect(url_for("fjord_quotes")+"#soumissions-enregistrees")
+
 
     @app.post("/admin/soumissions-pro/estimer")
     @admin_required
