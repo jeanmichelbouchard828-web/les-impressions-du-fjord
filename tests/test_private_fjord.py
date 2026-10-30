@@ -100,9 +100,9 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b'/admin/modeles/api/liste', r.data)
         self.assertIn('Choisir cette pièce'.encode('utf-8'), r.data)
         self.assertIn(b'libraryDialog.close()', r.data)
-        self.assertIn(b'live_url', r.data)
-        self.assertIn(b'/diffusion', r.data)
-        self.assertIn(b'Activer un nouveau lien', r.data)
+        self.assertIn("/suivi-impression/<token>", [rule.rule for rule in self.app.url_map.iter_rules()])
+        self.assertIn("/admin/soumissions-pro/<int:quote_id>/diffusion",
+                      [rule.rule for rule in self.app.url_map.iter_rules()])
 
     def test_quote_reset_button_is_safe_and_admin_only(self):
         html = self.client.get("/admin/soumissions-pro").data.decode("utf-8")
@@ -174,6 +174,8 @@ class PrivateFjordTests(unittest.TestCase):
                                lambda title, body, **kwargs: render_template_string(body, **kwargs))
         html = app.test_client().get("/admin/soumissions-pro").data.decode("utf-8")
         self.assertIn('/admin/soumissions-pro/8/statut-paiement', html)
+        self.assertIn('/admin/soumissions-pro/8/diffusion', html)
+        self.assertIn('Activer un nouveau lien', html)
         self.assertIn('option value="Payée" selected', html)
         self.assertIn('Paiement confirmé manuellement le 30-10-2026', html)
         self.assertIn('Paiement partiel', html)
