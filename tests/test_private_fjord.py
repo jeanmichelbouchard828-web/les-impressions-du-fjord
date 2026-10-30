@@ -100,6 +100,9 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b'/admin/modeles/api/liste', r.data)
         self.assertIn('Choisir cette pièce'.encode('utf-8'), r.data)
         self.assertIn(b'libraryDialog.close()', r.data)
+        self.assertIn(b'live_url', r.data)
+        self.assertIn(b'/diffusion', r.data)
+        self.assertIn(b'Activer un nouveau lien', r.data)
 
     def test_quote_reset_button_is_safe_and_admin_only(self):
         html = self.client.get("/admin/soumissions-pro").data.decode("utf-8")
