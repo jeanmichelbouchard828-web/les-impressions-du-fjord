@@ -7,8 +7,9 @@ import io
 import json
 import math
 import re
+import secrets
 
-from flask import abort, flash, redirect, render_template_string, request, send_file, url_for
+from flask import abort, flash, make_response, redirect, render_template_string, request, send_file, url_for
 from werkzeug.utils import secure_filename
 
 MATERIALS = ("PLA", "PETG", "PETG-CF", "ASA", "TPU", "Autre")
@@ -42,6 +43,30 @@ def _number(field, default=0, low=0, high=100000):
     if not math.isfinite(n) or not low <= n <= high:
         abort(400, "Valeur hors limites : " + field)
     return n
+
+def _quote_amounts(q):
+    """Même calcul des taxes pour le PDF et la page de paiement."""
+    subtotal = round(float(q["unit_price"]) * int(q["quantity"]) + float(q["shipping"]), 2)
+    gst = round(subtotal * 0.05, 2) if q["apply_taxes"] else 0.0
+    qst = round(subtotal * 0.09975, 2) if q["apply_taxes"] else 0.0
+    return subtotal, gst, qst, round(subtotal + gst + qst, 2)
+
+
+def _quote_payment_token(db, q):
+    """Émet un lien non prédictible une seule fois; fonctionne aussi pour les anciennes soumissions."""
+    existing = q.get("payment_token")
+    if existing:
+        return existing
+    with db() as c:
+        row = c.execute("""UPDATE private_quotes SET payment_token=%s
+            WHERE id=%s AND payment_token IS NULL RETURNING payment_token""",
+            (secrets.token_urlsafe(32), q["id"])).fetchone()
+        if row:
+            return row["payment_token"]
+        row = c.execute("SELECT payment_token FROM private_quotes WHERE id=%s",
+                        (q["id"],)).fetchone()
+        return row["payment_token"] if row else None
+
 
 def admin_studio(html, csrf_token):
     """Le bouton d'enregistrement est ajouté UNIQUEMENT à l'atelier authentifié."""
@@ -219,7 +244,11 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           preview BYTEA, preview_mime TEXT,
           grams DOUBLE PRECISION, hours DOUBLE PRECISION, filament_kg DOUBLE PRECISION,
           machine_hour DOUBLE PRECISION, setup_cost DOUBLE PRECISION,
-          markup DOUBLE PRECISION, created TIMESTAMPTZ DEFAULT NOW())""")
+          markup DOUBLE PRECISION, payment_token TEXT UNIQUE,
+          created TIMESTAMPTZ DEFAULT NOW())""")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS payment_token TEXT")
+        c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
+                     ON private_quotes(payment_token)""")
 
     def _save_model():
         name = request.form.get("name", "").strip()[:120]
@@ -378,6 +407,8 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             models=c.execute("SELECT id,name,preview IS NOT NULL AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,created FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
+            payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        interac_email=payment_setting["value"] if payment_setting else ""
         chosen=request.args.get("model_id","",type=str)
         request_id=request.args.get("request_id",type=int)
         incoming=None
@@ -447,6 +478,14 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
 <button type="submit" id="fjSaveQuote">Enregistrer la soumission</button></form></div>
 
+<div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
+<p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
+<form method="post" action="/admin/soumissions-pro/paiement">{{csrf|safe}}
+<label>Courriel pour recevoir les virements Interac
+<input type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
+<p class="fj-help">Laisse ce champ vide pour masquer le paiement Interac. Assure-toi que cette adresse accepte les virements; idéalement, active le dépôt automatique auprès de ta banque. Le paiement reste à effectuer par le client dans son application bancaire, et le site ne confirme pas sa réception.</p>
+<button type="submit">Enregistrer les paramètres Interac</button></form>
+</div>
 <div class="card fj-card"><h2>Logo sur les soumissions</h2>
 <p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
@@ -454,7 +493,8 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2>Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p>
-<a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a></div>
+<a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+{% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
 <script>
 (function(){
@@ -550,7 +590,21 @@ body.light .fj-import-panel .fj-help{color:#30556a}
  if(selector.value)estimate();
 })();
 </script>""",models=models,quotes=quotes,chosen=chosen,materials=MATERIALS,
-          money=_money,csrf=csrfinput(),incoming=incoming)
+          money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
+
+    @app.post("/admin/soumissions-pro/paiement")
+    @admin_required
+    def fjord_interac_setup():
+        verify()
+        address=request.form.get("interac_email","").strip().lower()[:180]
+        if address and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",address):
+            abort(400,"Adresse Interac invalide.")
+        with db() as c:
+            c.execute("""INSERT INTO settings(key,value) VALUES('fjord_interac_email',%s)
+              ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value""",(address,))
+        flash("Paramètres Interac enregistrés. " +
+              ("Les liens de paiement sont actifs." if address else "Le paiement Interac est désactivé."))
+        return redirect("/admin/soumissions-pro")
 
     @app.post("/admin/soumissions-pro/estimer")
     @admin_required
@@ -617,14 +671,87 @@ body.light .fj-import-panel .fj-help{color:#30556a}
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
                 shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
-                machine_hour,setup_cost,markup)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                machine_hour,setup_cost,markup,payment_token)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
                int(quantity),unit,shipping,taxes,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
-               grams,hours,filament_kg,machine_hour,setup_cost,markup)).fetchone()
+               grams,hours,filament_kg,machine_hour,setup_cost,markup,
+               secrets.token_urlsafe(32))).fetchone()
         flash("Soumission créée. Tu peux maintenant télécharger le PDF.")
         return redirect("/admin/soumissions-pro/"+str(result["id"])+"/pdf")
+
+    @app.get("/admin/soumissions-pro/<int:quote_id>/paiement")
+    @admin_required
+    def fjord_admin_payment_link(quote_id):
+        with db() as c:
+            q=c.execute("SELECT id,payment_token FROM private_quotes WHERE id=%s",
+                        (quote_id,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q:abort(404)
+        if not setting or not setting["value"]:
+            flash("Configure d'abord ton adresse Interac.")
+            return redirect("/admin/soumissions-pro")
+        token=_quote_payment_token(db,q)
+        if not token:abort(500)
+        return redirect(url_for("fjord_payment_page",token=token))
+
+
+    @app.get("/payer/<token>")
+    def fjord_payment_page(token):
+        # La page ne dévoile ni l'identité du client ni les paramètres internes.
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
+            abort(404)
+        with db() as c:
+            q=c.execute("""SELECT id,quantity,unit_price,shipping,apply_taxes
+                             FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q or not setting or not setting["value"]:
+            abort(404)
+        recipient=setting["value"]
+        subtotal,gst,qst,total=_quote_amounts(q)
+        reference="FJ-{:05d}".format(q["id"])
+        response=make_response(page("Paiement Interac",r"""
+<style>
+.payment-wrap{max-width:660px;margin:30px auto}
+.payment-wrap h1{font-size:clamp(28px,5vw,43px)}
+.payment-total{font-size:clamp(30px,6vw,46px);font-weight:900;color:#7ee7ff;margin:7px 0 18px}
+.payment-detail{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:15px 0}
+.payment-detail strong{font-size:17px;overflow-wrap:anywhere}
+.payment-detail button{font-size:14px;padding:9px 12px}
+.payment-wrap .notice{font-size:13px;color:#b6d1e3}
+body.light .payment-total{color:#076d9d}
+</style>
+<div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
+<h1>💸 Payer par virement Interac</h1>
+<p>Voici les informations pour payer ta soumission. Le paiement s'effectue dans l'application ou le site de ta banque, et non sur cette page.</p>
+<section class="card">
+<div>Montant total de la soumission, taxes comprises si applicables</div>
+<div class="payment-total">{{amount}}</div>
+<p>Ajoute Les Impressions du Fjord comme destinataire Interac dans ton application bancaire, puis effectue ton virement avec les renseignements suivants :</p>
+<div class="payment-detail"><div>📧 Courriel du destinataire<br><strong id="payEmail">{{recipient}}</strong></div>
+<button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
+<div class="payment-detail"><div>🔖 Référence à inscrire dans le message<br><strong id="payRef">{{reference}}</strong></div>
+<button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
+<div class="payment-detail"><div>💰 Montant du virement<br><strong id="payAmount">{{amount}}</strong></div>
+<button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
+<p class="notice">Vérifie le nom et le courriel du destinataire avant l'envoi. Une fois le virement envoyé, conserve ta confirmation bancaire. Ce site ne reçoit pas le paiement et ne peut pas confirmer automatiquement qu'il a été reçu.</p>
+</section>
+<p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
+</div>
+<script>
+async function fjordCopy(id,button){
+ const value=document.getElementById(id).textContent.trim();
+ try{await navigator.clipboard.writeText(value);button.textContent="Copié ✓"}
+ catch(e){button.textContent="Copie manuelle nécessaire"}
+ setTimeout(()=>button.textContent="Copier",2200);
+}
+</script>""",amount=_money(total),reference=reference,recipient=recipient))
+        response.headers["Cache-Control"]="no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
+        response.headers["Referrer-Policy"]="no-referrer"
+        return response
+
 
     @app.get("/admin/soumissions-pro/<int:quote_id>/pdf")
     @admin_required
@@ -636,7 +763,13 @@ body.light .fj-import-panel .fj-help{color:#30556a}
         with db() as c:
             q=c.execute("SELECT * FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_quote_logo'").fetchone()
+            interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
+        payment_url=None
+        if interac_setting and interac_setting["value"]:
+            token=_quote_payment_token(db,q)
+            if token:
+                payment_url=url_for("fjord_payment_page",token=token,_external=True)
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -696,15 +829,12 @@ body.light .fj-import-panel .fj-help{color:#30556a}
                 pdf.drawImage(reader, (w-pw)/2, y-154+(145-ph)/2,pw,ph,mask="auto")
                 y-=178
             except Exception:pass
-        y=min(y-14,250)
+        y=min(y-14,285 if payment_url else 250)
         rows=2+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
-        if y-rows*25<115:
+        if y-rows*25<(172 if payment_url else 115):
             pdf.showPage()
             y=710
-        subtotal=round(float(q["unit_price"])*q["quantity"]+float(q["shipping"]),2)
-        gst=round(subtotal*0.05,2) if q["apply_taxes"] else 0
-        qst=round(subtotal*0.09975,2) if q["apply_taxes"] else 0
-        total=subtotal+gst+qst
+        subtotal,gst,qst,total=_quote_amounts(q)
         def totalrow(label,amount,y,bold=False):
             pdf.setFont("Helvetica-Bold" if bold else "Helvetica",11 if not bold else 15)
             pdf.setFillColor(navy)
@@ -718,6 +848,40 @@ body.light .fj-import-panel .fj-help{color:#30556a}
             y=totalrow("TVQ (9,975 %)",qst,y)
         pdf.setStrokeColor(cyan);pdf.line(38,y+12,w-39,y+12)
         y=totalrow("TOTAL CAD",total,y-8,True)
+        if payment_url:
+            # Lien web vérifiable : aucune demande Interac n'est envoyée par le site.
+            if y<200:
+                pdf.showPage()
+                y=710
+            top=y-5
+            bottom=top-96
+            pdf.setFillColor(colors.HexColor("#EBF7FE"))
+            pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
+            pdf.setFillColor(navy)
+            pdf.setFont("Helvetica-Bold",12)
+            pdf.drawString(52,top-24,"PAYER PAR VIREMENT INTERAC")
+            pdf.setFont("Helvetica",10)
+            pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
+            pdf.drawString(52,top-58,"Référence : FJ-{:05d}".format(q["id"]))
+            pdf.setFillColor(cyan)
+            pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold",10)
+            pdf.drawCentredString(222,bottom+18,"CLIQUEZ POUR LES INSTRUCTIONS DE PAIEMENT")
+            pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=0)
+            try:
+                from reportlab.graphics.barcode import qr
+                from reportlab.graphics.shapes import Drawing
+                from reportlab.graphics import renderPDF
+                widget=qr.QrCodeWidget(payment_url)
+                x1,y1,x2,y2=widget.getBounds()
+                size=78
+                graphic=Drawing(size,size,transform=[size/(x2-x1),0,0,size/(y2-y1),0,0])
+                graphic.add(widget)
+                renderPDF.draw(graphic,pdf,w-131,bottom+9)
+            except Exception:
+                # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
+                pass
         pdf.setFont("Helvetica",9);pdf.setFillColor(gray)
         pdf.drawString(39,62,"Merci de faire confiance aux Impressions du Fjord.")
         pdf.drawString(39,46,"Toute modification du modèle ou des spécifications peut entraîner une révision du prix.")
