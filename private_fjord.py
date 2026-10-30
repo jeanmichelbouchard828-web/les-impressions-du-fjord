@@ -7,6 +7,7 @@ import io
 import json
 import math
 import re
+import secrets
 
 from flask import abort, flash, redirect, render_template_string, request, send_file, url_for
 from werkzeug.utils import secure_filename
@@ -42,6 +43,30 @@ def _number(field, default=0, low=0, high=100000):
     if not math.isfinite(n) or not low <= n <= high:
         abort(400, "Valeur hors limites : " + field)
     return n
+
+def _quote_amounts(q):
+    """Même calcul des taxes pour le PDF et la page de paiement."""
+    subtotal = round(float(q["unit_price"]) * int(q["quantity"]) + float(q["shipping"]), 2)
+    gst = round(subtotal * 0.05, 2) if q["apply_taxes"] else 0.0
+    qst = round(subtotal * 0.09975, 2) if q["apply_taxes"] else 0.0
+    return subtotal, gst, qst, round(subtotal + gst + qst, 2)
+
+
+def _quote_payment_token(db, q):
+    """Émet un lien non prédictible une seule fois; fonctionne aussi pour les anciennes soumissions."""
+    existing = q.get("payment_token")
+    if existing:
+        return existing
+    with db() as c:
+        row = c.execute("""UPDATE private_quotes SET payment_token=%s
+            WHERE id=%s AND payment_token IS NULL RETURNING payment_token""",
+            (secrets.token_urlsafe(32), q["id"])).fetchone()
+        if row:
+            return row["payment_token"]
+        row = c.execute("SELECT payment_token FROM private_quotes WHERE id=%s",
+                        (q["id"],)).fetchone()
+        return row["payment_token"] if row else None
+
 
 def admin_studio(html, csrf_token):
     """Le bouton d'enregistrement est ajouté UNIQUEMENT à l'atelier authentifié."""
@@ -219,7 +244,11 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           preview BYTEA, preview_mime TEXT,
           grams DOUBLE PRECISION, hours DOUBLE PRECISION, filament_kg DOUBLE PRECISION,
           machine_hour DOUBLE PRECISION, setup_cost DOUBLE PRECISION,
-          markup DOUBLE PRECISION, created TIMESTAMPTZ DEFAULT NOW())""")
+          markup DOUBLE PRECISION, payment_token TEXT UNIQUE,
+          created TIMESTAMPTZ DEFAULT NOW())""")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS payment_token TEXT")
+        c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
+                     ON private_quotes(payment_token)""")
 
     def _save_model():
         name = request.form.get("name", "").strip()[:120]
@@ -378,6 +407,8 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             models=c.execute("SELECT id,name,preview IS NOT NULL AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,created FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
+            payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        interac_email=payment_setting["value"] if payment_setting else ""
         chosen=request.args.get("model_id","",type=str)
         request_id=request.args.get("request_id",type=int)
         incoming=None
@@ -447,6 +478,14 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
 <button type="submit" id="fjSaveQuote">Enregistrer la soumission</button></form></div>
 
+<div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
+<p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
+<form method="post" action="/admin/soumissions-pro/paiement">{{csrf|safe}}
+<label>Courriel pour recevoir les virements Interac
+<input type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
+<p class="fj-help">Laisse ce champ vide pour masquer le paiement Interac. Assure-toi que cette adresse accepte les virements; idéalement, active le dépôt automatique auprès de ta banque. Le paiement reste à effectuer par le client dans son application bancaire, et le site ne confirme pas sa réception.</p>
+<button type="submit">Enregistrer les paramètres Interac</button></form>
+</div>
 <div class="card fj-card"><h2>Logo sur les soumissions</h2>
 <p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
@@ -454,7 +493,8 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2>Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p>
-<a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a></div>
+<a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+{% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
 <script>
 (function(){
@@ -550,7 +590,21 @@ body.light .fj-import-panel .fj-help{color:#30556a}
  if(selector.value)estimate();
 })();
 </script>""",models=models,quotes=quotes,chosen=chosen,materials=MATERIALS,
-          money=_money,csrf=csrfinput(),incoming=incoming)
+          money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
+
+    @app.post("/admin/soumissions-pro/paiement")
+    @admin_required
+    def fjord_interac_setup():
+        verify()
+        address=request.form.get("interac_email","").strip().lower()[:180]
+        if address and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",address):
+            abort(400,"Adresse Interac invalide.")
+        with db() as c:
+            c.execute("""INSERT INTO settings(key,value) VALUES('fjord_interac_email',%s)
+              ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value""",(address,))
+        flash("Paramètres Interac enregistrés. " +
+              ("Les liens de paiement sont actifs." if address else "Le paiement Interac est désactivé."))
+        return redirect("/admin/soumissions-pro")
 
     @app.post("/admin/soumissions-pro/estimer")
     @admin_required
@@ -617,12 +671,13 @@ body.light .fj-import-panel .fj-help{color:#30556a}
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
                 shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
-                machine_hour,setup_cost,markup)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                machine_hour,setup_cost,markup,payment_token)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
                int(quantity),unit,shipping,taxes,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
-               grams,hours,filament_kg,machine_hour,setup_cost,markup)).fetchone()
+               grams,hours,filament_kg,machine_hour,setup_cost,markup,
+               secrets.token_urlsafe(32))).fetchone()
         flash("Soumission créée. Tu peux maintenant télécharger le PDF.")
         return redirect("/admin/soumissions-pro/"+str(result["id"])+"/pdf")
 
