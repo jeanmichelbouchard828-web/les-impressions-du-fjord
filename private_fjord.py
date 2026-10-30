@@ -45,7 +45,7 @@ def _number(field, default=0, low=0, high=100000):
 
 def admin_studio(html, csrf_token):
     """Le bouton d'enregistrement est ajouté UNIQUEMENT à l'atelier authentifié."""
-    button = '<button type="button" class="primary" id="fjordPrivateSave">💾 Mes modèles (privé)</button><a href="/admin/modeles">📚 Bibliothèque</a>'
+    button = '<button type="button" id="fjordPrivateImport">📚 Importer de ma bibliothèque</button><button type="button" class="primary" id="fjordPrivateSave">💾 Enregistrer dans ma bibliothèque</button><a href="/admin/modeles">Voir mes modèles</a>'
     html = html.replace('<button id="export" data-i18n="export">', button + '<button id="export" data-i18n="export">', 1)
     injection = r"""
 // Sauvegarde serveur des modèles du propriétaire; cet extrait n'est jamais servi au public.
@@ -87,32 +87,107 @@ if(privateSaveBtn)privateSaveBtn.addEventListener("click", async ()=>{
 });
 """.replace("__FJORD_CSRF__", json.dumps(csrf_token))
     open_model = r"""
+// Bibliothèque privée consultable sans quitter le plateau.
+const fjordImportButton=document.getElementById('fjordPrivateImport');
+const fjordDialog=document.createElement('dialog');
+fjordDialog.id='fjordModelChooser';
+fjordDialog.setAttribute('aria-label','Importer un modèle de ma bibliothèque');
+fjordDialog.innerHTML='<div class="fjord-dialog-head"><strong>📚 Mes modèles 3D</strong><button type="button" id="fjordDialogClose">✕ Fermer</button></div>'+
+ '<p>Choisis une pièce : elle sera ajoutée au plateau sans supprimer les autres.</p>'+
+ '<input id="fjordModelSearch" type="search" placeholder="Rechercher un modèle…" aria-label="Rechercher dans les modèles">'+
+ '<div id="fjordModelItems" class="fjord-model-items" aria-live="polite"></div>';
+document.body.appendChild(fjordDialog);
+const fjordClose=document.getElementById('fjordDialogClose');
+const fjordSearch=document.getElementById('fjordModelSearch');
+const fjordItems=document.getElementById('fjordModelItems');
+let fjordModelList=[];
+fjordClose.addEventListener('click',()=>fjordDialog.close());
+fjordDialog.addEventListener('click',e=>{if(e.target===fjordDialog)fjordDialog.close()});
+function fjordRenderModelList(){
+ const term=fjordSearch.value.trim().toLocaleLowerCase('fr');
+ fjordItems.replaceChildren();
+ const found=fjordModelList.filter(x=>(x.name+' '+x.filename).toLocaleLowerCase('fr').includes(term));
+ if(!found.length){const p=document.createElement('p');p.textContent='Aucun modèle trouvé.';fjordItems.append(p);return}
+ for(const item of found){
+   const row=document.createElement('div');row.className='fjord-library-item';
+   if(item.has_preview){
+     const img=document.createElement('img');img.loading='lazy';img.alt='';
+     img.src='/admin/modeles/apercu/'+item.id;row.append(img);
+   }else{const placeholder=document.createElement('span');placeholder.textContent='🧊';row.append(placeholder)}
+   const info=document.createElement('div');info.style.minWidth='0';
+   const title=document.createElement('strong');title.textContent=item.name;
+   const meta=document.createElement('small');meta.textContent=item.filename;
+   info.append(title,meta);row.append(info);
+   const btn=document.createElement('button');btn.type='button';btn.textContent='Ajouter';
+   btn.addEventListener('click',async()=>{
+     btn.disabled=true;btn.textContent='Importation…';
+     try{
+       await fjordImportSaved(item);
+       fjordDialog.close();
+     }catch(err){alert('Importation impossible : '+String(err.message||err))}
+     finally{btn.disabled=false;btn.textContent='Ajouter'}
+   });
+   row.append(btn);fjordItems.append(row);
+ }
+}
+fjordSearch.addEventListener('input',fjordRenderModelList);
+async function fjordImportSaved(item){
+ const resp=await fetch('/admin/modeles/fichier/'+item.id,{credentials:'same-origin'});
+ if(!resp.ok)throw Error('Accès au fichier refusé (HTTP '+resp.status+'). Reconnecte-toi à l’administration.');
+ const blob=await resp.blob();
+ const file=new File([blob],item.filename,{type:'application/octet-stream'});
+ return importModelFile(file,item.name);
+}
+if(fjordImportButton)fjordImportButton.addEventListener('click',async()=>{
+ fjordImportButton.disabled=true;fjordItems.textContent='Chargement des modèles…';
+ try{
+   const resp=await fetch('/admin/modeles/api/liste',{credentials:'same-origin',headers:{'Accept':'application/json'}});
+   if(!resp.ok||!(resp.headers.get('content-type')||'').includes('application/json'))
+       throw Error('La session administrateur a expiré.');
+   const data=await resp.json();
+   if(!data.ok||!Array.isArray(data.models))throw Error('Réponse invalide de la bibliothèque');
+   fjordModelList=data.models;fjordSearch.value='';fjordRenderModelList();
+   fjordDialog.showModal();fjordSearch.focus();
+ }catch(err){alert('Bibliothèque indisponible : '+String(err.message||err))}
+ finally{fjordImportButton.disabled=false}
+});
 const savedModelId=new URLSearchParams(location.search).get("model_id");
 if(savedModelId && /^[0-9]+$/.test(savedModelId)){
  (async()=>{
-   try {
-     const info=await (await fetch("/admin/modeles/api/info/"+savedModelId,{credentials:"same-origin"})).json();
-     if(!info.ok)throw new Error("Modèle introuvable");
-     const res=await fetch("/admin/modeles/fichier/"+savedModelId,{credentials:"same-origin"});
-     if(!res.ok)throw new Error("Téléchargement impossible");
-     if(info.filename.toLowerCase().endsWith(".3mf")){alert("Le fichier 3MF est disponible au téléchargement dans Mes modèles. Pour l'afficher dans l'Atelier, importe une version STL.");return;}
-     if(info.filename.toLowerCase().endsWith(".json")){
-       restore(await res.json());undoStack=[];say("loaded");
-     }else{
-       const geometry=new STLLoader().parse(await res.arrayBuffer());
-       geometry.computeBoundingBox();
-       const center=geometry.boundingBox.getCenter(new THREE.Vector3());
-       geometry.translate(-center.x,-center.y,-center.z);
-       geometry.computeBoundingBox();
-       remember();
-       const mesh=makeMesh(geometry,"imported",info.name);
-       mesh.position.z=geometry.boundingBox.getSize(new THREE.Vector3()).z/2;
-       pick(mesh);say("imported");
-     }
-   }catch(e){alert("Impossible d'ouvrir le modèle : "+String(e.message||e))}
+   try{
+     const response=await fetch('/admin/modeles/api/info/'+savedModelId,{credentials:'same-origin'});
+     if(!response.ok)throw Error('Modèle introuvable');
+     const info=await response.json();
+     if(!info.ok)throw Error('Modèle introuvable');
+     await fjordImportSaved({id:savedModelId,name:info.name,filename:info.filename});
+   }catch(err){alert('Impossible d’importer le modèle : '+String(err.message||err))}
  })();
 }
 """
+    styles = """
+<style>
+#fjordModelChooser{max-width:min(680px,94vw);width:94vw;max-height:85dvh;overflow:auto;
+ background:#10283b;color:#eef9ff;border:1px solid #51bfe5;border-radius:16px;padding:18px;box-shadow:0 25px 75px #0009}
+#fjordModelChooser::backdrop{background:#000b}
+#fjordModelChooser .fjord-dialog-head{display:flex;gap:12px;justify-content:space-between;align-items:center}
+#fjordModelChooser .fjord-dialog-head strong{font-size:19px}
+#fjordModelChooser input{width:100%;margin:10px 0 14px;min-height:44px}
+#fjordModelChooser .fjord-model-items{display:grid;gap:9px}
+#fjordModelChooser .fjord-library-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;
+ padding:10px;border-radius:11px;background:#173650;border:1px solid #3c607b}
+#fjordModelChooser img{width:64px;height:57px;object-fit:contain;background:#0b1d2f;border-radius:7px}
+#fjordModelChooser .fjord-library-item>span{display:grid;place-items:center;font-size:30px}
+#fjordModelChooser small{display:block;color:#b7cddb;overflow-wrap:anywhere}
+#fjordModelChooser .fjord-library-item button{min-height:43px}
+@media(max-width:420px){
+ #fjordModelChooser{padding:12px}
+ #fjordModelChooser .fjord-library-item{grid-template-columns:46px minmax(0,1fr);gap:7px}
+ #fjordModelChooser img{width:46px;height:45px}
+ #fjordModelChooser .fjord-library-item button{grid-column:2;justify-self:start}
+}
+</style>
+"""
+    html = html.replace("</head>", styles + "</head>", 1)
     return html.replace("/* End parametric generators */", injection + "\n" + open_model + "\n/* End parametric generators */", 1)
 
 
@@ -222,7 +297,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 {% if m.has_preview %}<img loading="lazy" src="/admin/modeles/apercu/{{m.id}}" alt="Aperçu {{m.name}}">
 {% else %}<div class="card" style="text-align:center;font-size:38px">🧊</div>{% endif %}
 <div><strong>{{m.name}}</strong><p class="muted small">{{m.filename}} · {{(m.bytes/1024)|round|int}} Ko · {{m.created.strftime('%d-%m-%Y')}}</p>
-<div class="fjord-actions"><a href="/admin/modeles/fichier/{{m.id}}">⬇ Télécharger</a><a href="/admin/soumissions-pro?model_id={{m.id}}">Créer la soumission</a>{% if not m.filename.lower().endswith(".3mf") %}<a href="/admin/atelier-3d?model_id={{m.id}}">Ouvrir dans l’Atelier</a>{% endif %}</div>
+<div class="fjord-actions"><a href="/admin/modeles/fichier/{{m.id}}">⬇ Télécharger</a><a href="/admin/soumissions-pro?model_id={{m.id}}">Créer la soumission</a><a href="/admin/atelier-3d?model_id={{m.id}}">➕ Importer dans l’Atelier</a></div>
 <form method="post" action="/admin/modeles/supprimer/{{m.id}}" onsubmit="return confirm('Supprimer ce modèle de la bibliothèque?')">{{csrf|safe}}<button type="submit">Supprimer</button></form></div></article>
 {% else %}<p>Aucun modèle pour le moment. Importe ton premier STL ou enregistre une création depuis ton Atelier privé.</p>{% endfor %}</div>
 """,models=models,csrf=csrfinput())
@@ -248,6 +323,16 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                 return {"error":exc.description},exc.code
             raise
         return {"ok":True,"id":model_id}
+
+    @app.get("/admin/modeles/api/liste")
+    @admin_required
+    def fjord_model_list_json():
+        with db() as c:
+            rows=c.execute("""SELECT id,name,filename,preview IS NOT NULL AS has_preview
+                               FROM private_models ORDER BY created DESC LIMIT 500""").fetchall()
+        return {"ok":True,"models":[{"id":m["id"],"name":m["name"],
+                  "filename":m["filename"],"has_preview":m["has_preview"]}
+                  for m in rows]}
 
     @app.get("/admin/modeles/api/info/<int:model_id>")
     @admin_required

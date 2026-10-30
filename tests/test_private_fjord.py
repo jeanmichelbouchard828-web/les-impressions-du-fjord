@@ -49,6 +49,38 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertEqual(img.format, "JPEG")
         self.assertGreater(img.width, 90)
 
+    def test_private_library_api(self):
+        r = self.client.get("/admin/modeles/api/liste")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json, {"ok": True, "models": []})
+
+    def test_library_import_button_in_admin_atelier(self):
+        raw = ('<html><head></head><body><button id="export" data-i18n="export">'
+               '</button><script type="module">/* End parametric generators */</script></body></html>')
+        edited = admin_studio(raw, "token")
+        self.assertIn('id="fjordPrivateImport"', edited)
+        self.assertIn("/admin/modeles/api/liste", edited)
+        self.assertIn("importModelFile", edited)
+        self.assertNotIn("Importer de ma bibliothèque", raw)
+
+    def test_library_page_links_to_atelier_for_3mf(self):
+        class ModelConnection(DummyConnection):
+            def fetchall(self):
+                if "FROM private_models" in self.query:
+                    return [{"id": 5, "name": "Pièce 3MF", "filename": "piece.3mf",
+                             "bytes": 1024, "has_preview": False,
+                             "created": datetime.datetime(2026, 10, 30)}]
+                return []
+        app = Flask(__name__)
+        app.secret_key = "tests"
+        register_private_fjord(app, ModelConnection, lambda f:f, lambda: None,
+                               lambda: '<input name="csrf" value="token">',
+                               lambda: "token",
+                               lambda title,body,**kwargs:render_template_string(body,**kwargs))
+        response=app.test_client().get("/admin/modeles")
+        self.assertEqual(response.status_code,200)
+        self.assertIn(b"/admin/atelier-3d?model_id=5",response.data)
+
     def test_private_library_page(self):
         r = self.client.get("/admin/modeles")
         self.assertEqual(r.status_code, 200)
