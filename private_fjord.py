@@ -282,12 +282,6 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                     abort(400, "Projet JSON invalide.")
             except (ValueError, UnicodeDecodeError):
                 abort(400, "Projet JSON invalide.")
-        preview = _image(request.files.get("preview"))
-        if not preview and filename.lower().endswith((".stl", ".3mf")):
-            try:
-                preview = make_model_preview(data, filename)
-            except (ValueError, OverflowError):
-                preview = None  # Keep the model if rendering fails.
         checksum = hashlib.sha256(data).hexdigest()
         with db() as c:
             if deduplicate:
@@ -304,6 +298,12 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                                  WHERE id=%s AND content_sha256 IS NULL""",
                               (checksum, old["id"]))
                     return {"id": old["id"], "duplicate": True}
+            preview = _image(request.files.get("preview"))
+            if not preview and filename.lower().endswith((".stl", ".3mf")):
+                try:
+                    preview = make_model_preview(data, filename)
+                except (ValueError, OverflowError):
+                    preview = None  # Keep the model if rendering fails.
             row = c.execute("""INSERT INTO private_models
                 (name,filename,filedata,preview,preview_mime,content_sha256)
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
@@ -341,7 +341,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models = c.execute("""SELECT id,name,filename,octet_length(filedata) AS bytes,
                   (preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview,created
-                  FROM private_models ORDER BY created DESC LIMIT 300""").fetchall()
+                  FROM private_models ORDER BY created DESC LIMIT 1000""").fetchall()
         return page("Mes modèles 3D", r"""
 <style>
 .fjord-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
@@ -492,7 +492,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_model_list_json():
         with db() as c:
             rows=c.execute("""SELECT id,name,filename,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview
-                               FROM private_models ORDER BY created DESC LIMIT 500""").fetchall()
+                               FROM private_models ORDER BY created DESC LIMIT 1000""").fetchall()
         return {"ok":True,"models":[{"id":m["id"],"name":m["name"],
                   "filename":m["filename"],"has_preview":m["has_preview"]}
                   for m in rows]}
@@ -549,7 +549,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @admin_required
     def fjord_quotes():
         with db() as c:
-            models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
+            models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,payment_status,paid_at,created
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
