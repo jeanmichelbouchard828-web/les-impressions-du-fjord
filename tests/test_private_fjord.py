@@ -1,4 +1,7 @@
 import datetime
+import base64
+import io
+from PIL import Image
 import unittest
 
 from flask import Flask, render_template_string
@@ -37,6 +40,14 @@ class PrivateFjordTests(unittest.TestCase):
                                lambda: "test",
                                lambda title, body, **kwargs: render_template_string(body, **kwargs))
         self.client = self.app.test_client()
+
+    def test_default_logo_is_a_valid_jpeg(self):
+        with open("static/fjord_logo.b64", encoding="ascii") as f:
+            content=base64.b64decode(f.read().strip(), validate=True)
+        img=Image.open(io.BytesIO(content))
+        img.load()
+        self.assertEqual(img.format, "JPEG")
+        self.assertGreater(img.width, 90)
 
     def test_private_library_page(self):
         r = self.client.get("/admin/modeles")
