@@ -1,0 +1,96 @@
+"""Live browser smoke check: file input must import STL and 3MF on a real Three.js canvas."""
+import io
+import os
+import pathlib
+import subprocess
+import sys
+import time
+import urllib.request
+import zipfile
+
+from playwright.sync_api import sync_playwright
+
+ROOT=pathlib.Path(__file__).resolve().parents[1]
+BASE="http://127.0.0.1:8765"
+
+stl="""solid tetra
+facet normal 0 0 -1
+outer loop
+vertex 0 0 0
+vertex 30 0 0
+vertex 0 30 0
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 0
+vertex 0 0 30
+vertex 30 0 0
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 0
+vertex 0 30 0
+vertex 0 0 30
+endloop
+endfacet
+facet normal 1 1 1
+outer loop
+vertex 30 0 0
+vertex 0 0 30
+vertex 0 30 0
+endloop
+endfacet
+endsolid tetra
+"""
+model='''<?xml version="1.0" encoding="utf-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+<resources><object id="1" type="model" name="Tiny Tetra"><mesh>
+<vertices><vertex x="0" y="0" z="0"/><vertex x="30" y="0" z="0"/>
+<vertex x="0" y="30" z="0"/><vertex x="0" y="0" z="30"/></vertices>
+<triangles><triangle v1="0" v2="2" v3="1"/><triangle v1="0" v2="1" v3="3"/>
+<triangle v1="0" v2="3" v3="2"/><triangle v1="1" v2="2" v3="3"/></triangles>
+</mesh></object></resources><build><item objectid="1"/></build></model>'''
+rels='''<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" Target="/3D/3dmodel.model"/>
+</Relationships>'''
+def three_mf():
+    io_out=io.BytesIO()
+    with zipfile.ZipFile(io_out,"w",zipfile.ZIP_DEFLATED) as z:
+        z.writestr("3D/3dmodel.model",model)
+        z.writestr("_rels/.rels",rels)
+    return io_out.getvalue()
+
+server=subprocess.Popen([sys.executable,"-m","http.server","8765","--bind","127.0.0.1"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+try:
+    for _ in range(30):
+        try:
+            urllib.request.urlopen(BASE+"/atelier3d.html",timeout=1)
+            break
+        except Exception:time.sleep(.2)
+    with sync_playwright() as playwright:
+        browser=playwright.chromium.launch(headless=True,args=["--enable-webgl","--use-gl=angle","--use-angle=swiftshader","--disable-dev-shm-usage","--no-sandbox"])
+        page=browser.new_page(viewport={"width":1360,"height":850})
+        errors=[]
+        page.on("console",lambda msg: errors.append("console: "+msg.text) if msg.type=="error" else None)
+        page.on("pageerror",lambda exc: errors.append("pageerror: "+str(exc)))
+        page.goto(BASE+"/atelier3d.html",wait_until="domcontentloaded")
+        page.wait_for_function("window.__fjordEditorStarted === true",timeout=60000)
+        print("editor started",flush=True)
+        page.locator("#stlFile").set_input_files({"name":"test.stl","mimeType":"model/stl","buffer":stl.encode()})
+        page.wait_for_function("document.querySelectorAll('#sceneList .scene-row,#sceneList .scene-item,#sceneList button').length>0",timeout=12000)
+        assert not page.locator("#fjordImportNotice:visible").count(), "STL import error"
+        print("STL loaded",page.locator("#sceneList").inner_text()[:200],flush=True)
+        page.locator("#stlFile").set_input_files({"name":"test.3mf","mimeType":"application/octet-stream","buffer":three_mf()})
+        page.wait_for_timeout(3000)
+        print("3MF state",page.locator("#sceneList").inner_text()[:400],flush=True)
+        if page.locator("#fjordImportNotice:visible").count():
+            raise AssertionError(page.locator("#fjordImportNotice").inner_text())
+        assert len(page.locator("#sceneList").inner_text())>len("test.stl"),"Nothing shown after 3MF"
+        browser.close()
+        print("PASSED browser import; JS errors:",errors,flush=True)
+finally:
+    server.terminate()
+    server.wait(timeout=5)
