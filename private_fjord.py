@@ -551,7 +551,8 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,payment_status,paid_at,created
+                     apply_taxes,payment_status,paid_at,created,
+                     live_url,live_token,live_enabled,live_expires
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         interac_email=payment_setting["value"] if payment_setting else ""
@@ -613,6 +614,17 @@ body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{colo
 .fj-payment-form label{font-size:14px;margin:0}
 .fj-payment-form select{margin:6px 0;padding:10px}
 .fj-payment-date{font-size:13px;color:#b4d1e1;margin:4px 0}
+.fj-live-form{margin:15px 0 12px;padding:14px;border:1px solid #426c83;border-radius:12px}
+.fj-live-form h4{margin:0 0 8px}
+.fj-live-form label{font-size:14px}
+.fj-live-form input,.fj-live-form select{font-size:15px;max-width:100%}
+.fj-live-form .row{gap:8px}
+.fj-live-form button{font-size:14px}
+.fj-live-form .fj-watch-link{display:block;margin:9px 0;overflow-wrap:anywhere}
+.fj-live-form .fj-live-copy{width:100%}
+.fj-live-form .fj-live-off{background:transparent;color:#b5dcf1;border:1px solid #527c96}
+body.light .fj-live-form{border-color:#b0d5e8}
+body.light .fj-live-form .fj-live-off{color:#215676}
 @media(max-width:700px){.fj-two{grid-template-columns:1fr}}
 </style>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
@@ -689,6 +701,34 @@ body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{colo
 <option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select><noscript><button type="submit">Enregistrer le statut</button></noscript></form>
+<section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
+<h4>📹 Caméra en direct pour le client</h4>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/diffusion">{{csrf|safe}}
+<label for="fjord-live-{{q.id}}">Lien de visionnement OctoEverywhere Live ou YouTube Live</label>
+<input type="url" id="fjord-live-{{q.id}}" name="live_url" maxlength="700"
+  value="{{q.live_url or ''}}" placeholder="https://oe.ink/l/… ou https://youtube.com/live/…">
+<label for="fjord-duration-{{q.id}}">Accès client valide pendant</label>
+<select id="fjord-duration-{{q.id}}" name="live_hours">
+<option value="12">12 heures</option><option value="24" selected>24 heures</option>
+<option value="48">48 heures</option><option value="72">3 jours</option>
+<option value="168">7 jours</option>
+</select>
+<p class="fj-help">Le flux se configure chez le fournisseur vidéo. Ne colle jamais l'adresse IP
+de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imprime.</p>
+<div class="row">
+<button type="submit" name="live_action" value="enable">▶ Activer un nouveau lien</button>
+<button type="submit" name="live_action" value="disable" class="fj-live-off">■ Arrêter / révoquer</button>
+</div></form>
+{% if q.live_enabled and q.live_token %}
+<p class="fj-help">Lien privé de suivi :
+{% if q.live_expires %}expire le {{q.live_expires.strftime('%d-%m-%Y à %H:%M')}} (heure du serveur).{% endif %}</p>
+<input class="fj-live-copy" readonly aria-label="Lien client de la soumission FJ-{{'%05d'|format(q.id)}}" onclick="this.select()"
+ value="{{url_for('fjord_live_view',token=q.live_token,_external=True)}}">
+<a class="fj-watch-link" href="{{url_for('fjord_live_view',token=q.live_token)}}" target="_blank" rel="noopener noreferrer">↗ Voir la page client</a>
+{% else %}
+<p class="fj-help">Diffusion inactive : aucun client ne peut voir la caméra depuis cette soumission.</p>
+{% endif %}
+</section>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
 {% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
@@ -1218,3 +1258,6 @@ async function fjordCopy(id,button){
              (base64.b64encode(image[1]).decode("ascii"),))
         flash("Logo mis à jour pour les nouvelles impressions PDF.")
         return redirect("/admin/soumissions-pro")
+
+    from live_print import register_live_print
+    register_live_print(app, db, admin_required, verify, page)
