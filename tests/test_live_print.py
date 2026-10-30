@@ -26,7 +26,7 @@ class MemoryConnection:
 
     def fetchone(self):
         if "UPDATE private_quotes" in self.statement:
-            if "SET live_enabled=FALSE" in self.statement:
+            if "live_enabled=FALSE" in self.statement:
                 quote_id=self.params[0]
                 if quote_id != 1:
                     return None
