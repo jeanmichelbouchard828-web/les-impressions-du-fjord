@@ -186,12 +186,12 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div id="projectMenu" class="project-menu"><button type="button" id="projectMenuButton" aria-expanded="false" data-i18n="mobileProject">📁 Projet</button><div class="top-actions">
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
-<button id="import" data-i18n="import">Importer STL</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
+<button id="import" data-i18n="import">📥 Importer STL / 3MF</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
 <button id="export" data-i18n="export">Exporter STL</button><button id="sliceTop" data-i18n="slicePreview">▥ Trancher</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
 </div></div>
 <div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
-<input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl" hidden>
+<input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.json" multiple hidden>
 </header>
 <div class="quickbar" role="toolbar" aria-label="3D Tools / Outils 3D">
 <span class="quickbar-label" data-i18n="quickTools">OUTILS</span>
@@ -396,6 +396,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {ThreeMFLoader} from 'three/addons/loaders/3MFLoader.js';
 /* Generators built into the atelier page to prevent blank screens from missing module files. */
 // Parametric 3D part generators for Atelier 3D du Fjord.
 // Units: mm. Geometry is approximate and should be checked before mechanical use.
@@ -601,7 +602,7 @@ fr:{
  cutPreview:'✂️ Préparer la coupe',cutApply:'✓ Appliquer la coupe',cutFloatLabel:'✂️ Plan de coupe',cutDragHint:'Glisse le plan orange en hauteur ou utilise les poignées bleue et verte pour le pivoter.',cutGuide:'Glisse le plan orange pour monter ou descendre, les poignées bleue et verte pour pivoter.',cutPosition:'↕ Hauteur',cutTiltX:'🔵 Avant / arrière',cutTiltY:'🟢 Gauche / droite',cutResetAngle:'↺ Remettre à plat',
  quickTools:'OUTILS',quickbarHint:'Glisser pour déplacer · Clic droit pour les outils',contextHeading:'Outils de la pièce',contextCreate:'Créer une pièce',
  measure:'📏 Mesurer',measureHint:'Cliquez deux points sur la pièce pour mesurer la distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Mode mesure : clique deux points sur une pièce.',measureValue:'Distance mesurée : {distance} mm',toolSize:'Taille rapide',half:'½ Réduire',double:'×2 Agrandir',fitBed:'Ajuster X2D',centerXY:'Centrer XY',dropToBed:'Poser au sol',mirrorX:'Miroir X',mirrorY:'Miroir Y',mirrorZ:'Miroir Z',cutGroup:'✂️ Découpe',cutHeightLabel:'Hauteur de coupe Z (mm)',cutZ:'✂️ Préparer la coupe',cutNotice:'Prépare la coupe, glisse le plan orange ou le curseur, puis applique. Fonctionne actuellement sur les formes simples; les STL complexes suivront.',views:'Vues rapides',viewIso:'◈ 3D',viewTop:'▣ Dessus',viewFront:'▤ Avant',viewSide:'▥ Côté',viewFit:'⌗ Cadrer',objectListTitle:'Mes pièces',shortcuts:'Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler · Ctrl+Y rétablir.',cutUnsupported:'Cette première découpe avec fermeture fonctionne sur cube, cylindre, sphère et cône. Pour une pièce complexe importée, la découpe avancée reste à développer.',cutOutside:'La coupe doit traverser la pièce : choisis une hauteur entre son bas et son haut.',cutSuccess:'Pièce découpée en deux éléments fermés. Vérifie le résultat avant impression.',noCut:'Sélectionne une pièce pour la découper.',emptyList:'Aucune pièce pour le moment.',mirrorDone:'Miroir appliqué.',fitDone:'Objet ajusté au volume X2D.',placed:'Pièce posée sur le plateau.',centered:'Pièce centrée sur le plateau.',sizeDone:'Taille modifiée.',cutError:'La découpe de cette pièce n’a pas pu être réalisée.',
- estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'Importer STL',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser la pièce : déplacer · Fond : orbite · Molette : zoom sur la pièce',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'STL importé.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
+ estimateSourceModel:'Calcul à partir des objets sur le plateau (tous les objets).',estimateSourceManual:'Sans modèle 3D : estimation d’après vos dimensions.',estimateManualHelp:'Pas encore de modèle ? Entrez simplement les dimensions approximatives de votre objet :',estimateShapeLabel:'Forme approximative',estimateShapeBox:'Boîte ou bloc',estimateShapeCylinder:'Cylindre',estimateShapeSphere:'Sphère',estimateManualDimensions:'Dimensions approximatives (mm) — L, l, H',estimateManualOverridesTitle:'Options facultatives (poids et durée connus)',estimateManualOverridesHelp:'Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.',estimateStats:'Poids estimé : {weight} g · Durée estimée : {hours} h',estimateEmptyManual:'Créez une forme 3D ou saisissez les 3 dimensions pour obtenir un prix approximatif.',estimateOutOfBed:'Attention : au moins une pièce dépasse la zone de 256 × 256 × 256 mm de la X2D.',estimateButton:'💰 Estimateur',estimateTitle:'💰 Estimer le prix d’impression',estimateHelp:'Aucun logiciel requis : l’atelier estime le poids et le temps à partir de vos objets 3D ou de leurs dimensions.',estimateMaterialLabel:'Matériau',estimateWeightLabel:'Poids connu (g, facultatif)',estimateHoursLabel:'Durée connue (heures, facultatif)',estimateRatesTitle:'Réglages du calcul (modifiables)',estimateKgLabel:'Coût du filament ($ CA/kg)',estimateHourRateLabel:'Machine ($ CA/heure)',estimateSetupLabel:'Préparation ($ CA)',estimateMarginLabel:'Majoration (%)',estimateResultTitle:'Prix approximatif (avant taxes)',estimateDisclaimer:'Calcul indicatif sans tranchage réel : 18 % de remplissage, parois approximatives et 10 % de perte. Supports, creux et finition peuvent modifier le prix. Seule la soumission confirmée fait foi.',estimateEnter:'Saisis le poids et la durée estimés dans Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Préparation {setup} · Majoration {margin}',tagline:'Les impressions du Fjord · Création 3D',back:'← Retour au site',new:'Nouveau',open:'Ouvrir projet',import:'📥 Importer STL / 3MF',save:'Enregistrer',export:'Exporter STL',quote:'Faire imprimer',shapes:'Créer des formes',cube:'⬜ Cube',cylinder:'◯ Cylindre',sphere:'● Sphère',cone:'△ Cône',torus:'◎ Tore',tube:'▣ Tube',edit:'Modifier',move:'Déplacer',rotate:'Tourner',scale:'Échelle',duplicate:'Dupliquer',remove:'Supprimer',undo:'Annuler',bed:'Plateau',units:'Toutes les dimensions sont en millimètres.',hint:'Clic : sélectionner · Glisser la pièce : déplacer · Fond : orbite · Molette : zoom sur la pièce',properties:'Propriétés de la pièce',name:'Nom de la pièce',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Version initiale : formes, déplacement, dimensions, STL et sauvegarde locale. Pour demander une impression, exportez le STL et joignez-le au formulaire de soumission.',empty:'Ajoutez une forme pour commencer.',saved:'Projet téléchargé sur votre appareil.',ready:'Atelier prêt !',selected:'Pièce sélectionnée.',exported:'STL téléchargé.',quoteInfo:'STL téléchargé. Ajoutez ce fichier au formulaire de soumission qui vient de s’ouvrir.',invalid:'Fichier de projet invalide.',missing:'Ajoutez au moins une forme.',loaded:'Projet ouvert.',imported:'Modèle importé sur le plateau.',error:'Impossible de lire ce fichier.',noSelection:'Sélectionnez une pièce.',reset:'Créer un nouveau projet et effacer les pièces actuelles ?',noName:'Aucune pièce sélectionnée'},
 en:{
  sliceLayersTab:'▤ Visible layers',sliceBuildTab:'▶ Build playback',
  sliceHeadLabel:'Full build: print-head movements',sliceHeadCount:'{i} / {n} moves · layer {layer}/{layers} · {type}',sliceHeadTravel:'Travel',sliceHeadPrint:'Extrusion',sliceRealLoading:'⏳ Real slicing in progress…',sliceRealReady:'✓ PrusaSlicer toolpaths (generic profile, NOT printable directly on X2D).',sliceRealFailure:'⚠️ Real slicer unavailable: {reason}. Geometry preview only.',sliceHeadEmpty:'No toolpath on this layer.',sliceHeadWaiting:'Waiting for slicing engine…',slicePlay:'▶ Play',slicePause:'⏸ Pause',sliceRestart:'↺ Start',sliceLegendPrint:'Extrusion',sliceLegendTravel:'Travel',sliceLegendHead:'Head',
@@ -614,7 +615,7 @@ en:{
  cutPreview:'✂️ Prepare cut',cutApply:'✓ Apply cut',cutFloatLabel:'✂️ Cutting plane',cutDragHint:'Drag the orange plane to move it or use the blue and green handles to tilt.',cutGuide:'Drag the orange plane up or down, or use blue and green handles to tilt.',cutPosition:'↕ Height',cutTiltX:'🔵 Forward / back',cutTiltY:'🟢 Left / right',cutResetAngle:'↺ Reset tilt',
  quickTools:'TOOLS',quickbarHint:'Drag to move · Right-click for tools',contextHeading:'Part tools',contextCreate:'Create a part',
  measure:'📏 Measure',measureHint:'Click two points on the part to measure the distance.',rotX90:'↻ X 90°',rotY90:'↻ Y 90°',rotZ90:'↻ Z 90°',measureActive:'Measure mode: click two points on a part.',measureValue:'Measured distance: {distance} mm',toolSize:'Quick size',half:'½ Shrink',double:'×2 Enlarge',fitBed:'Fit X2D bed',centerXY:'Center XY',dropToBed:'Place on bed',mirrorX:'Mirror X',mirrorY:'Mirror Y',mirrorZ:'Mirror Z',cutGroup:'✂️ Cutting',cutHeightLabel:'Z cut height (mm)',cutZ:'✂️ Prepare cut',cutNotice:'Prepare the cut, drag the orange plane or slider, then apply. Simple shapes are supported; complex STLs will come later.',views:'Quick views',viewIso:'◈ 3D',viewTop:'▣ Top',viewFront:'▤ Front',viewSide:'▥ Side',viewFit:'⌗ Fit view',objectListTitle:'My parts',shortcuts:'Shortcuts: W move · E rotate · R scale · Delete remove · Ctrl+Z undo · Ctrl+Y redo.',cutUnsupported:'The first capped cutting tool supports cube, cylinder, sphere, and cone. Cutting complex imported shapes is not yet available.',cutOutside:'The cut must cross the object. Choose a height between its bottom and top.',cutSuccess:'Part split into two closed objects. Check the result before printing.',noCut:'Select an object to cut.',emptyList:'No parts yet.',mirrorDone:'Mirror applied.',fitDone:'Object scaled to the X2D build volume.',placed:'Part placed on the print bed.',centered:'Part centered on the print bed.',sizeDone:'Object resized.',cutError:'This part could not be cut.',
- estimateSourceModel:'Calculated from all objects on the print bed.',estimateSourceManual:'No 3D model: estimate from approximate dimensions.',estimateManualHelp:'No model yet? Just enter your object’s approximate dimensions:',estimateShapeLabel:'Approximate shape',estimateShapeBox:'Box or block',estimateShapeCylinder:'Cylinder',estimateShapeSphere:'Sphere',estimateManualDimensions:'Approximate dimensions (mm) — L, W, H',estimateManualOverridesTitle:'Optional settings (known weight or time)',estimateManualOverridesHelp:'Fill these in only if you already know the weight or time. Otherwise we estimate both automatically.',estimateStats:'Estimated weight: {weight} g · Estimated time: {hours} h',estimateEmptyManual:'Create a 3D shape or enter all three dimensions for a rough estimate.',estimateOutOfBed:'Warning: at least one piece exceeds the X2D 256 × 256 × 256 mm build volume.',estimateButton:'💰 Price estimator',estimateTitle:'💰 Estimate printing cost',estimateHelp:'No extra software required: the studio estimates weight and print time from your 3D objects or their dimensions.',estimateMaterialLabel:'Material',estimateWeightLabel:'Known weight (g, optional)',estimateHoursLabel:'Known print time (hours, optional)',estimateRatesTitle:'Calculation settings (editable)',estimateKgLabel:'Filament cost (CAD/kg)',estimateHourRateLabel:'Machine rate (CAD/hour)',estimateSetupLabel:'Preparation (CAD)',estimateMarginLabel:'Markup (%)',estimateResultTitle:'Estimated price (before tax)',estimateDisclaimer:'Approximate calculation, not a slicer result: assumes 18% infill, approximate walls, and 10% waste. Supports, hollow shapes and finishing can change the price. The final quote is authoritative.',estimateEnter:'Enter the estimated weight and duration from Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Setup {setup} · Markup {margin}',tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'Import STL',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag the part: move · Background: orbit · Wheel: zoom on part',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'STL imported.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
+ estimateSourceModel:'Calculated from all objects on the print bed.',estimateSourceManual:'No 3D model: estimate from approximate dimensions.',estimateManualHelp:'No model yet? Just enter your object’s approximate dimensions:',estimateShapeLabel:'Approximate shape',estimateShapeBox:'Box or block',estimateShapeCylinder:'Cylinder',estimateShapeSphere:'Sphere',estimateManualDimensions:'Approximate dimensions (mm) — L, W, H',estimateManualOverridesTitle:'Optional settings (known weight or time)',estimateManualOverridesHelp:'Fill these in only if you already know the weight or time. Otherwise we estimate both automatically.',estimateStats:'Estimated weight: {weight} g · Estimated time: {hours} h',estimateEmptyManual:'Create a 3D shape or enter all three dimensions for a rough estimate.',estimateOutOfBed:'Warning: at least one piece exceeds the X2D 256 × 256 × 256 mm build volume.',estimateButton:'💰 Price estimator',estimateTitle:'💰 Estimate printing cost',estimateHelp:'No extra software required: the studio estimates weight and print time from your 3D objects or their dimensions.',estimateMaterialLabel:'Material',estimateWeightLabel:'Known weight (g, optional)',estimateHoursLabel:'Known print time (hours, optional)',estimateRatesTitle:'Calculation settings (editable)',estimateKgLabel:'Filament cost (CAD/kg)',estimateHourRateLabel:'Machine rate (CAD/hour)',estimateSetupLabel:'Preparation (CAD)',estimateMarginLabel:'Markup (%)',estimateResultTitle:'Estimated price (before tax)',estimateDisclaimer:'Approximate calculation, not a slicer result: assumes 18% infill, approximate walls, and 10% waste. Supports, hollow shapes and finishing can change the price. The final quote is authoritative.',estimateEnter:'Enter the estimated weight and duration from Bambu Studio.',estimateParts:'Filament {mat} · Machine {machine} · Setup {setup} · Markup {margin}',tagline:'Les impressions du Fjord · 3D creation',back:'← Back to website',new:'New',open:'Open project',import:'📥 Import STL / 3MF',save:'Save project',export:'Export STL',quote:'Request a print',shapes:'Create shapes',cube:'⬜ Cube',cylinder:'◯ Cylinder',sphere:'● Sphere',cone:'△ Cone',torus:'◎ Torus',tube:'▣ Tube',edit:'Edit',move:'Move',rotate:'Rotate',scale:'Scale',duplicate:'Duplicate',remove:'Delete',undo:'Undo',bed:'Print bed',units:'All dimensions are in millimeters.',hint:'Click: select · Drag the part: move · Background: orbit · Wheel: zoom on part',properties:'Part properties',name:'Part name',dimensions:'Dimensions (mm) — X, Y, Z',position:'Position (mm) — X, Y, Z',rotation:'Rotation (°) — X, Y, Z',disclaimer:'Initial version: shapes, movement, dimensions, STL and local saves. To request a print, export your STL and attach it to the quote form.',empty:'Add a shape to begin.',saved:'Project downloaded to your device.',ready:'Studio ready!',selected:'Part selected.',exported:'STL downloaded.',quoteInfo:'STL downloaded. Attach this file to the quote form that just opened.',invalid:'Invalid project file.',missing:'Add at least one shape.',loaded:'Project opened.',imported:'Model imported on the build plate.',error:'Unable to read this file.',noSelection:'Select a part.',reset:'Create a new project and remove the existing parts?',noName:'No part selected'}
 };
 function currentLang(){return localStorage.getItem('fjord-lang')==='en'?'en':'fr'}
 function say(key){status.textContent=langText[currentLang()][key]||key}
@@ -978,8 +979,119 @@ function download(blob,name){const url=URL.createObjectURL(blob);const a=documen
 $('save').addEventListener('click',()=>{download(new Blob([JSON.stringify(serialize())],{type:'application/json'}),'Projet-3D-du-Fjord.json');say('saved')});
 $('open').addEventListener('click',()=>$('projectFile').click());
 $('projectFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());restore(data);undoStack=[];say('loaded')}catch(err){console.warn(err);say('invalid')}e.target.value=''});
+// Shared importer for local files AND private library downloads.
+// Imports never erase parts already on the bed. "Ouvrir projet" remains a deliberate replace.
+async function importModelFile(file, displayName){
+ if(!file)throw Error('Aucun fichier sélectionné.');
+ const ext=String(file.name||'').toLowerCase().match(/\.(stl|3mf|json)$/)?.[1];
+ if(!ext)throw Error('Formats pris en charge : STL, 3MF et projet JSON du Fjord.');
+ if(!file.size||file.size>20*1024*1024)throw Error('Limite : 20 Mo par fichier dans l’Atelier.');
+ const title=String(displayName||file.name).slice(0,120);
+ if(ext==='json'){
+   const data=JSON.parse(await file.text());
+   if(!data||data.version!==1||!Array.isArray(data.objects)||!data.objects.length||data.objects.length>100-models.length)
+      throw Error('Projet invalide, vide ou trop de pièces sur le plateau.');
+   const prepared=[];
+   try{
+     for(const item of data.objects){
+       if(!item||typeof item!=='object'||!['cube','cylinder','sphere','cone','torus','tube','imported'].includes(item.type)||
+           ![item.position,item.rotation,item.scale].every(v=>Array.isArray(v)&&v.length===3&&v.every(n=>Number.isFinite(n)&&Math.abs(n)<100000)))
+          throw Error('Pièce du projet invalide.');
+       let g;
+       if(item.type==='imported'){
+         const verts=item.vertices;
+         if(!Array.isArray(verts)||!verts.length||verts.length>6000000||verts.length%9!==0||
+            verts.some(n=>!Number.isFinite(n)))throw Error('Géométrie du projet invalide.');
+         g=new THREE.BufferGeometry();
+         g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+         g.computeVertexNormals();
+       } else g=shapeGeometry(item.type);
+       prepared.push({g,item});
+     }
+   }catch(error){prepared.forEach(p=>p.g.dispose());throw error}
+   remember();sliceClose();
+   let last=null;
+   for(const {g,item} of prepared){
+     const m=makeMesh(g,item.type,String(item.name||title).slice(0,120));
+     m.position.fromArray(item.position);
+     m.rotation.set(...item.rotation);
+     m.scale.fromArray(item.scale);
+     if(Number.isInteger(item.color)&&item.color>=0&&item.color<=0xffffff)
+        m.material.color.setHex(item.color);
+     last=m;
+   }
+   pick(last);
+   say('imported');
+   return data.objects.length;
+ }
+ const buffer=await file.arrayBuffer();
+ const geometries=[];
+ if(ext==='stl'){
+   const g=new STLLoader().parse(buffer);
+   geometries.push({g, name:title, color:0x5bc6eb});
+ }else{
+   // ThreeMFLoader interprets 3MF ZIP XML, build-item transforms and object units.
+   const root=new ThreeMFLoader().parse(buffer);
+   root.updateMatrixWorld(true);
+   root.traverse(obj=>{
+     if(!obj.isMesh||!obj.geometry?.getAttribute('position'))return;
+     let g=obj.geometry.clone();
+     if(g.index){const flat=g.toNonIndexed();g.dispose();g=flat}
+     g.applyMatrix4(obj.matrixWorld);
+     geometries.push({g,name:(obj.name||title).slice(0,120),color:obj.material?.color?.getHex?.()??0x5bc6eb});
+   });
+ }
+ try{
+   if(!geometries.length || geometries.length>100-models.length)
+      throw Error('Aucune pièce dans le fichier ou trop de pièces sur le plateau.');
+   let vertices=0;
+   const union=new THREE.Box3();
+   for(const part of geometries){
+     const a=part.g.getAttribute('position');
+     if(!a||a.count<3||a.count%3!==0)throw Error('Fichier contenant une géométrie invalide.');
+     vertices+=a.count;
+     if(vertices>1500000)throw Error('Modèle trop complexe pour cet Atelier.');
+     part.g.computeBoundingBox();
+     if(part.g.boundingBox.isEmpty()||
+        ![...part.g.boundingBox.min.toArray(),...part.g.boundingBox.max.toArray()].every(Number.isFinite))
+          throw Error('Dimensions invalides dans le fichier 3D.');
+     union.union(part.g.boundingBox);
+   }
+   const center=union.getCenter(new THREE.Vector3());
+   const shift=new THREE.Vector3(-center.x,-center.y,-union.min.z);
+   for(const part of geometries){
+     part.g.translate(shift.x,shift.y,shift.z);
+     part.g.computeVertexNormals();
+     part.g.computeBoundingBox();
+   }
+   remember();sliceClose();
+   let last=null;
+   for(const part of geometries){
+     last=makeMesh(part.g,'imported',part.name);
+     last.material.color.setHex(part.color);
+   }
+   pick(last);say('imported');
+   return geometries.length;
+ }catch(error){
+   geometries.forEach(p=>p.g.dispose());
+   throw error;
+ }
+}
 $('import').addEventListener('click',()=>$('stlFile').click());
-$('stlFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('too large');const g=new STLLoader().parse(await f.arrayBuffer());g.computeBoundingBox();const center=g.boundingBox.getCenter(new THREE.Vector3());g.translate(-center.x,-center.y,-center.z);g.computeBoundingBox();remember();const m=makeMesh(g,'imported',f.name.slice(0,120));m.position.z=g.boundingBox.getSize(new THREE.Vector3()).z/2;pick(m);say('imported')}catch(err){console.warn(err);say('error')}e.target.value=''});
+$('stlFile').addEventListener('change',async e=>{
+ const files=Array.from(e.target.files||[]);e.target.value='';
+ if(!files.length)return;
+ if(files.length>10){alert('Importe un maximum de 10 fichiers à la fois.');return}
+ const button=$('import');button.disabled=true;
+ const errors=[];
+ try{
+   for(const file of files){
+     try{await importModelFile(file)}
+     catch(error){errors.push(file.name+' : '+String(error.message||error));console.warn('Import failure',error)}
+   }
+   if(errors.length)alert('Certains fichiers n’ont pas été importés :\n\n'+errors.join('\n'));
+ }finally{button.disabled=false}
+});
 function exportSTL(){if(!models.length){say('missing');return false}const group=new THREE.Group();models.forEach(m=>{const c=m.clone();c.geometry=m.geometry;c.material=m.material;group.add(c)});const data=new STLExporter().parse(group,{binary:true});download(new Blob([data],{type:'model/stl'}),'Creation-du-Fjord.stl');say('exported');return true}
 $('export').addEventListener('click',exportSTL);
 $('quote').addEventListener('click',()=>{if(exportSTL()){window.open('/soumission','_blank','noopener');say('quoteInfo')}});
