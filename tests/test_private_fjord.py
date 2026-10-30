@@ -132,6 +132,67 @@ class PrivateFjordTests(unittest.TestCase):
     def test_public_payment_link_disabled_without_interac_address(self):
         self.assertEqual(self.client.get("/payer/" + "a" * 43).status_code, 404)
 
+    def test_saved_quotes_include_payment_dropdown(self):
+        class PaidQuotesConnection(DummyConnection):
+            def fetchall(self):
+                if "FROM private_quotes" in self.query:
+                    return [{"id": 8, "customer": "Client payé",
+                             "title": "Pièce imprimée", "quantity": 2,
+                             "unit_price": 12.50, "shipping": 0,
+                             "apply_taxes": False, "payment_status": "Payée",
+                             "paid_at": datetime.datetime(2026, 10, 30),
+                             "created": datetime.datetime(2026, 10, 29)}]
+                return []
+        app = Flask(__name__)
+        app.secret_key = "test-payment"
+        register_private_fjord(app, PaidQuotesConnection, lambda f: f, lambda: None,
+                               lambda: '<input name="csrf" value="test">',
+                               lambda: "test",
+                               lambda title, body, **kwargs: render_template_string(body, **kwargs))
+        html = app.test_client().get("/admin/soumissions-pro").data.decode("utf-8")
+        self.assertIn('/admin/soumissions-pro/8/statut-paiement', html)
+        self.assertIn('option value="Payée" selected', html)
+        self.assertIn('Paiement confirmé manuellement le 30-10-2026', html)
+        self.assertIn('Paiement partiel', html)
+
+    def test_saved_quote_payment_status_is_validated_and_persisted(self):
+        class PaymentStatusConnection(DummyConnection):
+            def __init__(self):
+                super().__init__()
+                self.params = ()
+            def execute(self, query, params=()):
+                self.query = query
+                self.params = params
+                return self
+            def fetchone(self):
+                if "UPDATE private_quotes" in self.query:
+                    return {"id": 8} if self.params[2] == 8 else None
+                return None
+        used = []
+        def connection():
+            instance = PaymentStatusConnection()
+            used.append(instance)
+            return instance
+        app = Flask(__name__)
+        app.secret_key = "test-update"
+        register_private_fjord(app, connection, lambda f: f, lambda: None,
+                               lambda: '<input name="csrf" value="test">',
+                               lambda: "test",
+                               lambda title, body, **kwargs: render_template_string(body, **kwargs))
+        client = app.test_client()
+        bad = client.post("/admin/soumissions-pro/8/statut-paiement",
+                          data={"payment_status": "Payée automatiquement"})
+        self.assertEqual(bad.status_code, 400)
+        for selected in ("En attente", "Paiement partiel", "Payée"):
+            response = client.post("/admin/soumissions-pro/8/statut-paiement",
+                                   data={"payment_status": selected})
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("#soumissions-enregistrees", response.headers["Location"])
+            self.assertEqual(used[-1].params, (selected, selected, 8))
+        missing = client.post("/admin/soumissions-pro/99/statut-paiement",
+                              data={"payment_status": "Payée"})
+        self.assertEqual(missing.status_code, 404)
+
     def test_pdf(self):
         r = self.client.get("/admin/soumissions-pro/1/pdf")
         self.assertEqual(r.status_code, 200)
