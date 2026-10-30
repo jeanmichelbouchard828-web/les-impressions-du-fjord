@@ -467,6 +467,12 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-import-panel [role=status]{min-height:24px;white-space:normal;overflow-wrap:anywhere}
 body.light .fj-import-panel{background:#ecf7fd;border-color:#a7cfdf}
 body.light .fj-import-panel .fj-help{color:#30556a}
+.fj-quote-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.fj-reset-button{border:1px solid #57b6db;background:transparent;color:#b6ecff;font-weight:700}
+.fj-reset-button:hover,.fj-reset-button:focus-visible{background:#194660;color:#fff}
+body.light .fj-reset-button{color:#126185;border-color:#318cb7}
+body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{color:#fff}
+@media(max-width:540px){.fj-quote-actions button{width:100%}}
 .fj-payment-form{max-width:360px;margin:12px 0 6px}
 .fj-payment-form label{font-size:14px;margin:0}
 .fj-payment-form select{margin:6px 0;padding:10px}
@@ -513,7 +519,8 @@ body.light .fj-import-panel .fj-help{color:#30556a}
 <label><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="apply_taxes" value="yes">Appliquer TPS (5 %) et TVQ (9,975 %) — seulement si l'entreprise doit les percevoir</label>
 <div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
-<button type="submit" id="fjSaveQuote">Enregistrer la soumission</button></form></div>
+<div class="fj-quote-actions"><button type="submit" id="fjSaveQuote">Enregistrer la soumission</button>
+<button type="button" id="fjResetQuote" class="fj-reset-button">↺ Réinitialiser le formulaire</button></div></form></div>
 
 <div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
 <p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
@@ -546,14 +553,35 @@ body.light .fj-import-panel .fj-help{color:#30556a}
  const f=document.getElementById("fjQuote"),o=document.getElementById("fjTotal"),d=document.getElementById("fjBreakdown");
  const selector=document.getElementById("fjModel"),image=document.getElementById("fjPreview");
  const previewBox=document.getElementById("fjPreviewBox");
- image.onload=()=>{previewBox.hidden=false};
+ image.onload=()=>{previewBox.hidden=!selector.value || !image.getAttribute("src")};
  image.onerror=()=>{previewBox.hidden=true};
  const status=document.getElementById("fjEstimateStatus"),fileInput=document.getElementById("fjUpload");
- const save=document.getElementById("fjSaveQuote");
+ const save=document.getElementById("fjSaveQuote"),resetQuote=document.getElementById("fjResetQuote");
  const grams=f.elements.namedItem("grams"),hours=f.elements.namedItem("hours");
  const material=f.elements.namedItem("material"),csrf=f.elements.namedItem("csrf");
  const layer=document.getElementById("fjLayer"),infill=document.getElementById("fjInfill");
  let requestNumber=0;
+ resetQuote.addEventListener("click",()=>{
+   if(!confirm("Réinitialiser cette nouvelle soumission ? Les informations saisies seront effacées. Les soumissions déjà enregistrées ne seront pas touchées."))return;
+   // Ignore any older slicing/import response that finishes after reset.
+   ++requestNumber;
+   f.reset();
+   for(const name of ["customer","email","phone","title","description","override_price"]){
+     f.elements.namedItem(name).value="";
+   }
+   // Keep the library on the server; remove only temporary dropdown options.
+   for(const opt of [...selector.options]){
+     if(opt.dataset.imported==="1")opt.remove();
+   }
+   selector.value="";
+   material.value="PETG";layer.value="0.2";infill.value="18";
+   fileInput.value="";
+   f.elements.namedItem("preview").value="";
+   image.removeAttribute("src");previewBox.hidden=true;
+   busy(false);
+   update();
+   message("Formulaire réinitialisé. Tu peux préparer une nouvelle soumission. Les modèles déjà importés restent dans ta bibliothèque.");
+ });
  const currency=n=>new Intl.NumberFormat("fr-CA",{style:"currency",currency:"CAD"}).format(n);
  function n(key){const el=f.elements.namedItem(key);return Number(el&&el.value||0)}
  function update(){
@@ -631,6 +659,7 @@ body.light .fj-import-panel .fj-help{color:#30556a}
    if(serial!==requestNumber)return;
    const opt=new Option(file.name,result.id,true,true);
    opt.dataset.preview="/admin/modeles/apercu/"+result.id;
+   opt.dataset.imported="1";
    selector.add(opt);selector.value=String(result.id);
    const title=f.elements.namedItem("title");
    if(!title.value.trim())title.value=file.name.replace(/\.(stl|3mf)$/i,"");

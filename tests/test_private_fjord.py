@@ -95,6 +95,20 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b'/admin/soumissions-pro/estimer', r.data)
         self.assertIn(b'PETG-CF', r.data)
 
+    def test_quote_reset_button_is_safe_and_admin_only(self):
+        html = self.client.get("/admin/soumissions-pro").data.decode("utf-8")
+        self.assertIn('id="fjResetQuote"', html)
+        self.assertIn('type="button" id="fjResetQuote"', html)
+        self.assertIn('Réinitialiser le formulaire', html)
+        self.assertIn('resetQuote.addEventListener("click"', html)
+        self.assertIn('++requestNumber', html)
+        self.assertIn('selector.value=""', html)
+        self.assertIn('f.reset()', html)
+        self.assertIn('previewBox.hidden=true', html)
+        self.assertIn('Les soumissions déjà enregistrées ne seront pas touchées', html)
+        # A client cannot erase saved quotes by submitting the reset control.
+        self.assertNotIn('name="reset_quote"', html)
+
     def test_interac_payment_configuration_is_admin_only(self):
         r = self.client.get("/admin/soumissions-pro")
         self.assertEqual(r.status_code, 200)
