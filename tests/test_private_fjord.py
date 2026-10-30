@@ -95,6 +95,43 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b'/admin/soumissions-pro/estimer', r.data)
         self.assertIn(b'PETG-CF', r.data)
 
+    def test_interac_payment_configuration_is_admin_only(self):
+        r = self.client.get("/admin/soumissions-pro")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'Courriel pour recevoir les virements Interac', r.data)
+        self.assertIn(b'/admin/soumissions-pro/paiement', r.data)
+        invalid = self.client.post("/admin/soumissions-pro/paiement",
+                                   data={"interac_email": "incorrect", "csrf": "test"})
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_public_payment_link_shows_only_payment_details(self):
+        class PaymentConnection(DummyConnection):
+            def fetchone(self):
+                if "WHERE payment_token=%s" in self.query:
+                    return {"id": 42, "quantity": 2, "unit_price": 20.00,
+                            "shipping": 5.00, "apply_taxes": True}
+                if "fjord_interac_email" in self.query:
+                    return {"value": "virements@example.ca"}
+                return None
+        app = Flask(__name__)
+        app.secret_key = "payment-tests"
+        register_private_fjord(app, PaymentConnection, lambda f:f,lambda:None,
+                               lambda: '<input name="csrf" value="test">',
+                               lambda: "test",
+                               lambda title,body,**kwargs:render_template_string(body,**kwargs))
+        token = "a" * 43
+        page_result = app.test_client().get("/payer/" + token)
+        self.assertEqual(page_result.status_code,200)
+        self.assertEqual(page_result.headers["X-Robots-Tag"],"noindex, nofollow, noarchive")
+        self.assertIn(b"virements@example.ca", page_result.data)
+        self.assertIn(b"FJ-00042", page_result.data)
+        self.assertIn(b"51,74", page_result.data)  # 45 $ + 5 % TPS + 9,975 % TVQ
+        self.assertNotIn(b"Client de test", page_result.data)
+        self.assertEqual(app.test_client().get("/payer/short").status_code,404)
+
+    def test_public_payment_link_disabled_without_interac_address(self):
+        self.assertEqual(self.client.get("/payer/" + "a" * 43).status_code, 404)
+
     def test_pdf(self):
         r = self.client.get("/admin/soumissions-pro/1/pdf")
         self.assertEqual(r.status_code, 200)
