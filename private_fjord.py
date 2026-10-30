@@ -11,7 +11,7 @@ import re
 from flask import abort, flash, redirect, render_template_string, request, send_file, url_for
 from werkzeug.utils import secure_filename
 
-MATERIALS = ("PLA", "PETG", "ASA", "TPU", "Autre")
+MATERIALS = ("PLA", "PETG", "PETG-CF", "ASA", "TPU", "Autre")
 MODEL_EXT = (".stl", ".3mf", ".json")
 MAX_MODEL = 8 * 1024 * 1024
 MAX_IMAGE = 4 * 1024 * 1024
@@ -397,6 +397,12 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-summary strong{display:block;font-size:30px;color:#7ee7ff}
 .fj-summary p{margin:5px 0}.fj-card{margin:18px 0}
 .fj-model-photo{display:block;width:240px;height:150px;object-fit:contain;border-radius:11px;background:#061421;margin:10px 0}
+.fj-import-panel{background:#102b40;border:1px solid #426c83;border-radius:11px;padding:16px;margin:10px 0 18px}
+.fj-import-panel label{margin-bottom:8px}
+.fj-import-panel .fj-help{margin:7px 0 0}
+.fj-import-panel [role=status]{min-height:24px;white-space:normal;overflow-wrap:anywhere}
+body.light .fj-import-panel{background:#ecf7fd;border-color:#a7cfdf}
+body.light .fj-import-panel .fj-help{color:#30556a}
 @media(max-width:700px){.fj-two{grid-template-columns:1fr}}
 </style>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
@@ -411,13 +417,24 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else ''}}" required></label>
 <label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
 <label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
-</div><img id="fjPreview" class="fj-model-photo" alt="Aperçu de la pièce" hidden>
+</div>
+<div class="fj-import-panel">
+<h3>🧊 Importer un modèle et calculer son prix</h3>
+<label>Choisir un fichier STL ou 3MF déjà créé<input type="file" id="fjUpload" accept=".stl,.3mf"></label>
+<div class="fj-two">
+<label>Hauteur de couche<select id="fjLayer"><option value="0.08">0,08 mm — très fin</option><option value="0.12">0,12 mm — qualité</option><option value="0.2" selected>0,20 mm — standard</option><option value="0.28">0,28 mm — rapide</option></select></label>
+<label>Remplissage<select id="fjInfill"><option value="10">10 %</option><option value="15">15 %</option><option value="18" selected>18 %</option><option value="20">20 %</option><option value="30">30 %</option><option value="40">40 %</option><option value="50">50 %</option><option value="75">75 %</option><option value="100">100 %</option></select></label>
+</div>
+<p role="status" id="fjEstimateStatus" class="fj-help">Sélectionne un modèle ou importe un fichier pour estimer le poids, le temps et le prix automatiquement.</p>
+<p class="fj-help">Le modèle importé est conservé dans ta bibliothèque privée. Le tranchage est une estimation générique (buse 0,4 mm), pas un profil d'impression X2D. Vérifie le prix avec Bambu Studio avant de l'envoyer.</p>
+</div>
+<img id="fjPreview" class="fj-model-photo" alt="Aperçu de la pièce" hidden>
 <label>Ou ajouter une photo 3D personnalisée<input type="file" name="preview" accept="image/jpeg,image/png,image/webp"></label>
 <label>Description du travail<textarea name="description" maxlength="2500" placeholder="Couleur, finition, dimensions, inclusions…">{{incoming.description if incoming else ''}}</textarea></label>
 <div class="fj-two">
 <label>Quantité<input type="number" name="quantity" min="1" max="10000" step="1" value="1" required></label>
-<label>Poids prévu par unité (g)<input type="number" name="grams" min="0" max="100000" step="0.1" value="50"></label>
-<label>Durée d'impression par unité (h)<input type="number" name="hours" min="0" max="1000" step="0.1" value="3"></label>
+<label>Poids prévu par unité (g)<input type="number" name="grams" min="0" max="100000" step="0.01" value="50" required></label>
+<label>Durée d'impression par unité (h)<input type="number" name="hours" min="0" max="1000" step="0.01" value="3" required></label>
 <label>Coût filament ($ CA/kg)<input type="number" name="filament_kg" min="0" max="10000" step="0.01" value="32"></label>
 <label>Coût machine ($ CA/h)<input type="number" name="machine_hour" min="0" max="10000" step="0.01" value="3"></label>
 <label>Préparation par unité ($ CA)<input type="number" name="setup_cost" min="0" max="10000" step="0.01" value="8"></label>
@@ -428,7 +445,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <label><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="apply_taxes" value="yes">Appliquer TPS (5 %) et TVQ (9,975 %) — seulement si l'entreprise doit les percevoir</label>
 <div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
-<button type="submit">Enregistrer la soumission</button></form></div>
+<button type="submit" id="fjSaveQuote">Enregistrer la soumission</button></form></div>
 
 <div class="card fj-card"><h2>Logo sur les soumissions</h2>
 <p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
@@ -442,9 +459,17 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <script>
 (function(){
  const f=document.getElementById("fjQuote"),o=document.getElementById("fjTotal"),d=document.getElementById("fjBreakdown");
+ const selector=document.getElementById("fjModel"),image=document.getElementById("fjPreview");
+ const status=document.getElementById("fjEstimateStatus"),fileInput=document.getElementById("fjUpload");
+ const save=document.getElementById("fjSaveQuote");
+ const grams=f.elements.namedItem("grams"),hours=f.elements.namedItem("hours");
+ const material=f.elements.namedItem("material"),csrf=f.elements.namedItem("csrf");
+ const layer=document.getElementById("fjLayer"),infill=document.getElementById("fjInfill");
+ let requestNumber=0;
  const currency=n=>new Intl.NumberFormat("fr-CA",{style:"currency",currency:"CAD"}).format(n);
  function n(key){const el=f.elements.namedItem(key);return Number(el&&el.value||0)}
  function update(){
+  if(grams.value===""||hours.value===""){o.textContent="Estimation en attente";d.textContent="Poids et durée nécessaires pour établir le prix.";return}
   const c=(n("grams")/1000*n("filament_kg")*1.1+n("hours")*n("machine_hour")+n("setup_cost"));
   const generated=c*(1+n("markup")/100);
   const override=f.elements.namedItem("override_price");
@@ -455,12 +480,100 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
   d.textContent="Coût de base : "+currency(c)+" · Prix unitaire : "+currency(unit)+" · Sous-total : "+currency(subtotal)+" · Taxes : "+currency(tax);
  }
  f.addEventListener("input",update);f.addEventListener("change",update);
- const selector=document.getElementById("fjModel"),image=document.getElementById("fjPreview");
+ function message(text){status.textContent=text}
+ function busy(value){save.disabled=value;save.textContent=value?"Calcul en cours…":"Enregistrer la soumission"}
  function updateImage(){const src=selector.selectedOptions[0]?.dataset.preview||"";image.hidden=!src;if(src)image.src=src}
- selector.addEventListener("change",updateImage);updateImage();update();
+ async function estimate(){
+  const id=selector.value,serial=++requestNumber;
+  updateImage();
+  if(!id){
+   busy(false);message("Soumission manuelle : entre le poids et la durée de ta pièce.");return;
+  }
+  grams.value="";hours.value="";update();busy(true);
+  if(material.value==="Autre"){
+   busy(false);message("Matériau « Autre » : indique manuellement le poids et la durée.");return;
+  }
+  message("Tranchage du modèle en cours : estimation du filament et du temps d'impression…");
+  const body=new FormData();
+  body.append("csrf",csrf.value);body.append("model_id",id);
+  body.append("material",material.value);body.append("layer_height",layer.value);
+  body.append("infill",infill.value);
+  try{
+   const response=await fetch("/admin/soumissions-pro/estimer",
+                              {method:"POST",body,credentials:"same-origin"});
+   const result=await response.json();
+   if(serial!==requestNumber)return;
+   if(!response.ok||!result.ok)throw Error(result.error||"Calcul indisponible.");
+   grams.value=result.grams;hours.value=result.hours;
+   message("✓ "+result.grams+" g de filament · "+result.hours+
+           " h d'impression estimées · remplissage "+result.infill+
+           " % · couche "+result.layer_height+" mm. Vérifie avec ton profil Bambu Studio.");
+   update();
+  }catch(err){
+   if(serial!==requestNumber)return;
+   message("⚠ "+err.message+" Entre manuellement le poids et la durée pour continuer.");
+  }finally{if(serial===requestNumber)busy(false)}
+ }
+ selector.addEventListener("change",estimate);
+ material.addEventListener("change",()=>{if(selector.value)estimate()});
+ layer.addEventListener("change",()=>{if(selector.value)estimate()});
+ infill.addEventListener("change",()=>{if(selector.value)estimate()});
+ fileInput.addEventListener("change",async()=>{
+  const file=fileInput.files[0];
+  if(!file)return;
+  if(!/\.(stl|3mf)$/i.test(file.name)||file.size>8*1024*1024){
+   message("Sélectionne un fichier STL ou 3MF d'au plus 8 Mo.");fileInput.value="";return;
+  }
+  const serial=++requestNumber;busy(true);
+  message("Importation de « "+file.name+" » dans ta bibliothèque privée…");
+  const body=new FormData();
+  body.append("csrf",csrf.value);
+  body.append("name",file.name.replace(/\.(stl|3mf)$/i,"").slice(0,120)||"Modèle importé");
+  body.append("model",file,file.name);
+  try{
+   const response=await fetch("/admin/modeles/api/save",
+                              {method:"POST",body,credentials:"same-origin"});
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw Error(result.error||"Importation impossible.");
+   if(serial!==requestNumber)return;
+   const opt=new Option(file.name,result.id,true,true);
+   opt.dataset.preview="";selector.add(opt);selector.value=String(result.id);
+   const title=f.elements.namedItem("title");
+   if(!title.value.trim())title.value=file.name.replace(/\.(stl|3mf)$/i,"");
+   fileInput.value="";await estimate();
+  }catch(err){
+   if(serial!==requestNumber)return;
+   message("⚠ "+err.message);
+  }finally{if(serial===requestNumber)busy(false)}
+ });
+ updateImage();update();
+ if(selector.value)estimate();
 })();
 </script>""",models=models,quotes=quotes,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming)
+
+    @app.post("/admin/soumissions-pro/estimer")
+    @admin_required
+    def fjord_quote_estimate():
+        verify()
+        from quote_estimator import estimate_model, EstimationError
+        try:
+            model_id=int(request.form.get("model_id",""))
+            if model_id < 1:raise ValueError()
+            layer=float(request.form.get("layer_height","0.2"))
+            infill=int(request.form.get("infill","18"))
+            material=request.form.get("material","PETG")
+        except (TypeError, ValueError):
+            return {"ok":False,"error":"Paramètres du modèle invalides."},400
+        with db() as c:
+            model=c.execute("SELECT filename,filedata FROM private_models WHERE id=%s",
+                            (model_id,)).fetchone()
+        if not model:return {"ok":False,"error":"Modèle introuvable."},404
+        try:
+            result=estimate_model(model["filedata"],model["filename"],material,layer,infill)
+        except EstimationError as exc:
+            return {"ok":False,"error":str(exc)},422
+        return {"ok":True,**result}
 
     @app.post("/admin/soumissions-pro/creer")
     @admin_required
