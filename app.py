@@ -57,7 +57,20 @@ body.light .atelier-feature-label{color:#136b92}
 body.light .atelier-feature .atelier-cta{background:#087cae;color:#fff}
 body.light .secondary-btn{color:#075f90;border-color:#3c8eb5}
 @media(max-width:600px){.atelier-feature{padding:18px}.atelier-feature .atelier-cta{width:100%}}
-</style></head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer>© 2026 Les Impressions du Fjord · Saguenay, Québec</footer><script>
+.referral-footer{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;margin-top:14px;padding-top:14px;border-top:1px solid #294b62;font-size:13px}
+.referral-footer a{color:#addbea;text-decoration:underline;text-decoration-color:#557489;text-underline-offset:3px}
+.referral-footer span{color:#9bb6c9}
+.referral-page{max-width:820px;margin:26px auto 55px}
+.referral-page h1{font-size:clamp(35px,5vw,56px)}
+.referral-page .referral-card{padding:25px;margin-top:24px}
+.referral-page .referral-cta{max-width:100%;white-space:normal;text-align:center;overflow-wrap:anywhere}
+.referral-page .referral-disclosure{border-top:1px solid #2d526d;padding-top:15px;margin-top:26px}
+body.light .referral-footer{border-color:#ccdae8}
+body.light .referral-footer a{color:#075f90}
+body.light .referral-footer span{color:#466073}
+body.light .referral-page .referral-disclosure{border-color:#c7d8e7}
+@media(max-width:600px){.referral-page .referral-card{padding:18px}.referral-page .referral-cta{width:100%}}
+</style></head><body><header><a class="brand" href="/">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div><div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div></footer><script>
 (function(){
 const translations={
 "Services":"Services","Galerie":"Gallery","Soumission":"Quote","Nous joindre":"Contact us","Formulaire":"Contact form","Administration":"Administration",
@@ -79,7 +92,17 @@ const translations={
 "Décrivez votre projet et joignez votre modèle 3D si vous en avez un.":"Describe your project and attach your 3D model if available.",
 "Matériau souhaité":"Preferred material","Fichier STL ou 3MF (facultatif, maximum 8 Mo)":"STL or 3MF file (optional, 8 MB maximum)",
 "Votre demande a bien été enregistrée. Nous vous répondrons dès que possible.":"Your request has been received. We will reply as soon as possible.",
-"Retour à l’accueil":"Back to home","Merci!":"Thank you!"
+"Retour à l’accueil":"Back to home","Merci!":"Thank you!",
+"🛰️ Notre bon plan Internet : parrainage Starlink":"🛰️ Our Internet tip: Starlink referral",
+"Un partage personnel, indépendant de nos services d'impression 3D.":"A personal referral, independent of our 3D printing services.",
+"Bon plan partagé":"A tip worth sharing",
+"Parrainage Starlink":"Starlink referral",
+"Vous envisagez de vous abonner à Starlink au Canada? Voici un lien de parrainage personnel à consulter si cela vous intéresse.":"Considering Starlink in Canada? Here is a personal referral link to explore if you're interested.",
+"Découvrir Starlink":"Discover Starlink",
+"Les nouveaux abonnés admissibles peuvent recevoir une récompense selon les conditions de parrainage en vigueur. La personne qui partage ce lien peut également recevoir une récompense.":"Eligible new subscribers may receive a reward subject to the current referral program terms. The person sharing this link may also receive a reward.",
+"Consulter mon lien de parrainage":"View my referral link",
+"Lien de parrainage personnel. Les Impressions du Fjord ne vendent pas de services Starlink et ne sont pas affiliées à Starlink. Vérifiez la disponibilité, les tarifs et les conditions directement sur le site Starlink.":"Personal referral link. Les Impressions du Fjord does not sell Starlink services and is not affiliated with Starlink. Verify availability, pricing and terms directly on Starlink's website.",
+"← Retour à l'accueil":"← Back to home"
 };
 const originals=new WeakMap();
 function apply(){
@@ -135,6 +158,10 @@ def notify(kind,name,email):
 @app.get("/")
 def home():
  return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''')
+@app.get("/bons-plans/starlink")
+def starlink_referral():
+ return page("Parrainage Starlink",'''<section class="referral-page"><div class="eyebrow">Bon plan partagé</div><h1>Parrainage Starlink</h1><p>Vous envisagez de vous abonner à Starlink au Canada? Voici un lien de parrainage personnel à consulter si cela vous intéresse.</p><div class="card referral-card"><h2>Découvrir Starlink</h2><p>Les nouveaux abonnés admissibles peuvent recevoir une récompense selon les conditions de parrainage en vigueur. La personne qui partage ce lien peut également recevoir une récompense.</p><a class="btn referral-cta" href="https://starlink.com/?referral=RC-4635519-65017-67&amp;app_source=share" target="_blank" rel="nofollow sponsored noopener noreferrer">Consulter mon lien de parrainage</a><p class="small muted referral-disclosure">Lien de parrainage personnel. Les Impressions du Fjord ne vendent pas de services Starlink et ne sont pas affiliées à Starlink. Vérifiez la disponibilité, les tarifs et les conditions directement sur le site Starlink.</p></div><p class="small"><a href="/">← Retour à l'accueil</a></p></section>''')
+
 @app.get("/galerie")
 def gallery_page():
  with db() as c:items=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo FROM gallery ORDER BY id DESC").fetchall()
