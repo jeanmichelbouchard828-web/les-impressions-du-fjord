@@ -86,7 +86,34 @@ if(privateSaveBtn)privateSaveBtn.addEventListener("click", async ()=>{
  finally{privateSaveBtn.disabled=false;privateSaveBtn.textContent="💾 Mes modèles (privé)"}
 });
 """.replace("__FJORD_CSRF__", json.dumps(csrf_token))
-    return html.replace("/* End parametric generators */", injection + "\n/* End parametric generators */", 1)
+    open_model = r"""
+const savedModelId=new URLSearchParams(location.search).get("model_id");
+if(savedModelId && /^[0-9]+$/.test(savedModelId)){
+ (async()=>{
+   try {
+     const info=await (await fetch("/admin/modeles/api/info/"+savedModelId,{credentials:"same-origin"})).json();
+     if(!info.ok)throw new Error("Modèle introuvable");
+     const res=await fetch("/admin/modeles/fichier/"+savedModelId,{credentials:"same-origin"});
+     if(!res.ok)throw new Error("Téléchargement impossible");
+     if(info.filename.toLowerCase().endsWith(".3mf")){alert("Le fichier 3MF est disponible au téléchargement dans Mes modèles. Pour l'afficher dans l'Atelier, importe une version STL.");return;}
+     if(info.filename.toLowerCase().endsWith(".json")){
+       restore(await res.json());undoStack=[];say("loaded");
+     }else{
+       const geometry=new STLLoader().parse(await res.arrayBuffer());
+       geometry.computeBoundingBox();
+       const center=geometry.boundingBox.getCenter(new THREE.Vector3());
+       geometry.translate(-center.x,-center.y,-center.z);
+       geometry.computeBoundingBox();
+       remember();
+       const mesh=makeMesh(geometry,"imported",info.name);
+       mesh.position.z=geometry.boundingBox.getSize(new THREE.Vector3()).z/2;
+       pick(mesh);say("imported");
+     }
+   }catch(e){alert("Impossible d'ouvrir le modèle : "+String(e.message||e))}
+ })();
+}
+"""
+    return html.replace("/* End parametric generators */", injection + "\n" + open_model + "\n/* End parametric generators */", 1)
 
 def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, page):
     with db() as c:
@@ -164,7 +191,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 {% if m.has_preview %}<img loading="lazy" src="/admin/modeles/apercu/{{m.id}}" alt="Aperçu {{m.name}}">
 {% else %}<div class="card" style="text-align:center;font-size:38px">🧊</div>{% endif %}
 <div><strong>{{m.name}}</strong><p class="muted small">{{m.filename}} · {{(m.bytes/1024)|round|int}} Ko · {{m.created.strftime('%d-%m-%Y')}}</p>
-<div class="fjord-actions"><a href="/admin/modeles/fichier/{{m.id}}">⬇ Télécharger</a><a href="/admin/soumissions-pro?model_id={{m.id}}">Créer la soumission</a></div>
+<div class="fjord-actions"><a href="/admin/modeles/fichier/{{m.id}}">⬇ Télécharger</a><a href="/admin/soumissions-pro?model_id={{m.id}}">Créer la soumission</a>{% if not m.filename.lower().endswith(".3mf") %}<a href="/admin/atelier-3d?model_id={{m.id}}">Ouvrir dans l’Atelier</a>{% endif %}</div>
 <form method="post" action="/admin/modeles/supprimer/{{m.id}}" onsubmit="return confirm('Supprimer ce modèle de la bibliothèque?')">{{csrf|safe}}<button type="submit">Supprimer</button></form></div></article>
 {% else %}<p>Aucun modèle pour le moment. Importe ton premier STL ou enregistre une création depuis ton Atelier privé.</p>{% endfor %}</div>
 """,models=models,csrf=csrfinput())
@@ -190,6 +217,15 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                 return {"error":exc.description},exc.code
             raise
         return {"ok":True,"id":model_id}
+
+    @app.get("/admin/modeles/api/info/<int:model_id>")
+    @admin_required
+    def fjord_model_info(model_id):
+        with db() as c:
+            item=c.execute("SELECT name,filename FROM private_models WHERE id=%s",
+                           (model_id,)).fetchone()
+        if not item:abort(404)
+        return {"ok":True,"name":item["name"],"filename":item["filename"]}
 
     @app.get("/admin/modeles/fichier/<int:model_id>")
     @admin_required
@@ -269,6 +305,12 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
 <button type="submit">Enregistrer la soumission</button></form></div>
+
+<div class="card fj-card"><h2>Logo sur les soumissions</h2>
+<p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
+<form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
+<label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
+<button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2>Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p>
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a></div>
@@ -362,6 +404,11 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
             except Exception:logo=None
+        if not logo:
+            try:
+                with open("static/fjord_logo.b64",encoding="ascii") as f:
+                    logo=base64.b64decode(f.read().strip(),validate=True)
+            except (OSError,ValueError):pass
         buffer=io.BytesIO()
         pdf=canvas.Canvas(buffer,pagesize=letter)
         w,h=letter
@@ -413,6 +460,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                 y-=178
             except Exception:pass
         y=min(y-14,250)
+        rows=2+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
+        if y-rows*25<115:
+            pdf.showPage()
+            y=710
         subtotal=round(float(q["unit_price"])*q["quantity"]+float(q["shipping"]),2)
         gst=round(subtotal*0.05,2) if q["apply_taxes"] else 0
         qst=round(subtotal*0.09975,2) if q["apply_taxes"] else 0
