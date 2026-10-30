@@ -14,3 +14,6 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q app.py private_fjord.py real_slicer.py
       - run: python -m unittest discover -s tests -v
+      - run: pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python tests/verify_import_browser.py
