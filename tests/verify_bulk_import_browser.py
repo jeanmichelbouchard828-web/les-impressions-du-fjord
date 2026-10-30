@@ -55,7 +55,7 @@ with sync_playwright() as playwright:
 
         page.route("https://fjord.example/admin/modeles/api/save",on_upload)
         page.route("https://fjord.example/admin/modeles",lambda route:
-                   route.fulfill(status=200,content_type="text/html",body=html))
+                   route.fulfill(status=200,content_type="text/html; charset=utf-8",body=html))
         page.goto("https://fjord.example/admin/modeles",wait_until="load")
         assert page.locator("#fjordBulkStart").is_disabled()
         assert page.locator("#fjordBulkFolder").get_attribute("webkitdirectory") is not None
