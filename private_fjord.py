@@ -681,6 +681,78 @@ body.light .fj-import-panel .fj-help{color:#30556a}
         flash("Soumission créée. Tu peux maintenant télécharger le PDF.")
         return redirect("/admin/soumissions-pro/"+str(result["id"])+"/pdf")
 
+    @app.get("/admin/soumissions-pro/<int:quote_id>/paiement")
+    @admin_required
+    def fjord_admin_payment_link(quote_id):
+        with db() as c:
+            q=c.execute("SELECT id,payment_token FROM private_quotes WHERE id=%s",
+                        (quote_id,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q:abort(404)
+        if not setting or not setting["value"]:
+            flash("Configure d'abord ton adresse Interac.")
+            return redirect("/admin/soumissions-pro")
+        token=_quote_payment_token(db,q)
+        if not token:abort(500)
+        return redirect(url_for("fjord_payment_page",token=token))
+
+
+    @app.get("/payer/<token>")
+    def fjord_payment_page(token):
+        # La page ne dévoile ni l'identité du client ni les paramètres internes.
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
+            abort(404)
+        with db() as c:
+            q=c.execute("""SELECT id,quantity,unit_price,shipping,apply_taxes
+                             FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q or not setting or not setting["value"]:
+            abort(404)
+        recipient=setting["value"]
+        subtotal,gst,qst,total=_quote_amounts(q)
+        reference="FJ-{:05d}".format(q["id"])
+        response=page("Paiement Interac",r"""
+<style>
+.payment-wrap{max-width:660px;margin:30px auto}
+.payment-wrap h1{font-size:clamp(28px,5vw,43px)}
+.payment-total{font-size:clamp(30px,6vw,46px);font-weight:900;color:#7ee7ff;margin:7px 0 18px}
+.payment-detail{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:15px 0}
+.payment-detail strong{font-size:17px;overflow-wrap:anywhere}
+.payment-detail button{font-size:14px;padding:9px 12px}
+.payment-wrap .notice{font-size:13px;color:#b6d1e3}
+body.light .payment-total{color:#076d9d}
+</style>
+<div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
+<h1>💸 Payer par virement Interac</h1>
+<p>Voici les informations pour payer ta soumission. Le paiement s'effectue dans l'application ou le site de ta banque, et non sur cette page.</p>
+<section class="card">
+<div>Montant total de la soumission, taxes comprises si applicables</div>
+<div class="payment-total">{{amount}}</div>
+<p>Ajoute Les Impressions du Fjord comme destinataire Interac dans ton application bancaire, puis effectue ton virement avec les renseignements suivants :</p>
+<div class="payment-detail"><div>📧 Courriel du destinataire<br><strong id="payEmail">{{recipient}}</strong></div>
+<button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
+<div class="payment-detail"><div>🔖 Référence à inscrire dans le message<br><strong id="payRef">{{reference}}</strong></div>
+<button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
+<div class="payment-detail"><div>💰 Montant du virement<br><strong id="payAmount">{{amount}}</strong></div>
+<button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
+<p class="notice">Vérifie le nom et le courriel du destinataire avant l'envoi. Une fois le virement envoyé, conserve ta confirmation bancaire. Ce site ne reçoit pas le paiement et ne peut pas confirmer automatiquement qu'il a été reçu.</p>
+</section>
+<p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
+</div>
+<script>
+async function fjordCopy(id,button){
+ const value=document.getElementById(id).textContent.trim();
+ try{await navigator.clipboard.writeText(value);button.textContent="Copié ✓"}
+ catch(e){button.textContent="Copie manuelle nécessaire"}
+ setTimeout(()=>button.textContent="Copier",2200);
+}
+</script>""",amount=_money(total),reference=reference,recipient=recipient)
+        response.headers["Cache-Control"]="no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
+        response.headers["Referrer-Policy"]="no-referrer"
+        return response
+
+
     @app.get("/admin/soumissions-pro/<int:quote_id>/pdf")
     @admin_required
     def fjord_quote_pdf(quote_id):
@@ -691,7 +763,13 @@ body.light .fj-import-panel .fj-help{color:#30556a}
         with db() as c:
             q=c.execute("SELECT * FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_quote_logo'").fetchone()
+            interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
+        payment_url=None
+        if interac_setting and interac_setting["value"]:
+            token=_quote_payment_token(db,q)
+            if token:
+                payment_url=url_for("fjord_payment_page",token=token,_external=True)
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -751,15 +829,12 @@ body.light .fj-import-panel .fj-help{color:#30556a}
                 pdf.drawImage(reader, (w-pw)/2, y-154+(145-ph)/2,pw,ph,mask="auto")
                 y-=178
             except Exception:pass
-        y=min(y-14,250)
+        y=min(y-14,285 if payment_url else 250)
         rows=2+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
-        if y-rows*25<115:
+        if y-rows*25<(172 if payment_url else 115):
             pdf.showPage()
             y=710
-        subtotal=round(float(q["unit_price"])*q["quantity"]+float(q["shipping"]),2)
-        gst=round(subtotal*0.05,2) if q["apply_taxes"] else 0
-        qst=round(subtotal*0.09975,2) if q["apply_taxes"] else 0
-        total=subtotal+gst+qst
+        subtotal,gst,qst,total=_quote_amounts(q)
         def totalrow(label,amount,y,bold=False):
             pdf.setFont("Helvetica-Bold" if bold else "Helvetica",11 if not bold else 15)
             pdf.setFillColor(navy)
@@ -773,6 +848,40 @@ body.light .fj-import-panel .fj-help{color:#30556a}
             y=totalrow("TVQ (9,975 %)",qst,y)
         pdf.setStrokeColor(cyan);pdf.line(38,y+12,w-39,y+12)
         y=totalrow("TOTAL CAD",total,y-8,True)
+        if payment_url:
+            # Lien web vérifiable : aucune demande Interac n'est envoyée par le site.
+            if y<200:
+                pdf.showPage()
+                y=710
+            top=y-5
+            bottom=top-96
+            pdf.setFillColor(colors.HexColor("#EBF7FE"))
+            pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
+            pdf.setFillColor(navy)
+            pdf.setFont("Helvetica-Bold",12)
+            pdf.drawString(52,top-24,"PAYER PAR VIREMENT INTERAC")
+            pdf.setFont("Helvetica",10)
+            pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
+            pdf.drawString(52,top-58,"Référence : FJ-{:05d}".format(q["id"]))
+            pdf.setFillColor(cyan)
+            pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold",10)
+            pdf.drawCentredString(222,bottom+18,"CLIQUEZ POUR LES INSTRUCTIONS DE PAIEMENT")
+            pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=0)
+            try:
+                from reportlab.graphics.barcode import qr
+                from reportlab.graphics.shapes import Drawing
+                from reportlab.graphics import renderPDF
+                widget=qr.QrCodeWidget(payment_url)
+                x1,y1,x2,y2=widget.getBounds()
+                size=78
+                graphic=Drawing(size,size,transform=[size/(x2-x1),0,0,size/(y2-y1),0,0])
+                graphic.add(widget)
+                renderPDF.draw(graphic,pdf,w-131,bottom+9)
+            except Exception:
+                # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
+                pass
         pdf.setFont("Helvetica",9);pdf.setFillColor(gray)
         pdf.drawString(39,62,"Merci de faire confiance aux Impressions du Fjord.")
         pdf.drawString(39,46,"Toute modification du modèle ou des spécifications peut entraîner une révision du prix.")
