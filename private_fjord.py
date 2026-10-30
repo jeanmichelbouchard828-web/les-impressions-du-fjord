@@ -3,6 +3,7 @@ Les données de coûts et les fichiers ne sont jamais exposés par les routes pu
 """
 import base64
 import datetime
+import hashlib
 import io
 import json
 import math
@@ -236,6 +237,9 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, filename TEXT NOT NULL,
           filedata BYTEA NOT NULL, preview BYTEA, preview_mime TEXT,
           created TIMESTAMPTZ DEFAULT NOW())""")
+        c.execute("ALTER TABLE private_models ADD COLUMN IF NOT EXISTS content_sha256 TEXT")
+        c.execute("""CREATE INDEX IF NOT EXISTS private_models_sha256_idx
+                     ON private_models(content_sha256)""")
         c.execute("""CREATE TABLE IF NOT EXISTS private_quotes (
           id BIGSERIAL PRIMARY KEY, customer TEXT NOT NULL, email TEXT, phone TEXT,
           title TEXT NOT NULL, description TEXT, material TEXT NOT NULL,
@@ -256,7 +260,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
                      ON private_quotes(payment_token)""")
 
-    def _save_model():
+    def _save_model(deduplicate=False):
         name = request.form.get("name", "").strip()[:120]
         upload = request.files.get("model")
         if not name or not upload or not upload.filename:
@@ -284,12 +288,28 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                 preview = make_model_preview(data, filename)
             except (ValueError, OverflowError):
                 preview = None  # Keep the model if rendering fails.
+        checksum = hashlib.sha256(data).hexdigest()
         with db() as c:
-            row = c.execute("""INSERT INTO private_models(name,filename,filedata,preview,preview_mime)
-                VALUES (%s,%s,%s,%s,%s) RETURNING id""",
+            if deduplicate:
+                existing = c.execute("""SELECT id FROM private_models
+                    WHERE content_sha256=%s LIMIT 1""", (checksum,)).fetchone()
+                if existing:
+                    return {"id": existing["id"], "duplicate": True}
+                # Existing library entries predate the checksum column.
+                old = c.execute("""SELECT id FROM private_models
+                    WHERE content_sha256 IS NULL AND octet_length(filedata)=%s
+                      AND filedata=%s LIMIT 1""", (len(data), data)).fetchone()
+                if old:
+                    c.execute("""UPDATE private_models SET content_sha256=%s
+                                 WHERE id=%s AND content_sha256 IS NULL""",
+                              (checksum, old["id"]))
+                    return {"id": old["id"], "duplicate": True}
+            row = c.execute("""INSERT INTO private_models
+                (name,filename,filedata,preview,preview_mime,content_sha256)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
                 (name, filename, data, preview[1] if preview else None,
-                 preview[0] if preview else None)).fetchone()
-        return row["id"]
+                 preview[0] if preview else None, checksum)).fetchone()
+        return {"id": row["id"], "duplicate": False}
 
     @app.post("/admin/modeles/import-demande/<int:request_id>")
     @admin_required
@@ -362,14 +382,14 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_model_api_save():
         verify()
         try:
-            model_id=_save_model()
+            saved=_save_model(deduplicate=request.form.get("skip_duplicates")=="yes")
         except Exception as exc:
             # The browser receives an error status without a private traceback.
             from werkzeug.exceptions import HTTPException
             if isinstance(exc, HTTPException):
                 return {"error":exc.description},exc.code
             raise
-        return {"ok":True,"id":model_id}
+        return {"ok":True, **saved}
 
     @app.get("/admin/modeles/api/liste")
     @admin_required
