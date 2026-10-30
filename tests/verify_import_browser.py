@@ -1,5 +1,6 @@
 """Live browser smoke check: file input must import STL and 3MF on a real Three.js canvas."""
 import io
+from PIL import Image, ImageChops
 import os
 import pathlib
 import subprocess
@@ -89,6 +90,30 @@ try:
         if page.locator("#fjordImportNotice:visible").count():
             raise AssertionError(page.locator("#fjordImportNotice").inner_text())
         assert len(page.locator("#sceneList").inner_text())>len("test.stl"),"Nothing shown after 3MF"
+        # Right-click should open tools, but holding right + dragging should
+        # pan the camera (and not open the menu or move the model).
+        canvas=page.locator("#stage canvas")
+        rect=canvas.bounding_box()
+        assert rect, "3D canvas missing"
+        px=rect["x"]+rect["width"]*0.55
+        py=rect["y"]+rect["height"]*0.58
+        page.mouse.click(px,py,button="right")
+        assert page.locator("#contextMenu").is_visible(), "Right-click tools menu unavailable"
+        page.mouse.click(px,py,button="left")
+        assert page.locator("#contextMenu").is_hidden()
+        page.wait_for_timeout(250)
+        frame_before=Image.open(io.BytesIO(canvas.screenshot())).convert("RGB")
+        part_list_before=page.locator("#sceneList").inner_text()
+        page.mouse.move(px,py)
+        page.mouse.down(button="right")
+        page.mouse.move(px+120,py+50,steps=12)
+        page.mouse.up(button="right")
+        page.wait_for_timeout(450)  # OrbitControls damping
+        assert page.locator("#contextMenu").is_hidden(), "Right-drag opened the tools menu"
+        frame_after=Image.open(io.BytesIO(canvas.screenshot())).convert("RGB")
+        assert ImageChops.difference(frame_before,frame_after).getbbox(), "Right-drag did not pan the view"
+        assert page.locator("#sceneList").inner_text()==part_list_before, "Right-drag changed model list"
+        print("Right-drag camera pan and short right-click menu OK",flush=True)
         browser.close()
         print("PASSED browser import; JS errors:",errors,flush=True)
 finally:
