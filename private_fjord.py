@@ -3,6 +3,7 @@ Les données de coûts et les fichiers ne sont jamais exposés par les routes pu
 """
 import base64
 import datetime
+import hashlib
 import io
 import json
 import math
@@ -236,6 +237,9 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, filename TEXT NOT NULL,
           filedata BYTEA NOT NULL, preview BYTEA, preview_mime TEXT,
           created TIMESTAMPTZ DEFAULT NOW())""")
+        c.execute("ALTER TABLE private_models ADD COLUMN IF NOT EXISTS content_sha256 TEXT")
+        c.execute("""CREATE INDEX IF NOT EXISTS private_models_sha256_idx
+                     ON private_models(content_sha256)""")
         c.execute("""CREATE TABLE IF NOT EXISTS private_quotes (
           id BIGSERIAL PRIMARY KEY, customer TEXT NOT NULL, email TEXT, phone TEXT,
           title TEXT NOT NULL, description TEXT, material TEXT NOT NULL,
@@ -256,7 +260,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
                      ON private_quotes(payment_token)""")
 
-    def _save_model():
+    def _save_model(deduplicate=False):
         name = request.form.get("name", "").strip()[:120]
         upload = request.files.get("model")
         if not name or not upload or not upload.filename:
@@ -278,18 +282,34 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                     abort(400, "Projet JSON invalide.")
             except (ValueError, UnicodeDecodeError):
                 abort(400, "Projet JSON invalide.")
-        preview = _image(request.files.get("preview"))
-        if not preview and filename.lower().endswith((".stl", ".3mf")):
-            try:
-                preview = make_model_preview(data, filename)
-            except (ValueError, OverflowError):
-                preview = None  # Keep the model if rendering fails.
+        checksum = hashlib.sha256(data).hexdigest()
         with db() as c:
-            row = c.execute("""INSERT INTO private_models(name,filename,filedata,preview,preview_mime)
-                VALUES (%s,%s,%s,%s,%s) RETURNING id""",
+            if deduplicate:
+                existing = c.execute("""SELECT id FROM private_models
+                    WHERE content_sha256=%s LIMIT 1""", (checksum,)).fetchone()
+                if existing:
+                    return {"id": existing["id"], "duplicate": True}
+                # Existing library entries predate the checksum column.
+                old = c.execute("""SELECT id FROM private_models
+                    WHERE content_sha256 IS NULL AND octet_length(filedata)=%s
+                      AND filedata=%s LIMIT 1""", (len(data), data)).fetchone()
+                if old:
+                    c.execute("""UPDATE private_models SET content_sha256=%s
+                                 WHERE id=%s AND content_sha256 IS NULL""",
+                              (checksum, old["id"]))
+                    return {"id": old["id"], "duplicate": True}
+            preview = _image(request.files.get("preview"))
+            if not preview and filename.lower().endswith((".stl", ".3mf")):
+                try:
+                    preview = make_model_preview(data, filename)
+                except (ValueError, OverflowError):
+                    preview = None  # Keep the model if rendering fails.
+            row = c.execute("""INSERT INTO private_models
+                (name,filename,filedata,preview,preview_mime,content_sha256)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
                 (name, filename, data, preview[1] if preview else None,
-                 preview[0] if preview else None)).fetchone()
-        return row["id"]
+                 preview[0] if preview else None, checksum)).fetchone()
+        return {"id": row["id"], "duplicate": False}
 
     @app.post("/admin/modeles/import-demande/<int:request_id>")
     @admin_required
@@ -321,14 +341,21 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models = c.execute("""SELECT id,name,filename,octet_length(filedata) AS bytes,
                   (preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview,created
-                  FROM private_models ORDER BY created DESC LIMIT 300""").fetchall()
+                  FROM private_models ORDER BY created DESC LIMIT 1000""").fetchall()
         return page("Mes modèles 3D", r"""
 <style>
 .fjord-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
 .fjord-file{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center}
 .fjord-file img{width:110px;height:100px;object-fit:contain;background:#061422;border-radius:9px}
 .fjord-file .muted{word-break:break-word}.fjord-file form{margin-top:9px}
-@media(max-width:550px){.fjord-file{grid-template-columns:1fr}.fjord-file img{width:100%;height:170px}}
+.fj-bulk-pickers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fj-bulk-pickers label{min-width:0}
+.fj-bulk-pickers input{max-width:100%}
+.fj-bulk-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.fj-bulk-actions button{width:auto}
+.fj-bulk-progress{display:block;width:100%;max-width:670px;height:16px;margin:10px 0}
+.fj-bulk-log{white-space:pre-wrap;overflow-wrap:anywhere;max-height:170px;overflow:auto;font-size:13px}
+@media(max-width:550px){.fjord-file{grid-template-columns:1fr}.fjord-file img{width:100%;height:170px}.fj-bulk-pickers{grid-template-columns:1fr}.fj-bulk-actions button{width:100%}}
 </style>
 <div class="eyebrow">Administration privée</div><h1>Ma bibliothèque 3D</h1>
 <p>Tes modèles sont conservés dans la base de données du site. Retrouve-les sur ton ordinateur ou ton téléphone, télécharge leur STL/3MF ou démarre une soumission.</p>
@@ -339,6 +366,95 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <label>Fichier 3D<input type="file" name="model" accept=".stl,.3mf,.json" required></label>
 <label>Photo ou capture 3D (facultatif)<input type="file" name="preview" accept="image/png,image/jpeg,image/webp"></label>
 <button>Enregistrer dans ma bibliothèque</button></form></div>
+<div class="card" id="fjordBulkPanel">
+<h2>📚 Importer plusieurs fichiers depuis mon ordinateur</h2>
+<p class="muted small">Sélectionne plusieurs fichiers STL/3MF ou un dossier complet de ton ordinateur. Les fichiers des sous-dossiers sont pris en compte. Aucun accès à Bambu Studio requis. Maximum 8 Mo par fichier, envoyés un par un avec leur aperçu automatique.</p>
+<form id="fjordBulkImport">{{csrf|safe}}
+<div class="fj-bulk-pickers">
+<label>Choisir plusieurs fichiers STL ou 3MF<input id="fjordBulkFiles" type="file" accept=".stl,.3mf" multiple></label>
+<label>Ou choisir un dossier complet<input id="fjordBulkFolder" type="file" webkitdirectory directory multiple></label>
+</div>
+<label><input id="fjordBulkSkipDuplicates" type="checkbox" checked style="width:auto;display:inline;margin-right:8px">Ignorer les modèles déjà présents (fichiers identiques)</label>
+<div class="fj-bulk-actions">
+<button type="button" id="fjordBulkStart" disabled>📥 Importer dans ma bibliothèque</button>
+<button type="button" id="fjordBulkStop" hidden>Arrêter après le fichier en cours</button>
+<a href="/admin/modeles" id="fjordBulkRefresh" hidden>↻ Afficher les modèles importés</a>
+</div>
+<p id="fjordBulkStatus" role="status" aria-live="polite" class="muted small">Choisis des fichiers ou un dossier.</p>
+<progress id="fjordBulkProgress" class="fj-bulk-progress" max="100" value="0" hidden></progress>
+<div id="fjordBulkLog" class="fj-bulk-log" aria-live="polite"></div>
+</form></div>
+<script>
+(function(){
+ const form=document.getElementById("fjordBulkImport");
+ const fileInput=document.getElementById("fjordBulkFiles");
+ const folderInput=document.getElementById("fjordBulkFolder");
+ const skip=document.getElementById("fjordBulkSkipDuplicates");
+ const start=document.getElementById("fjordBulkStart");
+ const stop=document.getElementById("fjordBulkStop");
+ const status=document.getElementById("fjordBulkStatus");
+ const progress=document.getElementById("fjordBulkProgress");
+ const log=document.getElementById("fjordBulkLog");
+ const refresh=document.getElementById("fjordBulkRefresh");
+ const csrf=form.querySelector('[name="csrf"]');
+ let selected=[],ignored=0,running=false,cancel=false;
+ form.addEventListener("submit",event=>event.preventDefault());
+ function choose(input,other){
+   if(running)return;
+   other.value="";
+   const candidates=Array.from(input.files||[]);
+   selected=candidates.filter(f=>/\.(stl|3mf)$/i.test(f.name));
+   ignored=candidates.length-selected.length;
+   start.disabled=selected.length===0;
+   refresh.hidden=true;progress.hidden=true;progress.value=0;log.textContent="";
+   status.textContent=selected.length
+     ?selected.length+" fichier(s) STL/3MF prêt(s)"+(ignored?" · "+ignored+" autre(s) ignoré(s).":".")
+     :"Aucun fichier STL ou 3MF dans cette sélection.";
+ }
+ fileInput.addEventListener("change",()=>choose(fileInput,folderInput));
+ folderInput.addEventListener("change",()=>choose(folderInput,fileInput));
+ stop.addEventListener("click",()=>{cancel=true;stop.disabled=true;status.textContent="Arrêt demandé : le fichier en cours se termine.";});
+ start.addEventListener("click",async()=>{
+   if(running||!selected.length)return;
+   running=true;cancel=false;start.disabled=true;stop.hidden=false;stop.disabled=false;
+   fileInput.disabled=true;folderInput.disabled=true;skip.disabled=true;
+   refresh.hidden=true;
+   progress.hidden=false;progress.max=selected.length;progress.value=0;
+   const files=selected.slice(),failures=[];
+   let added=0,duplicates=0,failed=0,done=0,skipped=0;
+   const maxSize=8*1024*1024;
+   const skipDuplicates=skip.checked;
+   for(const file of files){
+     if(cancel)break;
+     status.textContent="Importation "+(done+1)+"/"+files.length+" : "+file.name;
+     if(!file.size||file.size>maxSize){
+       failed++;failures.push(file.name+" : "+(file.size>maxSize?"plus de 8 Mo":"fichier vide"));
+     }else{
+       const payload=new FormData();
+       payload.append("csrf",csrf.value);
+       payload.append("name",file.name.replace(/\.(stl|3mf)$/i,"").slice(0,120)||"Modèle 3D");
+       payload.append("model",file,file.name);
+       if(skipDuplicates)payload.append("skip_duplicates","yes");
+       try{
+         const response=await fetch("/admin/modeles/api/save",{method:"POST",body:payload,credentials:"same-origin"});
+         let result=null;
+         try{result=await response.json()}catch(_error){}
+         if(!response.ok||!result||!result.ok)throw new Error(result&&result.error||"Erreur HTTP "+response.status);
+         if(result.duplicate)duplicates++;else added++;
+       }catch(error){failed++;failures.push(file.name+" : "+error.message);}
+     }
+     done++;progress.value=done;
+     status.textContent="Traités : "+done+"/"+files.length+" · Ajoutés : "+added+" · Doublons : "+duplicates+" · Échecs : "+failed;
+   }
+   skipped=files.length-done;
+   running=false;fileInput.disabled=false;folderInput.disabled=false;skip.disabled=false;
+   stop.hidden=true;start.disabled=!selected.length;
+   status.textContent="Terminé : "+added+" ajouté(s), "+duplicates+" doublon(s), "+failed+" échec(s)"+(skipped?", "+skipped+" non traité(s) (arrêt demandé)":"")+".";
+   log.textContent=failures.length?"Fichiers à vérifier :\n"+failures.slice(0,30).join("\n")+(failures.length>30?"\n… et "+(failures.length-30)+" autre(s).":""):"";
+   refresh.hidden=added===0;
+ });
+})();
+</script>
 <h2>Modèles enregistrés ({{models|length}})</h2>
 <div class="grid">{% for m in models %}<article class="card fjord-file">
 {% if m.has_preview %}<img loading="lazy" src="/admin/modeles/apercu/{{m.id}}" alt="Aperçu {{m.name}}">
@@ -362,21 +478,21 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_model_api_save():
         verify()
         try:
-            model_id=_save_model()
+            saved=_save_model(deduplicate=request.form.get("skip_duplicates")=="yes")
         except Exception as exc:
             # The browser receives an error status without a private traceback.
             from werkzeug.exceptions import HTTPException
             if isinstance(exc, HTTPException):
                 return {"error":exc.description},exc.code
             raise
-        return {"ok":True,"id":model_id}
+        return {"ok":True, **saved}
 
     @app.get("/admin/modeles/api/liste")
     @admin_required
     def fjord_model_list_json():
         with db() as c:
             rows=c.execute("""SELECT id,name,filename,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview
-                               FROM private_models ORDER BY created DESC LIMIT 500""").fetchall()
+                               FROM private_models ORDER BY created DESC LIMIT 1000""").fetchall()
         return {"ok":True,"models":[{"id":m["id"],"name":m["name"],
                   "filename":m["filename"],"has_preview":m["has_preview"]}
                   for m in rows]}
@@ -433,7 +549,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @admin_required
     def fjord_quotes():
         with db() as c:
-            models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 300").fetchall()
+            models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,payment_status,paid_at,created
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
