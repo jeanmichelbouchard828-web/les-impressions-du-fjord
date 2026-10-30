@@ -17,7 +17,7 @@ class AtelierImportTests(unittest.TestCase):
     def test_file_picker_supports_stl_3mf_json(self):
         self.assertIn('accept=".stl,.3mf,.json" multiple', self.html)
         self.assertIn("async function importModelFile(file, displayName)", self.html)
-        self.assertIn("new Loader3MF().parse(buffer)", self.html)
+        self.assertIn("parse3MFProduction(buffer,title)", self.html)
 
     def test_private_library_not_exposed_in_public_editor(self):
         public = public_studio(self.html)
