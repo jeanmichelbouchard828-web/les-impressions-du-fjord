@@ -1047,20 +1047,33 @@ async function importModelFile(file, displayName){
    const g=new STLLoader().parse(buffer);
    geometries.push({g, name:title, color:0x5bc6eb});
  }else{
-   // ThreeMFLoader interprets 3MF ZIP XML, build-item transforms and object units.
-   let Loader3MF;
+   // Native ThreeMFLoader handles standard 3MF, but not every Bambu/Orca
+   // multi-part project using the 3MF Production Extension (p:path).
    try{
-     ({ThreeMFLoader:Loader3MF}=await import('three/addons/loaders/3MFLoader.js'));
-   }catch(error){throw Error('Le module 3MF n’a pas pu être chargé. Vérifie ta connexion Internet et réessaie.');}
-   const root=new Loader3MF().parse(buffer);
-   root.updateMatrixWorld(true);
-   root.traverse(obj=>{
-     if(!obj.isMesh||!obj.geometry?.getAttribute('position'))return;
-     let g=obj.geometry.clone();
-     if(g.index){const flat=g.toNonIndexed();g.dispose();g=flat}
-     g.applyMatrix4(obj.matrixWorld);
-     geometries.push({g,name:(obj.name||title).slice(0,120),color:obj.material?.color?.getHex?.()??0x5bc6eb});
-   });
+     const {ThreeMFLoader}=await import('three/addons/loaders/3MFLoader.js');
+     const root=new ThreeMFLoader().parse(buffer);
+     root.updateMatrixWorld(true);
+     root.traverse(obj=>{
+       if(!obj.isMesh||!obj.geometry?.getAttribute('position'))return;
+       let g=obj.geometry.clone();
+       if(g.index){const flat=g.toNonIndexed();g.dispose();g=flat}
+       g.applyMatrix4(obj.matrixWorld);
+       geometries.push({g,name:(obj.name||title).slice(0,120),color:obj.material?.color?.getHex?.()??0x5bc6eb});
+     });
+   }catch(error){
+     console.info('Chargeur 3MF standard incompatible : essai du format Bambu/Orca.',error);
+     geometries.forEach(part=>part.g.dispose());
+     geometries.length=0;
+   }
+   if(!geometries.length){
+     try{
+       const {parse3MFProduction}=await import('./fjord_3mf.js');
+       geometries.push(...parse3MFProduction(buffer,title));
+     }catch(error){
+       console.warn('Import 3MF multi-fichiers impossible',error);
+       throw Error('Impossible de lire la géométrie 3MF (Bambu/Orca inclus) : '+String(error?.message||error));
+     }
+   }
  }
  try{
    if(!geometries.length || geometries.length>100-models.length)
