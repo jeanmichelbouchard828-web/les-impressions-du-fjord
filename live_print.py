@@ -68,7 +68,7 @@ def register_live_print(app, db, admin_required, verify, page):
             if not result:
                 abort(404)
             flash("Diffusion arrêtée : l'ancien lien client est révoqué.")
-            return redirect(url_for("fjord_quotes") + "#soumissions-enregistrees")
+            return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
         try:
             source, _ = _source_url(request.form.get("live_url", ""))
@@ -90,7 +90,7 @@ def register_live_print(app, db, admin_required, verify, page):
         if not result:
             abort(404)
         flash("Suivi en direct activé pour {} h. Partage uniquement le lien de suivi avec ton client.".format(hours))
-        return redirect(url_for("fjord_quotes") + "#soumissions-enregistrees")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.get("/suivi-impression/<token>")
     def fjord_live_view(token):
