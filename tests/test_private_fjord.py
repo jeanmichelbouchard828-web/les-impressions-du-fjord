@@ -98,7 +98,7 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b'id="fjLibraryDialog"', r.data)
         self.assertIn(b'id="fjLibrarySearch"', r.data)
         self.assertIn(b'/admin/modeles/api/liste', r.data)
-        self.assertIn(b'Choisir cette pièce', r.data)
+        self.assertIn('Choisir cette pièce'.encode('utf-8'), r.data)
         self.assertIn(b'libraryDialog.close()', r.data)
 
     def test_quote_reset_button_is_safe_and_admin_only(self):
