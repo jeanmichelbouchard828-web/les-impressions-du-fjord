@@ -126,17 +126,17 @@ vous pouvez regarder la fabrication de votre pièce.</p>
 <div class="fj-watch-media"><iframe src="{{embed}}" title="Vidéo de votre impression 3D"
  loading="lazy" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
  allowfullscreen></iframe></div>
-<a class="btn" href="{{source}}" target="_blank" rel="noopener noreferrer">↗ Ouvrir la vidéo dans un nouvel onglet</a>
+<a class="btn" href="{{viewer_url}}" target="_blank" rel="noopener noreferrer">↗ Ouvrir la vidéo dans un nouvel onglet</a>
 {% else %}
 <div class="fj-watch-media"><div style="text-align:center;padding:20px">
 <div style="font-size:55px">📹</div><p>La vidéo est diffusée sur OctoEverywhere.</p>
-<a class="btn" href="{{source}}" target="_blank" rel="noopener noreferrer">▶ Regarder mon impression en direct</a>
+<a class="btn" href="{{viewer_url}}" target="_blank" rel="noopener noreferrer">▶ Regarder mon impression en direct</a>
 </div></div>
 {% endif %}
 <p><small>Le lien de suivi est temporaire. La caméra et les informations diffusées sont fournies
 par un service externe; ce suivi ne permet pas de commander l'imprimante. Le lien
 vidéo peut être partagé par son destinataire, alors évitez de le publier.</small></p>
-</div>""", quote_id=q["id"], source=source, embed=embed))
+</div>""", quote_id=q["id"], viewer_url=source, embed=embed))
         result.headers["Cache-Control"] = "no-store"
         result.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
         result.headers["Referrer-Policy"] = "no-referrer"
