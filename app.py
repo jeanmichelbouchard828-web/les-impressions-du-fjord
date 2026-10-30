@@ -265,7 +265,7 @@ def admin():
  with db() as c:
   reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status FROM requests ORDER BY id DESC LIMIT 200").fetchall()
   gallery=c.execute("SELECT id,title,category FROM gallery ORDER BY id DESC").fetchall()
- return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><h2>Galerie</h2><div class="grid">{% for g in gallery %}<div class="card"><strong>{{g.title}}</strong><p>{{g.category}}</p><a href="/admin/edit/{{g.id}}">Modifier / Photos</a><form method="post" action="/admin/delete/{{g.id}}" onsubmit="return confirm('Supprimer cette réalisation?')">{{csrf|safe}}<button>Supprimer</button></form></div>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
+ return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/modeles">📚 Mes modèles 3D</a><a class="btn" href="/admin/soumissions-pro">📄 Soumissions PRO</a><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><h2>Galerie</h2><div class="grid">{% for g in gallery %}<div class="card"><strong>{{g.title}}</strong><p>{{g.category}}</p><a href="/admin/edit/{{g.id}}">Modifier / Photos</a><form method="post" action="/admin/delete/{{g.id}}" onsubmit="return confirm('Supprimer cette réalisation?')">{{csrf|safe}}<button>Supprimer</button></form></div>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
 @app.post("/admin/status/<int:id>")
 @admin_required
 def status(id):
@@ -343,8 +343,18 @@ def health():return {"ok":True}
 @app.get("/admin/atelier-3d")
 @admin_required
 def atelier_3d():
- return send_file("atelier3d.html",mimetype="text/html")
+ from private_fjord import admin_studio
+ with open("atelier3d.html",encoding="utf-8") as source:
+  html=admin_studio(source.read(),csrf())
+ return app.response_class(html,mimetype="text/html",headers={"Cache-Control":"no-store"})
 
 @app.get("/atelier-3d")
 def atelier_3d_public():
- return send_file("atelier3d.html",mimetype="text/html")
+ from private_fjord import public_studio
+ with open("atelier3d.html",encoding="utf-8") as source:
+  html=public_studio(source.read())
+ return app.response_class(html,mimetype="text/html")
+
+# Register admin-only model library and professional quotations.
+from private_fjord import register_private_fjord
+register_private_fjord(app,db,admin_required,verify,csrfinput,csrf,page)
