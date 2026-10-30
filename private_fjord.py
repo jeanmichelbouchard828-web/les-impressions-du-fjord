@@ -115,6 +115,20 @@ if(savedModelId && /^[0-9]+$/.test(savedModelId)){
 """
     return html.replace("/* End parametric generators */", injection + "\n" + open_model + "\n/* End parametric generators */", 1)
 
+
+def public_studio(html):
+    """Ne pas afficher les réglages de coût dans l'Atelier des visiteurs."""
+    style = """<style>
+    #estimatePanel details:has(#estimateKg), #estimateBreakdown,
+    #sliceMaterialCostValue, #sliceMachineCostValue, #sliceSetupMarkupValue,
+    .slice-metrics>span:has(+ #sliceMaterialCostValue),
+    .slice-metrics>span:has(+ #sliceMachineCostValue),
+    .slice-metrics>span:has(+ #sliceSetupMarkupValue) {
+      display:none!important;
+    }
+    </style>"""
+    return html.replace("</head>",style+"</head>",1)
+
 def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, page):
     with db() as c:
         c.execute("""CREATE TABLE IF NOT EXISTS private_models (
@@ -161,6 +175,23 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                 (name, filename, data, preview[1] if preview else None,
                  preview[0] if preview else None)).fetchone()
         return row["id"]
+
+    @app.post("/admin/modeles/import-demande/<int:request_id>")
+    @admin_required
+    def fjord_import_request_model(request_id):
+        verify()
+        with db() as c:
+            source=c.execute("""SELECT kind,name,filename,filedata FROM requests
+                                 WHERE id=%s""",(request_id,)).fetchone()
+            if not source or source["kind"]!="Soumission" or not source["filedata"]:
+                abort(404)
+            if len(source["filedata"])>MAX_MODEL:abort(413)
+            result=c.execute("""INSERT INTO private_models(name,filename,filedata)
+                VALUES(%s,%s,%s) RETURNING id""",
+                ("Demande #"+str(request_id)+" - "+source["name"],
+                 source["filename"],source["filedata"])).fetchone()
+        return redirect("/admin/soumissions-pro?model_id="+str(result["id"])+
+                        "&request_id="+str(request_id))
 
     @app.get("/admin/modeles")
     @admin_required
@@ -263,6 +294,14 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,created FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
         chosen=request.args.get("model_id","",type=str)
+        request_id=request.args.get("request_id",type=int)
+        incoming=None
+        if request_id:
+            with db() as c:
+                incoming=c.execute("""SELECT id,kind,name,email,phone,material,description
+                    FROM requests WHERE id=%s""",(request_id,)).fetchone()
+            if incoming and incoming["kind"]!="Soumission":
+                incoming=None
         return page("Soumissions PRO",r"""
 <style>
 .fj-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -281,15 +320,15 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <div class="card fj-card"><h2>Nouvelle soumission</h2>
 <form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
 <div class="fj-two">
-<label>Nom du client<input name="customer" maxlength="120" required></label>
-<label>Adresse courriel<input type="email" name="email" maxlength="180"></label>
-<label>Téléphone<input name="phone" maxlength="40"></label>
-<label>Objet / nom de la pièce<input name="title" maxlength="160" required></label>
+<label>Nom du client<input name="customer" maxlength="120" value="{{incoming.name if incoming else ''}}" required></label>
+<label>Adresse courriel<input type="email" name="email" maxlength="180" value="{{incoming.email if incoming else ''}}"></label>
+<label>Téléphone<input name="phone" maxlength="40" value="{{incoming.phone if incoming else ''}}"></label>
+<label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else ''}}" required></label>
 <label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
-<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m=='PETG' %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
+<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
 </div><img id="fjPreview" class="fj-model-photo" alt="Aperçu de la pièce" hidden>
 <label>Ou ajouter une photo 3D personnalisée<input type="file" name="preview" accept="image/jpeg,image/png,image/webp"></label>
-<label>Description du travail<textarea name="description" maxlength="2500" placeholder="Couleur, finition, dimensions, inclusions…"></textarea></label>
+<label>Description du travail<textarea name="description" maxlength="2500" placeholder="Couleur, finition, dimensions, inclusions…">{{incoming.description if incoming else ''}}</textarea></label>
 <div class="fj-two">
 <label>Quantité<input type="number" name="quantity" min="1" max="10000" step="1" value="1" required></label>
 <label>Poids prévu par unité (g)<input type="number" name="grams" min="0" max="100000" step="0.1" value="50"></label>
@@ -336,7 +375,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
  selector.addEventListener("change",updateImage);updateImage();update();
 })();
 </script>""",models=models,quotes=quotes,chosen=chosen,materials=MATERIALS,
-          money=_money,csrf=csrfinput())
+          money=_money,csrf=csrfinput(),incoming=incoming)
 
     @app.post("/admin/soumissions-pro/creer")
     @admin_required
