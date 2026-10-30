@@ -75,5 +75,78 @@ endsolid tetra
         self.assertIsNone(make_model_preview(b"{}", "test.json"))
 
 
+
+class PreviewQuoteIntegrationTests(unittest.TestCase):
+    def test_upload_stores_private_thumbnail_used_in_quote(self):
+        from flask import Flask, render_template_string
+        from private_fjord import register_private_fjord
+
+        class Storage:
+            item = None
+            quote_parameters = None
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def execute(self, statement, parameters=()):
+                self.statement = statement
+                self.parameters = parameters
+                if "INSERT INTO private_models" in statement:
+                    Storage.item = {
+                        "preview": parameters[3],
+                        "preview_mime": parameters[4],
+                        "filename": parameters[1],
+                        "filedata": parameters[2],
+                    }
+                if "INSERT INTO private_quotes" in statement:
+                    Storage.quote_parameters = parameters
+                return self
+
+            def fetchone(self):
+                if "INSERT INTO private_models" in self.statement:
+                    return {"id": 17}
+                if "FROM private_models WHERE id=%s" in self.statement:
+                    return Storage.item
+                if "INSERT INTO private_quotes" in self.statement:
+                    return {"id": 19}
+                return None
+
+            def fetchall(self):
+                return []
+
+        app = Flask(__name__)
+        app.secret_key = "test-automatic-thumbnails"
+        register_private_fjord(app, Storage, lambda f: f, lambda: None,
+                               lambda: '<input name="csrf" value="test">',
+                               lambda: "test",
+                               lambda title,body,**kwargs:render_template_string(body,**kwargs))
+        client = app.test_client()
+        response = client.post("/admin/modeles/api/save", data={
+            "name": "Couvercle", "csrf": "test",
+            "model": (io.BytesIO(tetra_stl()), "couvercle.stl"),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["id"], 17)
+        self.assertTrue(Storage.item["preview"].startswith(bytes.fromhex('89504e47')))
+        self.assertEqual(Storage.item["preview_mime"], "image/png")
+
+        picture = client.get("/admin/modeles/apercu/17")
+        self.assertEqual(picture.status_code, 200)
+        self.assertEqual(picture.mimetype, "image/png")
+
+        quote_form = {
+            "customer": "Client exemple", "title": "Couvercle 3D", "material": "PETG",
+            "quantity": "1", "grams": "50", "hours": "2", "model_id": "17",
+            "csrf": "test",
+        }
+        created = client.post("/admin/soumissions-pro/creer", data=quote_form)
+        self.assertEqual(created.status_code, 302)
+        self.assertEqual(Storage.quote_parameters[11], Storage.item["preview"])
+        self.assertEqual(Storage.quote_parameters[12], "image/png")
+
+
 if __name__ == "__main__":
     unittest.main()
