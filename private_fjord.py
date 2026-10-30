@@ -9,7 +9,7 @@ import math
 import re
 import secrets
 
-from flask import abort, flash, redirect, render_template_string, request, send_file, url_for
+from flask import abort, flash, make_response, redirect, render_template_string, request, send_file, url_for
 from werkzeug.utils import secure_filename
 
 MATERIALS = ("PLA", "PETG", "PETG-CF", "ASA", "TPU", "Autre")
@@ -711,7 +711,7 @@ body.light .fj-import-panel .fj-help{color:#30556a}
         recipient=setting["value"]
         subtotal,gst,qst,total=_quote_amounts(q)
         reference="FJ-{:05d}".format(q["id"])
-        response=page("Paiement Interac",r"""
+        response=make_response(page("Paiement Interac",r"""
 <style>
 .payment-wrap{max-width:660px;margin:30px auto}
 .payment-wrap h1{font-size:clamp(28px,5vw,43px)}
@@ -746,7 +746,7 @@ async function fjordCopy(id,button){
  catch(e){button.textContent="Copie manuelle nécessaire"}
  setTimeout(()=>button.textContent="Copier",2200);
 }
-</script>""",amount=_money(total),reference=reference,recipient=recipient)
+</script>""",amount=_money(total),reference=reference,recipient=recipient))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
