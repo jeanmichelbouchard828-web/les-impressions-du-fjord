@@ -396,7 +396,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
-import {ThreeMFLoader} from 'three/addons/loaders/3MFLoader.js';
+// Load the 3MF loader only when a 3MF file is chosen; avoid blocking all STL imports.
 /* Generators built into the atelier page to prevent blank screens from missing module files. */
 // Parametric 3D part generators for Atelier 3D du Fjord.
 // Units: mm. Geometry is approximate and should be checked before mechanical use.
@@ -981,6 +981,23 @@ $('open').addEventListener('click',()=>$('projectFile').click());
 $('projectFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());restore(data);undoStack=[];say('loaded')}catch(err){console.warn(err);say('invalid')}e.target.value=''});
 // Shared importer for local files AND private library downloads.
 // Imports never erase parts already on the bed. "Ouvrir projet" remains a deliberate replace.
+function fjordReportImportError(context,error){
+ console.error('Atelier 3D — importation',context,error);
+ const message=String(error?.message||error||'Erreur inconnue');
+ let box=document.getElementById('fjordImportNotice');
+ if(!box){
+   box=document.createElement('div');box.id='fjordImportNotice';box.setAttribute('role','alert');
+   box.style.cssText='position:fixed;z-index:20010;left:12px;right:12px;bottom:12px;max-width:780px;margin:auto;padding:14px 40px 14px 16px;background:#4c1c25;color:white;border:2px solid #ffbd8a;border-radius:12px;box-shadow:0 10px 40px #0008;font-size:14px';
+   const close=document.createElement('button');close.type='button';close.textContent='✕';
+   close.setAttribute('aria-label',"Fermer l’erreur");
+   close.style.cssText='position:absolute;top:5px;right:7px;padding:6px;background:transparent;color:white;border:0;font-size:20px';
+   close.addEventListener('click',()=>box.hidden=true);box.append(close);
+   const text=document.createElement('div');text.id='fjordImportNoticeText';box.append(text);
+   document.body.append(box);
+ }
+ document.getElementById('fjordImportNoticeText').textContent='Importation impossible pour « '+context+' » : '+message;
+ box.hidden=false;
+}
 async function importModelFile(file, displayName){
  if(!file)throw Error('Aucun fichier sélectionné.');
  const ext=String(file.name||'').toLowerCase().match(/\.(stl|3mf|json)$/)?.[1];
@@ -1031,7 +1048,11 @@ async function importModelFile(file, displayName){
    geometries.push({g, name:title, color:0x5bc6eb});
  }else{
    // ThreeMFLoader interprets 3MF ZIP XML, build-item transforms and object units.
-   const root=new ThreeMFLoader().parse(buffer);
+   let Loader3MF;
+   try{
+     ({ThreeMFLoader:Loader3MF}=await import('three/addons/loaders/3MFLoader.js'));
+   }catch(error){throw Error('Le module 3MF n’a pas pu être chargé. Vérifie ta connexion Internet et réessaie.');}
+   const root=new Loader3MF().parse(buffer);
    root.updateMatrixWorld(true);
    root.traverse(obj=>{
      if(!obj.isMesh||!obj.geometry?.getAttribute('position'))return;
@@ -1077,7 +1098,11 @@ async function importModelFile(file, displayName){
    throw error;
  }
 }
-$('import').addEventListener('click',()=>$('stlFile').click());
+$('import').addEventListener('click',()=>{
+ const picker=$('stlFile');
+ picker.value='';
+ picker.click();
+});
 $('stlFile').addEventListener('change',async e=>{
  const files=Array.from(e.target.files||[]);e.target.value='';
  if(!files.length)return;
@@ -1089,7 +1114,7 @@ $('stlFile').addEventListener('change',async e=>{
      try{await importModelFile(file)}
      catch(error){errors.push(file.name+' : '+String(error.message||error));console.warn('Import failure',error)}
    }
-   if(errors.length)alert('Certains fichiers n’ont pas été importés :\n\n'+errors.join('\n'));
+   if(errors.length)fjordReportImportError(files.length>1?'plusieurs fichiers':files[0].name,new Error(errors.join(' | ')));
  }finally{button.disabled=false}
 });
 function exportSTL(){if(!models.length){say('missing');return false}const group=new THREE.Group();models.forEach(m=>{const c=m.clone();c.geometry=m.geometry;c.material=m.material;group.add(c)});const data=new STLExporter().parse(group,{binary:true});download(new Blob([data],{type:'model/stl'}),'Creation-du-Fjord.stl');say('exported');return true}
