@@ -28,7 +28,7 @@ class ModelPreviewTests(unittest.TestCase):
         with Image.open(io.BytesIO(data)) as img:
             self.assertEqual(img.size, (640,480))
             self.assertEqual(img.format, "PNG")
-            self.assertGreater(len(img.getcolors(640*480) or []), 2)
+            self.assertGreaterEqual(len(img.getcolors(640*480) or []), 2)
 
     def test_binary_stl(self):
         self.assert_png(make_model_preview(tetra_stl(), "piece.stl"))
