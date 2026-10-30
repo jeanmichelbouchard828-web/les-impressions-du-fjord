@@ -7,7 +7,6 @@ import { unzipSync, strFromU8 } from 'three/addons/libs/fflate.module.js';
 const MAX_EXPANDED_BYTES = 80 * 1024 * 1024;
 const MAX_TRIANGLES = 500000;
 const MAX_OBJECTS = 100;
-const xmlCache = new Map();
 const children = (node, name) =>
   Array.from(node?.children || []).filter(element => element.localName === name);
 const first = (node, name) => children(node, name)[0];
@@ -52,6 +51,8 @@ function parseXml(bytes, path) {
 }
 
 export function parse3MFProduction(arrayBuffer, fallbackName = 'Objet 3MF') {
+  // Isolate caches per file: a rejected 3MF must not affect the next import.
+  const xmlCache = new Map();
   // ZIP entries other than model XML are not needed for geometry-only import.
   // Check declared uncompressed sizes before expanding any archive member.
   let declaredSize = 0;
