@@ -1067,7 +1067,7 @@ async function importModelFile(file, displayName){
    }
    if(!geometries.length){
      try{
-       const {parse3MFProduction}=await import('./fjord_3mf.js');
+       const {parse3MFProduction}=await import('/static/fjord_3mf.js');
        geometries.push(...parse3MFProduction(buffer,title));
      }catch(error){
        console.warn('Import 3MF multi-fichiers impossible',error);
