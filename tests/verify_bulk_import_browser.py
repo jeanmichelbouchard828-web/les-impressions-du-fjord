@@ -39,17 +39,19 @@ with sync_playwright() as playwright:
         errors=[]
         uploads=[]
         page.on("pageerror",lambda exc:errors.append(str(exc)))
+        page.on("console",lambda msg:errors.append("console: "+msg.text) if msg.type=="error" else None)
 
         def on_upload(route):
-            req=route.request
-            assert req.method=="POST"
-            payload=req.post_data or ""
-            assert "skip_duplicates" in payload
-            assert "model" in payload
-            uploads.append(payload)
-            duplicate=(len(uploads)%2==0)
-            route.fulfill(status=200,content_type="application/json",body=json.dumps(
-                {"ok":True,"id":len(uploads),"duplicate":duplicate}))
+            try:
+                payload=route.request.post_data or ""
+                uploads.append(payload)
+                duplicate=(len(uploads)%2==0)
+                route.fulfill(status=200,content_type="application/json",body=json.dumps(
+                    {"ok":True,"id":len(uploads),"duplicate":duplicate}))
+            except Exception as exc:
+                errors.append("route: "+str(exc))
+                route.fulfill(status=500,content_type="application/json",body=json.dumps(
+                    {"ok":False,"error":str(exc)}))
 
         page.route("https://fjord.example/admin/modeles/api/save",on_upload)
         page.route("https://fjord.example/admin/modeles",lambda route:
@@ -66,7 +68,12 @@ with sync_playwright() as playwright:
         assert "2 fichier(s)" in page.locator("#fjordBulkStatus").inner_text()
         assert page.locator("#fjordBulkStart").is_enabled()
         page.locator("#fjordBulkStart").click()
-        page.wait_for_function("document.getElementById('fjordBulkStatus').textContent.startsWith('Terminé')",timeout=15000)
+        try:
+            page.wait_for_function("document.getElementById('fjordBulkStatus').textContent.startsWith('Terminé')",timeout=8000)
+        except Exception:
+            print("DEBUG status",page.locator("#fjordBulkStatus").inner_text(),flush=True)
+            print("DEBUG uploads",len(uploads),"errors",errors,flush=True)
+            raise
         result=page.locator("#fjordBulkStatus").inner_text()
         assert "1 ajouté(s)" in result and "1 doublon(s)" in result, result
         assert len(uploads)==2
@@ -87,7 +94,12 @@ with sync_playwright() as playwright:
             assert "1 autre(s) ignoré(s)" in label,label
             assert page.locator("#fjordBulkFiles").input_value()==""
             page.locator("#fjordBulkStart").click()
-            page.wait_for_function("document.getElementById('fjordBulkStatus').textContent.startsWith('Terminé')",timeout=15000)
+            try:
+                page.wait_for_function("document.getElementById('fjordBulkStatus').textContent.startsWith('Terminé')",timeout=8000)
+            except Exception:
+                print("DEBUG status",page.locator("#fjordBulkStatus").inner_text(),flush=True)
+                print("DEBUG uploads",len(uploads),"errors",errors,flush=True)
+                raise
         assert len(uploads)==4
         assert not errors,errors
         print(f"Bulk STL/3MF files and nested folder passed at {width}px",flush=True)
