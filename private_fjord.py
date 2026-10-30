@@ -583,6 +583,26 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-import-panel [role=status]{min-height:24px;white-space:normal;overflow-wrap:anywhere}
 body.light .fj-import-panel{background:#ecf7fd;border-color:#a7cfdf}
 body.light .fj-import-panel .fj-help{color:#30556a}
+.fj-library-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+.fj-library-actions button{min-height:44px}
+.fj-library-dialog{width:min(760px,94vw);max-height:85dvh;overflow:auto;padding:20px;
+ background:#10283b;color:#eef9ff;border:1px solid #58bce8;border-radius:16px;box-shadow:0 20px 65px #0008}
+.fj-library-dialog::backdrop{background:#000a}
+.fj-library-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.fj-library-header h3{margin:0}
+.fj-library-search{box-sizing:border-box;width:100%;margin:14px 0;min-height:44px}
+.fj-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.fj-library-item{display:flex;min-width:0;flex-direction:column;gap:8px;padding:10px;border:1px solid #42708b;border-radius:12px;background:#18384f}
+.fj-library-item img,.fj-library-fallback{width:100%;height:120px;object-fit:contain;border-radius:8px;background:#eaf4fa}
+.fj-library-fallback{display:grid;place-items:center;font-size:34px}
+.fj-library-item strong,.fj-library-item small{display:block;overflow-wrap:anywhere}
+.fj-library-item small{color:#c2d6e4;font-size:12px}
+.fj-library-item button{min-height:44px;margin-top:auto}
+.fj-library-dialog .fj-help{color:#c2d6e4}
+body.light .fj-library-dialog{background:#fff;color:#15364b}
+body.light .fj-library-item{background:#f0f8fc;border-color:#a1c9db}
+body.light .fj-library-item small,body.light .fj-library-dialog .fj-help{color:#345970}
+@media(max-width:500px){.fj-library-dialog{width:95vw;padding:12px}.fj-library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fj-library-item img,.fj-library-fallback{height:95px}.fj-library-item button{padding:9px 5px}}
 .fj-quote-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .fj-reset-button{border:1px solid #57b6db;background:transparent;color:#b6ecff;font-weight:700}
 .fj-reset-button:hover,.fj-reset-button:focus-visible{background:#194660;color:#fff}
@@ -610,6 +630,15 @@ body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{colo
 </div>
 <div class="fj-import-panel">
 <h3>🧊 Importer un modèle et calculer son prix</h3>
+<div class="fj-library-actions"><button type="button" id="fjPickLibrary">📚 Choisir dans ma bibliothèque 3D</button>
+<span class="fj-help">Utilise un STL ou 3MF déjà enregistré, sans le téléverser à nouveau.</span></div>
+<dialog id="fjLibraryDialog" class="fj-library-dialog" aria-labelledby="fjLibraryHeading">
+<div class="fj-library-header"><h3 id="fjLibraryHeading">📚 Mes modèles 3D</h3><button type="button" id="fjLibraryClose">✕ Fermer</button></div>
+<label for="fjLibrarySearch">Rechercher une pièce par nom ou fichier</label>
+<input id="fjLibrarySearch" class="fj-library-search" type="search" placeholder="Ex. support, engrenage, 3MF…" autocomplete="off">
+<p id="fjLibraryStatus" role="status" class="fj-help" aria-live="polite"></p>
+<div id="fjLibraryGrid" class="fj-library-grid"></div>
+</dialog>
 <label>Choisir un fichier STL ou 3MF déjà créé<input type="file" id="fjUpload" accept=".stl,.3mf"></label>
 <div class="fj-two">
 <label>Hauteur de couche<select id="fjLayer"><option value="0.08">0,08 mm — très fin</option><option value="0.12">0,12 mm — qualité</option><option value="0.2" selected>0,20 mm — standard</option><option value="0.28">0,28 mm — rapide</option></select></label>
@@ -668,6 +697,65 @@ body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{colo
 (function(){
  const f=document.getElementById("fjQuote"),o=document.getElementById("fjTotal"),d=document.getElementById("fjBreakdown");
  const selector=document.getElementById("fjModel"),image=document.getElementById("fjPreview");
+ const libraryButton=document.getElementById("fjPickLibrary"),libraryDialog=document.getElementById("fjLibraryDialog");
+ const libraryClose=document.getElementById("fjLibraryClose"),librarySearch=document.getElementById("fjLibrarySearch");
+ const libraryGrid=document.getElementById("fjLibraryGrid"),libraryStatus=document.getElementById("fjLibraryStatus");
+ let libraryModels=[];
+ function renderLibrary(){
+   const query=librarySearch.value.trim().toLocaleLowerCase("fr");
+   const matches=libraryModels.filter(m=>(m.name+" "+m.filename).toLocaleLowerCase("fr").includes(query));
+   libraryGrid.replaceChildren();
+   libraryStatus.textContent=matches.length+" modèle(s) trouvé(s).";
+   if(!matches.length){const p=document.createElement("p");p.textContent="Aucune pièce correspondante.";libraryGrid.append(p);return}
+   for(const m of matches){
+     const item=document.createElement("article");item.className="fj-library-item";
+     if(m.has_preview){
+       const img=document.createElement("img");img.loading="lazy";img.alt="Aperçu de "+m.name;
+       img.src="/admin/modeles/apercu/"+encodeURIComponent(m.id);item.append(img);
+     }else{
+       const placeholder=document.createElement("div");placeholder.className="fj-library-fallback";
+       placeholder.textContent="🧊";item.append(placeholder);
+     }
+     const name=document.createElement("strong");name.textContent=m.name;item.append(name);
+     const filename=document.createElement("small");filename.textContent=m.filename;item.append(filename);
+     const choose=document.createElement("button");choose.type="button";choose.textContent="Choisir cette pièce";
+     choose.addEventListener("click",()=>{
+       let option=Array.from(selector.options).find(o=>o.value===String(m.id));
+       if(!option){
+         option=new Option(m.name,String(m.id));option.dataset.preview=m.has_preview?"/admin/modeles/apercu/"+m.id:"";
+         selector.add(option);
+       }
+       selector.value=String(m.id);
+       const title=f.elements.namedItem("title");
+       if(!title.value.trim())title.value=m.name.slice(0,160);
+       libraryDialog.close();
+       estimate(); // Réutilise l'aperçu, le tranchage et le calcul déjà en place.
+     });
+     item.append(choose);libraryGrid.append(item);
+   }
+ }
+ librarySearch.addEventListener("input",renderLibrary);
+ libraryClose.addEventListener("click",()=>libraryDialog.close());
+ libraryDialog.addEventListener("click",e=>{if(e.target===libraryDialog)libraryDialog.close()});
+ libraryButton.addEventListener("click",async()=>{
+   libraryButton.disabled=true;
+   libraryStatus.textContent="Chargement de la bibliothèque privée…";
+   libraryGrid.replaceChildren();
+   libraryDialog.showModal();
+   try{
+     const response=await fetch("/admin/modeles/api/liste",{credentials:"same-origin",headers:{"Accept":"application/json"}});
+     if(!response.ok||!(response.headers.get("content-type")||"").includes("application/json"))
+       throw Error("Bibliothèque indisponible ou session expirée.");
+     const data=await response.json();
+     if(!data.ok||!Array.isArray(data.models))throw Error("Réponse invalide de la bibliothèque.");
+     libraryModels=data.models;
+     librarySearch.value="";
+     renderLibrary();
+     librarySearch.focus();
+   }catch(err){
+     libraryStatus.textContent="⚠ "+String(err.message||err);
+   }finally{libraryButton.disabled=false}
+ });
  const previewBox=document.getElementById("fjPreviewBox");
  image.onload=()=>{previewBox.hidden=!selector.value || !image.getAttribute("src")};
  image.onerror=()=>{previewBox.hidden=true};
