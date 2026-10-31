@@ -517,6 +517,11 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-camera-controls .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(29px)!important}
 .fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(29px)!important}
 @media(max-width:760px){.fjord-camera-controls{grid-template-columns:32px 86px!important;grid-template-rows:86px auto!important;column-gap:7px!important}.fjord-camera-controls .fjord-orientation-widget{width:86px!important;min-width:86px!important;height:86px!important}.fjord-camera-controls .fjord-orientation-rotor{scale:.82!important}}
+.fjord-create-panel{display:flex;flex-direction:column;gap:8px}
+.fjord-create-panel input{max-width:100%;width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--field);color:var(--text)}
+.fjord-create-panel .tools{display:flex;flex-wrap:wrap;gap:7px}
+.fjord-create-panel .tools button{flex:1 1 100px}
+#fjordSketchStart[aria-pressed="true"]{outline:2px solid #65c7ff}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -525,23 +530,25 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div id="projectMenu" class="project-menu"><button type="button" id="projectMenuButton" aria-expanded="false" data-i18n="mobileProject">📁 Projet</button><div class="top-actions">
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
-<button id="import" data-i18n="import">📥 Importer STL / 3MF</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
+<button id="import" data-i18n="import">📥 Importer STL / 3MF / OBJ</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
 <button id="export" data-i18n="export">Exporter STL</button><button id="sliceTop" data-i18n="slicePreview">▥ Trancher</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
 </div></div>
 <div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
-<input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.json" multiple hidden>
+<input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.obj,.json" multiple hidden>
 </header>
 <nav class="fjord-menubar" aria-label="Menus de l'atelier">
 <a class="fjord-menu-brand" href="/" title="Les Impressions du Fjord"><img class="fjord-menu-logo" src="/identite/logo" alt="Logo Les Impressions du Fjord" onerror="this.hidden=true"><strong>Fjord 3D</strong></a>
 <details><summary>Fichier</summary><div class="fjord-menu-options">
-<button data-fjord-target="new">Nouveau projet</button><button data-fjord-target="open">Ouvrir projet</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF</button>
+<button data-fjord-target="new">Nouveau projet</button><button data-fjord-target="open">Ouvrir projet</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF / OBJ</button>
 </div></details>
 <details><summary>Exporter</summary><div class="fjord-menu-options">
-<button data-fjord-target="export">Exporter STL</button><button data-fjord-target="quote">Faire imprimer</button>
+<button data-fjord-target="export">Exporter STL</button><button data-fjord-target="exportOBJ">Exporter OBJ</button><button data-fjord-target="quote">Faire imprimer</button>
 </div></details>
 <details><summary>Média</summary><div class="fjord-menu-options">
 <button data-fjord-target="import">Importer un modèle 3D</button>
+<button data-fjord-open-panel="text">Créer un texte en 3D</button>
+<button data-fjord-open-panel="freehand">Dessiner à main levée</button>
 </div></details>
 <details><summary>Affichage</summary><div class="fjord-menu-options">
 <button data-fjord-quick="viewIso">Vue 3D</button><button data-fjord-quick="viewTop">Vue du dessus</button><button data-fjord-quick="viewFit">Ajuster la vue</button>
@@ -671,6 +678,26 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="layFace" class="tool-btn" data-i18n="layFace" aria-pressed="false">▱ Poser sur une face</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div></section>
+<section data-tool-panel="text" class="fjord-create-panel">
+ <h3>🔤 Texte 3D</h3>
+ <p class="tool-note">Crée un vrai texte en relief, modifiable en taille et exportable en STL ou OBJ.</p>
+ <label for="fjordTextInput">Texte à imprimer</label>
+ <input type="text" id="fjordTextInput" maxlength="55" value="LES IMPRESSIONS DU FJORD" placeholder="Écris ton texte">
+ <div class="tool-control"><label for="fjordTextSize">Hauteur des lettres (mm)</label><input id="fjordTextSize" type="number" min="4" max="95" value="16" step="1"></div>
+ <div class="tool-control"><label for="fjordTextDepth">Épaisseur (mm)</label><input id="fjordTextDepth" type="number" min="1" max="40" value="3.5" step=".5"></div>
+ <button type="button" id="fjordCreateText" class="primary">+ Créer le texte 3D</button>
+ <p id="fjordTextStatus" class="generator-message" role="status" aria-live="polite"></p>
+</section>
+<section data-tool-panel="freehand" class="fjord-create-panel">
+ <h3>✏️ Dessin à main levée</h3>
+ <p class="tool-note">Dessine directement une forme fermée sur le plateau : au doigt ou avec la souris. Le tracé devient une vraie pièce en relief.</p>
+ <label for="fjordSketchDepth">Épaisseur du dessin (mm)</label>
+ <input id="fjordSketchDepth" type="number" min="1" max="40" value="4" step=".5">
+ <div class="tools"><button type="button" id="fjordSketchStart" aria-pressed="false" class="primary">✏️ Commencer à dessiner</button>
+ <button type="button" id="fjordSketchCreate">✓ Créer la pièce</button>
+ <button type="button" id="fjordSketchClear">✕ Effacer le tracé</button></div>
+ <p id="fjordSketchStatus" class="generator-message" role="status" aria-live="polite">Prêt à dessiner.</p>
+</section>
 <section id="generatorSection" data-tool-panel="generators"><h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
 <div class="fjord-catalog" aria-label="Catalogue des générateurs"><details class="fjord-catalog-group"><summary>Créations artistiques<span>8</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="lithophane">Lithophanie</button><button type="button" data-generator-pick="sculpture">Sculpture</button><button type="button" data-generator-pick="image_relief">Image → forme</button><button type="button" data-generator-pick="braille">Braille</button><button type="button" data-generator-pick="waveform">Onde vocale</button><button type="button" data-generator-pick="organic">Sculptures organiques</button><button type="button" data-generator-pick="voronoi">Voronoï ajouré</button><button type="button" data-generator-pick="portrait_relief">Portrait en relief (webcam bêta)</button></div></details><details class="fjord-catalog-group"><summary>Mécanique<span>9</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="pulley">Poulie personnalisée</button><button type="button" data-generator-pick="screw">Vis</button><button type="button" data-generator-pick="nut">Écrou</button><button type="button" data-generator-pick="tap">Douille taraudée (prototype)</button><button type="button" data-generator-pick="washer">Rondelle</button><button type="button" data-generator-pick="gear">Engrenages</button><button type="button" data-generator-pick="spring">Ressorts</button><button type="button" data-generator-pick="turbine">Hélices et turbines</button><button type="button" data-generator-pick="bearing">Roulements et pivots</button></div></details><details class="fjord-catalog-group"><summary>Ventilation et tuyauterie<span>6</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="adapter">Adaptateur ventilation</button><button type="button" data-generator-pick="pipe">Tuyau droit</button><button type="button" data-generator-pick="elbow">Coude de conduit</button><button type="button" data-generator-pick="coupler">Raccords de tuyaux</button><button type="button" data-generator-pick="funnel">Entonnoirs</button><button type="button" data-generator-pick="grommet">Passe-câbles</button></div></details><details class="fjord-catalog-group"><summary>Objets et accessoires<span>12</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="spoon">Cuillère doseuse</button><button type="button" data-generator-pick="keychain">Porte-clés</button><button type="button" data-generator-pick="stamp">Tampon & emporte-pièce</button><button type="button" data-generator-pick="clamp">Brides</button><button type="button" data-generator-pick="grill">Grilles et résilles</button><button type="button" data-generator-pick="roller">Rouleau en relief</button><button type="button" data-generator-pick="pawn">Pions de jeux</button><button type="button" data-generator-pick="clock">Horloge personnalisée</button><button type="button" data-generator-pick="stand">Support universel</button><button type="button" data-generator-pick="box">Boîte avec couvercle</button><button type="button" data-generator-pick="mold">Moule ouvert (prototype)</button><button type="button" data-generator-pick="qrcode">QR code</button></div></details><details class="fjord-catalog-group"><summary>Architecture et atelier<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="corrugated">Surface ondulée</button><button type="button" data-generator-pick="tower">Tour (atelier)</button><button type="button" data-generator-pick="city">Quartier 3D (bêta)</button><button type="button" data-generator-pick="sleeve">Bague / douille</button></div></details></div><div class="generator-block">
 <label for="generatorKind" data-i18n="generatorChoose">Type de pièce</label>
@@ -827,6 +854,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="common-action" role="menuitem" data-context-action="import">⬆ Importer STL / 3MF</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="sliceTop">▥ Trancher</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="estimateToggle">💰 Estimateur</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="textTool">🔤 Texte en 3D</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="sketchTool">✏️ Dessin à main levée</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="exportOBJ">📤 Export OBJ</button>
 <div class="context-heading blank-action" data-i18n="contextCreate">Créer une pièce</div>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cube" data-i18n="cube">Cube</button>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cylinder" data-i18n="cylinder">Cylindre</button>
@@ -871,6 +901,10 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {OBJExporter} from 'three/addons/exporters/OBJExporter.js';
+import {FontLoader} from 'three/addons/loaders/FontLoader.js';
+import {TextGeometry} from 'three/addons/geometries/TextGeometry.js';
 import {extraGeneratorKinds,generateExtraGeometry} from '/static/fjord_generator_extensions.js';
 import {artGeneratorKinds,generateArtGeometry} from '/static/fjord_generator_art.js';
 // Load the 3MF loader only when a 3MF file is chosen; avoid blocking all STL imports.
