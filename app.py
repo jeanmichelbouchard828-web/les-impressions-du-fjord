@@ -249,40 +249,37 @@ def home():
  # Seules les impressions expressément autorisées sont affichées, sans identifiants client.
  with db() as c:
   public_jobs=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
- return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard fjord-board" aria-label="Tableau interactif de production"><div class="fjord-board-inner"><div class="fjord-board-heading"><strong>LES IMPRESSIONS DU FJORD</strong><span class="fjord-board-badge">Production</span></div><h2>Suivi des impressions 3D</h2><p>Aperçu interactif du tableau de production</p><div class="fjord-board-tabs" role="tablist" aria-label="Statut des impressions"><button type="button" class="fjord-board-tab" data-status="print" role="tab" aria-selected="false">En impression</button><button type="button" class="fjord-board-tab active" data-status="wait" role="tab" aria-selected="true">En attente</button><button type="button" class="fjord-board-tab" data-status="done" role="tab" aria-selected="false">Terminées</button></div><div id="fjordProductionLive" role="tabpanel" aria-live="polite"><p>Chargement du tableau de production…</p></div><p class="production-updated" id="fjordProductionUpdated">Mise à jour automatique toutes les 30 secondes.</p><a class="btn fjord-board-see" href="/voir-mon-impression">👁️ Voir mon impression</a><p class="fjord-board-private">Visionnement privé de votre impression 3D.</p></div></section><style>
+ return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard fjord-board" aria-label="Tableau interactif de production"><div class="fjord-board-inner"><div class="fjord-board-heading"><strong>LES IMPRESSIONS DU FJORD</strong><span class="fjord-board-badge">Production</span></div><h2>Suivi des impressions 3D</h2><p>Aperçu interactif du tableau de production</p><div id="fjordProductionLive" role="tabpanel" aria-live="polite"><p>Chargement du tableau de production…</p></div><p class="production-updated" id="fjordProductionUpdated">Mise à jour automatique toutes les 30 secondes.</p><a class="btn fjord-board-see" href="/voir-mon-impression">👁️ Voir mon impression</a><p class="fjord-board-private">Visionnement privé de votre impression 3D.</p></div></section><style>
 .fjord-board{display:block;padding:24px;background:#0b1725;border-color:#3a6076}.fjord-board-inner{width:100%}.fjord-board-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:18px}.fjord-board-badge{background:#103c27;color:#50d78a;border-radius:30px;padding:5px 12px;font-size:14px}.fjord-board h2{font-size:clamp(24px,3vw,30px);margin:22px 0 6px}.fjord-board-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0}.fjord-board-tab{background:transparent;border:0;border-radius:30px;color:#c4d5e0;font:inherit;font-weight:700;padding:12px 5px;cursor:pointer}.fjord-board-tab.active{background:#304151;color:white}.fjord-board-tab:focus-visible{outline:2px solid #64d9ff;outline-offset:2px}.fjord-board .public-print-list{margin:0}.fjord-board .public-print-job{background:#10283b;display:block}.fjord-board .public-print-job strong{display:block}.fjord-board .public-print-job span{display:block;margin:8px 0}.fjord-board .tracking-progress{height:12px}.fjord-board .tracking-progress span{margin:0;background:#24b46a}.fjord-board-see{display:inline-block;margin-top:12px}.fjord-board-private{font-size:13px;margin:8px 0 0}.fjord-board .production-updated{font-size:13px;margin:14px 0 0}@media(max-width:480px){.fjord-board{padding:16px}.fjord-board-tab{font-size:13px;padding:10px 3px}}
+.fjord-public-table{display:grid;gap:8px}.fjord-public-row{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,1.5fr) minmax(100px,1fr);gap:12px;align-items:center;padding:12px;border:1px solid #37546a;border-radius:12px}.fjord-public-head{border:0;color:#c5d9e8}.fjord-public-progress{display:grid;gap:5px}.fjord-public-progress .tracking-progress{height:10px}@media(max-width:520px){.fjord-public-row{grid-template-columns:minmax(80px,1fr) minmax(110px,1.4fr) minmax(70px,1fr);gap:7px;padding:9px;font-size:12px}}
 </style><script>
 (function(){
  const root=document.getElementById("fjordProductionLive"),updated=document.getElementById("fjordProductionUpdated");
- const tabs=Array.from(document.querySelectorAll(".fjord-board-tab"));
- let active="wait",groups={print:[],wait:[],done:[]};
- const titles={print:"Impression en cours",wait:"Commande en attente",done:"Impression terminée"};
- const empty={print:"Aucune impression publique en cours pour le moment.",wait:"Aucune commande en attente rendue publique.",done:"Aucune impression terminée rendue publique."};
+ let groups={print:[],wait:[],done:[]};
  function render(){
-  const labels={print:"En impression",wait:"En attente",done:"Terminées"};
-  tabs.forEach(tab=>{const key=tab.dataset.status;tab.textContent=labels[key]+" ("+(groups[key]||[]).length+")";});
   root.replaceChildren();
-  const jobs=groups[active]||[];
-  if(!jobs.length){const p=document.createElement("p");p.textContent=empty[active];root.append(p);return;}
-  const list=document.createElement("div");list.className="public-print-list";
-  jobs.forEach(job=>{
-   const card=document.createElement("div");card.className="public-print-job";
-   const title=document.createElement("strong");title.textContent=job.number?"🖨️ "+job.number+" — "+job.status:"🖨️ "+titles[active];card.append(title);
-   if(job.number || active==="print"){
-    const progress=job.progress;
-    if(Number.isInteger(progress)&&progress>=0&&progress<=100){
-     const value=document.createElement("span");value.textContent=progress+" %";card.append(value);
-     const bar=document.createElement("div");bar.className="tracking-progress";bar.setAttribute("role","progressbar");bar.setAttribute("aria-label","Progression de l'impression");bar.setAttribute("aria-valuemin","0");bar.setAttribute("aria-valuemax","100");bar.setAttribute("aria-valuenow",String(progress));
-     const fill=document.createElement("span");fill.style.width=progress+"%";bar.append(fill);card.append(bar);
-    }else{const p=document.createElement("p");p.textContent="Progression non disponible";card.append(p);}
-   }else if(active==="wait"&&!job.number){const p=document.createElement("p");p.textContent=job.status==="Soumission envoyée"?"Soumission envoyée":"Demande reçue";card.append(p);}
-   list.append(card);
-  });
-  root.append(list);
+  const all=[...groups.print,...groups.wait,...groups.done];
+  if(!all.length){const p=document.createElement("p");p.textContent="Aucune soumission à afficher pour le moment.";root.append(p);return;}
+  const table=document.createElement("div");table.className="fjord-public-table";
+  const head=document.createElement("div");head.className="fjord-public-row fjord-public-head";
+  for(const label of ["Soumission","État","Progression"]){const cell=document.createElement("strong");cell.textContent=label;head.append(cell);}
+  table.append(head);
+  for(const key of ["print","wait","done"]){
+   for(const job of groups[key]){
+    const line=document.createElement("div");line.className="fjord-public-row";
+    const number=document.createElement("strong");number.textContent=job.number||"Commande";line.append(number);
+    const state=document.createElement("span");state.textContent=job.status||({print:"En impression",wait:"En attente",done:"Terminée"}[key]);line.append(state);
+    const progress=document.createElement("div");progress.className="fjord-public-progress";
+    if(Number.isInteger(job.progress)&&job.progress>=0&&job.progress<=100){
+     const pct=document.createElement("span");pct.textContent=job.progress+" %";progress.append(pct);
+     const bar=document.createElement("div");bar.className="tracking-progress";
+     const fill=document.createElement("span");fill.style.width=job.progress+"%";bar.append(fill);progress.append(bar);
+    }else{progress.textContent="—";}
+    line.append(progress);table.append(line);
+   }
+  }
+  root.append(table);
  }
- tabs.forEach(tab=>tab.addEventListener("click",()=>{
-  active=tab.dataset.status;tabs.forEach(t=>{const chosen=t===tab;t.classList.toggle("active",chosen);t.setAttribute("aria-selected",String(chosen));});render();
- }));
  async function refresh(){
   if(document.hidden)return;
   try{
