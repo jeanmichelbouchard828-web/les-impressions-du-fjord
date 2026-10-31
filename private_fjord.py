@@ -588,6 +588,13 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         flash("Soumission supprimée.")
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
+    @app.get("/admin/api/progression-auto")
+    @admin_required
+    def fjord_progression_auto():
+        from app import _sync_octo_progress
+        status=_sync_octo_progress()
+        return {"ok":True,**status}
+
     @app.get("/admin/soumissions-pro")
     @admin_required
     def fjord_quotes():
@@ -753,6 +760,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
+<p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span></form>
 <p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
 <div class="fj-status-board">
@@ -763,7 +771,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
 </div>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p><div>
 <label>État de fabrication
 <select form="fjord-save-global" name="production_status_{{q.id}}">
@@ -771,7 +779,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <option value="En production" {% if q.production_status=='En production' %}selected{% endif %}>🖨️ En production</option>
 <option value="Terminée" {% if q.production_status=='Terminée' %}selected{% endif %}>📦 Terminée</option>
 </select></label></div>
-<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label></div>
+<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span></div>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}
 <div class="fj-payment-form">
