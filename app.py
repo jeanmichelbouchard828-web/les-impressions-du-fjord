@@ -174,6 +174,7 @@ def fjord_public_logo():
 def suivi_client():
  result=None
  if request.method=="POST":
+  verify()
   ident=request.form.get("numero","").strip()
   email=request.form.get("email","").strip().casefold()
   if ident.isdigit() and email and len(email)<=200:
