@@ -1249,6 +1249,34 @@ async function fjordCopy(id,button){
             except Exception:
                 # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
                 pass
+        # Conditions annexées au PDF, sur une page dédiée et lisible.
+        pdf.showPage()
+        pdf.setFillColor(navy);pdf.rect(0,h-90,w,90,stroke=0,fill=1)
+        pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",16)
+        pdf.drawString(39,h-44,"GARANTIES ET CONDITIONS DE VENTE")
+        pdf.setFont("Helvetica",9)
+        pdf.drawString(39,h-65,"Les Impressions du Fjord  |  Soumission FJ-{:05d}".format(q["id"]))
+        clauses=[
+         ("1. Garanties légales", "Les garanties légales prévues par les lois applicables, notamment la Loi sur la protection du consommateur et le Code civil du Québec, demeurent pleinement applicables. Le bien doit être conforme à sa description, convenir à son usage normal et avoir une durée raisonnable."),
+         ("2. Fabrication personnalisée", "La fabrication suit les dimensions, le matériau, la couleur et les spécifications convenus avec le client. Toute modification demandée après acceptation peut entraîner une nouvelle estimation et un nouveau délai, sous réserve des droits prévus par la loi."),
+         ("3. Tolérances et apparence", "L'impression 3D peut présenter des lignes de couches et de légères variations de surface ou de teinte. Les caractéristiques et tolérances essentielles doivent être précisées et acceptées avant la production. Cette clause ne limite pas les garanties légales."),
+         ("4. Fichiers fournis par le client", "Le client confirme disposer des droits nécessaires pour faire reproduire le modèle fourni. Les limites techniques ou risques de conception identifiés sont communiqués avant fabrication. Les obligations légales du fabricant demeurent applicables."),
+         ("5. Usage prévu et sécurité", "Le client est invité à préciser tout usage mécanique, alimentaire, électrique, médical ou de sécurité. Un objet n'est pas présenté comme certifié pour ces usages sans validation explicite. Les consignes d'utilisation et les garanties légales restent applicables."),
+         ("6. Prix et approbation", "La soumission est valable 30 jours à compter de sa date, sauf indication contraire. Le prix, les taxes applicables, la livraison et les modalités de paiement sont ceux indiqués à la soumission acceptée."),
+         ("7. Livraison et réclamations", "Les délais sont estimatifs sauf engagement précis. Le client peut signaler un défaut ou une non-conformité afin de permettre l'examen du problème. Aucun délai de réclamation contractuel ne réduit les droits prévus par la loi."),
+         ("8. Recours et droits du consommateur", "Aucune disposition des présentes conditions ne supprime ou ne limite les recours impératifs du consommateur. Selon les circonstances, une réparation, un remplacement, un remboursement ou d'autres recours légaux peuvent s'appliquer.")
+        ]
+        y=h-113
+        for heading,paragraph in clauses:
+            pdf.setFillColor(cyan);pdf.setFont("Helvetica-Bold",10)
+            pdf.drawString(39,y,heading.encode("cp1252","replace").decode("cp1252"));y-=15
+            pdf.setFillColor(gray);pdf.setFont("Helvetica",8.7)
+            for segment in simpleSplit(paragraph.encode("cp1252","replace").decode("cp1252"),"Helvetica",8.7,w-78):
+                pdf.drawString(39,y,segment);y-=12
+            y-=13
+        pdf.setStrokeColor(cyan);pdf.line(39,55,w-39,55)
+        pdf.setFillColor(gray);pdf.setFont("Helvetica",8)
+        pdf.drawString(39,42,"Information générale : www.opc.gouv.qc.ca  |  Les droits légaux priment.")
         pdf.setFont("Helvetica",9);pdf.setFillColor(gray)
         pdf.drawString(39,62,"Merci de faire confiance aux Impressions du Fjord.")
         pdf.drawString(39,46,"Toute modification du modèle ou des spécifications peut entraîner une révision du prix.")
