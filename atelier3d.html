@@ -517,6 +517,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-camera-controls .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(29px)!important}
 .fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(29px)!important}
 @media(max-width:760px){.fjord-camera-controls{grid-template-columns:32px 86px!important;grid-template-rows:86px auto!important;column-gap:7px!important}.fjord-camera-controls .fjord-orientation-widget{width:86px!important;min-width:86px!important;height:86px!important}.fjord-camera-controls .fjord-orientation-rotor{scale:.82!important}}
+.fjord-ams-colors{border:1px solid #547b9480;border-radius:12px;padding:12px;margin:12px 0;background:#22476020}
+.fjord-ams-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.fjord-ams-head h3{margin:0;font-size:16px}.fjord-ams-head button{min-width:36px;min-height:36px;padding:5px}
+.fjord-ams-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}
+.fjord-ams-slots button{display:flex;align-items:center;text-align:left;gap:8px;min-height:51px;border:1px solid #5c8298;padding:7px;border-radius:10px;max-width:100%;overflow:hidden}
+.fjord-ams-swatch{height:26px;width:26px;border-radius:7px;border:1px solid #777;flex:none;box-shadow:0 1px 4px #0004}
+.fjord-ams-slots strong,.fjord-ams-slots small{display:block;line-height:1.25;overflow-wrap:anywhere}
+.fjord-ams-slots small{font-size:11px;opacity:.85}
+.fjord-ams-manual{display:flex;gap:8px;align-items:center;margin:8px 0}
+.fjord-ams-manual input[type=color]{max-width:58px;width:58px;height:42px;padding:3px;border-radius:9px}
+.fjord-ams-manual button{flex:1}
+.fjord-ams-colors .tool-note{font-size:12px;line-height:1.5}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -838,6 +850,14 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="field"><label data-i18n="position">Position (mm) — X, Y, Z</label><div class="triple"><input id="px" type="number" step="0.1" aria-label="Position X"><input id="py" type="number" step="0.1" aria-label="Position Y"><input id="pz" type="number" step="0.1" aria-label="Position Z"></div></div>
 <div class="field"><label data-i18n="rotation">Rotation (°) — X, Y, Z</label><div class="triple"><input id="rx" type="number" step="1" aria-label="Rotation X"><input id="ry" type="number" step="1" aria-label="Rotation Y"><input id="rz" type="number" step="1" aria-label="Rotation Z"></div></div>
 <div id="info" role="status" aria-live="polite"></div>
+<section id="fjordAmsColors" class="fjord-ams-colors" aria-label="Couleurs de filaments disponibles">
+ <div class="fjord-ams-head"><h3>🎨 Couleurs AMS</h3><button type="button" id="fjordAmsRefresh" title="Actualiser les couleurs de l'imprimante" aria-label="Actualiser les couleurs AMS">↻</button></div>
+ <p class="tool-note" id="fjordAmsStatus" role="status" aria-live="polite">Connexion aux bobines AMS…</p>
+ <div id="fjordAmsSlots" class="fjord-ams-slots"></div>
+ <label for="fjordManualColor">Ou choisir une couleur manuellement</label>
+ <div class="fjord-ams-manual"><input type="color" id="fjordManualColor" value="#5bc6eb" aria-label="Couleur personnalisée"><button type="button" id="fjordApplyColor">Appliquer à la pièce</button></div>
+ <p class="tool-note">La couleur est enregistrée dans le projet Fjord. Le STL conserve uniquement la géométrie; le choix du filament dans Bambu Studio reste nécessaire pour l'impression multicolore.</p>
+</section>
 <section id="estimatePanel" class="estimate-panel" hidden>
 <h3 data-i18n="estimateTitle">💰 Estimer le prix d'impression</h3>
 <p class="estimate-help" data-i18n="estimateHelp">Aucun logiciel requis : l’atelier estime automatiquement le poids et la durée à partir de vos formes 3D ou de votre fichier STL.</p>
@@ -1322,8 +1342,8 @@ function addSelectionTint(m){
  m.userData.selectionOriginalColor=m.material.color.getHex();
  m.userData.selectionOriginalEmissive=m.material.emissive?.getHex()??0;
  m.userData.selectionOriginalIntensity=m.material.emissiveIntensity;
- m.material.color.setHex(0xffbd53); // Orange when selected, cyan/original when not.
- if(m.material.emissive){m.material.emissive.setHex(0x783d0e);m.material.emissiveIntensity=.36}
+ // Preserve the filament's true colour during selection; distinguish it with a glow.
+ if(m.material.emissive){m.material.emissive.setHex(0x6e3b10);m.material.emissiveIntensity=.18}
 }
 function serialize(){
  return {version:1,objects:models.map(m=>({
@@ -1332,7 +1352,8 @@ function serialize(){
   scale:m.scale.toArray(),color:basePartColor(m),
   vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null,
   // Merge comme Bambu Studio : une pièce principale, avec ses sous-pièces préservées.
-  parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null
+  parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null,
+  filament:m.userData.fjordFilament?{...m.userData.fjordFilament}:null
  }))};
 }
 function restore(data){
@@ -1354,6 +1375,17 @@ function restore(data){
   m.rotation.set(...entry.rotation);
   m.scale.fromArray(entry.scale);
   m.material.color.setHex(entry.color??0x5bc6eb);
+  if(entry.filament && typeof entry.filament==='object' && !Array.isArray(entry.filament)){
+   const info=entry.filament;
+   if(typeof info.color==='string' && /^#[0-9a-fA-F]{6}$/.test(info.color)){
+    m.userData.fjordFilament={
+     color:info.color,
+     slot:String(info.slot||'').slice(0,100),
+     material:String(info.material||'').slice(0,36),
+     name:String(info.name||'').slice(0,65)
+    };
+   }
+  }
   if(entry.type==='imported' && Array.isArray(entry.parts) && entry.parts.length>=2 && entry.parts.length<=100){
    const count=g.getAttribute('position').count;
    const parts=entry.parts.map(p=>({name:String(p.name||'Pièce').slice(0,120),start:p.start,count:p.count,color:p.color}));
@@ -1505,6 +1537,86 @@ function togglePartSelection(m){
 }
 function sync(){if(sliceActive){if(models.length)sliceUpdateAll();else sliceClose()}if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
+/* Palette AMS réelle, par l'API OctoEverywhere, sans accès direct à l'imprimante.
+   Toute la sélection et la recoloration restent locales au projet. */
+const fjordAmsSwatches=$('fjordAmsSlots');
+const fjordAmsStatus=$('fjordAmsStatus');
+function fjordApplyFilamentColor(hex,filament=null){
+ if(!/^#[0-9a-fA-F]{6}$/.test(hex))return;
+ const targets=models.filter(model=>selectedSet.has(model));
+ if(!targets.length){fjordAmsStatus.textContent='Sélectionne d’abord une pièce sur le plateau.';return;}
+ if(targets.some(model=>model.userData.mergedParts)){
+  fjordAmsStatus.textContent='Pour changer la couleur d’un groupe Merge, sépare d’abord ses sous-pièces.';
+  return;
+ }
+ remember();
+ for(const model of targets){
+  removeSelectionTint(model);
+  model.material.color.set(hex);
+  if(filament){
+   model.userData.fjordFilament={
+    slot:filament.slot,material:filament.material,name:filament.name,color:hex.toUpperCase()
+   };
+  }else delete model.userData.fjordFilament;
+  if(selectedSet.has(model))addSelectionTint(model);
+ }
+ $('fjordManualColor').value=hex;
+ if(filament){
+  const mat=String(filament.material||'').toUpperCase();
+  const estimator=$('estimateMaterial');
+  if(estimator && [...estimator.options].some(option=>option.value===mat)){
+   estimator.value=mat;
+   estimator.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+ }
+ sync();
+ const names=filament?(filament.slot+' · '+filament.material):'personnalisée';
+ fjordAmsStatus.textContent='✓ Couleur '+names+' appliquée à '+targets.length+' pièce(s).';
+}
+async function fjordRefreshAmsPalette(){
+ const refresh=$('fjordAmsRefresh');refresh.disabled=true;
+ fjordAmsStatus.textContent='🔄 Lecture des couleurs des AMS…';
+ try{
+  const res=await fetch('/api/atelier/filaments',{credentials:'same-origin',cache:'no-store'});
+  if(!res.ok)throw Error('La connexion aux bobines AMS est temporairement indisponible.');
+  const data=await res.json();
+  fjordAmsSwatches.replaceChildren();
+  if(!data.connected){
+   fjordAmsStatus.textContent='AMS non connecté via OctoEverywhere. Choisis une couleur manuellement.';
+   return;
+  }
+  if(!data.available){
+   fjordAmsStatus.textContent='OctoEverywhere est connecté, mais ne fournit pas encore les couleurs AMS. Sélection manuelle disponible.';
+   return;
+  }
+  const sources=Array.isArray(data.sources)?data.sources.slice(0,64):[];
+  for(const spool of sources){
+   if(!/^#[0-9A-Fa-f]{6}$/.test(spool.color||''))continue;
+   const button=document.createElement('button');button.type='button';
+   const color=document.createElement('span');color.className='fjord-ams-swatch';color.style.backgroundColor=spool.color;
+   const detail=document.createElement('span');
+   const name=document.createElement('strong');name.textContent=String(spool.slot||'Bobine');
+   const description=document.createElement('small');
+   description.textContent=[spool.material,spool.name,
+    Number.isFinite(spool.remaining)?spool.remaining+' % restant':null].filter(Boolean).join(' · ');
+   detail.append(name,description);button.append(color,detail);
+   button.title='Appliquer '+String(spool.name||spool.material||'Filament')+' — '+String(spool.color);
+   button.setAttribute('aria-label','Appliquer '+String(spool.slot||'bobine')+' '+String(spool.color));
+   button.addEventListener('click',()=>fjordApplyFilamentColor(spool.color,spool));
+   fjordAmsSwatches.append(button);
+  }
+  fjordAmsStatus.textContent=fjordAmsSwatches.childElementCount?
+   '✓ '+fjordAmsSwatches.childElementCount+' bobine(s) détectée(s). Clique sur une couleur pour l’appliquer.' :
+   'AMS connecté, mais aucune couleur de bobine n’est disponible. Sélection manuelle possible.';
+ }catch(error){
+  fjordAmsSwatches.replaceChildren();
+  fjordAmsStatus.textContent=String(error.message||error);
+ }finally{refresh.disabled=false;}
+}
+$('fjordAmsRefresh').addEventListener('click',fjordRefreshAmsPalette);
+$('fjordApplyColor').addEventListener('click',()=>fjordApplyFilamentColor($('fjordManualColor').value));
+fjordRefreshAmsPalette();
+setInterval(()=>{if(document.visibilityState!=='hidden')fjordRefreshAmsPalette();},60000);
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
 // Mouse interactions: left selects/drags parts; right-drag pans the camera.
 // A stationary right-click still opens the part-tools menu on release.
@@ -1894,6 +2006,14 @@ async function importModelFile(file, displayName){
      m.scale.fromArray(item.scale);
      if(Number.isInteger(item.color)&&item.color>=0&&item.color<=0xffffff)
         m.material.color.setHex(item.color);
+     if(item.filament && /^#[0-9a-fA-F]{6}$/.test(item.filament.color||'')){
+      m.userData.fjordFilament={
+       color:item.filament.color,
+       slot:String(item.filament.slot||'').slice(0,100),
+       material:String(item.filament.material||'').slice(0,36),
+       name:String(item.filament.name||'').slice(0,65)
+      };
+     }
      last=m;
    }
    pick(last);
