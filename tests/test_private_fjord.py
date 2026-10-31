@@ -127,6 +127,52 @@ class PrivateFjordTests(unittest.TestCase):
                                    data={"interac_email": "incorrect", "csrf": "test"})
         self.assertEqual(invalid.status_code, 400)
 
+    def test_global_save_accepts_normal_interac_email_and_mobile_json(self):
+        """Regression: saving a valid Interac address must not return Bad Request."""
+        class QuoteConnection(DummyConnection):
+            calls=[]
+            def execute(self, query, params=()):
+                self.query=query
+                self.params=params
+                self.calls.append((query, params))
+                return self
+            def fetchall(self):
+                if "SELECT id,model_id FROM private_quotes" in self.query:
+                    return [{"id":11,"model_id":None}]
+                return []
+            def fetchone(self):
+                return None
+        app=Flask(__name__)
+        app.secret_key="mobile-save-tests"
+        register_private_fjord(app, QuoteConnection, lambda f:f,lambda:None,
+                               lambda:'<input name="csrf" value="test">',
+                               lambda:"test",
+                               lambda title,body,**kwargs:render_template_string(body,**kwargs))
+        client=app.test_client()
+        save=client.post("/admin/soumissions-pro/enregistrer-tout",data={
+            "csrf":"test",
+            "interac_email":"soumissions@example.ca",
+            "public_number_11":"FJ-00011",
+            "printer_job_name_11":"FJ-00011_test-object",
+            "production_status_11":"En production",
+            "production_progress_11":"57",
+            "payment_status_11":"Payée",
+        },headers={"Accept":"application/json"})
+        self.assertEqual(save.status_code,200,save.data)
+        self.assertEqual(save.json["ok"],True)
+        self.assertTrue(any("UPDATE private_quotes SET public_number" in sql
+                            for sql,_ in QuoteConnection.calls))
+        self.assertTrue(any("INSERT INTO settings(key,value)" in sql and params==("soumissions@example.ca",)
+                            for sql,params in QuoteConnection.calls))
+        invalid=client.post("/admin/soumissions-pro/enregistrer-tout",
+                            data={"csrf":"test","interac_email":"not-an-email"},
+                            headers={"Accept":"application/json"})
+        self.assertEqual(invalid.status_code,400)
+        self.assertIn("Interac",invalid.json["error"])
+        page=client.get("/admin/soumissions-pro")
+        self.assertIn(b'id="fjord-save-feedback"',page.data)
+        self.assertIn(b"'Accept':'application/json'",page.data)
+
     def test_public_payment_link_shows_only_payment_details(self):
         class PaymentConnection(DummyConnection):
             def fetchone(self):
