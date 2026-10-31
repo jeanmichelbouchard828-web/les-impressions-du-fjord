@@ -315,7 +315,7 @@ def _sync_octo_progress():
   q=candidates[0]
   number=q["public_number"] or "FJ-{:05d}".format(q["id"])
   progress=100 if live["state"]=="complete" else live["progress"]
-  result.update({"matched":True,"number":number,
+  result.update({"matched":True,"id":q["id"],"status":"Terminée" if live["state"]=="complete" else "En production","number":number,
                  "progress":max(progress,int(q["production_progress"] or 0)),
                  "reason":"Progression reçue pour "+number+"."})
   if q["production_status"]!="Terminée":
