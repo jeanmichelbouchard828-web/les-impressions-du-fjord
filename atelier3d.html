@@ -1782,6 +1782,8 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
  if(action==='splitMerged'){fjordSplitMerged();return;}
+ if(action==='textTool'){document.querySelector('[data-fjord-panel="text"]')?.click();return;}
+ if(action==='sketchTool'){document.querySelector('[data-fjord-panel="freehand"]')?.click();return;}
  if(action==='growSelected'){
   if(selected){rescaleSelected(1.1);snapPartToBed(selected);sync();}
   return;
@@ -1893,8 +1895,8 @@ function fjordReportImportError(context,error){
 }
 async function importModelFile(file, displayName){
  if(!file)throw Error('Aucun fichier sélectionné.');
- const ext=String(file.name||'').toLowerCase().match(/\.(stl|3mf|json)$/)?.[1];
- if(!ext)throw Error('Formats pris en charge : STL, 3MF et projet JSON du Fjord.');
+ const ext=String(file.name||'').toLowerCase().match(/\.(stl|3mf|obj|json)$/)?.[1];
+ if(!ext)throw Error('Formats pris en charge : STL, 3MF, OBJ et projet JSON du Fjord.');
  if(!file.size||file.size>20*1024*1024)throw Error('Limite : 20 Mo par fichier dans l’Atelier.');
  const title=String(displayName||file.name).slice(0,120);
  if(ext==='json'){
@@ -1904,7 +1906,7 @@ async function importModelFile(file, displayName){
    const prepared=[];
    try{
      for(const item of data.objects){
-       if(!item||typeof item!=='object'||!['cube','cylinder','sphere','cone','torus','tube','imported'].includes(item.type)||
+       if(!item||typeof item!=='object'||!['cube','cylinder','sphere','cone','torus','tube','capsule','hemisphere','ellipsoid','prism3','prism6','prism8','pyramid4','pyramid3','rectangle','disc','ring','triangle','hexagon','icosahedron','dodecahedron','egg','imported'].includes(item.type)||
            ![item.position,item.rotation,item.scale].every(v=>Array.isArray(v)&&v.length===3&&v.every(n=>Number.isFinite(n)&&Math.abs(n)<100000)))
           throw Error('Pièce du projet invalide.');
        let g;
@@ -1939,6 +1941,17 @@ async function importModelFile(file, displayName){
  if(ext==='stl'){
    const g=new STLLoader().parse(buffer);
    geometries.push({g, name:title, color:0x5bc6eb});
+ }else if(ext==='obj'){
+   const root=new OBJLoader().parse(await file.text());
+   root.updateMatrixWorld(true);
+   root.traverse(object=>{
+     if(!object.isMesh||!object.geometry?.getAttribute('position'))return;
+     let geometry=object.geometry.clone();
+     if(geometry.index){const flat=geometry.toNonIndexed();geometry.dispose();geometry=flat}
+     geometry.applyMatrix4(object.matrixWorld);
+     geometries.push({g:geometry,name:String(object.name||title).slice(0,120),
+       color:object.material?.color?.getHex?.()??0x5bc6eb});
+   });
  }else{
    // Native ThreeMFLoader handles standard 3MF, but not every Bambu/Orca
    // multi-part project using the 3MF Production Extension (p:path).
@@ -2025,6 +2038,18 @@ $('stlFile').addEventListener('change',async e=>{
 });
 function exportSTL(){if(!models.length){say('missing');return false}const group=new THREE.Group();models.forEach(m=>{const c=m.clone();c.geometry=m.geometry;c.material=m.material;group.add(c)});const data=new STLExporter().parse(group,{binary:true});download(new Blob([data],{type:'model/stl'}),'Creation-du-Fjord.stl');say('exported');return true}
 $('export').addEventListener('click',exportSTL);
+function exportOBJ(){
+ if(!models.length){say('missing');return false;}
+ const group=new THREE.Group();
+ models.forEach(m=>{
+  const clone=m.clone();clone.geometry=m.geometry;clone.material=m.material;group.add(clone);
+ });
+ const content=new OBJExporter().parse(group);
+ download(new Blob([content],{type:'text/plain;charset=utf-8'}),'Creation-du-Fjord.obj');
+ status.textContent='OBJ exporté. Les textures MTL ne sont pas incluses.';
+ return true;
+}
+$('exportOBJ').addEventListener('click',exportOBJ);
 $('quote').addEventListener('click',()=>{if(exportSTL()){window.open('/soumission','_blank','noopener');say('quoteInfo')}});
 function resetWorkspace(){
  if(models.length&&!confirm(langText[currentLang()].reset))return;
@@ -3287,7 +3312,7 @@ function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();i
 const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
 const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
 function selectCategory(name){
- const target=({measure:'edit',projects:'parts',freehand:'edit',text:'shapes'})[name]||name;
+ const target=({measure:'edit',projects:'parts'})[name]||name;
  const panel=categorySections.find(p=>p.dataset.toolPanel===target);
  if(!panel)return;
  categoryButtons.forEach(b=>{
@@ -3301,6 +3326,9 @@ function selectCategory(name){
  if(handle){handle.textContent='‹';handle.setAttribute('aria-expanded','true');}
 }
 categoryButtons.forEach(b=>b.addEventListener('click',()=>selectCategory(b.dataset.fjordPanel)));
+document.querySelectorAll('[data-fjord-open-panel]').forEach(button=>button.addEventListener('click',()=>{
+ selectCategory(button.dataset.fjordOpenPanel);
+}));
 const desktopCategory=window.matchMedia('(min-width:761px)');
 const navArea=left.querySelector('.fjord-workspace-nav');
 let pinnedCategory=false;
