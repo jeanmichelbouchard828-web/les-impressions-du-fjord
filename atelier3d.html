@@ -1342,8 +1342,8 @@ function addSelectionTint(m){
  m.userData.selectionOriginalColor=m.material.color.getHex();
  m.userData.selectionOriginalEmissive=m.material.emissive?.getHex()??0;
  m.userData.selectionOriginalIntensity=m.material.emissiveIntensity;
- m.material.color.setHex(0xffbd53); // Orange when selected, cyan/original when not.
- if(m.material.emissive){m.material.emissive.setHex(0x783d0e);m.material.emissiveIntensity=.36}
+ // Preserve the filament's true colour during selection; distinguish it with a glow.
+ if(m.material.emissive){m.material.emissive.setHex(0x6e3b10);m.material.emissiveIntensity=.18}
 }
 function serialize(){
  return {version:1,objects:models.map(m=>({
@@ -1352,7 +1352,8 @@ function serialize(){
   scale:m.scale.toArray(),color:basePartColor(m),
   vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null,
   // Merge comme Bambu Studio : une pièce principale, avec ses sous-pièces préservées.
-  parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null
+  parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null,
+  filament:m.userData.fjordFilament?{...m.userData.fjordFilament}:null
  }))};
 }
 function restore(data){
@@ -1374,6 +1375,17 @@ function restore(data){
   m.rotation.set(...entry.rotation);
   m.scale.fromArray(entry.scale);
   m.material.color.setHex(entry.color??0x5bc6eb);
+  if(entry.filament && typeof entry.filament==='object' && !Array.isArray(entry.filament)){
+   const info=entry.filament;
+   if(typeof info.color==='string' && /^#[0-9a-fA-F]{6}$/.test(info.color)){
+    m.userData.fjordFilament={
+     color:info.color,
+     slot:String(info.slot||'').slice(0,100),
+     material:String(info.material||'').slice(0,36),
+     name:String(info.name||'').slice(0,65)
+    };
+   }
+  }
   if(entry.type==='imported' && Array.isArray(entry.parts) && entry.parts.length>=2 && entry.parts.length<=100){
    const count=g.getAttribute('position').count;
    const parts=entry.parts.map(p=>({name:String(p.name||'Pièce').slice(0,120),start:p.start,count:p.count,color:p.color}));
@@ -1914,6 +1926,14 @@ async function importModelFile(file, displayName){
      m.scale.fromArray(item.scale);
      if(Number.isInteger(item.color)&&item.color>=0&&item.color<=0xffffff)
         m.material.color.setHex(item.color);
+     if(item.filament && /^#[0-9a-fA-F]{6}$/.test(item.filament.color||'')){
+      m.userData.fjordFilament={
+       color:item.filament.color,
+       slot:String(item.filament.slot||'').slice(0,100),
+       material:String(item.filament.material||'').slice(0,36),
+       name:String(item.filament.name||'').slice(0,65)
+      };
+     }
      last=m;
    }
    pick(last);
