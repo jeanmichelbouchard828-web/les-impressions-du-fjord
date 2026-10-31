@@ -7,6 +7,9 @@ import io
 import math
 import re
 import struct
+import zipfile
+import xml.etree.ElementTree as ET
+from collections import Counter
 
 from PIL import Image, ImageDraw
 
@@ -47,10 +50,69 @@ def _faces(blob):
             vertices = []
 
 
+
+def _color_from_3mf(blob):
+    """Find the dominant declared model material color without executing 3MF content."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            models = [info for info in archive.infolist()
+                      if info.filename.lower().endswith(".model") and info.file_size <= 12*1024*1024]
+            if not models:
+                return None
+            root = ET.fromstring(archive.read(models[0]))
+            resources = {}
+            for group in root.iter():
+                kind = group.tag.rsplit("}", 1)[-1].lower()
+                if kind not in ("basematerials", "colorgroup"):
+                    continue
+                group_id = group.get("id")
+                if not group_id:
+                    continue
+                values = []
+                for child in group:
+                    raw = child.get("displaycolor") or child.get("color")
+                    if raw and re.fullmatch(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?", raw):
+                        values.append(raw[:7])
+                    else:
+                        values.append(None)
+                resources[group_id] = values
+            counts = Counter()
+            for obj in root.iter():
+                if obj.tag.rsplit("}", 1)[-1].lower() != "object":
+                    continue
+                obj_pid = obj.get("pid")
+                obj_index = obj.get("pindex", "0")
+                for tri in obj.iter():
+                    if tri.tag.rsplit("}", 1)[-1].lower() != "triangle":
+                        continue
+                    pid = tri.get("pid", obj_pid)
+                    idx = tri.get("p1", obj_index)
+                    try:
+                        selected = resources[pid][int(idx)]
+                    except (KeyError, ValueError, TypeError, IndexError):
+                        continue
+                    if selected:
+                        counts[selected] += 1
+            if counts:
+                return counts.most_common(1)[0][0]
+            # Some 3MFs specify one material on the object without triangle overrides.
+            for obj in root.iter():
+                if obj.tag.rsplit("}", 1)[-1].lower() == "object":
+                    try:
+                        selected = resources[obj.get("pid")][int(obj.get("pindex", "0"))]
+                        if selected:
+                            return selected
+                    except (KeyError, ValueError, TypeError, IndexError):
+                        pass
+    except (OSError, ValueError, ET.ParseError, zipfile.BadZipFile, RuntimeError):
+        return None
+    return None
+
 def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
     """Return ('image/png', bytes), or None for invalid/unsupported geometry."""
     ext = filename.lower().rsplit(".", 1)[-1]
     if ext == "3mf":
+        color = _color_from_3mf(blob) or color
         from quote_estimator import _stl_from_3mf
         try:
             blob = _stl_from_3mf(blob)
