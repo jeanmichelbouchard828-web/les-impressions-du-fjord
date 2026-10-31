@@ -3001,7 +3001,7 @@ function prepareQrGenerator(){
  if(!qrLibraryPromise){
   qrLibraryPromise=new Promise((resolve,reject)=>{
    const script=document.createElement('script');
-   script.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+   script.src='/static/vendor/qrcode-generator.js';
    script.onload=()=>typeof globalThis.qrcode==='function'?resolve():reject(Error('Bibliothèque QR indisponible.'));
    script.onerror=()=>reject(Error('Chargement du vrai QR code impossible : vérifie la connexion Internet.'));
    document.head.append(script);
