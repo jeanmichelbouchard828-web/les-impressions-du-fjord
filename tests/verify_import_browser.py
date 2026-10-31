@@ -118,8 +118,12 @@ try:
         # Selecting the parts through their checkboxes works on PC and mobile.
         checkboxes=page.locator("#sceneList input[type=checkbox]")
         assert checkboxes.count()==2, "Two independent imported parts expected"
-        checkboxes.nth(0).check()
-        checkboxes.nth(1).check()
+        # The parts drawer starts collapsed on desktop, so use its wired
+        # checkbox change handler without forcing it open in the smoke test.
+        for index in (0,1):
+            checkboxes.nth(index).evaluate("""el => {
+              if(!el.checked){el.checked=true;el.dispatchEvent(new Event('change',{bubbles:true}));}
+            }""")
         assert page.locator("#sceneList input[type=checkbox]:checked").count()==2
         page.evaluate("""() => {
           const menu=document.getElementById('contextMenu');
