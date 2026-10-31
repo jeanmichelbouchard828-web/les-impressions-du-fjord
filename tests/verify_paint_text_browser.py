@@ -62,8 +62,27 @@ try:
         assert page.locator("#move").get_attribute("aria-pressed")=="true"
         page.mouse.click(rect["x"]+12,rect["y"]+rect["height"]-15)
         page.wait_for_function("document.querySelector('#move').getAttribute('aria-pressed')==='false'",timeout=5000)
+        # Paint a visible face of a cube and ensure real per-triangle data survives a save.
+        page.on("dialog",lambda dialog:dialog.accept())
+        page.locator("#resetProject").evaluate("el=>el.click()")
+        page.locator('[data-shape="cube"]').evaluate("el=>el.click()")
+        page.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
+        page.locator("#fjordPaintToggle").evaluate("el=>el.click()")
+        page.locator('[data-fjord-paint-tool="triangle"]').evaluate("el=>el.click()")
+        page.mouse.click(rect["x"]+rect["width"]/2,rect["y"]+rect["height"]/2)
+        page.wait_for_function("document.querySelector('#fjordPaintStatus').innerText.includes('facette(s)')",timeout=6000)
+        with page.expect_download() as painted_dl:
+            page.locator("#save").evaluate("el=>el.click()")
+        painted=json.loads(pathlib.Path(painted_dl.value.path()).read_text(encoding="utf-8"))
+        assert len(painted["objects"][0]["paintFaces"])>0,painted["objects"][0]
+        page.locator("#undo").evaluate("el=>el.click()")
+        page.locator("#redo").evaluate("el=>el.click()")
+        with page.expect_download() as restored_dl:
+            page.locator("#save").evaluate("el=>el.click()")
+        restored=json.loads(pathlib.Path(restored_dl.value.path()).read_text(encoding="utf-8"))
+        assert restored["objects"][0]["paintFaces"],restored["objects"][0]
         assert not errors,errors
-        print("3D text creation/editing, paint panel, palette and blank click reset PASSED")
+        print("3D text creation/editing, actual face painting, palette, undo/redo and blank click reset PASSED")
         browser.close()
 finally:
     server.terminate()
