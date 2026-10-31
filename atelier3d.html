@@ -738,7 +738,8 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="duplicate" data-i18n="duplicate">Dupliquer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="centerXY" data-i18n="centerXY">Centrer XY</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — fusionner les pièces</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="dropToBed" data-i18n="dropToBed">Poser au sol</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
@@ -1510,6 +1511,7 @@ renderer.domElement.addEventListener('pointercancel',e=>{
 contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventListener('click',()=>{
  const action=btn.dataset.contextAction;hideContext();
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
+ if(action==='mergeAll'){fjordMergeAll();return;}
  $(action)?.click();
 }));
 document.querySelectorAll('[data-quick-action]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -2300,6 +2302,34 @@ $('layFace').addEventListener('click',toggleLayFace);
 $('language').addEventListener('change',updateLayFaceButton);
 updateLayFaceButton();
 
+// Fusion géométrique : regroupe les triangles en une seule pièce sans union booléenne.
+function fjordMergeAll(){
+ if(models.length<2){alert('Ajoute au moins deux pièces pour utiliser Merge.');return}
+ if(!confirm('Fusionner les '+models.length+' pièces du plateau en un seul objet ? Les volumes qui se chevauchent ne seront pas soudés (pas une union booléenne).'))return;
+ const vertices=[];
+ for(const m of models){
+  m.updateMatrixWorld(true);
+  const g=m.geometry.index?m.geometry.toNonIndexed():m.geometry;
+  const pos=g.getAttribute('position');
+  const v=new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){
+   v.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld);
+   vertices.push(v.x,v.y,v.z);
+  }
+  if(g!==m.geometry)g.dispose();
+ }
+ if(vertices.length>6000000){alert('Fusion trop volumineuse pour ce projet.');return}
+ remember();
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+ geometry.computeVertexNormals();
+ const old=[...models];
+ for(const m of old){removeSelectionTint(m);scene.remove(m);m.geometry.dispose();m.material.dispose()}
+ models=[];selected=null;transform.detach();
+ const merged=makeMesh(geometry,'imported','Fusion de '+old.length+' pièces');
+ pick(merged);
+ sync();
+}
 function changeModel(action,confirmation){
  if(!selected){say('noSelection');return}
  if(confirmation===false)return;
