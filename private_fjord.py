@@ -602,7 +602,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         def quote_stage(q):
             if q.get("production_status")=="Terminée":return "terminees"
-            if q["production_status"]=="En production":return "production"
+            if q.get("production_status")=="En production":return "production"
             if q["payment_status"]=="Payée":return "payees"
             if q["accepted_at"]:return "acceptees"
             return "attente"
@@ -1123,7 +1123,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         phone=request.form.get("phone","").strip()[:40]
         description=request.form.get("description","").strip()[:2500]
         material=request.form.get("material","PETG")
-        preview_color=request.form.get("preview_color","#ffcc00")
+        preview_color=request.form.get("preview_color","#168ac2")
         if not re.fullmatch(r"#[0-9a-fA-F]{6}",preview_color):abort(400)
         preview_secondary=request.form.get("preview_secondary","#111111")
         if not re.fullmatch(r"#[0-9a-fA-F]{6}",preview_secondary):abort(400)
@@ -1472,7 +1472,7 @@ async function fjordCopy(id,button){
         # Régénérer les anciens aperçus automatiques à partir du modèle 3D.
         # Conserver les photos personnalisées et les rendus propres à la soumission.
         quote_preview=q["preview"]
-        if q["model_id"]:
+        if q.get("model_id"):
             with db() as c:
                 source=c.execute("SELECT filename,filedata,preview FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
             if source and source["filename"].lower().endswith((".stl",".3mf")):
