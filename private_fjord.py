@@ -692,6 +692,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else ''}}" required></label>
 <label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
 <label>Couleur principale de l'aperçu<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Couleur des autres pièces (STL multiparties)<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
 <label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
 </div>
 <div class="fj-import-panel">
@@ -1112,6 +1113,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         material=request.form.get("material","PETG")
         preview_color=request.form.get("preview_color","#ffcc00")
         if not re.fullmatch(r"#[0-9a-fA-F]{6}",preview_color):abort(400)
+        preview_secondary=request.form.get("preview_secondary","#111111")
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}",preview_secondary):abort(400)
         if not customer or not title or material not in MATERIALS:
             abort(400)
         if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",email):
@@ -1141,7 +1144,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                                    FROM private_models WHERE id=%s""",(model_id,)).fetchone()
                 if not model:abort(400,"Modèle introuvable")
                 if not preview and model["filename"].lower().endswith((".stl", ".3mf")):
-                    try:preview=make_model_preview(model["filedata"],model["filename"],color=preview_color)
+                    try:preview=make_model_preview(model["filedata"],model["filename"],color=preview_color,secondary_color=preview_secondary)
                     except (ValueError, OverflowError):preview=None
                 if not preview:
                     if model["preview"]:
@@ -1166,7 +1169,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                (customer,email,phone,title,description,material,quantity,unit_price,
                 shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
                 machine_hour,setup_cost,markup,payment_token,public_number)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
                int(quantity),unit,shipping,taxes,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
