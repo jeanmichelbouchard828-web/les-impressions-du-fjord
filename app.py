@@ -219,7 +219,7 @@ def public_production():
   rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
  # Soumissions PRO : statut uniquement, sans données client ni montant.
  with db() as c:
-  quotes=c.execute("""SELECT q.id,q.production_status,q.payment_status,
+  quotes=c.execute("""SELECT q.id,q.production_status,q.production_progress,q.payment_status,
       EXISTS(SELECT 1 FROM fjord_quote_acceptances a WHERE a.quote_id=q.id) AS accepted
       FROM private_quotes q ORDER BY q.id DESC LIMIT 150""").fetchall()
  groups={"print":[],"wait":[],"done":[]}
@@ -235,7 +235,7 @@ def public_production():
    key,label="wait","Acceptée · en attente de production"
   else:
    key,label="wait","Soumission en attente"
-  groups[key].append({"number":"FJ-{:05d}".format(q["id"]),"status":label,"progress":None})
+  groups[key].append({"number":"FJ-{:05d}".format(q["id"]),"status":label,"progress":100 if key=="done" else int(q["production_progress"] or 0)})
  for r in rows:
   key="print" if r["status"]=="En impression" else ("done" if r["status"]=="Terminée" else "wait")
   if len(groups[key])<100:
@@ -265,15 +265,15 @@ def home():
   const list=document.createElement("div");list.className="public-print-list";
   jobs.forEach(job=>{
    const card=document.createElement("div");card.className="public-print-job";
-   const title=document.createElement("strong");title.textContent="🖨️ "+titles[active];card.append(title);
-   if(active==="print"){
+   const title=document.createElement("strong");title.textContent=job.number?"🖨️ "+job.number+" — "+job.status:"🖨️ "+titles[active];card.append(title);
+   if(job.number || active==="print"){
     const progress=job.progress;
     if(Number.isInteger(progress)&&progress>=0&&progress<=100){
      const value=document.createElement("span");value.textContent=progress+" %";card.append(value);
      const bar=document.createElement("div");bar.className="tracking-progress";bar.setAttribute("role","progressbar");bar.setAttribute("aria-label","Progression de l'impression");bar.setAttribute("aria-valuemin","0");bar.setAttribute("aria-valuemax","100");bar.setAttribute("aria-valuenow",String(progress));
      const fill=document.createElement("span");fill.style.width=progress+"%";bar.append(fill);card.append(bar);
     }else{const p=document.createElement("p");p.textContent="Progression non disponible";card.append(p);}
-   }else if(active==="wait"){const p=document.createElement("p");p.textContent=job.status==="Soumission envoyée"?"Soumission envoyée":"Demande reçue";card.append(p);}
+   }else if(active==="wait"&&!job.number){const p=document.createElement("p");p.textContent=job.status==="Soumission envoyée"?"Soumission envoyée":"Demande reçue";card.append(p);}
    list.append(card);
   });
   root.append(list);
