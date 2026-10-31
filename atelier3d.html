@@ -363,6 +363,11 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-view-cube .fjord-cube-front{background:#1d2733;clip-path:polygon(0 0,93% 0,100% 100%,8% 100%)}
 .fjord-camera-zoom{display:flex;gap:5px;align-self:flex-end}
 @media(max-width:760px){.fjord-camera-controls{right:6px;top:8px;gap:5px}.fjord-camera-controls button{min-width:29px;height:29px;font-size:17px}.fjord-view-cube button{width:62px;min-width:62px;height:33px;font-size:10px}.fjord-camera-zoom{flex-direction:column}}
+.fjord-camera-controls [data-camera-action="walk"].active{background:#479bff;color:#071625;border-color:#479bff}
+.fjord-walk-banner[hidden]{display:none!important}
+.fjord-walk-banner{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:75;display:flex;align-items:center;gap:12px;padding:8px 11px;border-radius:24px;background:#479bff;color:#091b2c;font-size:13px;font-weight:600;box-shadow:0 4px 16px #0005;white-space:nowrap}
+.fjord-walk-banner button{border:1px solid #2678d4;background:#77b6ff;color:#091b2c;border-radius:18px;padding:5px 12px;cursor:pointer}
+@media(max-width:760px){.fjord-walk-banner{font-size:10px;max-width:95%;white-space:normal}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -531,7 +536,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="fjord-camera-controls" aria-label="Commandes de caméra">
  <div class="fjord-camera-buttons">
   <button type="button" data-camera-action="home" title="Vue d'accueil" aria-label="Vue d'accueil">⌂</button>
-  <button type="button" data-camera-action="top" title="Vue du dessus" aria-label="Vue du dessus">◉</button>
+  <button type="button" data-camera-action="walk" title="Activer le mode balade" aria-label="Activer le mode balade" aria-pressed="false">◉</button>
   <button type="button" data-camera-action="fit" title="Centrer la vue" aria-label="Centrer la vue">⌗</button>
   <button type="button" data-camera-action="iso" title="Vue 3D" aria-label="Vue 3D">⬡</button>
  </div>
@@ -912,6 +917,21 @@ applyPrefs();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);function syncCanvasTheme(){scene.background.set(localStorage.getItem('fjord-theme')==='light'?0xe8f2fa:0x172333)}syncCanvasTheme();
 const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(0,-360,335);camera.up.set(0,0,1);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));stage.insertBefore(renderer.domElement,stage.firstChild);
+let fjordWalkMode=false;
+const fjordWalkBanner=document.createElement('div');
+fjordWalkBanner.className='fjord-walk-banner';fjordWalkBanner.hidden=true;
+fjordWalkBanner.innerHTML='<span>◉ Mode balade activé · Les pièces ne bougent pas</span><button type="button">Quitter (Échap)</button>';
+stage.appendChild(fjordWalkBanner);
+function fjordSetWalkMode(enabled){
+ fjordWalkMode=enabled;
+ fjordWalkBanner.hidden=!enabled;
+ const button=document.querySelector('[data-camera-action="walk"]');
+ if(button){button.classList.toggle('active',enabled);button.setAttribute('aria-pressed',String(enabled));}
+ if(enabled){transform.detach();hideContext();}else{if(selected)transform.attach(selected);}
+}
+window.fjordToggleWalk=()=>fjordSetWalkMode(!fjordWalkMode);
+fjordWalkBanner.querySelector('button').addEventListener('click',()=>fjordSetWalkMode(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fjordWalkMode){fjordSetWalkMode(false);e.stopImmediatePropagation();}},true);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,0);camera.lookAt(orbit.target);orbit.enableDamping=true;
 // Three.js gère le panoramique de la caméra au bouton droit : aucun déplacement des pièces.
 orbit.mouseButtons.RIGHT=THREE.MOUSE.PAN;orbit.enablePan=true;
@@ -1188,6 +1208,7 @@ function showContextMenu(e){
 // would obstruct OrbitControls before the user can drag the view.
 renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation()});
 renderer.domElement.addEventListener('pointerdown',e=>{
+ if(fjordWalkMode)return;
  if(e.pointerType==='touch'){
   activeTouchIds.add(e.pointerId);
   if(activeTouchIds.size===1){
@@ -2758,6 +2779,7 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  controls?.addEventListener('click',event=>{
   const button=event.target.closest('[data-camera-action]');if(!button)return;
   const action=button.dataset.cameraAction;
+  if(action==='walk'){window.fjordToggleWalk?.();return;}
   if(action==='home'){fjordHomeView();return;}
   if(action==='fit'){fjordCenterView();return;}
   const ids={top:'viewTop',front:'viewFront',iso:'viewIso'};
