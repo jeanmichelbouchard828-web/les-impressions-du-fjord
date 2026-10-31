@@ -404,6 +404,19 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .fjord-camera-zoom{gap:4px!important}
  #fjordWorkspace .stage{background:#10151a!important}
 }
+
+/* Cube de navigation 3D : rotation synchronisée à la caméra du plateau. */
+.fjord-camera-controls .fjord-orientation-widget{width:82px;height:82px;min-width:82px;perspective:400px;transform:none!important;display:block;position:relative;filter:none;margin:7px 2px 12px;overflow:visible}
+.fjord-orientation-rotor{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;transform-style:preserve-3d;transform:rotateX(-38deg) rotateY(-18deg);will-change:transform}
+.fjord-camera-controls .fjord-orientation-face{position:absolute;inset:0;width:66px!important;height:66px!important;min-width:66px!important;display:flex;align-items:center;justify-content:center;border:1px solid #607c9a!important;border-radius:3px!important;background:#25374b!important;color:#e8f3ff!important;font-size:10px!important;font-weight:700!important;backface-visibility:hidden;clip-path:none!important;transform:none;cursor:pointer;box-shadow:inset 0 0 15px #07121d80}
+.fjord-camera-controls .fjord-orientation-face:hover{background:#3679af!important;color:white!important}
+.fjord-orientation-face.face-front{transform:translateZ(33px)!important}
+.fjord-orientation-face.face-back{transform:rotateY(180deg) translateZ(33px)!important}
+.fjord-orientation-face.face-right{transform:rotateY(90deg) translateZ(33px)!important}
+.fjord-orientation-face.face-left{transform:rotateY(-90deg) translateZ(33px)!important}
+.fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(33px)!important}
+.fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(33px)!important}
+@media(max-width:760px){.fjord-camera-controls .fjord-orientation-widget{width:62px;min-width:62px;height:62px;perspective:300px}.fjord-orientation-rotor{transform-origin:center;scale:.72}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -576,9 +589,15 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   <button type="button" data-camera-action="fit" title="Centrer la vue" aria-label="Centrer la vue">⌗</button>
   <button type="button" data-camera-action="wireframe" title="Activer le mode filaire (Wireframe)" aria-label="Activer le mode filaire" aria-pressed="false">⬡</button>
  </div>
- <div class="fjord-view-cube" aria-label="Cube d'orientation">
-  <button type="button" data-camera-action="top" class="fjord-cube-top" title="Voir du dessus">Dessus</button>
-  <button type="button" data-camera-action="front" class="fjord-cube-front" title="Voir de face">Face</button>
+ <div class="fjord-view-cube fjord-orientation-widget" aria-label="Cube d'orientation interactif">
+  <div class="fjord-orientation-rotor" id="fjordOrientationRotor">
+   <button type="button" class="fjord-orientation-face face-front" data-camera-action="front" title="Vue de face">Face</button>
+   <button type="button" class="fjord-orientation-face face-back" data-camera-action="back" title="Vue arrière">Arrière</button>
+   <button type="button" class="fjord-orientation-face face-right" data-camera-action="right" title="Vue droite">Droite</button>
+   <button type="button" class="fjord-orientation-face face-left" data-camera-action="left" title="Vue gauche">Gauche</button>
+   <button type="button" class="fjord-orientation-face face-top" data-camera-action="top" title="Vue du dessus">Dessus</button>
+   <button type="button" class="fjord-orientation-face face-bottom" data-camera-action="bottom" title="Vue du dessous">Dessous</button>
+  </div>
  </div>
  <div class="fjord-camera-zoom">
   <button type="button" data-camera-action="zoom-in" title="Zoom avant" aria-label="Zoom avant">⊕</button>
@@ -972,6 +991,13 @@ const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,0
 // Three.js gère le panoramique de la caméra au bouton droit : aucun déplacement des pièces.
 orbit.mouseButtons.RIGHT=THREE.MOUSE.PAN;orbit.enablePan=true;
 orbit.touches.ONE=THREE.TOUCH.ROTATE;orbit.touches.TWO=THREE.TOUCH.DOLLY_PAN;
+window.fjordOrientationOrbit=dir=>{
+ const distance=Math.max(50,camera.position.distanceTo(orbit.target));
+ camera.position.copy(orbit.target).add(new THREE.Vector3(...dir).multiplyScalar(distance));
+ camera.up.set(0,0,1);
+ if(Math.abs(dir[2])===1)camera.up.set(0,1,0);
+ camera.lookAt(orbit.target);orbit.update();
+};
 scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));
 const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(-90,-130,230);scene.add(sun);
 // Plateau de travail Fjord : grille, graduations et marquage intégrés à une texture.
@@ -2637,7 +2663,16 @@ document.addEventListener('keydown',e=>{
 });
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
-function animate(){requestAnimationFrame(animate);if(fjordWireframe)fjordApplyWireframe();orbit.update();updateMeasureMarkerSizes();
+const fjordOrientationRotor=document.getElementById('fjordOrientationRotor');
+function fjordUpdateOrientationCube(){
+ if(!fjordOrientationRotor)return;
+ const direction=camera.position.clone().sub(orbit.target);
+ const horizontal=Math.hypot(direction.x,direction.y);
+ const pitch=THREE.MathUtils.radToDeg(Math.atan2(direction.z,horizontal));
+ const yaw=THREE.MathUtils.radToDeg(Math.atan2(direction.x,-direction.y));
+ fjordOrientationRotor.style.transform='rotateX('+(-pitch).toFixed(2)+'deg) rotateY('+(-yaw).toFixed(2)+'deg)';
+}
+function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();if(fjordWireframe)fjordApplyWireframe();orbit.update();updateMeasureMarkerSizes();
  if(sliceMotionHead.visible){
   const d=camera.position.distanceTo(sliceMotionHead.position);
   const scale=2*d*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/Math.max(stage.clientHeight,1);
@@ -2844,6 +2879,14 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   if(action==='wireframe'){window.fjordToggleWireframe?.();return;}
   if(action==='home'){fjordHomeView();return;}
   if(action==='fit'){fjordCenterView();return;}
+  if(['back','right','left','bottom'].includes(action)){
+   const target=window.fjordCameraTarget||null;
+   const orbitTarget=window.fjordOrbitTarget||null;
+   // Orientation relative au centre courant, en conservant la distance.
+   const controlsOrbit=window.fjordOrientationOrbit;
+   if(controlsOrbit){const dir={back:[0,1,0],right:[1,0,0],left:[-1,0,0],bottom:[0,0,-1]}[action];controlsOrbit(dir);}
+   return;
+  }
   const ids={top:'viewTop',front:'viewFront',iso:'viewIso'};
   if(ids[action]){document.getElementById(ids[action])?.click();return;}
   const canvas=document.querySelector('#stage canvas');
