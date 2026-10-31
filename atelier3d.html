@@ -2288,7 +2288,35 @@ function selectCategory(name){
  left.scrollTop=0;
 }
 categoryButtons.forEach(b=>b.addEventListener('click',()=>selectCategory(b.dataset.fjordPanel)));
-selectCategory('shapes');
+const desktopCategory=window.matchMedia('(min-width:761px)');
+const navArea=left.querySelector('.fjord-workspace-nav');
+let pinnedCategory=false;
+let dismissTimer=null;
+function hideCategoryDrawer(){
+ if(!desktopCategory.matches||pinnedCategory)return;
+ categorySections.forEach(p=>p.classList.add('fjord-category-hidden'));
+ categoryButtons.forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});
+}
+function scheduleCategoryDismiss(){
+ clearTimeout(dismissTimer);
+ dismissTimer=setTimeout(()=>{
+  if(left.matches(':hover')||left.contains(document.activeElement)&&document.activeElement?.closest('[data-tool-panel]'))return;
+  hideCategoryDrawer();
+ },180);
+}
+if(navArea){
+ navArea.addEventListener('pointerenter',()=>clearTimeout(dismissTimer));
+ navArea.addEventListener('pointerleave',scheduleCategoryDismiss);
+}
+categorySections.forEach(panel=>{
+ panel.addEventListener('pointerenter',()=>clearTimeout(dismissTimer));
+ panel.addEventListener('pointerleave',scheduleCategoryDismiss);
+ panel.addEventListener('focusin',()=>{pinnedCategory=true;clearTimeout(dismissTimer);});
+ panel.addEventListener('focusout',()=>{setTimeout(()=>{pinnedCategory=!!left.querySelector('[data-tool-panel]:focus-within');if(!pinnedCategory)scheduleCategoryDismiss();},0);});
+});
+categoryButtons.forEach(b=>b.addEventListener('pointerenter',()=>{pinnedCategory=false;clearTimeout(dismissTimer);}));
+desktopCategory.addEventListener('change',()=>{pinnedCategory=false;if(desktopCategory.matches)hideCategoryDrawer();else selectCategory('shapes');});
+if(desktopCategory.matches)hideCategoryDrawer();else selectCategory('shapes');
 document.querySelectorAll('[data-fjord-target]').forEach(b=>b.addEventListener('click',()=>{document.getElementById(b.dataset.fjordTarget)?.click();b.closest('details').open=false}));
 document.querySelectorAll('[data-fjord-quick]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('[data-quick-action="'+b.dataset.fjordQuick+'"]')?.click();b.closest('details').open=false}));
 document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert('Clic gauche : sélectionner une pièce. Clic droit : menu contextuel. Clic droit maintenu : déplacer la vue. Molette : zoom. Utilisez les outils de gauche pour modifier la pièce.'));
