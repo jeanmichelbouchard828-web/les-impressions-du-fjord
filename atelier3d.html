@@ -384,6 +384,9 @@ body:not(.light) .quick-button:focus-visible,body:not(.light) button:focus-visib
 <button type="button" class="part-action" role="menuitem" data-context-action="move" data-i18n="move">Déplacer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="rotate" data-i18n="rotate">Tourner</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="scale" data-i18n="scale">Échelle</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="fjord-rename">✎ Renommer…</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="fjord-copy">⧉ Copier</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="fjord-paste">▣ Coller</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="duplicate" data-i18n="duplicate">Dupliquer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
@@ -392,6 +395,7 @@ body:not(.light) .quick-button:focus-visible,body:not(.light) button:focus-visib
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="remove" data-i18n="remove">Supprimer</button>
+<button type="button" class="blank-action" role="menuitem" data-context-action="fjord-paste">▣ Coller</button>
 <div class="context-heading blank-action" data-i18n="contextCreate">Créer une pièce</div>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cube" data-i18n="cube">Cube</button>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cylinder" data-i18n="cylinder">Cylindre</button>
@@ -969,6 +973,9 @@ renderer.domElement.addEventListener('pointercancel',e=>{
 },true);
 contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventListener('click',()=>{
  const action=btn.dataset.contextAction;hideContext();
+ if(action==='fjord-copy'){fjordCopy();return}
+ if(action==='fjord-paste'){fjordPaste();return}
+ if(action==='fjord-rename'){fjordRename();return}
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  $(action)?.click();
 }));
