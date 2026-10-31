@@ -561,7 +561,9 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,payment_status,paid_at,created,
+                     apply_taxes,payment_status,paid_at,created,payment_token,
+                     (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
+                     (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      live_url,live_token,live_enabled,live_expires
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
@@ -704,6 +706,8 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2 id="soumissions-enregistrees">Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p>
+{% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
+{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}
 <form class="fj-payment-form" method="post" action="/admin/soumissions-pro/{{q.id}}/statut-paiement">{{csrf|safe}}
 <label for="fj-payment-{{q.id}}">Statut du paiement</label>
 <select id="fj-payment-{{q.id}}" name="payment_status" onchange="this.form.requestSubmit()" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
@@ -1196,11 +1200,9 @@ async function fjordCopy(id,button){
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_quote_logo'").fetchone()
             interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
-        payment_url=None
-        if interac_setting and interac_setting["value"]:
-            token=_quote_payment_token(db,q)
-            if token:
-                payment_url=url_for("fjord_payment_page",token=token,_external=True)
+        token=_quote_payment_token(db,q)
+        accept_url=url_for("fjord_accept_quote",token=token,_external=True) if token else None
+        payment_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -1329,6 +1331,12 @@ async function fjordCopy(id,button){
             except Exception:
                 # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
                 pass
+        if accept_url:
+            pdf.setFillColor(cyan)
+            pdf.roundRect(39,14,315,27,6,stroke=0,fill=1)
+            pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
+            pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
+            pdf.linkURL(accept_url,(39,14,354,41),relative=0)
         pdf.restoreState()
         w,h=legal
         pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
