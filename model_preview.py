@@ -108,16 +108,79 @@ def _color_from_3mf(blob):
         return None
     return None
 
+
+def _colored_faces_from_3mf(blob):
+    """Read mesh triangle colors from a simple 3MF, preserving multicolor parts.
+
+    Return None for component/assembly 3MFs: their transforms require the
+    established STL fallback rather than rendering misplaced triangles.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            models = [x for x in archive.infolist()
+                      if x.filename.lower().endswith(".model")
+                      and x.file_size <= 12 * 1024 * 1024]
+            if not models:
+                return None
+            root = ET.fromstring(archive.read(models[0]))
+            lname = lambda elem: elem.tag.rsplit("}", 1)[-1].lower()
+            if any(lname(x) == "components" for x in root.iter()):
+                return None
+            materials = {}
+            for group in root.iter():
+                if lname(group) not in ("basematerials", "colorgroup"):
+                    continue
+                colors = []
+                for child in group:
+                    raw = child.get("displaycolor") or child.get("color") or ""
+                    colors.append(raw[:7] if re.fullmatch(
+                        r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?", raw) else None)
+                materials[group.get("id")] = colors
+
+            result = []
+            for obj in root.iter():
+                if lname(obj) != "object":
+                    continue
+                mesh = next((x for x in obj if lname(x) == "mesh"), None)
+                if mesh is None:
+                    continue
+                vertices_node = next((x for x in mesh if lname(x) == "vertices"), None)
+                triangles_node = next((x for x in mesh if lname(x) == "triangles"), None)
+                if vertices_node is None or triangles_node is None:
+                    continue
+                vertices = [tuple(float(v.get(axis)) for axis in ("x", "y", "z"))
+                            for v in vertices_node if lname(v) == "vertex"]
+                for tri in triangles_node:
+                    if lname(tri) != "triangle":
+                        continue
+                    if len(result) >= MAX_FACES:
+                        break
+                    points = tuple(vertices[int(tri.get(k))] for k in ("v1", "v2", "v3"))
+                    pid = tri.get("pid", obj.get("pid"))
+                    index = tri.get("p1", obj.get("pindex", "0"))
+                    try:
+                        color = materials[pid][int(index)]
+                    except (KeyError, IndexError, TypeError, ValueError):
+                        color = None
+                    result.append((points, color))
+            return result or None
+    except (ValueError, OSError, KeyError, TypeError, IndexError,
+            OverflowError, ET.ParseError, zipfile.BadZipFile):
+        return None
+
 def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
     """Return ('image/png', bytes), or None for invalid/unsupported geometry."""
     ext = filename.lower().rsplit(".", 1)[-1]
+    colored_faces = None
     if ext == "3mf":
-        color = _color_from_3mf(blob) or color
-        from quote_estimator import _stl_from_3mf
-        try:
-            blob = _stl_from_3mf(blob)
-        except (ValueError, OSError, OverflowError, struct.error):
-            return None
+        colored_faces = _colored_faces_from_3mf(blob)
+        if colored_faces is None:
+            color = _color_from_3mf(blob) or color
+            from quote_estimator import _stl_from_3mf
+            try:
+                blob = _stl_from_3mf(blob)
+            except (ValueError, OSError, OverflowError, struct.error):
+                return None
     elif ext != "stl":
         return None
 
@@ -126,7 +189,8 @@ def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
     rgb=tuple(int(color[i:i+2],16) for i in (1,3,5))
     projected = []
     # Fixed 3/4 view shows both the face and the piece's thickness.
-    for tri in _faces(blob):
+    faces = colored_faces if colored_faces is not None else ((tri, None) for tri in _faces(blob))
+    for tri, face_hex in faces:
         if not all(math.isfinite(v) and abs(v) < 100000 for p in tri for v in p):
             continue
         a, b, c = tri
@@ -145,16 +209,17 @@ def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
             v = -.3535534*x - .6123724*y + .7071068*z
             depth = .3535534*x + .6123724*y + .7071068*z
             points.append((u, v, depth))
-        projected.append((sum(p[2] for p in points)/3, shade, points))
+        face_rgb = tuple(int(face_hex[i:i+2], 16) for i in (1, 3, 5)) if face_hex else rgb
+        projected.append((sum(p[2] for p in points)/3, shade, points, face_rgb))
 
     if not projected:
         return None
 
     width, height = size
-    minx = min(p[0] for _, _, tri in projected for p in tri)
-    maxx = max(p[0] for _, _, tri in projected for p in tri)
-    miny = min(p[1] for _, _, tri in projected for p in tri)
-    maxy = max(p[1] for _, _, tri in projected for p in tri)
+    minx = min(p[0] for _, _, tri, _ in projected for p in tri)
+    maxx = max(p[0] for _, _, tri, _ in projected for p in tri)
+    miny = min(p[1] for _, _, tri, _ in projected for p in tri)
+    maxy = max(p[1] for _, _, tri, _ in projected for p in tri)
     dx, dy = maxx-minx, maxy-miny
     if max(dx, dy) < 1e-8:
         return None
@@ -166,9 +231,9 @@ def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
     draw = ImageDraw.Draw(img)
     # Painter's algorithm: farther triangles are painted first.
     projected.sort(key=lambda face: face[0])
-    for _, shade, tri in projected:
+    for _, shade, tri, face_rgb in projected:
         intensity = .46 + .54 * min(1.0, shade)
-        face_color = tuple(max(12,min(255,int(channel*(.50+.50*intensity)))) for channel in rgb)
+        face_color = tuple(max(12,min(255,int(channel*(.50+.50*intensity)))) for channel in face_rgb)
         xy = [(round(width/2 + (p[0]-midx)*scale),
                round(height/2 - (p[1]-midy)*scale)) for p in tri]
         draw.polygon(xy, fill=face_color)
