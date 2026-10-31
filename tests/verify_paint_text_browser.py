@@ -54,13 +54,18 @@ try:
         assert "#EE44AA" in page.locator("#fjordPaintColorLabel").inner_text()
         rect=page.locator("#stage canvas").first.bounding_box()
         assert rect, "WebGL canvas unavailable"
-        # Far bottom-left is unoccupied; clicking it must close painting.
-        page.mouse.click(rect["x"]+12,rect["y"]+rect["height"]-15)
+        # Click unoccupied canvas positions, away from the bottom toolbar and other overlays.
+        blank_points=[(.18,.42),(.2,.60),(.80,.52)]
+        for fx,fy in blank_points:
+            if not page.evaluate("window.fjordPaint.isActive()"):break
+            page.mouse.click(rect["x"]+rect["width"]*fx,rect["y"]+rect["height"]*fy)
         page.wait_for_function("window.fjordPaint.isActive()===false",timeout=5000)
         # The move gizmo must similarly turn off after a blank click.
         page.locator("#move").evaluate("el=>el.click()")
         assert page.locator("#move").get_attribute("aria-pressed")=="true"
-        page.mouse.click(rect["x"]+12,rect["y"]+rect["height"]-15)
+        for fx,fy in blank_points:
+            if page.locator("#move").get_attribute("aria-pressed")=="false":break
+            page.mouse.click(rect["x"]+rect["width"]*fx,rect["y"]+rect["height"]*fy)
         page.wait_for_function("document.querySelector('#move').getAttribute('aria-pressed')==='false'",timeout=5000)
         # Paint a visible face of a cube and ensure real per-triangle data survives a save.
         page.on("dialog",lambda dialog:dialog.accept())
