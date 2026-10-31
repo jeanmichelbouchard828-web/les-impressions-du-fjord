@@ -173,7 +173,7 @@ class PrivateFjordTests(unittest.TestCase):
                                lambda: "test",
                                lambda title, body, **kwargs: render_template_string(body, **kwargs))
         html = app.test_client().get("/admin/soumissions-pro").data.decode("utf-8")
-        self.assertIn('/admin/soumissions-pro/8/statut-paiement', html)
+        self.assertIn('/admin/soumissions-pro/8/enregistrer', html)
         self.assertIn('/admin/soumissions-pro/8/diffusion', html)
         self.assertIn('Activer un nouveau lien', html)
         self.assertIn('option value="Payée" selected', html)
