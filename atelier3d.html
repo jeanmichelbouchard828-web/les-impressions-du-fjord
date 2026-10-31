@@ -833,9 +833,42 @@ orbit.mouseButtons.RIGHT=THREE.MOUSE.PAN;orbit.enablePan=true;
 orbit.touches.ONE=THREE.TOUCH.ROTATE;orbit.touches.TWO=THREE.TOUCH.DOLLY_PAN;
 scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));
 const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(-90,-130,230);scene.add(sun);
-const grid=new THREE.GridHelper(256,32,0x638db0,0x40536a);grid.rotation.x=Math.PI/2;scene.add(grid);
+// Plateau de travail Fjord : grille, graduations et marquage intégrés à une texture.
+// La texture est purement visuelle : elle n'entre jamais dans les exports ni le tranchage.
+const plateCanvas=document.createElement('canvas');plateCanvas.width=plateCanvas.height=2048;
+const pc=plateCanvas.getContext('2d');const N=2048,step=N/256;
+pc.fillStyle='#171d23';pc.fillRect(0,0,N,N);
+for(let mm=0;mm<=256;mm+=5){
+ const v=mm*step;
+ pc.beginPath();pc.moveTo(v,0);pc.lineTo(v,N);pc.moveTo(0,v);pc.lineTo(N,v);
+ pc.strokeStyle=mm%50===0?'#45515d':mm%10===0?'#303b45':'#26313b';
+ pc.lineWidth=mm%50===0?2.2:1;pc.stroke();
+}
+pc.save();pc.translate(N/2,N/2);pc.textAlign='center';pc.textBaseline='middle';
+pc.globalAlpha=.13;pc.fillStyle='#9ba9b8';pc.font='bold 116px Arial,sans-serif';
+pc.fillText('LES IMPRESSIONS',0,-34);pc.font='bold 105px Arial,sans-serif';pc.fillText('DU FJORD',0,83);
+pc.restore();
+const plateTexture=new THREE.CanvasTexture(plateCanvas);plateTexture.colorSpace=THREE.SRGBColorSpace;plateTexture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
+const plate=new THREE.Mesh(new THREE.PlaneGeometry(256,256),new THREE.MeshBasicMaterial({map:plateTexture,side:THREE.DoubleSide,depthWrite:false}));
+plate.position.z=-.08;scene.add(plate);
 const outlinePoints=[[-128,-128,0],[-128,128,0],[128,128,0],[128,-128,0]].map(p=>new THREE.Vector3(...p));
-const border=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(outlinePoints),new THREE.LineBasicMaterial({color:0x65c9ff}));scene.add(border);
+const border=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(outlinePoints),new THREE.LineBasicMaterial({color:0x9baab7}));scene.add(border);
+function plateRulerLabel(value,x,y){
+ const c=document.createElement('canvas');c.width=96;c.height=48;const ctx=c.getContext('2d');
+ ctx.font='bold 27px Arial';ctx.textAlign='center';ctx.fillStyle='#a9b8c7';ctx.fillText(String(value),48,33);
+ const t=new THREE.CanvasTexture(c);const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false,depthTest:false}));
+ sprite.position.set(x,y,.18);sprite.scale.set(8,4,1);scene.add(sprite);
+}
+for(let mm=0;mm<=250;mm+=10){
+ const pos=mm-128;
+ plateRulerLabel(mm,pos,-134);plateRulerLabel(mm,-134,pos);
+}
+const rulerLines=[];
+for(let mm=0;mm<=256;mm+=2){
+ const p=mm-128,extent=mm%10===0?4:mm%5===0?2.8:1.5;
+ rulerLines.push(p,-128,0,p,-128-extent,0,-128,p,0,-128-extent,p,0);
+}
+const ruler=new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(rulerLines,3)),new THREE.LineBasicMaterial({color:0xa2b1be}));scene.add(ruler);
 const transform=new TransformControls(camera,renderer.domElement);scene.add(transform.getHelper());
 // The manipulator must never appear merely because a part has been selected.
 transform.detach();transform.getHelper().visible=false;
