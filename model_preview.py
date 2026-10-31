@@ -10,7 +10,7 @@ import struct
 
 from PIL import Image, ImageDraw
 
-MAX_FACES = 16000
+MAX_FACES = 200000
 MAX_TRIANGLES = 500000
 _FLOAT = rb"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
 _VERTEX = re.compile(rb"\bvertex\s+(" + _FLOAT + rb")\s+(" + _FLOAT +
