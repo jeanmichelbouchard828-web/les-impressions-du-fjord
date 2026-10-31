@@ -47,7 +47,7 @@ def _faces(blob):
             vertices = []
 
 
-def make_model_preview(blob, filename, size=(640, 480)):
+def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
     """Return ('image/png', bytes), or None for invalid/unsupported geometry."""
     ext = filename.lower().rsplit(".", 1)[-1]
     if ext == "3mf":
@@ -59,6 +59,9 @@ def make_model_preview(blob, filename, size=(640, 480)):
     elif ext != "stl":
         return None
 
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}",color):
+        color="#168ac2"
+    rgb=tuple(int(color[i:i+2],16) for i in (1,3,5))
     projected = []
     # Fixed 3/4 view shows both the face and the piece's thickness.
     for tri in _faces(blob):
@@ -103,12 +106,10 @@ def make_model_preview(blob, filename, size=(640, 480)):
     projected.sort(key=lambda face: face[0])
     for _, shade, tri in projected:
         intensity = .46 + .54 * min(1.0, shade)
-        color = (int(25 + 35*intensity),
-                 int(88 + 73*intensity),
-                 int(122 + 88*intensity))
+        face_color = tuple(max(12,min(255,int(channel*(.50+.50*intensity)))) for channel in rgb)
         xy = [(round(width/2 + (p[0]-midx)*scale),
                round(height/2 - (p[1]-midy)*scale)) for p in tri]
-        draw.polygon(xy, fill=color)
+        draw.polygon(xy, fill=face_color)
 
     output = io.BytesIO()
     img.save(output, format="PNG", optimize=True)
