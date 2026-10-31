@@ -43,10 +43,14 @@ try:
             assert kind in options,kind
             page.locator("#generatorKind").evaluate("(el,kind)=>{el.value=kind;el.dispatchEvent(new Event('change',{bubbles:true}));}",kind)
             page.locator("#generatorAdd").evaluate("el=>el.click()")
-            page.wait_for_function("""kind=>document.querySelector("#sceneList").innerText.toLowerCase().includes(
-              ({ramp:"rampe",hinge_pin:"charnière",hinge_leaf:"charnière",
-              hinge_articulated:"charnière",bearing:"roulement",city:"quartier"}[kind]||"")
-            ) && document.querySelectorAll("#sceneList input[type=checkbox]").length>0""",arg=kind,timeout=18000)
+            try:
+                page.wait_for_function("""kind=>document.querySelector("#sceneList").innerText.toLowerCase().includes(
+                  ({ramp:"rampe",hinge_pin:"charnière",hinge_leaf:"charnière",
+                  hinge_articulated:"charnière",bearing:"roulement",city:"quartier"}[kind]||"")
+                ) && document.querySelectorAll("#sceneList input[type=checkbox]").length>0""",arg=kind,timeout=5500)
+            except Exception as exc:
+                message=page.locator("#generatorMessage").inner_text()
+                raise AssertionError(f"{kind}: cannot generate; message={message!r}") from exc
             message=page.locator("#generatorMessage").inner_text()
             assert "invalide" not in message.lower() and "erreur" not in message.lower(),(kind,message)
             with page.expect_download() as dl:
