@@ -369,6 +369,41 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-walk-banner button{border:1px solid #2678d4;background:#77b6ff;color:#091b2c;border-radius:18px;padding:5px 12px;cursor:pointer}
 @media(max-width:760px){.fjord-walk-banner{font-size:10px;max-width:95%;white-space:normal}}
 .fjord-camera-controls [data-camera-action="wireframe"].active{background:#479bff!important;color:#071625!important;border-color:#479bff!important}
+
+/* Disposition de référence : grand canevas, navigation étroite, commandes compactes. */
+@media(min-width:761px){
+ header{min-height:0!important;padding:3px 9px!important;gap:7px!important;flex-wrap:nowrap!important}
+ header .brand{font-size:12px!important;white-space:nowrap}
+ header .subtitle{display:none!important}
+ header .top-actions{gap:4px!important;flex-wrap:nowrap!important}
+ header .top-actions button,header .top-actions a{font-size:11px!important;padding:4px 6px!important;white-space:nowrap}
+ header .top-preferences select{font-size:11px!important;padding:4px 6px!important}
+ .fjord-menubar{min-height:36px!important;padding:2px 8px!important}
+ .fjord-menubar summary{font-size:12px!important;padding:6px 8px!important}
+ .fjord-bed-tabs{height:35px!important}
+ #fjordWorkspace.shell{height:calc(100dvh - 111px)!important;min-height:400px!important;grid-template-columns:60px minmax(0,1fr) 245px!important}
+ #fjordWorkspace.shell.fjord-hide-right{grid-template-columns:60px minmax(0,1fr)!important}
+ #fjordWorkspace.shell.fjord-hide-left{grid-template-columns:minmax(0,1fr) 245px!important}
+ #fjordWorkspace.shell.fjord-hide-left.fjord-hide-right{grid-template-columns:minmax(0,1fr)!important}
+ #toolsPanel .fjord-workspace-nav{width:60px!important;padding:5px 2px!important;gap:2px!important}
+ #toolsPanel .fjord-workspace-nav button{min-height:55px!important;font-size:9px!important;padding:4px 1px!important}
+ #toolsPanel .fjord-workspace-nav button .fjord-nav-icon{font-size:21px!important}
+ #toolsPanel [data-tool-panel]{left:60px!important}
+ #fjordWorkspace .fjord-drawer-left{left:60px!important}
+ #fjordWorkspace.fjord-hide-left .fjord-drawer-left{left:0!important}
+ #fjordWorkspace .fjord-drawer-right{right:245px!important}
+ #fjordWorkspace.fjord-hide-right .fjord-drawer-right{right:0!important}
+ #fjordWorkspace .fjord-fast-tools{max-width:calc(100% - 8px)!important}
+ #fjordWorkspace .fjord-fast-row{padding:3px 6px!important;gap:1px!important}
+ #fjordWorkspace .fjord-fast-row button{font-size:12px!important;padding:5px 7px!important;gap:5px!important}
+ #fjordWorkspace .fjord-fast-row button span{font-size:14px!important}
+ .fjord-camera-controls{right:9px!important;top:9px!important;gap:6px!important}
+ .fjord-camera-controls button{min-width:29px!important;height:29px!important;font-size:17px!important;border-radius:7px!important}
+ .fjord-camera-buttons{gap:4px!important}
+ .fjord-view-cube button{width:66px!important;min-width:66px!important;height:38px!important;font-size:11px!important}
+ .fjord-camera-zoom{gap:4px!important}
+ #fjordWorkspace .stage{background:#10151a!important}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
