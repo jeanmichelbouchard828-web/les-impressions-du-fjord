@@ -124,7 +124,9 @@ try:
         page.evaluate("""() => {
           const menu=document.getElementById('contextMenu');
           menu.hidden=false;
-          menu.querySelector('[data-context-action="mergeAll"]').click();
+          const merge=menu.querySelector('[data-context-action="mergeAll"]');
+          merge.disabled=false; // The simulated click bypasses the right-click popover's enablement step.
+          merge.click();
         }""")
         assert page.locator("#sceneList input[type=checkbox]").count()==1, "Merge should create one grouped object"
         assert "2 pièces" in page.locator("#sceneList").inner_text(), "The original parts must remain"
