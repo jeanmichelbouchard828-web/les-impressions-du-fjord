@@ -194,14 +194,37 @@ def voir_mon_impression():
     attempts=c.execute("SELECT count FROM live_lookup_attempts WHERE fingerprint=%s",(fingerprint,)).fetchone()["count"]
     row=None
     if attempts<=5:
-     row=c.execute("""SELECT id,public_number,customer,production_status,live_token,
+     row=c.execute("""SELECT id,public_number,customer,production_status,production_progress,live_token,
        live_enabled,live_expires FROM private_quotes
        WHERE public_number=%s OR (public_number IS NULL AND id=%s)
        LIMIT 1""",(number,int(number[3:]))).fetchone()
    if row and row["customer"].strip().split()[0].casefold()==prenom:
     result=row
   if result is None:flash("Impossible de verifier cette soumission. Verifiez votre numero FJ et votre prenom.")
- return page("Voir mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>🎥 Voir mon impression</h1><p>Consultez votre soumission et accédez à votre impression lorsque le visionnement est autorisé.</p><form method="post">{{csrf|safe}}<label>Numéro de soumission<input name="numero" placeholder="FJ-00011" required maxlength="18" autocomplete="off"></label><label>Prénom du client<input name="prenom" placeholder="Votre prénom" required maxlength="100" autocomplete="given-name"></label><button class="btn">🎥 Voir mon impression</button></form>{% if result %}<div class="tracking-result"><h2>Soumission {{result.public_number or ('FJ-%05d'|format(result.id))}}</h2><p>État de fabrication : <strong>{{result.production_status}}</strong></p>{% if result.live_enabled and result.live_token and result.live_expires and result.live_expires > now %}<p>Votre lien privé est actif.</p><a class="btn" href="{{url_for('fjord_live_view',token=result.live_token)}}">🎥 Ouvrir mon impression en direct</a>{% else %}<p>La caméra n'est pas encore disponible, ou le lien de visionnement a expiré.</p>{% endif %}</div>{% endif %}<p><a href="/">← Retour à l'accueil</a></p></section>''',result=result,csrf=csrfinput(),now=datetime.datetime.now(datetime.timezone.utc))
+ return page("Voir mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>🎥 Voir mon impression</h1><p>Consultez votre soumission et accédez à votre impression lorsque le visionnement est autorisé.</p><form method="post">{{csrf|safe}}<label>Numéro de soumission<input name="numero" placeholder="FJ-00011" required maxlength="18" autocomplete="off"></label><label>Prénom du client<input name="prenom" placeholder="Votre prénom" required maxlength="100" autocomplete="given-name"></label><button class="btn">🎥 Voir mon impression</button></form>{% if result %}<div class="tracking-result"><h2>Soumission {{result.public_number or ('FJ-%05d'|format(result.id))}}</h2><div id="fjord-client-liveprogress" data-number="{{result.public_number or ('FJ-%05d'|format(result.id))}}"><p>État de fabrication : <strong id="fjord-client-state">{{result.production_status}}</strong></p><p>Progression : <strong id="fjord-client-percent">{{result.production_progress or 0}} %</strong></p></div>{% if result.live_enabled and result.live_token and result.live_expires and result.live_expires > now %}<p>Votre lien privé est actif.</p><a class="btn" href="{{url_for('fjord_live_view',token=result.live_token)}}">🎥 Ouvrir mon impression en direct</a>{% else %}<p>La caméra n'est pas encore disponible, ou le lien de visionnement a expiré.</p>{% endif %}</div>{% endif %}<p><a href="/">← Retour à l'accueil</a></p></section>
+<script>
+(function(){
+ const box=document.getElementById('fjord-client-liveprogress');
+ if(!box)return;
+ const number=box.dataset.number;
+ async function reload(){
+  if(document.hidden)return;
+  try{
+   const response=await fetch('/api/production-publique',{cache:'no-store'});
+   if(!response.ok)return;
+   const data=await response.json();
+   const all=[...(data.groups.print||[]),...(data.groups.wait||[]),...(data.groups.done||[])];
+   const job=all.find(item=>item.number===number);
+   if(!job)return;
+   document.getElementById('fjord-client-state').textContent=job.status;
+   const percent=document.getElementById('fjord-client-percent');
+   percent.textContent=Number.isInteger(job.progress)?job.progress+' %':'Non disponible';
+  }catch(error){}
+ }
+ reload();setInterval(reload,30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload()});
+})();
+</script>''',result=result,csrf=csrfinput(),now=datetime.datetime.now(datetime.timezone.utc))
 
 @app.route("/suivi",methods=["GET","POST"])
 def suivi_client():
