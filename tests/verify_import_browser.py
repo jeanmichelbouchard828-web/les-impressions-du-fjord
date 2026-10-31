@@ -147,8 +147,7 @@ try:
             "name":"merged-fjord.json","mimeType":"application/json",
             "buffer":json.dumps(saved).encode("utf-8"),
         })
-        assert page.locator("#sceneList input[type=checkbox]").count()==1
-        assert "2 pièces" in page.locator("#sceneList").inner_text()
+        page.wait_for_function("""() => document.querySelectorAll("#sceneList input[type=checkbox]").length===1 && document.getElementById("sceneList").innerText.includes("2 pièces")""",timeout=10000)
         print("Merge, per-part preservation, real scale, split and project reload OK",flush=True)
         browser.close()
         print("PASSED browser import; JS errors:",errors,flush=True)
