@@ -334,9 +334,10 @@ export function generateExtraGeometry(T,kind,p){
  case 'box':{
   const w=p.width,l=p.length,h=p.height,t=p.wall;
   if(t*3>=Math.min(w,l,h))throw Error('Paroi trop épaisse.');
-  add(box(T,w,l,t),box(T,t,l,h-t,-w/2+t/2,0,t),box(T,t,l,h-t,w/2-t/2,0,t),
-    box(T,w-2*t,t,h-t,0,-l/2+t/2,t),box(T,w-2*t,t,h-t,0,l/2-t/2,t));
-  add(box(T,w,l,t,w+8,0,0)); // Separate lid, alongside box on plate.
+  const offset=-(w+8)/2;
+  add(box(T,w,l,t,offset),box(T,t,l,h-t,offset-w/2+t/2,0,t),box(T,t,l,h-t,offset+w/2-t/2,0,t),
+    box(T,w-2*t,t,h-t,offset,-l/2+t/2,t),box(T,w-2*t,t,h-t,offset,l/2-t/2,t));
+  add(box(T,w,l,t,(w+8)/2,0,0)); // Separate lid beside box, both centred on the plate.
   return join(T,g);
  }
  case 'mold':{
