@@ -2,7 +2,7 @@ import os,io,re,hmac,time,uuid,hashlib,secrets,datetime,smtplib
 from email.message import EmailMessage
 from functools import wraps
 from urllib.parse import urlparse
-from flask import Flask,request,redirect,render_template_string,session,abort,send_file,flash,url_for
+from flask import Flask,request,redirect,render_template_string,session,abort,send_file,flash,url_for,jsonify
 import psycopg
 from psycopg.rows import dict_row
 from werkzeug.utils import secure_filename
@@ -186,12 +186,59 @@ def suivi_client():
   if result is None:
    flash("Aucune commande trouvée. Vérifiez votre numéro et votre courriel.")
  return page("Suivre mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>Suivre mon impression</h1><p>Entrez le numéro de votre demande et le courriel utilisé pour la soumission.</p><form method="post">{{csrf|safe}}<label>Numéro de demande<input name="numero" inputmode="numeric" required maxlength="12"></label><label>Courriel<input type="email" name="email" required maxlength="200"></label><button class="btn">Afficher mon suivi</button></form>{% if result %}<div class="tracking-result"><h2>Commande #{{result.id}}</h2><p><strong>{{result.status}}</strong></p>{% if result.status=="En impression" and result.progress is not none %}<div class="tracking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{result.progress}}"><span style="width:{{result.progress}}%"></span></div><p>{{result.progress}} % terminé</p>{% elif result.status=="En impression" %}<p>Progression en attente de mise à jour.</p>{% endif %}{% if result.status=="En impression" and result.live_enabled %}<p>{% if result.live_url %}<a class="btn" href="{{result.live_url}}" target="_blank" rel="noopener noreferrer nofollow">🎥 Regarder mon impression en direct</a><p>Le lien externe OctoEverywhere est accessible à toute personne qui le possède. Ne le partagez pas.</p>{% else %}La caméra n'est pas disponible pour cette commande.{% endif %}</p>{% endif %}</div>{% endif %}</section>''',result=result,csrf=csrfinput())
+@app.get("/api/production-publique")
+def public_production():
+ # Aucun identifiant, nom, courriel, fichier ni lien caméra dans cette réponse.
+ with db() as c:
+  rows=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
+ response=jsonify({"jobs":[{"progress":r["progress"]} for r in rows]})
+ response.headers["Cache-Control"]="no-store, max-age=0"
+ return response
+
 @app.get("/")
 def home():
  # Seules les impressions expressément autorisées sont affichées, sans identifiants client.
  with db() as c:
   public_jobs=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
- return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard" aria-label="Suivi des commandes"><div><div class="eyebrow">🎥 En atelier</div><h2>Votre création prend vie!</h2><p>Demande reçue · Soumission envoyée · En impression · Terminée</p><p>Consultez votre statut et votre progression lorsque celle-ci est disponible.</p>{% if public_jobs %}<div class="public-print-list">{% for job in public_jobs %}<div class="public-print-job"><strong>🖨️ Impression en cours</strong>{% if job.progress is not none %}<span>{{job.progress}} %</span><div class="tracking-progress" role="progressbar" aria-label="Progression d'une impression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{job.progress}}"><span style="width:{{job.progress}}%"></span></div>{% else %}<span>Progression non disponible</span>{% endif %}</div>{% endfor %}</div>{% else %}<p>Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.</p>{% endif %}</div><a class="btn" href="/suivi">📦 Suivre mon impression</a></section><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''',public_jobs=public_jobs)
+ return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard" aria-label="Suivi des commandes"><div><div class="eyebrow">🎥 En atelier</div><h2>Votre création prend vie!</h2><p>Demande reçue · Soumission envoyée · En impression · Terminée</p><p>Consultez votre statut et votre progression lorsque celle-ci est disponible.</p><div id="fjordProductionLive" aria-live="polite">{% if public_jobs %}<div class="public-print-list">{% for job in public_jobs %}<div class="public-print-job"><strong>🖨️ Impression en cours</strong>{% if job.progress is not none %}<span>{{job.progress}} %</span><div class="tracking-progress" role="progressbar" aria-label="Progression d'une impression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{job.progress}}"><span style="width:{{job.progress}}%"></span></div>{% else %}<span>Progression non disponible</span>{% endif %}</div>{% endfor %}</div>{% else %}<p>Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.</p>{% endif %}</div><p class="production-updated" id="fjordProductionUpdated">Actualisation automatique toutes les 30 secondes lorsque cette page est ouverte.</p></div><a class="btn" href="/suivi">📦 Suivre mon impression</a></section><script>
+/* Production publique : données anonymes uniquement, sans caméra ni commande client. */
+(function(){
+ const root=document.getElementById("fjordProductionLive");
+ const updated=document.getElementById("fjordProductionUpdated");
+ if(!root)return;
+ function item(progress){
+  const card=document.createElement("div");card.className="public-print-job";
+  const label=document.createElement("strong");label.textContent="🖨️ Impression en cours";card.append(label);
+  const value=document.createElement("span");
+  if(progress===null||!Number.isInteger(progress)||progress<0||progress>100){
+   value.textContent="Progression non disponible";card.append(value);return card;
+  }
+  value.textContent=progress+" %";card.append(value);
+  const bar=document.createElement("div");bar.className="tracking-progress";
+  bar.setAttribute("role","progressbar");bar.setAttribute("aria-label","Progression d'une impression");
+  bar.setAttribute("aria-valuemin","0");bar.setAttribute("aria-valuemax","100");bar.setAttribute("aria-valuenow",String(progress));
+  const fill=document.createElement("span");fill.style.width=progress+"%";bar.append(fill);card.append(bar);
+  return card;
+ }
+ async function refresh(){
+  if(document.hidden)return;
+  try{
+   const response=await fetch("/api/production-publique",{cache:"no-store",credentials:"same-origin"});
+   if(!response.ok)throw Error("Erreur de mise à jour");
+   const data=await response.json();
+   if(!Array.isArray(data.jobs))throw Error("Réponse invalide");
+   const list=document.createElement("div");list.className="public-print-list";
+   data.jobs.slice(0,4).forEach(job=>list.append(item(job.progress)));
+   root.replaceChildren();
+   if(list.childElementCount)root.append(list);
+   else{const p=document.createElement("p");p.textContent="Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.";root.append(p);}
+   if(updated)updated.textContent="Production mise à jour automatiquement.";
+  }catch(error){if(updated)updated.textContent="Actualisation temporairement indisponible. Les dernières données restent affichées.";}
+ }
+ setInterval(refresh,30000);
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh();});
+})();
+</script><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''',public_jobs=public_jobs)
 @app.get("/bons-plans/starlink")
 def starlink_referral():
  return page("Parrainage Starlink",'''<section class="referral-page"><div class="eyebrow">Bon plan partagé</div><h1>Parrainage Starlink</h1><p>Vous envisagez de vous abonner à Starlink au Canada? Voici un lien de parrainage personnel à consulter si cela vous intéresse.</p><div class="card referral-card"><h2>Découvrir Starlink</h2><p>Les nouveaux abonnés admissibles peuvent recevoir une récompense selon les conditions de parrainage en vigueur. La personne qui partage ce lien peut également recevoir une récompense.</p><a class="btn referral-cta" href="https://starlink.com/?referral=RC-4635519-65017-67&amp;app_source=share" target="_blank" rel="nofollow sponsored noopener noreferrer">Consulter mon lien de parrainage</a><p class="small muted referral-disclosure">Lien de parrainage personnel. Les Impressions du Fjord ne vendent pas de services Starlink et ne sont pas affiliées à Starlink. Vérifiez la disponibilité, les tarifs et les conditions directement sur le site Starlink.</p></div><p class="small"><a href="/">← Retour à l'accueil</a></p></section>''')
