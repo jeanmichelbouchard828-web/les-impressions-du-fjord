@@ -1438,16 +1438,17 @@ function remember(){
  redoStack.length=0;
 }
 function pick(m){
- if(m && generatorPreviewEnabled)stopGeneratorPreview(); // Preview is never selectable.
- const changed=selected!==m;
+ if(m && generatorPreviewEnabled)stopGeneratorPreview();
+ const changed=selected!==m || selectedSet.size!==(m?1:0);
  if(changed){
   if(cutPreviewActive)hideCutPreview();
-  removeSelectionTint(selected);
+  for(const previous of selectedSet)removeSelectionTint(previous);
  }
+ selectedSet.clear();
  selected=m;
  if(m){
+  selectedSet.add(m);
   addSelectionTint(m);
-  // Selected tools follow the part. Selecting alone never makes arrows appear.
   if(activeTool){
    transform.setMode(activeTool);
    transform.attach(m);
@@ -1457,11 +1458,32 @@ function pick(m){
    transform.getHelper().visible=false;
   }
   say('selected');
-  if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}
+  if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2);}
  }else{
-  exitLayFaceMode();
-  deactivateGizmo();
-  say('empty');
+  exitLayFaceMode();deactivateGizmo();say('empty');
+ }
+ sync();
+}
+function togglePartSelection(m){
+ if(!m||!models.includes(m))return;
+ if(generatorPreviewEnabled)stopGeneratorPreview();
+ if(cutPreviewActive)hideCutPreview();
+ if(selectedSet.has(m)){
+  removeSelectionTint(m);
+  selectedSet.delete(m);
+  if(selected===m)selected=[...selectedSet].at(-1)||null;
+ }else{
+  selectedSet.add(m);
+  selected=m;
+  addSelectionTint(m);
+ }
+ if(selected && activeTool){
+  transform.setMode(activeTool);
+  transform.attach(selected);
+  transform.getHelper().visible=true;
+ }else{
+  transform.detach();
+  transform.getHelper().visible=false;
  }
  sync();
 }
@@ -2415,12 +2437,45 @@ function snapPartToBed(m){
  return true;
 }
 function renderSceneList(){
- const list=$('sceneList');if(!list)return;list.replaceChildren();
- if(!models.length){const p=document.createElement('p');p.className='tool-note';p.textContent=langText[currentLang()].emptyList;list.append(p);return}
+ const list=$('sceneList');if(!list)return;
+ list.replaceChildren();
+ if(!models.length){
+  const p=document.createElement('p');p.className='tool-note';
+  p.textContent=langText[currentLang()].emptyList;list.append(p);return;
+ }
+ const hint=document.createElement('p');hint.className='tool-note';
+ hint.textContent='Ctrl + clic, ou cases à cocher : sélectionner plusieurs pièces pour Merge.';
+ list.append(hint);
  models.forEach((m,i)=>{
-   const b=document.createElement('button');b.type='button';b.className='scene-item'+(m===selected?' active':'');
-   b.textContent=(i+1)+'. '+m.name;b.title=m.name;
-   b.addEventListener('click',()=>pick(m));list.append(b);
+  const wrap=document.createElement('div');wrap.className='scene-row';
+  wrap.style.cssText='display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:3px 0';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';
+  checkbox.checked=selectedSet.has(m);
+  checkbox.setAttribute('aria-label','Sélectionner '+m.name+' pour Merge');
+  checkbox.style.cssText='width:18px;height:18px;flex:none;margin:0';
+  checkbox.addEventListener('change',()=>togglePartSelection(m));
+  const b=document.createElement('button');b.type='button';
+  b.className='scene-item'+(selectedSet.has(m)?' active':'');
+  b.textContent=(i+1)+'. '+m.name+(m.userData.mergedParts?' ('+m.userData.mergedParts.length+' pièces)':'');
+  b.title=m.name+' — Ctrl + clic pour sélection multiple';
+  b.style.flex='1 1 130px';
+  b.addEventListener('click',event=>{
+   if(event.ctrlKey||event.metaKey||event.shiftKey)togglePartSelection(m);
+   else pick(m);
+  });
+  wrap.append(checkbox,b);
+  if(m.userData.mergedParts){
+   const sub=document.createElement('div');
+   sub.style.cssText='width:100%;margin-left:26px;font-size:12px;opacity:.85';
+   for(const p of m.userData.mergedParts){
+    const part=document.createElement('div');part.textContent='↳ '+p.name;
+    const dot=document.createElement('span');dot.textContent=' ● ';
+    dot.style.color='#'+p.color.toString(16).padStart(6,'0');
+    part.prepend(dot);sub.append(part);
+   }
+   wrap.append(sub);
+  }
+  list.append(wrap);
  });
 }
 /* Lay on face: rotate the chosen surface outward normal toward -Z (the bed),
