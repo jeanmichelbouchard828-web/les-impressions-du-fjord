@@ -3029,19 +3029,41 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
 })();
 </script>
 <script>
-/* Menus utilisables au clic et au survol; ne pas fermer avant le choix. */
+/* Six menus : survol temporaire au pointeur, clic/tactile au besoin. */
 (()=>{
  const menus=[...document.querySelectorAll('.fjord-menubar details')];
+ const mouse=window.matchMedia('(hover:hover) and (pointer:fine)');
  const close=()=>menus.forEach(menu=>menu.open=false);
  menus.forEach(menu=>{
-  menu.addEventListener('toggle',()=>{if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});});
-  menu.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse'&&menus.some(m=>m.open)){menus.forEach(other=>other.open=other===menu);}});
-  menu.querySelectorAll('.fjord-menu-options button').forEach(button=>button.addEventListener('click',()=>{menu.open=false;}));
+  const summary=menu.querySelector('summary');
+  menu.addEventListener('toggle',()=>{
+   if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});
+  });
+  menu.addEventListener('pointerenter',event=>{
+   if(event.pointerType==='mouse'&&mouse.matches){
+    menus.forEach(other=>other.open=other===menu);
+   }
+  });
+  menu.addEventListener('pointerleave',event=>{
+   if(event.pointerType==='mouse'&&mouse.matches)menu.open=false;
+  });
+  // On desktop the menu is driven by hover; clicking never leaves it stuck open.
+  summary?.addEventListener('click',event=>{
+   if(mouse.matches){event.preventDefault();menu.open=true;}
+  });
+  menu.querySelectorAll('.fjord-menu-options button').forEach(button=>
+   button.addEventListener('click',()=>{menu.open=false;}));
  });
- document.addEventListener('pointerdown',event=>{if(!event.target.closest('.fjord-menubar details'))close();});
+ document.addEventListener('pointerdown',event=>{
+  if(!event.target.closest('.fjord-menubar details'))close();
+ });
  document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
  const themeButton=document.getElementById('fjordTopTheme');
- themeButton?.addEventListener('click',()=>{const theme=document.getElementById('theme');if(theme){theme.value=theme.value==='dark'?'light':'dark';theme.dispatchEvent(new Event('change',{bubbles:true}));}});
+ themeButton?.addEventListener('click',()=>{
+  const theme=document.getElementById('theme');
+  if(theme){theme.value=theme.value==='dark'?'light':'dark';
+   theme.dispatchEvent(new Event('change',{bubbles:true}));}
+ });
 })();
 </script>
 <script>
