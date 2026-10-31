@@ -2200,41 +2200,37 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
 <script>
 (()=>{
  const shell=document.getElementById('fjordWorkspace');
- const controls=[['fjordToggleLeft','fjord-hide-left'],['fjordToggleRight','fjord-hide-right']];
  const desktop=window.matchMedia('(min-width:761px)');
  const redraw=()=>window.dispatchEvent(new Event('resize'));
- for(const [id,cls] of controls){
+ const controls=[['fjordToggleLeft','fjord-hide-left','outils'],['fjordToggleRight','fjord-hide-right','propriétés']];
+ for(const [id,cls,label] of controls){
   const button=document.getElementById(id);
   if(!button)continue;
-  const label=id==='fjordToggleLeft'?'outils':'propriétés';
-  const prefix=id==='fjordToggleLeft'?'☰ ':'☷ ';
-  const show=()=>{
-   if(!desktop.matches)return;
-   shell.classList.remove(cls);
-   button.setAttribute('aria-expanded','true');
-   button.textContent=prefix+'Outils ouverts'.replace('Outils',label);
-   redraw();
+  const update=()=>{
+   const open=!shell.classList.contains(cls);
+   button.setAttribute('aria-expanded',String(open));
+   button.textContent=(id==='fjordToggleLeft'?'☰ ':'☷ ')+(open?'Masquer ':'Afficher ')+label;
   };
-  const hide=()=>{
+  button.addEventListener('click',()=>{
    if(!desktop.matches)return;
-   shell.classList.add(cls);
-   button.setAttribute('aria-expanded','false');
-   button.textContent=prefix+'Maintenir : '+label;
-   button.blur();
-   redraw();
-  };
-  if(desktop.matches)hide();
-  button.addEventListener('pointerdown',e=>{
-   if(e.button!==0)return;
-   show();
+   shell.classList.toggle(cls);
+   update();redraw();
   });
-  window.addEventListener('pointerup',hide);
-  window.addEventListener('pointercancel',hide);
-  window.addEventListener('blur',hide);
-  button.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();show();}});
-  button.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();hide();}});
-  button.addEventListener('click',e=>e.preventDefault());
-  desktop.addEventListener('change',()=>{if(desktop.matches)hide();else{shell.classList.remove(cls);button.setAttribute('aria-expanded','true');}});
+  desktop.addEventListener('change',()=>{
+   shell.classList.remove(cls);
+   update();redraw();
+  });
+  update();
+ }
+ const nav=document.querySelector('.fjord-workspace-nav');
+ if(nav){
+  const buttons=[...nav.querySelectorAll('[data-fjord-panel]')];
+  buttons.forEach(button=>{
+   button.addEventListener('pointerenter',event=>{
+    if(event.pointerType==='touch'||!desktop.matches)return;
+    button.click();
+   });
+  });
  }
 })();
 </script>
