@@ -254,6 +254,17 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .fjord-panel-controls{padding:3px 9px}
  .fjord-panel-controls button{min-height:28px}
 }
+
+/* Barre latérale compacte à icônes, style de la référence fournie. */
+@media(min-width:761px){
+ #toolsPanel .fjord-workspace-nav{gap:2px!important;padding:7px 0!important;align-items:stretch!important}
+ #toolsPanel .fjord-workspace-nav button{width:100%;height:82px;min-height:82px!important;display:flex!important;flex-direction:column;gap:6px;justify-content:center!important;align-items:center!important;border-radius:0!important;padding:7px 2px!important;font-size:12px!important;line-height:1.15!important;color:#9aa7b6;background:transparent!important;border:0!important}
+ #toolsPanel .fjord-workspace-nav button .fjord-nav-icon{font-size:27px;line-height:29px;font-weight:400;color:#a0aebd}
+ #toolsPanel .fjord-workspace-nav button:hover{color:#e3eff9!important;background:#252e39!important}
+ #toolsPanel .fjord-workspace-nav button.selected{color:#52a8ff!important;background:transparent!important;border:0!important}
+ #toolsPanel .fjord-workspace-nav button.selected .fjord-nav-icon{color:#52a8ff!important}
+ #toolsPanel .fjord-nav-divider{height:1px;flex:none;background:#3b4551;margin:8px 20px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -320,10 +331,19 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
 <div class="shell" id="fjordWorkspace">
 <aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
-<button data-fjord-panel="shapes">⬡ Formes</button><button data-fjord-panel="generators">⚙ Générateurs</button>
-<button data-fjord-panel="edit">✥ Modifier</button><button data-fjord-panel="cut">✂ Découpe</button>
-<button data-fjord-panel="parts">🧩 Pièces</button><button data-fjord-panel="size">📐 Dimensions</button>
-<button data-fjord-panel="measure">📏 Mesure</button><button data-fjord-panel="properties">☷ Propriétés</button>
+<button data-fjord-panel="projects" aria-label="Projets"><span class="fjord-nav-icon">▱</span><span>Projets</span></button>
+<button data-fjord-panel="parts" aria-label="Pièces"><span class="fjord-nav-icon">⬡</span><span>Pièces</span></button>
+<div class="fjord-nav-divider" role="separator"></div>
+<button data-fjord-panel="shapes" aria-label="Formes"><span class="fjord-nav-icon">⬡</span><span>Formes</span></button>
+<button data-fjord-panel="generators" aria-label="Générateurs"><span class="fjord-nav-icon">✧</span><span>Générateurs</span></button>
+<button data-fjord-panel="freehand" aria-label="Main levée"><span class="fjord-nav-icon">✎</span><span>Main levée</span></button>
+<button data-fjord-panel="text" aria-label="Texte"><span class="fjord-nav-icon">T</span><span>Texte</span></button>
+<div class="fjord-nav-divider" role="separator"></div>
+<button data-fjord-panel="edit" aria-label="Modifier"><span class="fjord-nav-icon">✥</span><span>Modifier</span></button>
+<button data-fjord-panel="cut" aria-label="Découpe"><span class="fjord-nav-icon">✂</span><span>Découpe</span></button>
+<button data-fjord-panel="size" aria-label="Dimensions"><span class="fjord-nav-icon">⤢</span><span>Dimensions</span></button>
+<button data-fjord-panel="measure" aria-label="Mesure"><span class="fjord-nav-icon">⌁</span><span>Mesure</span></button>
+<button data-fjord-panel="properties" aria-label="Propriétés"><span class="fjord-nav-icon">☷</span><span>Propriétés</span></button>
 </div><section data-tool-panel="shapes"><h2 data-i18n="shapes">Créer des formes</h2><div class="tools">
 <button data-shape="cube" data-i18n="cube">⬜ Cube</button><button data-shape="cylinder" data-i18n="cylinder">◯ Cylindre</button>
 <button data-shape="sphere" data-i18n="sphere">● Sphère</button><button data-shape="cone" data-i18n="cone">△ Cône</button>
@@ -2241,7 +2261,7 @@ function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMa
 const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
 const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
 function selectCategory(name){
- const target=name==='measure'?'edit':name;
+ const target=({measure:'edit',projects:'parts',freehand:'edit',text:'shapes'})[name]||name;
  const panel=categorySections.find(p=>p.dataset.toolPanel===target);
  if(!panel)return;
  categoryButtons.forEach(b=>{
