@@ -175,15 +175,14 @@ def fjord_public_logo():
 
 @app.route("/voir-mon-impression",methods=["GET","POST"])
 def voir_mon_impression():
- # Accès accordé par le propriétaire et essais limités.
+ # Soumissions PRO et leur numero public FJ, jamais l'ancienne table requests.
  result=None
  if request.method=="POST":
   verify()
-  ident=request.form.get("numero","").strip().upper()
+  submitted=request.form.get("numero","").strip().upper()
   prenom=request.form.get("prenom","").strip().casefold()
-
-  if ident.startswith("FJ-"):ident=ident[3:]
-  if ident.isdigit() and 0<int(ident)<1000000000000 and 0<len(prenom)<=100:
+  number=submitted if submitted.startswith("FJ-") else "FJ-"+submitted
+  if re.fullmatch(r"FJ-[0-9]{1,8}",number) and 0<len(prenom)<=100:
    remote=(request.headers.get("X-Forwarded-For","").split(",")[0].strip() or request.remote_addr or "unknown")[:128]
    fingerprint=hashlib.sha256((str(app.secret_key)+remote).encode()).hexdigest()
    with db() as c:
@@ -193,11 +192,16 @@ def voir_mon_impression():
       count=CASE WHEN live_lookup_attempts.window_start < NOW()-INTERVAL '15 minutes' THEN 1 ELSE live_lookup_attempts.count+1 END,
       window_start=CASE WHEN live_lookup_attempts.window_start < NOW()-INTERVAL '15 minutes' THEN NOW() ELSE live_lookup_attempts.window_start END""",(fingerprint,))
     attempts=c.execute("SELECT count FROM live_lookup_attempts WHERE fingerprint=%s",(fingerprint,)).fetchone()["count"]
-    row=c.execute("SELECT id,name,status,live_enabled,live_url FROM requests WHERE id=%s AND kind='Soumission'",(int(ident),)).fetchone() if attempts<=5 else None
-   if row and row["name"].strip().split()[0].casefold()==prenom:
+    row=None
+    if attempts<=5:
+     row=c.execute("""SELECT id,public_number,customer,production_status,live_token,
+       live_enabled,live_expires FROM private_quotes
+       WHERE public_number=%s OR (public_number IS NULL AND id=%s)
+       LIMIT 1""",(number,int(number[3:]))).fetchone()
+   if row and row["customer"].strip().split()[0].casefold()==prenom:
     result=row
-  if result is None:flash("Impossible de vérifier cette demande. Vérifiez vos renseignements.")
- return page("Voir mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>🎥 Voir mon impression</h1><p>Regardez votre création prendre vie lorsque le visionnement est autorisé.</p><form method="post">{{csrf|safe}}<label>Numéro de soumission<input name="numero" placeholder="FJ-00004" required maxlength="18" autocomplete="off"></label><label>Prénom<input name="prenom" placeholder="Votre prénom" required maxlength="100" autocomplete="given-name"></label><button class="btn">🎥 Regarder mon impression en direct</button></form>{% if result %}<div class="tracking-result"><h2>Soumission FJ-{{'%05d'|format(result.id)}}</h2>{% if result.status=="En impression" and result.live_enabled and result.live_url %}<p>Votre impression est en cours! Cliquez pour accéder au visionnement autorisé.</p><a class="btn" href="{{result.live_url}}" target="_blank" rel="noopener noreferrer nofollow">🎥 Ouvrir la caméra</a><p>Dans OctoEverywhere, choisissez « Alternative Cam » plutôt que « Bambu Cam ».</p><p>Ce lien est privé : ne le partagez pas.</p>{% else %}<p>Votre impression n'est pas encore disponible en direct.</p>{% endif %}</div>{% endif %}<p><a href="/">← Retour à l'accueil</a></p></section>''',result=result,csrf=csrfinput())
+  if result is None:flash("Impossible de verifier cette soumission. Verifiez votre numero FJ et votre prenom.")
+ return page("Voir mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>🎥 Voir mon impression</h1><p>Consultez votre soumission et accédez à votre impression lorsque le visionnement est autorisé.</p><form method="post">{{csrf|safe}}<label>Numéro de soumission<input name="numero" placeholder="FJ-00011" required maxlength="18" autocomplete="off"></label><label>Prénom du client<input name="prenom" placeholder="Votre prénom" required maxlength="100" autocomplete="given-name"></label><button class="btn">🎥 Voir mon impression</button></form>{% if result %}<div class="tracking-result"><h2>Soumission {{result.public_number or ('FJ-%05d'|format(result.id))}}</h2><p>État de fabrication : <strong>{{result.production_status}}</strong></p>{% if result.live_enabled and result.live_token and result.live_expires and result.live_expires > now %}<p>Votre lien privé est actif.</p><a class="btn" href="{{url_for('fjord_live_view',token=result.live_token)}}">🎥 Ouvrir mon impression en direct</a>{% else %}<p>La caméra n'est pas encore disponible, ou le lien de visionnement a expiré.</p>{% endif %}</div>{% endif %}<p><a href="/">← Retour à l'accueil</a></p></section>''',result=result,csrf=csrfinput(),now=datetime.datetime.now(datetime.timezone.utc))
 
 @app.route("/suivi",methods=["GET","POST"])
 def suivi_client():
