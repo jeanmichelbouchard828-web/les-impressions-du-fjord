@@ -2201,15 +2201,40 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
 (()=>{
  const shell=document.getElementById('fjordWorkspace');
  const controls=[['fjordToggleLeft','fjord-hide-left'],['fjordToggleRight','fjord-hide-right']];
+ const desktop=window.matchMedia('(min-width:761px)');
+ const redraw=()=>window.dispatchEvent(new Event('resize'));
  for(const [id,cls] of controls){
   const button=document.getElementById(id);
-  button?.addEventListener('click',()=>{
-   const hidden=shell.classList.toggle(cls);
-   button.setAttribute('aria-expanded',String(!hidden));
-   button.textContent=(id==='fjordToggleLeft'?'☰ ':'☷ ')+(hidden?'Afficher ':'Masquer ')+(id==='fjordToggleLeft'?'outils':'propriétés');
+  if(!button)continue;
+  const label=id==='fjordToggleLeft'?'outils':'propriétés';
+  const prefix=id==='fjordToggleLeft'?'☰ ':'☷ ';
+  const show=()=>{
+   if(!desktop.matches)return;
+   shell.classList.remove(cls);
+   button.setAttribute('aria-expanded','true');
+   button.textContent=prefix+'Outils ouverts'.replace('Outils',label);
+   redraw();
+  };
+  const hide=()=>{
+   if(!desktop.matches)return;
+   shell.classList.add(cls);
+   button.setAttribute('aria-expanded','false');
+   button.textContent=prefix+'Maintenir : '+label;
    button.blur();
-   window.dispatchEvent(new Event('resize'));
+   redraw();
+  };
+  if(desktop.matches)hide();
+  button.addEventListener('pointerdown',e=>{
+   if(e.button!==0)return;
+   show();
   });
+  window.addEventListener('pointerup',hide);
+  window.addEventListener('pointercancel',hide);
+  window.addEventListener('blur',hide);
+  button.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();show();}});
+  button.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();hide();}});
+  button.addEventListener('click',e=>e.preventDefault());
+  desktop.addEventListener('change',()=>{if(desktop.matches)hide();else{shell.classList.remove(cls);button.setAttribute('aria-expanded','true');}});
  }
 })();
 </script>
