@@ -1466,6 +1466,14 @@ async function fjordCopy(id,button){
             pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
             pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
             pdf.linkURL(accept_url,(39,14,354,41),relative=1)
+            if q["model_id"]:
+                # Le PDF reste statique; ce bouton ouvre la vraie visionneuse Web.
+                model_view_url=accept_url+"#fjordQuote3D"
+                pdf.setFillColor(navy)
+                pdf.roundRect(365,14,211,27,6,stroke=0,fill=1)
+                pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",9)
+                pdf.drawCentredString(470,23,"VOIR MA CRÉATION EN 3D")
+                pdf.linkURL(model_view_url,(365,14,576,41),relative=1)
         pdf.restoreState()
         w,h=legal
         pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
