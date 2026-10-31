@@ -2498,10 +2498,12 @@ function fjordCenterView(){
  const empty=bounds.isEmpty();
  const center=empty?new THREE.Vector3(0,0,0):bounds.getCenter(new THREE.Vector3());
  const size=empty?new THREE.Vector3(256,256,0):bounds.getSize(new THREE.Vector3());
- const radius=Math.max(30,size.length()*.5);
+ const radius=Math.max(2,size.length()*.5);
  const fov=THREE.MathUtils.degToRad(camera.fov);
  const aspect=Math.max(.4,camera.aspect);
- const fitDistance=Math.max(radius/Math.sin(fov/2),radius/(Math.sin(fov/2)*aspect))*1.25;
+ // Une sélection doit remplir généreusement la vue, sans être coupée.
+ const margin=selected?1.12:1.28;
+ const fitDistance=Math.max(radius/Math.sin(fov/2),radius/(Math.sin(fov/2)*aspect))*margin;
  const direction=camera.position.clone().sub(orbit.target);
  if(direction.lengthSq()<.0001)direction.set(1,-1,1);
  direction.normalize();
