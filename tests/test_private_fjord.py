@@ -122,7 +122,7 @@ class PrivateFjordTests(unittest.TestCase):
         r = self.client.get("/admin/soumissions-pro")
         self.assertEqual(r.status_code, 200)
         self.assertIn(b'Courriel pour recevoir les virements Interac', r.data)
-        self.assertIn(b'/admin/soumissions-pro/paiement', r.data)
+        self.assertIn(b'/admin/soumissions-pro/enregistrer-tout', r.data)
         invalid = self.client.post("/admin/soumissions-pro/paiement",
                                    data={"interac_email": "incorrect", "csrf": "test"})
         self.assertEqual(invalid.status_code, 400)
