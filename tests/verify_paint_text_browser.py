@@ -55,17 +55,25 @@ try:
         rect=page.locator("#stage canvas").first.bounding_box()
         assert rect, "WebGL canvas unavailable"
         # Click unoccupied canvas positions, away from the bottom toolbar and other overlays.
-        blank_points=[(.18,.42),(.2,.60),(.80,.52)]
-        for fx,fy in blank_points:
-            if not page.evaluate("window.fjordPaint.isActive()"):break
-            page.mouse.click(rect["x"]+rect["width"]*fx,rect["y"]+rect["height"]*fy)
+        blank_points=[(.18,.42),(.2,.60),(.80,.52),(.1,.3),(.70,.72)]
+        def click_blank_canvas():
+            for fx,fy in blank_points:
+                point=page.evaluate("""coords=>{
+                   const canvas=document.querySelector('#stage canvas');
+                   const r=canvas.getBoundingClientRect();
+                   const x=r.x+r.width*coords[0],y=r.y+r.height*coords[1];
+                   return {x,y,canvasTarget:document.elementFromPoint(x,y)===canvas};
+                }""",[fx,fy])
+                if point["canvasTarget"]:
+                    page.mouse.click(point["x"],point["y"])
+                    return
+            raise AssertionError("Could not find unoccluded blank point on 3D canvas")
+        click_blank_canvas()
         page.wait_for_function("window.fjordPaint.isActive()===false",timeout=5000)
         # The move gizmo must similarly turn off after a blank click.
         page.locator("#move").evaluate("el=>el.click()")
         assert page.locator("#move").get_attribute("aria-pressed")=="true"
-        for fx,fy in blank_points:
-            if page.locator("#move").get_attribute("aria-pressed")=="false":break
-            page.mouse.click(rect["x"]+rect["width"]*fx,rect["y"]+rect["height"]*fy)
+        click_blank_canvas()
         page.wait_for_function("document.querySelector('#move').getAttribute('aria-pressed')==='false'",timeout=5000)
         # Paint a visible face of a cube and ensure real per-triangle data survives a save.
         page.on("dialog",lambda dialog:dialog.accept())
