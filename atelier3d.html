@@ -1998,7 +1998,17 @@ transform.addEventListener('mouseUp',()=>{
 [['move','translate'],['rotate','rotate'],['scale','scale']].forEach(([id,mode])=>
  $(id).addEventListener('click',()=>chooseGizmo(mode)));
 updateGizmoButtons();
-$('duplicate').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=makeMesh(selected.geometry.clone(),selected.userData.type,selected.name+' copie');m.position.copy(selected.position);m.position.x+=15;m.rotation.copy(selected.rotation);m.scale.copy(selected.scale);m.material.color.setHex(basePartColor(selected));pick(m)});
+$('duplicate').addEventListener('click',()=>{
+ if(!selected)return say('noSelection');
+ remember();
+ const original=selected,visual=window.fjordPaint?.serializeMesh?.(original);
+ const m=makeMesh(original.geometry.clone(),original.userData.type,original.name+' copie');
+ m.position.copy(original.position);m.position.x+=15;m.rotation.copy(original.rotation);m.scale.copy(original.scale);
+ m.material.color.setHex(basePartColor(original));
+ if(visual?.textSpec)m.userData.fjordText={...visual.textSpec};
+ if(visual?.paintFaces)window.fjordPaint?.restoreMesh?.(m,visual);
+ pick(m);
+});
 $('remove').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=selected;models=models.filter(x=>x!==m);scene.remove(m);transform.detach();m.geometry.dispose();m.material.dispose();pick(null)});
 $('undo').addEventListener('click',()=>{
  if(!undoStack.length)return;
@@ -2782,6 +2792,9 @@ updateLayFaceButton();
 // identifiables. Ce n'est pas une union booléenne des solides.
 function fjordMergeAll(){
  const items=models.filter(m=>selectedSet.has(m));
+ if(items.some(m=>m.userData.fjordPaintFaces&&Object.keys(m.userData.fjordPaintFaces).length)){
+  alert('Pour protéger tes couleurs peintes, le Merge de ces pièces est désactivé pour le moment. Enregistre le projet avant de modifier ces surfaces.');return;
+ }
  if(items.length<2){alert('Sélectionne au moins deux pièces (Ctrl + clic ou cases à cocher), puis utilise Merge.');return;}
  sliceClose();exitLayFaceMode();
  const vertices=[],colors=[],parts=[],point=new THREE.Vector3();
