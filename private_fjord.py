@@ -1028,6 +1028,38 @@ for(const card of quoteCards){for(const field of card.querySelectorAll('[form="f
 quoteSave?.addEventListener('submit',()=>{for(const card of quoteCards){if(card.dataset.edited==='1')continue;
  for(const field of card.querySelectorAll('[form="fjord-save-global"]'))field.disabled=true;
 }});
+(function(){
+ const label=document.getElementById('fjord-auto-progress');
+ let active=false;
+ async function checkPrinter(){
+  if(document.hidden||active)return;
+  active=true;
+  try{
+   const response=await fetch('/admin/api/progression-auto',{cache:'no-store',credentials:'same-origin'});
+   if(!response.ok)throw Error('Connexion indisponible');
+   const data=await response.json();
+   if(label)label.textContent='🖨️ '+data.reason;
+   if(data.matched && Number.isInteger(data.id)){
+    const card=document.querySelector('.fj-quote-card[data-quote-id="'+data.id+'"]');
+    if(card){
+     const hint=card.querySelector('[data-auto-quote]');
+     if(hint)hint.textContent='↻ Automatique : '+data.progress+' %';
+     if(card.dataset.edited!=='1'){
+      const progress=card.querySelector('[name="production_progress_'+data.id+'"]');
+      const status=card.querySelector('[name="production_status_'+data.id+'"]');
+      if(progress)progress.value=String(data.progress);
+      if(status)status.value=data.status;
+     }
+    }
+   }
+  }catch(error){
+   if(label)label.textContent='⚠ Suivi OctoEverywhere temporairement indisponible.';
+  }finally{active=false}
+ }
+ checkPrinter();
+ setInterval(checkPrinter,30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkPrinter()});
+})();
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
  const selected=button.dataset.stage;
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
