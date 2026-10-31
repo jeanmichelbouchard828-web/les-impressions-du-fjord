@@ -741,11 +741,11 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 
 <div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
 <p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
-<form method="post" action="/admin/soumissions-pro/paiement">{{csrf|safe}}
+<div class="fj-interac-settings">
 <label>Courriel pour recevoir les virements Interac
-<input type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
+<input form="fjord-save-global" type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
 <p class="fj-help">Laisse ce champ vide pour masquer le paiement Interac. Assure-toi que cette adresse accepte les virements; idéalement, active le dépôt automatique auprès de ta banque. Le paiement reste à effectuer par le client dans son application bancaire, et le site ne confirme pas sa réception.</p>
-<button type="submit">Enregistrer les paramètres Interac</button></form>
+</div>
 </div>
 <div class="card fj-card"><h2>Logo sur les soumissions</h2>
 <p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
@@ -1027,6 +1027,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         verify()
         with db() as c:
             c.execute("SELECT pg_advisory_xact_lock(7342026,4)")
+            interac=request.form.get("interac_email","").strip().lower()[:180]
+            if interac and not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+",interac):abort(400)
             rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC LIMIT 150").fetchall()
             changes=[]
             for q in rows:
@@ -1061,6 +1063,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 duplicate=c.execute("SELECT id FROM private_quotes WHERE public_number=%s AND id<>%s",(number,ident)).fetchone()
                 if duplicate and all(v[0]!=duplicate["id"] for v in changes):
                     abort(409,"Numéro FJ déjà utilisé.")
+            c.execute("""INSERT INTO settings(key,value) VALUES('fjord_interac_email',%s)
+                ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value""",(interac,))
             # Two-phase numbering allows swapping two numbers without a unique-index collision.
             for ident,*_ in changes:
                 c.execute("UPDATE private_quotes SET public_number=NULL WHERE id=%s",(ident,))
