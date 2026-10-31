@@ -552,7 +552,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,payment_status,paid_at,created,
-                     live_url,live_token,live_enabled,live_expires
+                     live_url,live_token,live_enabled,live_expires,tracking_token,production_status
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         interac_email=payment_setting["value"] if payment_setting else ""
@@ -701,6 +701,24 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select><noscript><button type="submit">Enregistrer le statut</button></noscript></form>
+<section class="fj-live-form" aria-label="Suivi de fabrication FJ-{{'%05d'|format(q.id)}}">
+<h4>📦 Statut de fabrication et lien privé</h4>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/suivi">{{csrf|safe}}
+<label for="fjord-status-{{q.id}}">Statut actuel</label>
+<select id="fjord-status-{{q.id}}" name="production_status">
+{% for item in ['Demande reçue','Soumission envoyée',"En attente d'impression",'En impression','Terminée','Prête à récupérer','Livrée'] %}
+<option value="{{item}}" {% if q.production_status==item %}selected{% endif %}>{{item}}</option>
+{% endfor %}
+</select>
+<button type="submit">💾 Enregistrer le statut / créer le lien privé</button>
+</form>
+{% if q.tracking_token %}
+<p class="fj-help">Lien privé du client (à transmettre uniquement à ce client) :</p>
+<input class="fj-live-copy" readonly aria-label="Lien de suivi FJ-{{'%05d'|format(q.id)}}" onclick="this.select()"
+value="{{url_for('fjord_tracking_page',token=q.tracking_token,_external=True)}}">
+<a href="{{url_for('fjord_tracking_page',token=q.tracking_token)}}" target="_blank" rel="noopener noreferrer">↗ Vérifier la page de suivi</a>
+{% endif %}
+</section>
 <section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
 <h4>📹 Caméra en direct pour le client</h4>
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/diffusion">{{csrf|safe}}
