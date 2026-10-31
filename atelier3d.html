@@ -328,6 +328,17 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-menu-icon:hover{background:#344151!important;color:#fff!important}
 .fjord-menu-separator{height:27px;width:1px;background:#46515d;margin:0 8px}
 @media(max-width:920px){.fjord-menubar{overflow-x:auto!important;overflow-y:visible!important}.fjord-menu-brand{font-size:16px}.fjord-menubar summary{font-size:13px;padding:13px 8px!important}}
+/* Format compact : mêmes menus et mêmes actions, moins d'espace occupé. */
+.fjord-menubar{min-height:36px!important;padding:0 7px!important}
+.fjord-menu-brand{font-size:14px!important;gap:5px!important;padding-right:8px!important}
+.fjord-brand-cube{font-size:20px!important}
+.fjord-menubar summary{font-size:12px!important;padding:8px 8px!important;gap:5px!important}
+.fjord-menubar summary::after{border-width:4px!important;transform:translateY(2px)!important}
+.fjord-menu-icon{font-size:18px!important;min-width:28px!important;padding:4px 6px!important}
+.fjord-menu-separator{height:20px!important;margin:0 4px!important}
+.fjord-menubar .fjord-menu-options{min-width:195px!important}
+.fjord-menubar .fjord-menu-options button{font-size:12px!important;padding:8px 10px!important}
+@media(max-width:920px){.fjord-menubar{min-height:34px!important}.fjord-menubar summary{font-size:12px!important;padding:7px 6px!important}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
