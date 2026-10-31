@@ -253,6 +253,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           payment_status TEXT NOT NULL DEFAULT 'En attente',
           paid_at TIMESTAMPTZ,
           created TIMESTAMPTZ DEFAULT NOW())""")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_status TEXT NOT NULL DEFAULT 'À traiter'")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS payment_token TEXT")
         c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
                      payment_status TEXT NOT NULL DEFAULT 'En attente'""")
@@ -561,12 +562,20 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,payment_status,paid_at,created,payment_token,
+                     apply_taxes,payment_status,paid_at,created,payment_token,production_status,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      live_url,live_token,live_enabled,live_expires
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        def quote_stage(q):
+            if q["production_status"]=="Terminée":return "terminees"
+            if q["production_status"]=="En production":return "production"
+            if q["payment_status"]=="Payée":return "payees"
+            if q["accepted_at"]:return "acceptees"
+            return "attente"
+        stages={q["id"]:quote_stage(q) for q in quotes}
+        counters={k:sum(stage==k for stage in stages.values()) for k in ("attente","acceptees","payees","production","terminees")}
         interac_email=payment_setting["value"] if payment_setting else ""
         chosen=request.args.get("model_id","",type=str)
         request_id=request.args.get("request_id",type=int)
@@ -579,6 +588,11 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                 incoming=None
         return page("Soumissions PRO",r"""
 <style>
+.fj-status-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:15px 0 22px}
+.fj-status-btn{border:1px solid #548da7;border-radius:12px;background:#16364b;color:#e9faff;padding:13px 10px;text-align:left;cursor:pointer}
+.fj-status-btn strong{display:block;font-size:24px;margin-top:5px}
+.fj-status-btn.active{outline:2px solid #7ee7ff;background:#21506a}
+.fj-quote-card[hidden]{display:none!important}
 .fj-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .fj-two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .fj-two label{min-width:0}.fj-two input,.fj-two select{max-width:100%}
@@ -704,8 +718,24 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
-<h2 id="soumissions-enregistrees">Soumissions enregistrées</h2><div class="grid">{% for q in quotes %}<div class="card"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
-<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p>
+<h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
+<p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
+<div class="fj-status-board">
+<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="attente">⏳ En attente <strong>{{counters.attente}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="acceptees">✓ Acceptées <strong>{{counters.acceptees}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="payees">💳 Payées <strong>{{counters.payees}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
+</div>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-stage="{{stages[q.id]}}"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p><form method="post" action="/admin/soumissions-pro/{{q.id}}/production">{{csrf|safe}}
+<label>État de fabrication
+<select name="production_status" onchange="this.form.requestSubmit()">
+<option value="À traiter" {% if q.production_status=='À traiter' %}selected{% endif %}>À traiter</option>
+<option value="En production" {% if q.production_status=='En production' %}selected{% endif %}>🖨️ En production</option>
+<option value="Terminée" {% if q.production_status=='Terminée' %}selected{% endif %}>📦 Terminée</option>
+</select></label><noscript><button type="submit">Enregistrer</button></noscript></form>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}
 <form class="fj-payment-form" method="post" action="/admin/soumissions-pro/{{q.id}}/statut-paiement">{{csrf|safe}}
@@ -931,8 +961,28 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
  updateImage();update();
  if(selector.value)estimate();
 })();
-</script>""",models=models,quotes=quotes,chosen=chosen,materials=MATERIALS,
+</script>
+<script>
+document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
+ const selected=button.dataset.stage;
+ document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
+ document.querySelectorAll('.fj-quote-card').forEach(card=>{card.hidden=selected!=='all' && card.dataset.stage!==selected});
+}));
+</script>""",models=models,quotes=quotes,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/production")
+    @admin_required
+    def fjord_production_status(quote_id):
+        verify()
+        status=request.form.get("production_status","")
+        if status not in ("À traiter","En production","Terminée"):abort(400)
+        with db() as c:
+            row=c.execute("SELECT id FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            if not row:abort(404)
+            c.execute("UPDATE private_quotes SET production_status=%s WHERE id=%s",(status,quote_id))
+        flash("État de fabrication mis à jour.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/soumissions-pro/paiement")
     @admin_required
