@@ -930,24 +930,31 @@ for(let mm=0;mm<=256;mm+=5){
  pc.lineWidth=mm%50===0?2.2:1;pc.stroke();
 }
 function drawFjordMark(logo){
- // Gravure intégrée à la texture du plateau : aucune géométrie imprimable.
+ // Redessiner le quadrillage avant chaque chargement : jamais de rectangle opaque.
  pc.save();
- pc.fillStyle='#171d23';pc.fillRect(480,775,1150,500);
+ pc.clearRect(0,0,N,N);
+ pc.fillStyle='#171d23';pc.fillRect(0,0,N,N);
+ for(let mm=0;mm<=256;mm+=5){
+  const v=mm*step;
+  pc.beginPath();pc.moveTo(v,0);pc.lineTo(v,N);pc.moveTo(0,v);pc.lineTo(N,v);
+  pc.strokeStyle=mm%50===0?'#45515d':mm%10===0?'#303b45':'#26313b';
+  pc.lineWidth=mm%50===0?2.2:1;pc.stroke();
+ }
+ // Gravure visuelle bleu glacier au-dessus du quadrillage, sans géométrie exportable.
  pc.textAlign='center';pc.textBaseline='middle';
- pc.globalAlpha=.23;pc.fillStyle='#9ab8c9';
- pc.shadowColor='#1baee8';pc.shadowBlur=9;
- pc.font='bold 84px Arial,sans-serif';pc.fillText('LES IMPRESSIONS',1210,951);
- pc.font='bold 91px Arial,sans-serif';pc.fillText('DU FJORD',1210,1066);
- pc.shadowBlur=0;
- pc.globalAlpha=.26;pc.strokeStyle='#2c9dd4';pc.lineWidth=4;
- pc.beginPath();pc.moveTo(905,1004);pc.lineTo(1535,1004);pc.stroke();
  if(logo){
-  const size=455,x=450,y=797;
+  const size=540,x=350,y=754;
   const ratio=Math.min(size/logo.width,size/logo.height);
   const w=logo.width*ratio,h=logo.height*ratio;
-  pc.globalAlpha=.42;pc.shadowColor='#119fe4';pc.shadowBlur=14;
+  pc.globalAlpha=.68;pc.shadowColor='#109edc';pc.shadowBlur=15;
   pc.drawImage(logo,x+(size-w)/2,y+(size-h)/2,w,h);
  }
+ pc.shadowBlur=11;pc.shadowColor='#1689be';
+ pc.globalAlpha=.62;pc.fillStyle='#b5d5e5';
+ pc.font='bold 83px Arial,sans-serif';pc.fillText('LES IMPRESSIONS',1305,949);
+ pc.font='bold 105px Arial,sans-serif';pc.fillText('DU FJORD',1305,1072);
+ pc.globalAlpha=.53;pc.strokeStyle='#30c6f4';pc.lineWidth=4;
+ pc.beginPath();pc.moveTo(973,1011);pc.lineTo(1632,1011);pc.stroke();
  pc.restore();
 }
 drawFjordMark(null);
