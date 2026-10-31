@@ -943,6 +943,28 @@ for(let mm=0;mm<=256;mm+=2){
  rulerLines.push(p,-128,0,p,-128-extent,0,-128,p,0,-128-extent,p,0);
 }
 const ruler=new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(rulerLines,3)),new THREE.LineBasicMaterial({color:0xa2b1be}));scene.add(ruler);
+// Repère visuel XYZ au coin inférieur gauche du plateau (millimètres).
+// X rouge, Y vert, Z bleu : purement visuel, exclu des exports STL/3MF.
+const axisOrigin=new THREE.Vector3(-128,-128,.6);
+function makeAxisLabel(letter,color,position){
+ const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+ const ctx=canvas.getContext('2d');ctx.clearRect(0,0,128,128);
+ ctx.font='bold 86px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.fillStyle=color;ctx.fillText(letter,64,66);
+ const texture=new THREE.CanvasTexture(canvas);
+ const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false}));
+ sprite.position.copy(position);sprite.scale.set(11,11,1);sprite.renderOrder=990;scene.add(sprite);
+}
+[
+ {letter:'X',dir:new THREE.Vector3(1,0,0),color:0xf04c55,css:'#f04c55'},
+ {letter:'Y',dir:new THREE.Vector3(0,1,0),color:0x24b878,css:'#24b878'},
+ {letter:'Z',dir:new THREE.Vector3(0,0,1),color:0x398dff,css:'#398dff'}
+].forEach(axis=>{
+ const arrow=new THREE.ArrowHelper(axis.dir,axisOrigin,32,axis.color,6,3.5);
+ arrow.traverse(obj=>{if(obj.material){obj.material.depthTest=false;obj.material.depthWrite=false;}obj.renderOrder=989;});
+ scene.add(arrow);
+ makeAxisLabel(axis.letter,axis.css,axisOrigin.clone().addScaledVector(axis.dir,39));
+});
 const transform=new TransformControls(camera,renderer.domElement);scene.add(transform.getHelper());
 // The manipulator must never appear merely because a part has been selected.
 transform.detach();transform.getHelper().visible=false;
