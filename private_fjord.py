@@ -1183,7 +1183,7 @@ async function fjordCopy(id,button){
     @admin_required
     def fjord_quote_pdf(quote_id):
         from reportlab.lib import colors
-        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.pagesizes import letter, legal
         from reportlab.lib.utils import ImageReader, simpleSplit
         from reportlab.pdfgen import canvas
         with db() as c:
@@ -1208,6 +1208,10 @@ async function fjordCopy(id,button){
         buffer=io.BytesIO()
         pdf=canvas.Canvas(buffer,pagesize=letter)
         w,h=letter
+        pdf.setPageSize(legal)
+        pdf.saveState()
+        pdf.translate(61,305)
+        pdf.scale(0.80,0.80)
         navy=colors.HexColor("#071D31")
         cyan=colors.HexColor("#0697CE")
         gray=colors.HexColor("#44546B")
@@ -1258,8 +1262,7 @@ async function fjordCopy(id,button){
         y=min(y-14,285 if payment_url else 250)
         rows=2+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
         if y-rows*25<(172 if payment_url else 115):
-            pdf.showPage()
-            y=710
+            y=285
         subtotal,gst,qst,total=_quote_amounts(q)
         def totalrow(label,amount,y,bold=False):
             pdf.setFont("Helvetica-Bold" if bold else "Helvetica",11 if not bold else 15)
@@ -1277,8 +1280,7 @@ async function fjordCopy(id,button){
         if payment_url:
             # Lien web vérifiable : aucune demande Interac n'est envoyée par le site.
             if y<200:
-                pdf.showPage()
-                y=710
+                y=200
             top=y-5
             bottom=top-96
             pdf.setFillColor(colors.HexColor("#EBF7FE"))
@@ -1308,13 +1310,11 @@ async function fjordCopy(id,button){
             except Exception:
                 # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
                 pass
-        # Conditions annexées au PDF, sur une page dédiée et lisible.
-        pdf.showPage()
-        pdf.setFillColor(navy);pdf.rect(0,h-90,w,90,stroke=0,fill=1)
-        pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",16)
-        pdf.drawString(39,h-44,"GARANTIES ET CONDITIONS DE VENTE")
-        pdf.setFont("Helvetica",9)
-        pdf.drawString(39,h-65,"Les Impressions du Fjord  |  Soumission FJ-{:05d}".format(q["id"]))
+        pdf.restoreState()
+        w,h=legal
+        pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
+        pdf.setFillColor(navy);pdf.setFont("Helvetica-Bold",10)
+        pdf.drawString(30,267,"VENTE FINALE - GARANTIES ET CONDITIONS DE VENTE")
         clauses=[
          ("1. Garanties légales", "Les garanties légales prévues par les lois applicables, notamment la Loi sur la protection du consommateur et le Code civil du Québec, demeurent pleinement applicables. Le bien doit être conforme à sa description, convenir à son usage normal et avoir une durée raisonnable."),
          ("2. Fabrication personnalisée", "La fabrication suit les dimensions, le matériau, la couleur et les spécifications convenus avec le client. Toute modification demandée après acceptation peut entraîner une nouvelle estimation et un nouveau délai, sous réserve des droits prévus par la loi."),
@@ -1326,20 +1326,20 @@ async function fjordCopy(id,button){
          ("8. Vente finale - fabrication personnalisée", "Le client confirme les spécifications convenues. Une fois la fabrication commencée, une annulation ou une modification pour simple changement d'avis n'est pas garantie, sous réserve des droits prévus par la loi. Les garanties légales demeurent pleinement applicables."),
          ("9. Recours et droits du consommateur", "Aucune disposition des présentes conditions ne supprime ou ne limite les recours impératifs du consommateur. Selon les circonstances, une réparation, un remplacement, un remboursement ou d'autres recours légaux peuvent s'appliquer.")
         ]
-        y=h-113
+
+        y=253
         for heading,paragraph in clauses:
-            pdf.setFillColor(cyan);pdf.setFont("Helvetica-Bold",10)
-            pdf.drawString(39,y,heading.encode("cp1252","replace").decode("cp1252"));y-=15
-            pdf.setFillColor(gray);pdf.setFont("Helvetica",8.7)
-            for segment in simpleSplit(paragraph.encode("cp1252","replace").decode("cp1252"),"Helvetica",8.7,w-78):
-                pdf.drawString(39,y,segment);y-=12
-            y-=13
-        pdf.setStrokeColor(cyan);pdf.line(39,55,w-39,55)
-        pdf.setFillColor(gray);pdf.setFont("Helvetica",8)
-        pdf.drawString(39,42,"Information générale : www.opc.gouv.qc.ca  |  Les droits légaux priment.")
+            heading=heading.encode("cp1252","replace").decode("cp1252")
+            fragments=simpleSplit(paragraph.encode("cp1252","replace").decode("cp1252"),"Helvetica",6.3,w-60)
+            pdf.setFillColor(cyan);pdf.setFont("Helvetica-Bold",6.7)
+            pdf.drawString(30,y,heading);y-=8
+            pdf.setFillColor(gray);pdf.setFont("Helvetica",6.3)
+            for fragment in fragments:
+                pdf.drawString(30,y,fragment);y-=7
+            y-=3
         pdf.setFont("Helvetica",9);pdf.setFillColor(gray)
-        pdf.drawString(39,62,"Merci de faire confiance aux Impressions du Fjord.")
-        pdf.drawString(39,46,"Toute modification du modèle ou des spécifications peut entraîner une révision du prix.")
+        pdf.drawString(30,18,"Les garanties légales et les recours du consommateur demeurent applicables.")
+
         pdf.save();buffer.seek(0)
         return send_file(buffer,mimetype="application/pdf",as_attachment=True,
                   download_name="Soumission-FJ-{:05d}.pdf".format(q["id"]))
