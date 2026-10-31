@@ -629,6 +629,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button" data-quick-action="dropToBed" data-tooltip="dropToBed">⇩</button>
 <button type="button" class="quick-button" data-quick-action="layFace" data-tooltip="layFace" aria-pressed="false">▱</button>
 <button type="button" class="quick-button" id="fjordPaintToggle" aria-pressed="false" title="Peinture 3D (couleurs AMS)">🎨</button>
+<button type="button" class="quick-button" id="fjordArrangeQuick" title="Arranger automatiquement les pièces sur le plateau">▦</button>
 <button type="button" class="quick-button" id="fjordMergeQuick" title="Merge : regrouper les pièces sélectionnées">⧉</button>
 <button type="button" class="quick-button" id="fjordSplitQuick" title="Séparer un groupe Merge">↳</button>
 <span class="quick-divider"></span>
@@ -641,6 +642,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="text">🔠 Texte</button>
 <button type="button" id="mobilePaintBtn" aria-pressed="false">🎨 Peinture</button>
+<button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
 <button type="button" data-open-tools="size" data-i18n="mobileSize" aria-expanded="false">📏 Taille</button>
@@ -865,6 +867,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="paint">🎨 Peindre la pièce</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="textTool">🔠 Inscription 3D</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="arrangeAll">▦ Arranger sur le plateau</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="growSelected">⤢ Agrandir la pièce (+10 %)</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="scaleCustom">⤢ Agrandir / réduire (%)…</button>
@@ -1928,6 +1931,7 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  if(action==='mergeAll'){fjordMergeAll();return;}
  if(action==='paint'){$('fjordPaintToggle').click();return;}
  if(action==='textTool'){document.querySelector('[data-fjord-panel="text"]')?.click();return;}
+ if(action==='arrangeAll'){$('fjordArrangeQuick').click();return;}
  if(action==='splitMerged'){fjordSplitMerged();return;}
  if(action==='growSelected'){
   if(selected){rescaleSelected(1.1);snapPartToBed(selected);sync();}
@@ -2790,6 +2794,35 @@ updateLayFaceButton();
 // Merge comme Bambu Studio : grouper plusieurs objets sélectionnés sous une
 // même pièce principale. Chaque sous-pièce, sa couleur et ses triangles restent
 // identifiables. Ce n'est pas une union booléenne des solides.
+// Bambu-like Arrange: preserve every mesh and its colours; never move anything if layout cannot fit.
+function fjordArrangeAll(){
+ if(!models.length){say('missing');return;}
+ const gap=5,edge=124,positions=[];
+ let x=-edge,y=-edge,rowHeight=0;
+ for(const model of models){
+  const bounds=modelWorldBounds(model);
+  const size=bounds.getSize(new THREE.Vector3());
+  if(![size.x,size.y,size.z].every(Number.isFinite)||size.x>248||size.y>248||size.z>256){
+   alert('Une pièce dépasse le plateau 256 × 256 mm. Réduis sa taille avant de lancer Arranger.');return;
+  }
+  if(x+size.x>edge){x=-edge;y+=rowHeight+gap;rowHeight=0;}
+  if(y+size.y>edge){alert('Toutes les pièces ne peuvent pas entrer sur le plateau. Aucun objet n’a été déplacé.');return;}
+  const center=bounds.getCenter(new THREE.Vector3());
+  positions.push({model,dx:x+size.x/2-center.x,dy:y+size.y/2-center.y});
+  x+=size.x+gap;rowHeight=Math.max(rowHeight,size.y);
+ }
+ remember();
+ window.fjordPaint?.close?.();
+ deactivateGizmo();
+ for(const item of positions){
+  item.model.position.x+=item.dx;item.model.position.y+=item.dy;
+  snapPartToBed(item.model);
+ }
+ sync();
+ status.textContent='✓ '+models.length+' pièce(s) arrangée(s) automatiquement sur le plateau.';
+}
+$('fjordArrangeQuick').addEventListener('click',fjordArrangeAll);
+$('mobileArrangeBtn')?.addEventListener('click',fjordArrangeAll);
 function fjordMergeAll(){
  const items=models.filter(m=>selectedSet.has(m));
  if(items.some(m=>m.userData.fjordPaintFaces&&Object.keys(m.userData.fjordPaintFaces).length)){
