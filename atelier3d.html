@@ -226,6 +226,16 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .fjord-menu-options{background:#222934;border-color:#485361}
  .quickbar{background:#1b212b;border-color:#343c48}
 }
+
+/* Catégories comme un véritable atelier : un seul panneau actif. */
+@media(min-width:761px){
+ #toolsPanel [data-tool-panel].fjord-category-hidden{display:none!important}
+ #toolsPanel .fjord-workspace-nav{position:sticky;top:-10px;z-index:5;background:#1b2028;margin:-10px -12px 14px;padding:12px 10px 12px}
+ #toolsPanel [data-tool-panel]:not(.fjord-category-hidden){animation:fjordPanelEnter .14s ease-out}
+ @keyframes fjordPanelEnter{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+ #toolsPanel .fjord-workspace-nav button{cursor:pointer}
+ #toolsPanel .fjord-workspace-nav button:focus-visible{outline:2px solid #6ac6ef;outline-offset:1px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -2210,13 +2220,22 @@ function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMa
 })();
 </script><script>
 (()=>{const left=document.getElementById('toolsPanel');
-document.querySelectorAll('[data-fjord-panel]').forEach(b=>b.addEventListener('click',()=>{
- const name=b.dataset.fjordPanel;
- const panel=left.querySelector('[data-tool-panel="'+name+'"]') || (name==='measure'?left.querySelector('[data-tool-panel="edit"]'):null);
+const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
+const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
+function selectCategory(name){
+ const target=name==='measure'?'edit':name;
+ const panel=categorySections.find(p=>p.dataset.toolPanel===target);
  if(!panel)return;
- document.querySelectorAll('[data-fjord-panel]').forEach(x=>x.classList.toggle('selected',x===b));
- panel.scrollIntoView({behavior:'smooth',block:'start'});
-}));
+ categoryButtons.forEach(b=>{
+  const selected=b.dataset.fjordPanel===name;
+  b.classList.toggle('selected',selected);
+  b.setAttribute('aria-pressed',String(selected));
+ });
+ categorySections.forEach(p=>p.classList.toggle('fjord-category-hidden',p!==panel));
+ left.scrollTop=0;
+}
+categoryButtons.forEach(b=>b.addEventListener('click',()=>selectCategory(b.dataset.fjordPanel)));
+selectCategory('shapes');
 document.querySelectorAll('[data-fjord-target]').forEach(b=>b.addEventListener('click',()=>{document.getElementById(b.dataset.fjordTarget)?.click();b.closest('details').open=false}));
 document.querySelectorAll('[data-fjord-quick]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('[data-quick-action="'+b.dataset.fjordQuick+'"]')?.click();b.closest('details').open=false}));
 document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert('Clic gauche : sélectionner une pièce. Clic droit : menu contextuel. Clic droit maintenu : déplacer la vue. Molette : zoom. Utilisez les outils de gauche pour modifier la pièce.'));
