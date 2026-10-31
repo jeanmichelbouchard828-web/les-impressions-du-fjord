@@ -297,8 +297,8 @@ def _sync_octo_progress():
   result["reason"]="OctoEverywhere ne donne pas de nom de travail ou de pourcentage."
   return result
  reported=str(filename).replace(chr(92),"/").split("/")[-1]
- raw=re.sub(r"(?i)(?:\\.gcode)?\\.(?:3mf|gcode|stl)$","",reported).casefold()
- match=re.match(r"^(fj-[0-9]{1,8})(?:[_\\s-]|$)",raw)
+ raw=re.sub(r"(?i)(?:\.gcode)?\.(?:3mf|gcode|stl)$","",reported).casefold()
+ match=re.match(r"^(fj-[0-9]{1,8})(?:[_\s-]|$)",raw)
  with db() as c:
   quotes=c.execute("""SELECT id,public_number,printer_job_name,production_status,production_progress
                       FROM private_quotes ORDER BY id DESC LIMIT 300""").fetchall()
@@ -333,10 +333,6 @@ def public_production():
  with db() as c:
   rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
  # Soumissions PRO : statut uniquement, sans données client ni montant.
- with db() as c:
-  quotes=c.execute("""SELECT q.id,q.public_number,q.production_status,q.production_progress,q.printer_job_name,q.payment_status,
-      EXISTS(SELECT 1 FROM fjord_quote_acceptances a WHERE a.quote_id=q.id) AS accepted
-      FROM private_quotes q ORDER BY q.id DESC LIMIT 150""").fetchall()
  _sync_octo_progress()
  with db() as c:
   quotes=c.execute("""SELECT q.id,q.public_number,q.production_status,q.production_progress,q.printer_job_name,q.payment_status,
