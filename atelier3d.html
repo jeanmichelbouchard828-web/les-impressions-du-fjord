@@ -312,6 +312,22 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-catalog-items button:hover:not(:disabled){background:#36516b}
 .fjord-catalog-items button:disabled{opacity:.53;cursor:not-allowed}
 .fjord-catalog-items small{font-size:10px;color:#9eabb8}
+
+/* Barre supérieure de type éditeur CAO, inspirée de la référence fournie. */
+.fjord-menubar{background:#20262d!important;color:#e4e8ee!important;display:flex!important;align-items:center!important;gap:0!important;flex-wrap:nowrap!important;min-height:52px;padding:0 12px!important;border-bottom:1px solid #3a4653!important;overflow:visible!important;position:relative;z-index:120}
+.fjord-menu-brand{display:inline-flex;align-items:center;gap:9px;color:#f2f5f8;text-decoration:none;white-space:nowrap;font-size:19px;padding:0 13px 0 0;font-weight:800}
+.fjord-brand-cube{color:#52a9ff;font-size:28px;line-height:1}
+.fjord-menubar details{flex:0 0 auto;position:relative}
+.fjord-menubar summary{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:15px 11px!important;font-size:15px;font-weight:700;color:#d9e0e8;border-radius:0!important}
+.fjord-menubar summary::after{content:'';border:5px solid transparent;border-top-color:#9aa8b5;transform:translateY(3px)}
+.fjord-menubar summary:hover,.fjord-menubar details[open] summary{background:#344151!important;color:white!important}
+.fjord-menubar .fjord-menu-options{top:100%;left:0;min-width:225px;padding:6px;border:1px solid #4a5867;border-radius:0 0 10px 10px;background:#27313c;box-shadow:0 12px 28px #0008}
+.fjord-menubar .fjord-menu-options button{background:transparent;color:#e4ebf3;border:0;border-radius:5px;padding:11px 12px;margin:0;font-size:13px}
+.fjord-menubar .fjord-menu-options button:hover{background:#3b536b}
+.fjord-menu-icon{border:0!important;background:transparent!important;color:#c7d5e3!important;font-size:24px;padding:7px 10px!important;min-width:38px;cursor:pointer}
+.fjord-menu-icon:hover{background:#344151!important;color:#fff!important}
+.fjord-menu-separator{height:27px;width:1px;background:#46515d;margin:0 8px}
+@media(max-width:920px){.fjord-menubar{overflow-x:auto!important;overflow-y:visible!important}.fjord-menu-brand{font-size:16px}.fjord-menubar summary{font-size:13px;padding:13px 8px!important}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -328,12 +344,29 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.json" multiple hidden>
 </header>
 <nav class="fjord-menubar" aria-label="Menus de l'atelier">
-<details><summary>Fichier</summary><div class="fjord-menu-options"><button data-fjord-target="new">Nouveau</button><button data-fjord-target="open">Ouvrir</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF</button></div></details>
-<details><summary>Exporter</summary><div class="fjord-menu-options"><button data-fjord-target="export">Exporter STL</button><button data-fjord-target="quote">Faire imprimer</button></div></details>
-<details><summary>Média</summary><div class="fjord-menu-options"><button data-fjord-target="import">Importer un modèle</button></div></details>
-<details><summary>Affichage</summary><div class="fjord-menu-options"><button data-fjord-quick="viewIso">Vue 3D</button><button data-fjord-quick="viewTop">Vue du dessus</button><button data-fjord-quick="viewFit">Ajuster la vue</button></div></details>
-<details><summary>Options</summary><div class="fjord-menu-options"><button data-fjord-target="estimateToggle">Estimateur</button><button data-fjord-target="sliceTop">Trancher</button></div></details>
-<details><summary>Aide</summary><div class="fjord-menu-options"><button data-fjord-help="1">Commandes de l'atelier</button></div></details>
+<a class="fjord-menu-brand" href="/" title="Les Impressions du Fjord"><span class="fjord-brand-cube">⬡</span><strong>Fjord 3D</strong></a>
+<details><summary>Fichier</summary><div class="fjord-menu-options">
+<button data-fjord-target="new">Nouveau projet</button><button data-fjord-target="open">Ouvrir projet</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF</button>
+</div></details>
+<details><summary>Exporter</summary><div class="fjord-menu-options">
+<button data-fjord-target="export">Exporter STL</button><button data-fjord-target="quote">Faire imprimer</button>
+</div></details>
+<details><summary>Média</summary><div class="fjord-menu-options">
+<button data-fjord-target="import">Importer un modèle 3D</button>
+</div></details>
+<details><summary>Affichage</summary><div class="fjord-menu-options">
+<button data-fjord-quick="viewIso">Vue 3D</button><button data-fjord-quick="viewTop">Vue du dessus</button><button data-fjord-quick="viewFit">Ajuster la vue</button>
+</div></details>
+<details><summary>Options</summary><div class="fjord-menu-options">
+<button data-fjord-target="estimateToggle">Estimateur de prix</button><button data-fjord-target="sliceTop">Trancher</button>
+</div></details>
+<details><summary>Aide</summary><div class="fjord-menu-options">
+<button data-fjord-help="1">Commandes de l'atelier</button>
+</div></details>
+<button class="fjord-menu-icon" type="button" id="fjordTopTheme" title="Changer le thème" aria-label="Changer le thème">☼</button>
+<span class="fjord-menu-separator"></span>
+<button class="fjord-menu-icon" type="button" data-fjord-target="undo" title="Annuler" aria-label="Annuler">↶</button>
+<button class="fjord-menu-icon" type="button" data-fjord-target="redo" title="Rétablir" aria-label="Rétablir">↷</button>
 </nav>
 <div class="fjord-bed-tabs" role="tablist" aria-label="Plateaux de travail"><button type="button" role="tab" aria-selected="true" class="fjord-bed-tab">⬡ Plateau 1</button></div>
 <div class="fjord-fast-tools" aria-label="Outils rapides">
@@ -2497,31 +2530,19 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
 })();
 </script>
 <script>
-/* Menus supérieurs : ouverture à l'appui, fermeture au relâchement.
-   Un glissement vers une commande permet de la sélectionner. */
+/* Menus utilisables au clic et au survol; ne pas fermer avant le choix. */
 (()=>{
  const menus=[...document.querySelectorAll('.fjord-menubar details')];
  const close=()=>menus.forEach(menu=>menu.open=false);
  menus.forEach(menu=>{
-  const summary=menu.querySelector('summary');
-  summary.addEventListener('pointerdown',event=>{
-   if(event.button!==0)return;
-   event.preventDefault();
-   menus.forEach(other=>other.open=other===menu);
-  });
-  summary.addEventListener('click',event=>{
-   if(event.detail!==0)event.preventDefault();
-  });
-  menu.querySelectorAll('.fjord-menu-options button').forEach(button=>{
-   button.addEventListener('pointerup',event=>{
-    if(event.button!==0)return;
-    if(event.target===button)button.click();
-   });
-  });
+  menu.addEventListener('toggle',()=>{if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});});
+  menu.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse'&&menus.some(m=>m.open)){menus.forEach(other=>other.open=other===menu);}});
+  menu.querySelectorAll('.fjord-menu-options button').forEach(button=>button.addEventListener('click',()=>{menu.open=false;}));
  });
- window.addEventListener('pointerup',()=>setTimeout(close,0));
- window.addEventListener('pointercancel',close);
- window.addEventListener('blur',close);
+ document.addEventListener('pointerdown',event=>{if(!event.target.closest('.fjord-menubar details'))close();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
+ const themeButton=document.getElementById('fjordTopTheme');
+ themeButton?.addEventListener('click',()=>{const theme=document.getElementById('theme');if(theme){theme.value=theme.value==='dark'?'light':'dark';theme.dispatchEvent(new Event('change',{bubbles:true}));}});
 })();
 </script>
 <script>
