@@ -394,8 +394,8 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </nav>
 <div class="fjord-bed-tabs" id="fjordBedTabs" role="tablist" aria-label="Plateaux de travail"><button type="button" role="tab" aria-selected="true" class="fjord-bed-tab" data-bed-index="0">⬡ Plateau 1</button><button type="button" class="fjord-add-bed" id="fjordAddBed" title="Ajouter un plateau" aria-label="Ajouter un plateau">+</button></div>
 <div class="fjord-fast-tools" aria-label="Outils rapides">
- <div class="fjord-fast-row" role="toolbar" aria-label="Manipulation et mesure">
-  <button class="fjord-fast-fold" type="button" aria-expanded="true" title="Réduire ou développer">‹</button>
+ <div class="fjord-fast-row fjord-fast-compact" role="toolbar" aria-label="Manipulation et mesure">
+  <button class="fjord-fast-fold" type="button" aria-expanded="false" title="Réduire ou développer">›</button>
   <button data-fjord-tool="rotate" title="Pivoter"><span>⟳</span><em>Pivoter</em></button>
   <button data-fjord-tool="duplicate" title="Multi / Dupliquer"><span>▢</span><em>Multi</em></button>
   <button data-fjord-tool="measure" title="Règle"><span>📏</span><em>Règle</em></button>
@@ -405,8 +405,8 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   <button data-fjord-tool="layFace" title="Poser sur une face"><span>▣</span><em>Poser sur une face</em></button>
   <button data-fjord-tool="viewFit" title="Loupe"><span>⊕</span><em>Loupe</em></button>
  </div>
- <div class="fjord-fast-row" role="toolbar" aria-label="Découpe et modification">
-  <button class="fjord-fast-fold" type="button" aria-expanded="true" title="Réduire ou développer">‹</button>
+ <div class="fjord-fast-row fjord-fast-compact" role="toolbar" aria-label="Découpe et modification">
+  <button class="fjord-fast-fold" type="button" aria-expanded="false" title="Réduire ou développer">›</button>
   <button data-fjord-tool="cutZ" title="Découper"><span>✂</span><em>Découper</em></button>
   <button data-fjord-tool="rotate" title="Tourner"><span>⟳</span><em>Tourner</em></button>
   <button data-fjord-tool="scale" title="Échelle"><span>⬡</span><em>Échelle</em></button>
@@ -456,7 +456,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div id="mobileMenuContent"></div>
 </div>
 <div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
-<div class="shell fjord-hide-left" id="fjordWorkspace">
+<div class="shell" id="fjordWorkspace">
 <button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-label="Ouvrir ou fermer le tiroir gauche" title="Ouvrir / fermer le tiroir gauche">‹</button>
 <button type="button" id="fjordDrawerRight" class="fjord-drawer-handle fjord-drawer-right" aria-label="Ouvrir ou fermer le tiroir droit" title="Ouvrir / fermer le tiroir droit">›</button>
 
