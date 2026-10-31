@@ -912,7 +912,7 @@ applyPrefs();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);function syncCanvasTheme(){scene.background.set(localStorage.getItem('fjord-theme')==='light'?0xe8f2fa:0x172333)}syncCanvasTheme();
 const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(0,-360,335);camera.up.set(0,0,1);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));stage.insertBefore(renderer.domElement,stage.firstChild);
-const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,15);orbit.enableDamping=true;
+const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,0);camera.lookAt(orbit.target);orbit.enableDamping=true;
 // Three.js gère le panoramique de la caméra au bouton droit : aucun déplacement des pièces.
 orbit.mouseButtons.RIGHT=THREE.MOUSE.PAN;orbit.enablePan=true;
 orbit.touches.ONE=THREE.TOUCH.ROTATE;orbit.touches.TWO=THREE.TOUCH.DOLLY_PAN;
