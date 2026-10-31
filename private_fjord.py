@@ -593,7 +593,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_quotes():
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
-            quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
+            quotes=c.execute("""SELECT id,model_id,customer,title,quantity,unit_price,shipping,
                      apply_taxes,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
@@ -810,6 +810,10 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 </section>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+{% if q.model_id %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/couleurs" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">{{csrf|safe}}
+<label>Corps<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Autres pièces<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
+<button type="submit">🎨 Régénérer l'aperçu et le PDF</button></form>{% endif %}
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
 {% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
@@ -1400,6 +1404,30 @@ async function fjordCopy(id,button){
         response.headers["Referrer-Policy"]="no-referrer"
         return response
 
+
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/couleurs")
+    @admin_required
+    def fjord_quote_recolor(quote_id):
+        verify()
+        primary=request.form.get("preview_color","")
+        secondary=request.form.get("preview_secondary","")
+        if not all(re.fullmatch(r"#[0-9a-fA-F]{6}",c) for c in (primary,secondary)):
+            abort(400)
+        with db() as c:
+            quote=c.execute("SELECT model_id FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            if not quote:abort(404)
+            if not quote.get("model_id"):abort(400,"Aucun modèle 3D associé.")
+            model=c.execute("SELECT filename,filedata FROM private_models WHERE id=%s",
+                            (quote["model_id"],)).fetchone()
+            if not model:abort(404)
+            generated=make_model_preview(model["filedata"],model["filename"],
+                                          color=primary,secondary_color=secondary)
+            if not generated:abort(422,"Aperçu 3D indisponible.")
+            c.execute("UPDATE private_quotes SET preview_mime=%s,preview=%s WHERE id=%s",
+                      (generated[0],generated[1],quote_id))
+        flash("Aperçu actualisé. Le PDF utilisera les nouvelles couleurs.")
+        return redirect("/admin/soumissions-pro")
 
     @app.get("/admin/soumissions-pro/<int:quote_id>/pdf")
     @admin_required
