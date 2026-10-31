@@ -534,10 +534,15 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                                FROM private_models WHERE id=%s""",
                             (model_id,)).fetchone()
             if not model:abort(404)
-            preview=(model["preview_mime"],model["preview"]) if model["preview"] else None
+            primary=request.args.get("primary","")
+            secondary=request.args.get("secondary","")
+            custom=bool(re.fullmatch(r"#[0-9a-fA-F]{6}",primary) and re.fullmatch(r"#[0-9a-fA-F]{6}",secondary))
+            preview=None if custom else ((model["preview_mime"],model["preview"]) if model["preview"] else None)
             if not preview and model["filename"].lower().endswith((".stl", ".3mf")):
                 try:
-                    preview = make_model_preview(model["filedata"], model["filename"])
+                    preview = make_model_preview(model["filedata"], model["filename"],
+                        color=primary if custom else "#168ac2",
+                        secondary_color=secondary if custom else None)
                 except (ValueError, OverflowError):
                     preview = None
                 if preview:
@@ -920,7 +925,11 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
  function updateImage(){
    const src=selector.selectedOptions[0]?.dataset.preview||"";
    previewBox.hidden=true;
-   if(src)image.src=src;
+   if(src){
+     const primary=f.elements.namedItem("preview_color").value;
+     const secondary=f.elements.namedItem("preview_secondary").value;
+     image.src=src+"?primary="+encodeURIComponent(primary)+"&secondary="+encodeURIComponent(secondary);
+   }
    else image.removeAttribute("src");
  }
  async function estimate(){
@@ -955,6 +964,9 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
   }finally{if(serial===requestNumber)busy(false)}
  }
  selector.addEventListener("change",estimate);
+ for(const field of ["preview_color","preview_secondary"]){
+   f.elements.namedItem(field).addEventListener("input",updateImage);
+ }
  material.addEventListener("change",()=>{if(selector.value)estimate()});
  layer.addEventListener("change",()=>{if(selector.value)estimate()});
  infill.addEventListener("change",()=>{if(selector.value)estimate()});
