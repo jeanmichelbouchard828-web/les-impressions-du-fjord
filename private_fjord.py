@@ -601,9 +601,9 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         def quote_stage(q):
+            if q["payment_status"]=="Payée":return "payees"
             if q.get("production_status")=="Terminée":return "terminees"
             if q.get("production_status")=="En production":return "production"
-            if q["payment_status"]=="Payée":return "payees"
             if q["accepted_at"]:return "acceptees"
             return "attente"
         stages={q["id"]:quote_stage(q) for q in quotes}
@@ -736,16 +736,16 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="apply_taxes" value="yes">Appliquer TPS (5 %) et TVQ (9,975 %) — seulement si l'entreprise doit les percevoir</label>
 <div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
-<div class="fj-quote-actions"><button type="submit" id="fjSaveQuote">Enregistrer la soumission</button>
+<div class="fj-quote-actions"><button type="submit" id="fjSaveQuote">Créer la soumission</button>
 <button type="button" id="fjResetQuote" class="fj-reset-button">↺ Réinitialiser le formulaire</button></div></form></div>
 
 <div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
 <p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
-<form method="post" action="/admin/soumissions-pro/paiement">{{csrf|safe}}
+<div class="fj-interac-settings">
 <label>Courriel pour recevoir les virements Interac
-<input type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
+<input form="fjord-save-global" type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
 <p class="fj-help">Laisse ce champ vide pour masquer le paiement Interac. Assure-toi que cette adresse accepte les virements; idéalement, active le dépôt automatique auprès de ta banque. Le paiement reste à effectuer par le client dans son application bancaire, et le site ne confirme pas sa réception.</p>
-<button type="submit">Enregistrer les paramètres Interac</button></form>
+</div>
 </div>
 <div class="card fj-card"><h2>Logo sur les soumissions</h2>
 <p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
@@ -753,6 +753,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
+<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span></form>
 <p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
 <div class="fj-status-board">
 <button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length}}</strong></button>
@@ -762,24 +763,24 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
 </div>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><form method="post" action="/admin/soumissions-pro/{{q.id}}/identification" style="margin:10px 0">{{csrf|safe}}<label>Numéro affiché publiquement<input name="public_number" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input name="printer_job_name" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label><button type="submit">Enregistrer l'identification</button></form><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
-<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p><form method="post" action="/admin/soumissions-pro/{{q.id}}/production">{{csrf|safe}}
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p><div>
 <label>État de fabrication
-<select name="production_status" onchange="this.form.requestSubmit()">
+<select form="fjord-save-global" name="production_status_{{q.id}}">
 <option value="À traiter" {% if q.production_status=='À traiter' %}selected{% endif %}>À traiter</option>
 <option value="En production" {% if q.production_status=='En production' %}selected{% endif %}>🖨️ En production</option>
 <option value="Terminée" {% if q.production_status=='Terminée' %}selected{% endif %}>📦 Terminée</option>
-</select></label><noscript><button type="submit">Enregistrer</button></noscript></form>
-<form method="post" action="/admin/soumissions-pro/{{q.id}}/progression" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px">{{csrf|safe}}<label>Avancement de fabrication (%)<input type="number" name="production_progress" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><button type="submit">Enregistrer %</button></form>
+</select></label></div>
+<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label></div>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}
-<form class="fj-payment-form" method="post" action="/admin/soumissions-pro/{{q.id}}/statut-paiement">{{csrf|safe}}
+<div class="fj-payment-form">
 <label for="fj-payment-{{q.id}}">Statut du paiement</label>
-<select id="fj-payment-{{q.id}}" name="payment_status" onchange="this.form.requestSubmit()" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
+<select id="fj-payment-{{q.id}}" form="fjord-save-global" name="payment_status_{{q.id}}" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
 <option value="En attente" {% if q.payment_status=='En attente' %}selected{% endif %}>En attente</option>
 <option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
-</select><noscript><button type="submit">Enregistrer le statut</button></noscript></form>
+</select></div>
 <section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
 <h4>📹 Caméra en direct pour le client</h4>
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/diffusion">{{csrf|safe}}
@@ -810,10 +811,11 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 </section>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
-{% if q.model_id %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/couleurs" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">{{csrf|safe}}
-<label>Corps<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
-<label>Autres pièces<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
-<button type="submit">🎨 Régénérer l'aperçu et le PDF</button></form>{% endif %}
+{% if q.model_id %}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">
+<label>Corps<input form="fjord-save-global" type="color" name="preview_color_{{q.id}}" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Autres pièces<input form="fjord-save-global" type="color" name="preview_secondary_{{q.id}}" value="#111111" aria-label="Couleur secondaire"></label>
+</div>{% endif %}
+
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
 {% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
@@ -925,7 +927,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
  }
  f.addEventListener("input",update);f.addEventListener("change",update);
  function message(text){status.textContent=text}
- function busy(value){save.disabled=value;save.textContent=value?"Calcul en cours…":"Enregistrer la soumission"}
+ function busy(value){save.disabled=value;save.textContent=value?"Calcul en cours…":"Créer la soumission"}
  function updateImage(){
    const src=selector.selectedOptions[0]?.dataset.preview||"";
    previewBox.hidden=true;
@@ -1009,6 +1011,15 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 })();
 </script>
 <script>
+const quoteSave=document.getElementById('fjord-save-global');
+const quoteCards=[...document.querySelectorAll('.fj-quote-card')];
+for(const card of quoteCards){for(const field of card.querySelectorAll('[form="fjord-save-global"]')){
+ field.addEventListener('change',()=>{card.dataset.edited='1'});
+ field.addEventListener('input',()=>{card.dataset.edited='1'});
+}}
+quoteSave?.addEventListener('submit',()=>{for(const card of quoteCards){if(card.dataset.edited==='1')continue;
+ for(const field of card.querySelectorAll('[form="fjord-save-global"]'))field.disabled=true;
+}});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
  const selected=button.dataset.stage;
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
@@ -1016,6 +1027,107 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 }));
 </script>""",models=models,quotes=quotes,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
+
+
+
+    @app.post("/admin/soumissions-pro/enregistrer-tout")
+    @admin_required
+    def fjord_quote_save_global():
+        verify()
+        with db() as c:
+            c.execute("SELECT pg_advisory_xact_lock(7342026,4)")
+            interac=request.form.get("interac_email","").strip().lower()[:180]
+            if interac and not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+",interac):abort(400)
+            rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC LIMIT 150").fetchall()
+            changes=[]
+            for q in rows:
+                suffix="_"+str(q["id"])
+                number=request.form.get("public_number"+suffix,"").strip().upper()
+                if not number:
+                    continue
+                job=request.form.get("printer_job_name"+suffix,"").strip()
+                production=request.form.get("production_status"+suffix,"")
+                payment=request.form.get("payment_status"+suffix,"")
+                raw=request.form.get("production_progress"+suffix,"0").strip() or "0"
+                if not re.fullmatch(r"FJ-[0-9]{1,8}",number):abort(400,"Numéro invalide : "+str(q["id"]))
+                if len(job)>160 or production not in ("À traiter","En production","Terminée"):abort(400)
+                if payment not in ("En attente","Paiement partiel","Payée"):abort(400)
+                if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400)
+                progress=int(raw)
+                if production=="Terminée":progress=100
+                elif production=="À traiter":progress=0
+                elif progress==100:production="Terminée"
+                primary=request.form.get("preview_color"+suffix,"")
+                secondary=request.form.get("preview_secondary"+suffix,"")
+                preview=None
+                if q.get("model_id") and primary and secondary:
+                    if not all(re.fullmatch(r"#[0-9a-fA-F]{6}",x) for x in (primary,secondary)):abort(400)
+                    model=c.execute("SELECT filename,filedata FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
+                    if model and model["filename"].lower().endswith((".stl",".3mf")):
+                        preview=make_model_preview(model["filedata"],model["filename"],color=primary,secondary_color=secondary)
+                changes.append((q["id"],number,job,production,progress,payment,preview))
+            numbers=[x[1] for x in changes]
+            if len(numbers)!=len(set(numbers)):abort(409,"Numéros FJ en double.")
+            for ident,number,*_ in changes:
+                duplicate=c.execute("SELECT id FROM private_quotes WHERE public_number=%s AND id<>%s",(number,ident)).fetchone()
+                if duplicate and all(v[0]!=duplicate["id"] for v in changes):
+                    abort(409,"Numéro FJ déjà utilisé.")
+            c.execute("""INSERT INTO settings(key,value) VALUES('fjord_interac_email',%s)
+                ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value""",(interac,))
+            # Two-phase numbering allows swapping two numbers without a unique-index collision.
+            for ident,*_ in changes:
+                c.execute("UPDATE private_quotes SET public_number=NULL WHERE id=%s",(ident,))
+            for ident,number,job,production,progress,payment,preview in changes:
+                c.execute("""UPDATE private_quotes SET public_number=%s,printer_job_name=%s,
+                  production_status=%s,production_progress=%s,payment_status=%s,
+                  paid_at=CASE WHEN %s='Payée' THEN COALESCE(paid_at,NOW()) ELSE NULL END
+                  WHERE id=%s""",(number,job or None,production,progress,payment,payment,ident))
+                if preview:
+                    c.execute("UPDATE private_quotes SET preview_mime=%s,preview=%s WHERE id=%s",
+                              (preview[0],preview[1],ident))
+        flash(str(len(changes))+" soumission(s) enregistrée(s).")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/enregistrer")
+    @admin_required
+    def fjord_quote_save_all(quote_id):
+        verify()
+        number=request.form.get("public_number","").strip().upper()
+        job=request.form.get("printer_job_name","").strip()
+        production=request.form.get("production_status","")
+        payment=request.form.get("payment_status","")
+        progress_text=request.form.get("production_progress","")
+        primary=request.form.get("preview_color","")
+        secondary=request.form.get("preview_secondary","")
+        if not re.fullmatch(r"FJ-[0-9]{1,8}",number):abort(400,"Numéro de soumission invalide")
+        if len(job)>160 or production not in ("À traiter","En production","Terminée"):abort(400)
+        if payment not in ("En attente","Paiement partiel","Payée"):abort(400)
+        if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",progress_text):abort(400)
+        progress=int(progress_text)
+        if production=="Terminée":progress=100
+        elif production=="À traiter":progress=0
+        elif progress==100:production="Terminée"
+        with db() as c:
+            c.execute("SELECT pg_advisory_xact_lock(7342026, 4)")
+            existing=c.execute("SELECT id FROM private_quotes WHERE public_number=%s AND id<>%s",(number,quote_id)).fetchone()
+            if existing:abort(409,"Numéro déjà utilisé")
+            q=c.execute("SELECT model_id FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            if not q:abort(404)
+            preview=None
+            if q.get("model_id") and primary and secondary:
+                if not all(re.fullmatch(r"#[0-9a-fA-F]{6}",color) for color in (primary,secondary)):abort(400)
+                model=c.execute("SELECT filename,filedata FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
+                if model and model["filename"].lower().endswith((".stl",".3mf")):
+                    preview=make_model_preview(model["filedata"],model["filename"],color=primary,secondary_color=secondary)
+            c.execute("""UPDATE private_quotes SET public_number=%s,printer_job_name=%s,
+                production_status=%s,production_progress=%s,payment_status=%s,
+                paid_at=CASE WHEN %s='Payée' THEN COALESCE(paid_at,NOW()) ELSE NULL END
+                WHERE id=%s""",(number,job or None,production,progress,payment,payment,quote_id))
+            if preview:
+                c.execute("UPDATE private_quotes SET preview_mime=%s,preview=%s WHERE id=%s",
+                          (preview[0],preview[1],quote_id))
+        flash("Toutes les informations de la soumission ont été enregistrées.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/soumissions-pro/<int:quote_id>/identification")
     @admin_required
