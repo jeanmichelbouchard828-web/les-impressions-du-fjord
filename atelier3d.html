@@ -178,6 +178,22 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .slice-price-row strong{font-size:19px}.slice-metrics{font-size:11px;gap:4px 7px}
  .slice-disclaimer{font-size:10px}.slice-actions button{font-size:11px}
 }
+
+/* Atelier 3D du Fjord — première passe d'interface, sans modifier les outils. */
+:root{--bg:#10151b;--panel:#1d242d;--field:#252e39;--text:#e8edf5;--muted:#a6b2c2;--border:#364351;--accent:#4a9cff}
+body:not(.light) header{background:#1c232c;border-bottom:1px solid #354150}
+body:not(.light) .sidebar{background:#1b222b}
+body:not(.light) .stage{background:#10151b}
+body:not(.light) .quickbar{background:#202832;border-bottom:1px solid #3b4858}
+body:not(.light) button:hover{border-color:#4a9cff}
+body:not(.light) button.primary{background:#347fd6;border-color:#4a9cff}
+body:not(.light) .sidebar .tools button{border-radius:10px}
+body:not(.light) .sidebar h2,body:not(.light) .sidebar h3{letter-spacing:.015em}
+body:not(.light) .hint{background:#1e2935e8;border:1px solid #34475c}
+body:not(.light) .quick-button{border-radius:8px}
+body:not(.light) .quick-button:focus-visible,body:not(.light) button:focus-visible{outline:2px solid #80bdff;outline-offset:2px}
+@media(min-width:1050px){.shell{grid-template-columns:235px minmax(260px,1fr) 260px}}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
