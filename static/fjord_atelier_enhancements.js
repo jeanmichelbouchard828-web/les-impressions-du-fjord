@@ -42,9 +42,14 @@ export function installFjordEnhancements(api){
    if(geometry.getAttribute('position').count>600000){geometry.dispose();throw Error('Inscription trop complexe pour cet appareil.');}
    api.remember();
    if(update){
+    const originalColor=target.userData.fjordPaintBase;
+    api.removeSelectionTint(target);
     const prev=target.geometry;target.geometry=geometry;prev.dispose();
     delete target.userData.fjordPaintFaces;delete target.userData.fjordPaintBase;
-    target.material.vertexColors=false;target.material.needsUpdate=true;
+    target.material.vertexColors=false;
+    if(Number.isInteger(originalColor))target.material.color.setHex(originalColor);
+    target.material.needsUpdate=true;
+    api.addSelectionTint(target);
     target.userData.fjordText=spec;
     api.snapPartToBed(target);api.pick(target);
    }else{
