@@ -25,7 +25,8 @@ try:
         except Exception:time.sleep(.25)
     with sync_playwright() as pw:
         browser=pw.chromium.launch(headless=True,args=["--enable-webgl","--use-gl=angle",
-          "--use-angle=swiftshader","--disable-dev-shm-usage","--no-sandbox"])
+          "--use-angle=swiftshader","--disable-dev-shm-usage","--no-sandbox",
+          "--use-fake-device-for-media-stream","--use-fake-ui-for-media-stream"])
         page=browser.new_page(viewport={"width":1380,"height":860},accept_downloads=True)
         errors=[]
         page.on("pageerror",lambda e:errors.append(str(e)))
@@ -73,6 +74,17 @@ try:
             page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=12000)
             page.locator("#resetProject").evaluate("el=>el.click()")
             print("OK",kind,flush=True)
+        # Permissioned synthetic webcam tests the portrait capture path without a real camera.
+        page.context.grant_permissions(["camera"],origin=BASE)
+        page.locator("#generatorKind").evaluate("""el => {
+          el.value='portrait_relief';el.dispatchEvent(new Event('change',{bubbles:true}));
+        }""")
+        page.locator("#generatorCamera").evaluate("el=>el.click()")
+        page.wait_for_function("document.querySelector('#generatorAssetStatus').innerText.includes('capturée')",timeout=15000)
+        page.locator("#generatorAdd").evaluate("el=>el.click()")
+        page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=15000)
+        page.locator("#resetProject").evaluate("el=>el.click()")
+        print("OK portrait camera capture",flush=True)
         page.locator("#generatorKind").evaluate("(el)=>{el.value='braille';el.dispatchEvent(new Event('change',{bubbles:true}));}")
         page.locator("#generatorAdd").evaluate("el=>el.click()")
         page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=10000)
