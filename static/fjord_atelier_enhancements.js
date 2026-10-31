@@ -162,20 +162,22 @@ export function installFjordEnhancements(api){
   if(!Number.isInteger(seed)||seed<0||seed>=count)return false;
   const color=paintTool==='eraser'?'#'+mesh.userData.fjordPaintBase.toString(16).padStart(6,'0'):paintHex;
   let targets;
-  if(paintTool==='triangle'||paintTool==='eraser')targets=[seed];
+  if(paintTool==='triangle')targets=[seed];
   else if(paintTool==='fill')targets=regionFaces(mesh,seed);
   else {
-   // For brush strokes, stay on approximately the same visible surface.
+   // Brush/eraser: local painting. Sphere: nearby faces through the mesh.
+   // Height: a complete horizontal Z band through this object, like a layer painting tool.
    const center=hit.point,normal=faceNormal(mesh,seed);
    const radius=brushSize;
    targets=[];
    if(count>120000){targets=[seed];notice('Pièce très détaillée : utilise le mode facette pour conserver la fluidité.');}
    else for(let i=0;i<count;i++){
     const position=faceCenter(mesh,i);
-    if(position.distanceToSquared(center)<=radius*radius &&
-      (paintTool==='sphere'||paintTool==='height'||faceNormal(mesh,i).dot(normal)>.65)&&
-      (paintTool!=='height'||Math.abs(position.z-center.z)<=radius))
-       targets.push(i);
+    const selected=paintTool==='height'
+      ? Math.abs(position.z-center.z)<=radius/2
+      : position.distanceToSquared(center)<=radius*radius &&
+        (paintTool==='sphere'||faceNormal(mesh,i).dot(normal)>.65);
+    if(selected)targets.push(i);
    }
   }
   for(const i of targets)setTriangle(mesh,i,color);
