@@ -247,7 +247,13 @@ def _octo_live_status():
 def _octo_job_matches(configured,reported):
  def norm(v):
   return str(v or "").replace(chr(92),"/").split("/")[-1].rsplit(".",1)[0].strip().casefold()
- return bool(configured and reported and norm(configured)==norm(reported))
+ expected,actual=norm(configured),norm(reported)
+ if not expected or not actual:return False
+ if expected==actual:return True
+ # Permettre uniquement un préfixe de soumission explicite FJ-00002_.
+ # Ne jamais retirer un préfixe arbitraire qui pourrait créer une collision.
+ match=re.fullmatch(r"fj-\\d{5}_(.+)",expected)
+ return bool(match and match.group(1)==actual)
 
 @app.get("/api/production-publique")
 def public_production():
