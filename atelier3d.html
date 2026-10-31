@@ -368,6 +368,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-walk-banner{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:75;display:flex;align-items:center;gap:12px;padding:8px 11px;border-radius:24px;background:#479bff;color:#091b2c;font-size:13px;font-weight:600;box-shadow:0 4px 16px #0005;white-space:nowrap}
 .fjord-walk-banner button{border:1px solid #2678d4;background:#77b6ff;color:#091b2c;border-radius:18px;padding:5px 12px;cursor:pointer}
 @media(max-width:760px){.fjord-walk-banner{font-size:10px;max-width:95%;white-space:normal}}
+.fjord-camera-controls [data-camera-action="wireframe"].active{background:#479bff!important;color:#071625!important;border-color:#479bff!important}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -538,7 +539,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   <button type="button" data-camera-action="home" title="Vue d'accueil" aria-label="Vue d'accueil">⌂</button>
   <button type="button" data-camera-action="walk" title="Activer le mode balade" aria-label="Activer le mode balade" aria-pressed="false">◉</button>
   <button type="button" data-camera-action="fit" title="Centrer la vue" aria-label="Centrer la vue">⌗</button>
-  <button type="button" data-camera-action="iso" title="Vue 3D" aria-label="Vue 3D">⬡</button>
+  <button type="button" data-camera-action="wireframe" title="Activer le mode filaire (Wireframe)" aria-label="Activer le mode filaire" aria-pressed="false">⬡</button>
  </div>
  <div class="fjord-view-cube" aria-label="Cube d'orientation">
   <button type="button" data-camera-action="top" class="fjord-cube-top" title="Voir du dessus">Dessus</button>
@@ -1031,6 +1032,31 @@ const transform=new TransformControls(camera,renderer.domElement);scene.add(tran
 transform.detach();transform.getHelper().visible=false;
 transform.addEventListener('dragging-changed',e=>orbit.enabled=!e.value);
 let models=[], selected=null, undoStack=[], redoStack=[], counter=0, layFaceMode=false;
+let fjordWireframe=false;
+function fjordApplyWireframe(){
+ for(const model of models){
+  const mats=Array.isArray(model.material)?model.material:[model.material];
+  for(const mat of mats){
+   if(!mat||!('wireframe' in mat))continue;
+   if(!mat.userData)mat.userData={};
+   if(fjordWireframe){
+    if(!mat.userData.fjordWireSaved)mat.userData.fjordWireSaved={wireframe:mat.wireframe};
+    mat.wireframe=true;
+   }else if(mat.userData.fjordWireSaved){
+    mat.wireframe=mat.userData.fjordWireSaved.wireframe;
+    delete mat.userData.fjordWireSaved;
+   }
+  }
+ }
+}
+function fjordToggleWireframe(){
+ fjordWireframe=!fjordWireframe;
+ fjordApplyWireframe();
+ const button=document.querySelector('[data-camera-action="wireframe"]');
+ if(button){button.classList.toggle('active',fjordWireframe);button.setAttribute('aria-pressed',String(fjordWireframe));button.title=fjordWireframe?'Désactiver le mode filaire':'Activer le mode filaire (Wireframe)';}
+}
+window.fjordToggleWireframe=fjordToggleWireframe;
+
 let cutPreviewActive=false,cutDrag=null;
 const cutPreviewView=new THREE.Group();cutPreviewView.visible=false;cutPreviewView.renderOrder=980;
 const cutPreviewPlane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0xffac35,transparent:true,opacity:.20,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));
@@ -2576,7 +2602,7 @@ document.addEventListener('keydown',e=>{
 });
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(stage);resize();
-function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMarkerSizes();
+function animate(){requestAnimationFrame(animate);if(fjordWireframe)fjordApplyWireframe();orbit.update();updateMeasureMarkerSizes();
  if(sliceMotionHead.visible){
   const d=camera.position.distanceTo(sliceMotionHead.position);
   const scale=2*d*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/Math.max(stage.clientHeight,1);
@@ -2780,6 +2806,7 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   const button=event.target.closest('[data-camera-action]');if(!button)return;
   const action=button.dataset.cameraAction;
   if(action==='walk'){window.fjordToggleWalk?.();return;}
+  if(action==='wireframe'){window.fjordToggleWireframe?.();return;}
   if(action==='home'){fjordHomeView();return;}
   if(action==='fit'){fjordCenterView();return;}
   const ids={top:'viewTop',front:'viewFront',iso:'viewIso'};
