@@ -58,6 +58,20 @@ class AtelierImportTests(unittest.TestCase):
         self.assertIn("m.userData.mergedParts=parts",self.html)
         self.assertIn('colors.push(color.r,color.g,color.b)',self.html)
 
+    def test_future_catalogue_items_are_active_generators(self):
+        self.assertNotIn('<small>À venir</small>',self.html)
+        self.assertIn('static/fjord_generator_extensions.js',self.html)
+        self.assertIn('static/fjord_generator_art.js',self.html)
+        for name in ('ramp','hinge_pin','bearing','pulley','nut','tap','washer',
+                     'spring','turbine','funnel','keychain','box','tower','city',
+                     'lithophane','image_relief','braille','waveform','portrait_relief','qrcode'):
+            self.assertTrue(('data-generator-pick="'+name+'"') in self.html or
+                            ('data-fjord-generator="'+name+'"') in self.html,name)
+        self.assertIn('id="generatorImageFile"',self.html)
+        self.assertIn('id="generatorAudioFile"',self.html)
+        self.assertIn('id="generatorCamera"',self.html)
+        self.assertIn('/static/vendor/qrcode-generator.js',self.html)
+
     @unittest.skipUnless(shutil.which("node"), "Node.js n'est pas installé")
     def test_classic_script_syntax(self):
         scripts = re.findall(r'<script>(.*?)</script>', self.html, re.S)

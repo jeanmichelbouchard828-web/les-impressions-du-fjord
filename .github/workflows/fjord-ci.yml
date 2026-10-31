@@ -18,6 +18,7 @@ jobs:
       - run: pip install playwright
       - run: python -m playwright install --with-deps chromium
       - run: python tests/verify_import_browser.py
+      - run: python tests/verify_generator_catalog_browser.py
       - run: python tests/verify_quote_reset_browser.py
       - run: python tests/verify_quote_library_browser.py
       - run: python tests/verify_bulk_import_browser.py
