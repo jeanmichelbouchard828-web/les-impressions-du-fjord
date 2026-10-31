@@ -342,7 +342,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 
 /* Les barres d'outils suivent la zone de travail quand les tiroirs sont fermés. */
 @media(min-width:761px){
- #fjordWorkspace .fjord-fast-tools{left:0!important;max-width:100%!important}
+ #fjordWorkspace .fjord-fast-tools{left:var(--fjord-toolbar-left,0px)!important;max-width:var(--fjord-toolbar-width,100%)!important}
  #fjordWorkspace .fjord-fast-row{max-width:100%!important}
  .fjord-bed-tabs{height:36px!important;padding:3px 8px 0!important;gap:3px;overflow-x:auto;scrollbar-width:thin}
  .fjord-bed-tab{height:31px!important;font-size:12px!important;padding:0 12px!important;white-space:nowrap;flex:none}
@@ -2653,8 +2653,12 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   const place=()=>{
    const bounds=stage.getBoundingClientRect(),shellBounds=shell.getBoundingClientRect();
    const leftClosed=shell.classList.contains('fjord-hide-left');
-   toolbar.style.left=(leftClosed?0:Math.max(0,bounds.left-shellBounds.left))+'px';
-   toolbar.style.maxWidth=(leftClosed?shellBounds.width:bounds.width)+'px';
+   const offset=leftClosed?0:Math.max(0,bounds.left-shellBounds.left);
+   const available=leftClosed?shellBounds.width:bounds.width;
+   toolbar.style.setProperty('--fjord-toolbar-left',offset+'px');
+   toolbar.style.setProperty('--fjord-toolbar-width',available+'px');
+   toolbar.style.left=offset+'px';
+   toolbar.style.maxWidth=available+'px';
   };
   new ResizeObserver(place).observe(stage);
   new MutationObserver(place).observe(shell,{attributes:true,attributeFilter:['class']});
