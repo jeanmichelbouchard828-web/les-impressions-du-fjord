@@ -405,6 +405,21 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  #fjordWorkspace .stage{background:#10151a!important}
 }
 
+/* Commandes caméra : finition compacte et lisible, sans cube rogné. */
+.fjord-camera-controls .fjord-camera-buttons>button,
+.fjord-camera-controls .fjord-camera-zoom>button{
+ background:#1b2735!important;color:#eaf3ff!important;
+ border:1px solid #52667d!important;border-radius:10px!important;
+ box-shadow:0 3px 9px #0005!important;
+ transition:background .15s,border-color .15s,transform .15s;
+}
+.fjord-camera-controls .fjord-camera-buttons>button:hover,
+.fjord-camera-controls .fjord-camera-zoom>button:hover{
+ background:#294764!important;border-color:#75baff!important;transform:translateY(-1px);
+}
+.fjord-camera-controls button:focus-visible{outline:2px solid #8ecbff!important;outline-offset:2px}
+.fjord-camera-controls .fjord-camera-buttons>button svg,
+.fjord-camera-controls .fjord-camera-zoom>button svg{width:19px;height:19px;display:block;margin:auto;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 /* Cube de navigation 3D : rotation synchronisée à la caméra du plateau. */
 .fjord-camera-controls .fjord-orientation-widget{width:82px;height:82px;min-width:82px;perspective:400px;transform:none!important;display:block;position:relative;filter:none;margin:7px 2px 12px;overflow:visible}
 .fjord-orientation-rotor{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;transform-style:preserve-3d;transform:rotateX(-38deg) rotateY(-18deg);will-change:transform}
@@ -483,6 +498,20 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 
 /* Le bouton + reste centré verticalement dans la barre des plateaux. */
 .fjord-bed-tabs .fjord-add-bed{align-self:center!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;padding:0!important;transform:translateY(-2px)}
+
+/* Le cube 3D doit tenir dans son espace, même tourné. */
+.fjord-camera-controls{grid-template-columns:36px 106px!important;grid-template-rows:106px auto!important;column-gap:10px!important;row-gap:9px!important}
+.fjord-camera-controls .fjord-camera-buttons>button{width:36px!important;min-width:36px!important;height:36px!important}
+.fjord-camera-controls .fjord-orientation-widget{width:106px!important;min-width:106px!important;height:106px!important;perspective:430px!important}
+.fjord-camera-controls .fjord-orientation-rotor{width:58px!important;height:58px!important;margin:-29px 0 0 -29px!important;scale:1!important}
+.fjord-camera-controls .fjord-orientation-face{width:58px!important;min-width:58px!important;height:58px!important;font-size:10px!important}
+.fjord-camera-controls .fjord-orientation-face.face-front{transform:translateZ(29px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-back{transform:rotateY(180deg) translateZ(29px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-right{transform:rotateY(90deg) translateZ(29px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-left{transform:rotateY(-90deg) translateZ(29px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(29px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(29px)!important}
+@media(max-width:760px){.fjord-camera-controls{grid-template-columns:32px 86px!important;grid-template-rows:86px auto!important;column-gap:7px!important}.fjord-camera-controls .fjord-orientation-widget{width:86px!important;min-width:86px!important;height:86px!important}.fjord-camera-controls .fjord-orientation-rotor{scale:.82!important}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -650,10 +679,10 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="stage" id="stage">
 <div class="fjord-camera-controls" aria-label="Commandes de caméra">
  <div class="fjord-camera-buttons">
-  <button type="button" data-camera-action="home" title="Vue d'accueil" aria-label="Vue d'accueil">⌂</button>
-  <button type="button" data-camera-action="walk" title="Activer le mode balade" aria-label="Activer le mode balade" aria-pressed="false">◉</button>
-  <button type="button" data-camera-action="fit" title="Centrer la vue" aria-label="Centrer la vue">⌗</button>
-  <button type="button" data-camera-action="wireframe" title="Activer le mode filaire (Wireframe)" aria-label="Activer le mode filaire" aria-pressed="false">⬡</button>
+  <button type="button" data-camera-action="home" title="Vue d'accueil" aria-label="Vue d'accueil"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></button>
+  <button type="button" data-camera-action="walk" title="Activer le mode balade" aria-label="Activer le mode balade" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></button>
+  <button type="button" data-camera-action="fit" title="Centrer la vue" aria-label="Centrer la vue"><svg viewBox="0 0 24 24"><path d="M8 3H4v4m12-4h4v4M4 17v4h4m12-4v4h-4"/><circle cx="12" cy="12" r="4"/></svg></button>
+  <button type="button" data-camera-action="wireframe" title="Activer le mode filaire (Wireframe)" aria-label="Activer le mode filaire" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5m-9 5v10"/></svg></button>
  </div>
  <div class="fjord-view-cube fjord-orientation-widget" aria-label="Cube d'orientation interactif">
   <div class="fjord-orientation-rotor" id="fjordOrientationRotor">
@@ -666,8 +695,8 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   </div>
  </div>
  <div class="fjord-camera-zoom">
-  <button type="button" data-camera-action="zoom-in" title="Zoom avant" aria-label="Zoom avant">⊕</button>
-  <button type="button" data-camera-action="zoom-out" title="Zoom arrière" aria-label="Zoom arrière">⊖</button>
+  <button type="button" data-camera-action="zoom-in" title="Zoom avant" aria-label="Zoom avant"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7.5"/><path d="M16 16l6 6M7 10.5h7m-3.5-3.5v7"/></svg></button>
+  <button type="button" data-camera-action="zoom-out" title="Zoom arrière" aria-label="Zoom arrière"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7.5"/><path d="M16 16l6 6M7 10.5h7"/></svg></button>
  </div>
 </div>
 <div class="hint" data-i18n="hint">Gauche : sélectionner / tourner · Droit maintenu + glisser : déplacer la vue · Molette : zoom · Clic droit : outils</div>
