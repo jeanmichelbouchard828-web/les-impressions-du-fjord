@@ -136,7 +136,7 @@ vous pouvez regarder la fabrication de votre pièce.</p>
 <p><small>Le lien de suivi est temporaire. La caméra et les informations diffusées sont fournies
 par un service externe; ce suivi ne permet pas de commander l'imprimante. Le lien
 vidéo peut être partagé par son destinataire, alors évitez de le publier.</small></p>
-</div>""", display_number=q["public_number"] or "FJ-{:05d}".format(q["id"]), viewer_url=source, embed=embed))
+</div>""", display_number=q.get("public_number") or "FJ-{:05d}".format(q["id"]), viewer_url=source, embed=embed))
         result.headers["Cache-Control"] = "no-store"
         result.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
         result.headers["Referrer-Policy"] = "no-referrer"
