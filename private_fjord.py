@@ -761,7 +761,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
-<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span></form>
+<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
 <p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
 <div class="fj-status-board">
 <button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length}}</strong></button>
@@ -1025,9 +1025,36 @@ for(const card of quoteCards){for(const field of card.querySelectorAll('[form="f
  field.addEventListener('change',()=>{card.dataset.edited='1'});
  field.addEventListener('input',()=>{card.dataset.edited='1'});
 }}
-quoteSave?.addEventListener('submit',()=>{for(const card of quoteCards){if(card.dataset.edited==='1')continue;
- for(const field of card.querySelectorAll('[form="fjord-save-global"]'))field.disabled=true;
-}});
+quoteSave?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const message=document.getElementById('fjord-save-feedback');
+ const button=quoteSave.querySelector('button[type="submit"]');
+ const temporarilyDisabled=[];
+ if(button?.disabled)return;
+ for(const card of quoteCards){
+  if(card.dataset.edited==='1')continue;
+  for(const field of card.querySelectorAll('[form="fjord-save-global"]')){
+   if(!field.disabled){field.disabled=true;temporarilyDisabled.push(field);}
+  }
+ }
+ if(button){button.disabled=true;button.textContent='Enregistrement…';}
+ if(message)message.textContent='Enregistrement des modifications…';
+ try{
+  const response=await fetch(quoteSave.action,{method:'POST',body:new FormData(quoteSave),
+   credentials:'same-origin',headers:{'Accept':'application/json'}});
+  if(!(response.headers.get('content-type')||'').includes('application/json'))
+   throw Error('Session expirée ou réponse inattendue. Reconnecte-toi, puis réessaie.');
+  const result=await response.json();
+  if(!response.ok || !result.ok)throw Error(result.error||'Impossible de sauvegarder.');
+  if(message)message.textContent='✓ '+result.message;
+  window.location.assign('/admin/soumissions-pro#soumissions-enregistrees');
+ }catch(error){
+  if(message)message.textContent='⚠ '+String(error.message||error);
+ }finally{
+  for(const field of temporarilyDisabled)field.disabled=false;
+  if(button){button.disabled=false;button.textContent='💾 Enregistrer';}
+ }
+});
 (function(){
  const label=document.getElementById('fjord-auto-progress');
  let active=false;
