@@ -696,8 +696,8 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label>Téléphone<input name="phone" maxlength="40" value="{{incoming.phone if incoming else ''}}"></label>
 <label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else ''}}" required></label>
 <label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
-<label>Couleur principale de l'aperçu<input form="fjord-save-{{q.id}}" type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
-<label>Couleur des autres pièces (STL multiparties)<input form="fjord-save-{{q.id}}" type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
+<label>Couleur principale de l'aperçu<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Couleur des autres pièces (STL multiparties)<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
 <label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
 </div>
 <div class="fj-import-panel">
