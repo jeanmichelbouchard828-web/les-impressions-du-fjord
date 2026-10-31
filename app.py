@@ -188,10 +188,15 @@ def suivi_client():
  return page("Suivre mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>Suivre mon impression</h1><p>Entrez le numéro de votre demande et le courriel utilisé pour la soumission.</p><form method="post">{{csrf|safe}}<label>Numéro de demande<input name="numero" inputmode="numeric" required maxlength="12"></label><label>Courriel<input type="email" name="email" required maxlength="200"></label><button class="btn">Afficher mon suivi</button></form>{% if result %}<div class="tracking-result"><h2>Commande #{{result.id}}</h2><p><strong>{{result.status}}</strong></p>{% if result.status=="En impression" and result.progress is not none %}<div class="tracking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{result.progress}}"><span style="width:{{result.progress}}%"></span></div><p>{{result.progress}} % terminé</p>{% elif result.status=="En impression" %}<p>Progression en attente de mise à jour.</p>{% endif %}{% if result.status=="En impression" and result.live_enabled %}<p>{% if result.live_url %}<a class="btn" href="{{result.live_url}}" target="_blank" rel="noopener noreferrer nofollow">🎥 Regarder mon impression en direct</a><p><strong>📹 Pour voir votre impression en direct :</strong> après avoir ouvert le lien, sélectionnez <strong>« Alternative Cam »</strong> et non « Bambu Cam ».</p><p>Le lien externe OctoEverywhere est accessible à toute personne qui le possède. Ne le partagez pas.</p>{% else %}La caméra n'est pas disponible pour cette commande.{% endif %}</p>{% endif %}</div>{% endif %}</section>''',result=result,csrf=csrfinput())
 @app.get("/api/production-publique")
 def public_production():
- # Aucun identifiant, nom, courriel, fichier ni lien caméra dans cette réponse.
+ # Uniquement les commandes autorisées; aucun identifiant ou renseignement client.
  with db() as c:
-  rows=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
- response=jsonify({"jobs":[{"progress":r["progress"]} for r in rows]})
+  rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
+ groups={"print":[],"wait":[],"done":[]}
+ for r in rows:
+  key="print" if r["status"]=="En impression" else ("done" if r["status"]=="Terminée" else "wait")
+  if len(groups[key])<4:
+   groups[key].append({"progress":r["progress"] if key=="print" else None,"status":r["status"]})
+ response=jsonify({"groups":groups})
  response.headers["Cache-Control"]="no-store, max-age=0"
  return response
 
@@ -200,43 +205,49 @@ def home():
  # Seules les impressions expressément autorisées sont affichées, sans identifiants client.
  with db() as c:
   public_jobs=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
- return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard" aria-label="Suivi des commandes"><div><div class="eyebrow">🎥 En atelier</div><h2>Votre création prend vie!</h2><p>Demande reçue · Soumission envoyée · En impression · Terminée</p><p>Consultez votre statut et votre progression lorsque celle-ci est disponible.</p><div id="fjordProductionLive" aria-live="polite">{% if public_jobs %}<div class="public-print-list">{% for job in public_jobs %}<div class="public-print-job"><strong>🖨️ Impression en cours</strong>{% if job.progress is not none %}<span>{{job.progress}} %</span><div class="tracking-progress" role="progressbar" aria-label="Progression d'une impression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{job.progress}}"><span style="width:{{job.progress}}%"></span></div>{% else %}<span>Progression non disponible</span>{% endif %}</div>{% endfor %}</div>{% else %}<p>Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.</p>{% endif %}</div><p class="production-updated" id="fjordProductionUpdated">Actualisation automatique toutes les 30 secondes lorsque cette page est ouverte.</p></div><div class="tracking-billboard-action"><a class="btn" href="/suivi" aria-label="Voir mon impression et consulter mon suivi privé">👁️ Voir mon impression</a><p style="font-size:0.85rem;margin:10px 0 0">Accès privé avec votre numéro de demande et votre courriel.</p></div></section><script>
-/* Production publique : données anonymes uniquement, sans caméra ni commande client. */
+ return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard fjord-board" aria-label="Tableau interactif de production"><div class="fjord-board-inner"><div class="fjord-board-heading"><strong>LES IMPRESSIONS DU FJORD</strong><span class="fjord-board-badge">Production</span></div><h2>Suivi des impressions 3D</h2><p>Aperçu interactif du tableau de production</p><div class="fjord-board-tabs" role="tablist" aria-label="Statut des impressions"><button type="button" class="fjord-board-tab active" data-status="print" role="tab" aria-selected="true">En impression</button><button type="button" class="fjord-board-tab" data-status="wait" role="tab" aria-selected="false">En attente</button><button type="button" class="fjord-board-tab" data-status="done" role="tab" aria-selected="false">Terminées</button></div><div id="fjordProductionLive" role="tabpanel" aria-live="polite"><p>Chargement du tableau de production…</p></div><p class="production-updated" id="fjordProductionUpdated">Mise à jour automatique toutes les 30 secondes.</p><a class="btn fjord-board-see" href="/suivi">👁️ Voir mon impression</a><p class="fjord-board-private">Suivi privé avec votre numéro de demande et votre courriel.</p></div></section><style>
+.fjord-board{display:block;padding:24px;background:#0b1725;border-color:#3a6076}.fjord-board-inner{width:100%}.fjord-board-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:18px}.fjord-board-badge{background:#103c27;color:#50d78a;border-radius:30px;padding:5px 12px;font-size:14px}.fjord-board h2{font-size:clamp(24px,3vw,30px);margin:22px 0 6px}.fjord-board-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0}.fjord-board-tab{background:transparent;border:0;border-radius:30px;color:#c4d5e0;font:inherit;font-weight:700;padding:12px 5px;cursor:pointer}.fjord-board-tab.active{background:#304151;color:white}.fjord-board-tab:focus-visible{outline:2px solid #64d9ff;outline-offset:2px}.fjord-board .public-print-list{margin:0}.fjord-board .public-print-job{background:#10283b;display:block}.fjord-board .public-print-job strong{display:block}.fjord-board .public-print-job span{display:block;margin:8px 0}.fjord-board .tracking-progress{height:12px}.fjord-board .tracking-progress span{margin:0;background:#24b46a}.fjord-board-see{display:inline-block;margin-top:12px}.fjord-board-private{font-size:13px;margin:8px 0 0}.fjord-board .production-updated{font-size:13px;margin:14px 0 0}@media(max-width:480px){.fjord-board{padding:16px}.fjord-board-tab{font-size:13px;padding:10px 3px}}
+</style><script>
 (function(){
- const root=document.getElementById("fjordProductionLive");
- const updated=document.getElementById("fjordProductionUpdated");
- if(!root)return;
- function item(progress){
-  const card=document.createElement("div");card.className="public-print-job";
-  const label=document.createElement("strong");label.textContent="🖨️ Impression en cours";card.append(label);
-  const value=document.createElement("span");
-  if(progress===null||!Number.isInteger(progress)||progress<0||progress>100){
-   value.textContent="Progression non disponible";card.append(value);return card;
-  }
-  value.textContent=progress+" %";card.append(value);
-  const bar=document.createElement("div");bar.className="tracking-progress";
-  bar.setAttribute("role","progressbar");bar.setAttribute("aria-label","Progression d'une impression");
-  bar.setAttribute("aria-valuemin","0");bar.setAttribute("aria-valuemax","100");bar.setAttribute("aria-valuenow",String(progress));
-  const fill=document.createElement("span");fill.style.width=progress+"%";bar.append(fill);card.append(bar);
-  return card;
+ const root=document.getElementById("fjordProductionLive"),updated=document.getElementById("fjordProductionUpdated");
+ const tabs=Array.from(document.querySelectorAll(".fjord-board-tab"));
+ let active="print",groups={print:[],wait:[],done:[]};
+ const titles={print:"Impression en cours",wait:"Commande en attente",done:"Impression terminée"};
+ const empty={print:"Aucune impression publique en cours pour le moment.",wait:"Aucune commande en attente rendue publique.",done:"Aucune impression terminée rendue publique."};
+ function render(){
+  root.replaceChildren();
+  const jobs=groups[active]||[];
+  if(!jobs.length){const p=document.createElement("p");p.textContent=empty[active];root.append(p);return;}
+  const list=document.createElement("div");list.className="public-print-list";
+  jobs.forEach(job=>{
+   const card=document.createElement("div");card.className="public-print-job";
+   const title=document.createElement("strong");title.textContent="🖨️ "+titles[active];card.append(title);
+   if(active==="print"){
+    const progress=job.progress;
+    if(Number.isInteger(progress)&&progress>=0&&progress<=100){
+     const value=document.createElement("span");value.textContent=progress+" %";card.append(value);
+     const bar=document.createElement("div");bar.className="tracking-progress";bar.setAttribute("role","progressbar");bar.setAttribute("aria-label","Progression de l'impression");bar.setAttribute("aria-valuemin","0");bar.setAttribute("aria-valuemax","100");bar.setAttribute("aria-valuenow",String(progress));
+     const fill=document.createElement("span");fill.style.width=progress+"%";bar.append(fill);card.append(bar);
+    }else{const p=document.createElement("p");p.textContent="Progression non disponible";card.append(p);}
+   }else if(active==="wait"){const p=document.createElement("p");p.textContent=job.status==="Soumission envoyée"?"Soumission envoyée":"Demande reçue";card.append(p);}
+   list.append(card);
+  });
+  root.append(list);
  }
+ tabs.forEach(tab=>tab.addEventListener("click",()=>{
+  active=tab.dataset.status;tabs.forEach(t=>{const chosen=t===tab;t.classList.toggle("active",chosen);t.setAttribute("aria-selected",String(chosen));});render();
+ }));
  async function refresh(){
   if(document.hidden)return;
   try{
    const response=await fetch("/api/production-publique",{cache:"no-store",credentials:"same-origin"});
-   if(!response.ok)throw Error("Erreur de mise à jour");
+   if(!response.ok)throw Error("Indisponible");
    const data=await response.json();
-   if(!Array.isArray(data.jobs))throw Error("Réponse invalide");
-   const list=document.createElement("div");list.className="public-print-list";
-   data.jobs.slice(0,4).forEach(job=>list.append(item(job.progress)));
-   root.replaceChildren();
-   if(list.childElementCount)root.append(list);
-   else{const p=document.createElement("p");p.textContent="Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.";root.append(p);}
-   if(updated)updated.textContent="Production mise à jour automatiquement.";
-  }catch(error){if(updated)updated.textContent="Actualisation temporairement indisponible. Les dernières données restent affichées.";}
+   if(!data.groups||!["print","wait","done"].every(k=>Array.isArray(data.groups[k])))throw Error("Données invalides");
+   groups=data.groups;render();updated.textContent="Tableau actualisé automatiquement.";
+  }catch(e){updated.textContent="Mise à jour temporairement indisponible.";}
  }
- setInterval(refresh,30000);
- document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh();});
+ refresh();setInterval(refresh,30000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh();});
 })();
 </script><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''',public_jobs=public_jobs)
 @app.get("/bons-plans/starlink")
