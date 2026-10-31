@@ -255,6 +255,9 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           created TIMESTAMPTZ DEFAULT NOW())""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_status TEXT NOT NULL DEFAULT 'À traiter'")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_progress INTEGER NOT NULL DEFAULT 0")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS public_number TEXT")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS printer_job_name TEXT")
+        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_public_number_unique ON private_quotes(public_number) WHERE public_number IS NOT NULL")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS payment_token TEXT")
         c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
                      payment_status TEXT NOT NULL DEFAULT 'En attente'""")
@@ -563,7 +566,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,payment_status,paid_at,created,payment_token,production_status,production_progress,
+                     apply_taxes,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      live_url,live_token,live_enabled,live_expires
@@ -729,7 +732,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
 </div>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-stage="{{stages[q.id]}}"><div class="eyebrow">FJ-{{'%05d'|format(q.id)}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><form method="post" action="/admin/soumissions-pro/{{q.id}}/identification" style="margin:10px 0">{{csrf|safe}}<label>Numéro affiché publiquement<input name="public_number" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input name="printer_job_name" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label><button type="submit">Enregistrer l'identification</button></form><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p><form method="post" action="/admin/soumissions-pro/{{q.id}}/production">{{csrf|safe}}
 <label>État de fabrication
 <select name="production_status" onchange="this.form.requestSubmit()">
@@ -972,6 +975,23 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 }));
 </script>""",models=models,quotes=quotes,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/identification")
+    @admin_required
+    def fjord_quote_identification(quote_id):
+        verify()
+        number=request.form.get("public_number","").strip().upper()
+        job=request.form.get("printer_job_name","").strip()
+        if not re.fullmatch(r"FJ-[0-9]{1,8}",number):abort(400,"Numéro attendu : FJ-00002")
+        if len(job)>160:abort(400)
+        with db() as c:
+            existing=c.execute("SELECT id FROM private_quotes WHERE public_number=%s AND id<>%s",(number,quote_id)).fetchone()
+            if existing:abort(409,"Numéro déjà utilisé.")
+            row=c.execute("SELECT id FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            if not row:abort(404)
+            c.execute("UPDATE private_quotes SET public_number=%s,printer_job_name=%s WHERE id=%s",(number,job or None,quote_id))
+        flash("Numéro public et nom du travail enregistrés.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/soumissions-pro/<int:quote_id>/progression")
     @admin_required
