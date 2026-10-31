@@ -971,6 +971,28 @@ renderer.domElement.addEventListener('pointercancel',e=>{
  if(cutDrag&&cutDrag.pointerId===e.pointerId){cutDrag=null;orbit.enabled=true;renderer.domElement.style.cursor='';return}
  if(finishDrag(e))e.stopImmediatePropagation()
 },true);
+// Presse-papiers interne de l'atelier (ne modifie pas le presse-papiers du navigateur).
+let fjordClipboard=null;
+function fjordCopy(){
+ if(!selected){say('noSelection');return}
+ fjordClipboard={geometry:selected.geometry.clone(),type:selected.userData.type,name:selected.name,
+  position:selected.position.clone(),rotation:selected.rotation.clone(),scale:selected.scale.clone(),
+  color:basePartColor(selected)};
+}
+function fjordPaste(){
+ if(!fjordClipboard)return;
+ remember();
+ const m=makeMesh(fjordClipboard.geometry.clone(),fjordClipboard.type,fjordClipboard.name+' copie');
+ m.position.copy(fjordClipboard.position);m.position.x+=15;
+ m.rotation.copy(fjordClipboard.rotation);m.scale.copy(fjordClipboard.scale);
+ m.material.color.setHex(fjordClipboard.color);snapPartToBed(m);pick(m);sync();
+}
+function fjordRename(){
+ if(!selected)return;
+ const name=window.prompt('Nom de la pièce / Part name',selected.name);
+ if(name===null||!name.trim()||name.trim()===selected.name)return;
+ remember();selected.name=name.trim().slice(0,120);sync();renderSceneList();
+}
 contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventListener('click',()=>{
  const action=btn.dataset.contextAction;hideContext();
  if(action==='fjord-copy'){fjordCopy();return}
