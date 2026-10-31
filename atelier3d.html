@@ -2208,12 +2208,33 @@ $('viewIso').addEventListener('click',()=>setView(new THREE.Vector3(1,-1,1)));
 $('viewTop').addEventListener('click',()=>setView(new THREE.Vector3(0,0,1)));
 $('viewFront').addEventListener('click',()=>setView(new THREE.Vector3(0,-1,.00001)));
 $('viewSide').addEventListener('click',()=>setView(new THREE.Vector3(1,0,.00001)));
-$('viewFit').addEventListener('click',()=>{
- const b=selected?modelWorldBounds(selected):models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
- if(b.isEmpty()){setView(new THREE.Vector3(1,-1,1),new THREE.Vector3(0,0,10));return}
- const c=b.getCenter(new THREE.Vector3()),size=b.getSize(new THREE.Vector3()),r=Math.max(size.x,size.y,size.z,30);
- orbit.target.copy(c);camera.position.copy(c).add(new THREE.Vector3(1,-1,1).normalize().multiplyScalar(r*2.9));camera.lookAt(c);orbit.update()
-});
+function fjordHomeView(){
+ // Retrouver exactement la perspective d'accueil initiale, sans changer les pièces.
+ orbit.target.set(0,0,15);
+ camera.position.set(255,-295,235);
+ camera.up.set(0,0,1);
+ camera.lookAt(orbit.target);
+ orbit.update();
+}
+function fjordCenterView(){
+ // Cadrer la sélection, sinon toutes les pièces, sinon l'ensemble du plateau.
+ const bounds=selected?modelWorldBounds(selected):models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
+ const empty=bounds.isEmpty();
+ const center=empty?new THREE.Vector3(0,0,0):bounds.getCenter(new THREE.Vector3());
+ const size=empty?new THREE.Vector3(256,256,0):bounds.getSize(new THREE.Vector3());
+ const radius=Math.max(30,size.length()*.5);
+ const fov=THREE.MathUtils.degToRad(camera.fov);
+ const aspect=Math.max(.4,camera.aspect);
+ const fitDistance=Math.max(radius/Math.sin(fov/2),radius/(Math.sin(fov/2)*aspect))*1.25;
+ const direction=camera.position.clone().sub(orbit.target);
+ if(direction.lengthSq()<.0001)direction.set(1,-1,1);
+ direction.normalize();
+ orbit.target.copy(center);
+ camera.position.copy(center).addScaledVector(direction,fitDistance);
+ camera.lookAt(center);
+ orbit.update();
+}
+$('viewFit').addEventListener('click',fjordCenterView);
 
 function activeCutBounds(){
  if(!selected)return null;
@@ -2721,7 +2742,9 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  controls?.addEventListener('click',event=>{
   const button=event.target.closest('[data-camera-action]');if(!button)return;
   const action=button.dataset.cameraAction;
-  const ids={home:'viewIso',top:'viewTop',front:'viewFront',fit:'viewFit',iso:'viewIso'};
+  if(action==='home'){fjordHomeView();return;}
+  if(action==='fit'){fjordCenterView();return;}
+  const ids={top:'viewTop',front:'viewFront',iso:'viewIso'};
   if(ids[action]){document.getElementById(ids[action])?.click();return;}
   const canvas=document.querySelector('#stage canvas');
   if(!canvas)return;
