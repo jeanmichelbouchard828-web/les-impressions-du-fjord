@@ -545,6 +545,16 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         flash("Modèle supprimé de la bibliothèque.")
         return redirect("/admin/modeles")
 
+    @app.post("/admin/soumissions-pro/<int:quote_id>/supprimer")
+    @admin_required
+    def fjord_quote_delete(quote_id):
+        verify()
+        with db() as c:
+            deleted=c.execute("DELETE FROM private_quotes WHERE id=%s RETURNING id",(quote_id,)).fetchone()
+        if not deleted:abort(404)
+        flash("Soumission FJ-{:05d} supprimée.".format(quote_id))
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
     @app.get("/admin/soumissions-pro")
     @admin_required
     def fjord_quotes():
@@ -731,6 +741,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 </section>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
 {% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
 <script>
