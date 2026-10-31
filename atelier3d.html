@@ -200,7 +200,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .shell.fjord-hide-left.fjord-hide-right{grid-template-columns:minmax(260px,1fr)}
  .shell.fjord-hide-left>.sidebar.left,.shell.fjord-hide-right>.sidebar.right{display:none}
 }
-.fjord-panel-toggle[aria-pressed="true"]{border-color:var(--accent);background:var(--field);color:var(--accent)}
+.fjord-panel-toggle:focus:not(:focus-visible){outline:none}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -264,7 +264,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="mobile-menu-title"><strong id="mobileMenuTitle">Outils 3D</strong><button type="button" id="mobileMenuClose" aria-label="Fermer le menu">✕</button></div>
 <div id="mobileMenuContent"></div>
 </div>
-<div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-pressed="false" title="Afficher ou masquer les outils">☰ Outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-pressed="false" title="Afficher ou masquer les propriétés">☷ Propriétés</button></div>
+<div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
 <div class="shell" id="fjordWorkspace">
 <aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
 <button data-fjord-panel="shapes">⬡ Formes</button><button data-fjord-panel="generators">⚙ Générateurs</button>
@@ -2205,7 +2205,9 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   const button=document.getElementById(id);
   button?.addEventListener('click',()=>{
    const hidden=shell.classList.toggle(cls);
-   button.setAttribute('aria-pressed',String(hidden));
+   button.setAttribute('aria-expanded',String(!hidden));
+   button.textContent=(id==='fjordToggleLeft'?'☰ ':'☷ ')+(hidden?'Afficher ':'Masquer ')+(id==='fjordToggleLeft'?'outils':'propriétés');
+   button.blur();
    window.dispatchEvent(new Event('resize'));
   });
  }
