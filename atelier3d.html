@@ -1547,8 +1547,13 @@ renderer.domElement.addEventListener('wheel',e=>{
 },{capture:true,passive:false});
 function hideContext(){contextMenu.hidden=true}
 function showContextMenu(e){
- const hit=findHit(e);if(hit)pick(hit.object);
+ const hit=findHit(e);
+ if(hit&&!selectedSet.has(hit.object))pick(hit.object);
  contextMenu.querySelectorAll('.part-action').forEach(el=>el.hidden=!hit);
+ const mergeAction=contextMenu.querySelector('[data-context-action="mergeAll"]');
+ if(mergeAction)mergeAction.disabled=selectedSet.size<2;
+ const splitAction=contextMenu.querySelector('[data-context-action="splitMerged"]');
+ if(splitAction)splitAction.hidden=!selected?.userData.mergedParts;
  contextMenu.querySelectorAll('.blank-action').forEach(el=>el.hidden=!!hit);
  contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
  contextMenu.hidden=false;
@@ -1714,7 +1719,19 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  const action=btn.dataset.contextAction;hideContext();
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
- if(action==='zoomSelected'){fjordCenterView();return;}
+ if(action==='splitMerged'){fjordSplitMerged();return;}
+ if(action==='growSelected'){
+  if(selected){rescaleSelected(1.1);snapPartToBed(selected);sync();}
+  return;
+ }
+ if(action==='scaleCustom'){
+  if(!selected)return;
+  const value=prompt('Échelle de la pièce en % (100 = taille actuelle, 120 = +20 %, 50 = moitié) :','120');
+  if(value===null)return;
+  const percentage=Number(value.replace(',','.'));
+  if(!Number.isFinite(percentage)||percentage<1||percentage>1000){alert('Entre un pourcentage de 1 à 1000.');return;}
+  rescaleSelected(percentage/100);snapPartToBed(selected);sync();return;
+ }
  $(action)?.click();
 }));
 document.querySelectorAll('[data-quick-action]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -2538,33 +2555,86 @@ $('layFace').addEventListener('click',toggleLayFace);
 $('language').addEventListener('change',updateLayFaceButton);
 updateLayFaceButton();
 
-// Fusion géométrique : regroupe les triangles en une seule pièce sans union booléenne.
+// Merge comme Bambu Studio : grouper plusieurs objets sélectionnés sous une
+// même pièce principale. Chaque sous-pièce, sa couleur et ses triangles restent
+// identifiables. Ce n'est pas une union booléenne des solides.
 function fjordMergeAll(){
- if(models.length<2){alert('Ajoute au moins deux pièces pour utiliser Merge.');return}
- if(!confirm('Fusionner les '+models.length+' pièces du plateau en un seul objet ? Les volumes qui se chevauchent ne seront pas soudés (pas une union booléenne).'))return;
- const vertices=[];
- for(const m of models){
+ const items=models.filter(m=>selectedSet.has(m));
+ if(items.length<2){alert('Sélectionne au moins deux pièces (Ctrl + clic ou cases à cocher), puis utilise Merge.');return;}
+ sliceClose();exitLayFaceMode();
+ const vertices=[],colors=[],parts=[],point=new THREE.Vector3();
+ for(const m of items){
   m.updateMatrixWorld(true);
-  const g=m.geometry.index?m.geometry.toNonIndexed():m.geometry;
-  const pos=g.getAttribute('position');
-  const v=new THREE.Vector3();
-  for(let i=0;i<pos.count;i++){
-   v.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld);
-   vertices.push(v.x,v.y,v.z);
+  const geom=m.geometry.index?m.geometry.toNonIndexed():m.geometry;
+  const attribute=geom.getAttribute('position');
+  const subparts=m.userData.mergedParts||[
+   {name:m.name,start:0,count:attribute.count,color:basePartColor(m)}
+  ];
+  for(const sub of subparts){
+   const color=new THREE.Color(sub.color);
+   const first=vertices.length/3;
+   for(let i=sub.start;i<sub.start+sub.count;i++){
+    point.fromBufferAttribute(attribute,i).applyMatrix4(m.matrixWorld);
+    vertices.push(point.x,point.y,point.z);
+    colors.push(color.r,color.g,color.b);
+   }
+   parts.push({name:sub.name,start:first,count:sub.count,color:sub.color});
   }
-  if(g!==m.geometry)g.dispose();
+  if(geom!==m.geometry)geom.dispose();
+  if(vertices.length>6000000){
+   alert('Merge est trop volumineux (maximum 2 millions de sommets par groupe).');return;
+  }
  }
- if(vertices.length>6000000){alert('Fusion trop volumineuse pour ce projet.');return}
  remember();
  const geometry=new THREE.BufferGeometry();
  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+ geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
  geometry.computeVertexNormals();
- const old=[...models];
- for(const m of old){removeSelectionTint(m);scene.remove(m);m.geometry.dispose();m.material.dispose()}
- models=[];selected=null;transform.detach();
- const merged=makeMesh(geometry,'imported','Fusion de '+old.length+' pièces');
+ for(const m of items){
+  removeSelectionTint(m);
+  scene.remove(m);
+  m.geometry.dispose();m.material.dispose();
+ }
+ models=models.filter(m=>!items.includes(m));
+ selectedSet.clear();selected=null;transform.detach();transform.getHelper().visible=false;
+ const merged=makeMesh(geometry,'imported','Merge ('+parts.length+' pièces)');
+ merged.userData.mergedParts=parts;
+ merged.material.vertexColors=true;
+ merged.material.color.setHex(0xffffff);
+ merged.material.needsUpdate=true;
  pick(merged);
- sync();
+ status.textContent='Merge créé : '+parts.length+' pièces regroupées, couleurs et positions conservées.';
+}
+function fjordSplitMerged(){
+ if(!selected?.userData.mergedParts){alert('Sélectionne un objet créé avec Merge.');return;}
+ const parent=selected;
+ const original=parent.userData.mergedParts;
+ sliceClose();remember();
+ parent.updateMatrixWorld(true);
+ const src=parent.geometry.getAttribute('position');
+ const parts=[];
+ for(const part of original){
+  const vertices=[];
+  const v=new THREE.Vector3();
+  for(let i=part.start;i<part.start+part.count;i++){
+   v.fromBufferAttribute(src,i).applyMatrix4(parent.matrixWorld);
+   vertices.push(v.x,v.y,v.z);
+  }
+  parts.push({name:part.name,color:part.color,vertices});
+ }
+ removeSelectionTint(parent);
+ models=models.filter(m=>m!==parent);
+ scene.remove(parent);parent.geometry.dispose();parent.material.dispose();
+ selectedSet.clear();selected=null;transform.detach();
+ for(const part of parts){
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(part.vertices,3));
+  geometry.computeVertexNormals();
+  const mesh=makeMesh(geometry,'imported',part.name);
+  mesh.material.color.setHex(part.color);
+  pick(mesh);
+ }
+ status.textContent='Merge séparé : '+parts.length+' pièces indépendantes.';
 }
 function changeModel(action,confirmation){
  if(!selected){say('noSelection');return}
