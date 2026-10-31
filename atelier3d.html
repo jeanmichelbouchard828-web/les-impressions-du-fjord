@@ -1906,7 +1906,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(e.button===0&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<=6){
    const hit=findHit(e);
    if(hit?.object===selected)layOnClickedFace(hit);
-   else say('layFacePick');
+   else {exitLayFaceMode();pick(null);}
   }
   return;
  }
