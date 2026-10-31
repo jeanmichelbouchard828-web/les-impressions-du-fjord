@@ -1070,6 +1070,21 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 
 
 
+    @app.errorhandler(400)
+    def fjord_quote_bad_save(error):
+        if request.path!="/admin/soumissions-pro/enregistrer-tout":
+            return error
+        message=error.description
+        if message=="The browser (or proxy) sent a request that this server could not understand.":
+            message="Les informations de sauvegarde ne sont plus valides. Recharge la page, reconnecte-toi si nécessaire, puis réessaie."
+        if request.accept_mimetypes.best=="application/json":
+            return {"ok":False,"error":message},400
+        return page("Soumission non enregistrée", """
+        <section class="card"><h1>Soumission non enregistrée</h1>
+        <p>{{message}}</p><p>Aucune modification n'a été sauvegardée.</p>
+        <a class="btn" href="/admin/soumissions-pro">Retour aux soumissions PRO</a></section>""",
+        message=message),400
+
     @app.post("/admin/soumissions-pro/enregistrer-tout")
     @admin_required
     def fjord_quote_save_global():
@@ -1077,7 +1092,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         with db() as c:
             c.execute("SELECT pg_advisory_xact_lock(7342026,4)")
             interac=request.form.get("interac_email","").strip().lower()[:180]
-            if interac and not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+",interac):abort(400)
+            if interac and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",interac):abort(400,"Adresse Interac invalide : vérifie le courriel.")
             rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC LIMIT 150").fetchall()
             changes=[]
             for q in rows:
@@ -1090,9 +1105,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 payment=request.form.get("payment_status"+suffix,"")
                 raw=request.form.get("production_progress"+suffix,"0").strip() or "0"
                 if not re.fullmatch(r"FJ-[0-9]{1,8}",number):abort(400,"Numéro invalide : "+str(q["id"]))
-                if len(job)>160 or production not in ("À traiter","En production","Terminée"):abort(400)
-                if payment not in ("En attente","Paiement partiel","Payée"):abort(400)
-                if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400)
+                if len(job)>160 or production not in ("À traiter","En production","Terminée"):abort(400,"État de fabrication ou nom du travail invalide.")
+                if payment not in ("En attente","Paiement partiel","Payée"):abort(400,"Statut du paiement invalide.")
+                if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400,"Progression invalide : entre 0 et 100 %.")
                 progress=int(raw)
                 if production=="Terminée":progress=100
                 elif production=="À traiter":progress=0
@@ -1125,7 +1140,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 if preview:
                     c.execute("UPDATE private_quotes SET preview_mime=%s,preview=%s WHERE id=%s",
                               (preview[0],preview[1],ident))
-        flash(str(len(changes))+" soumission(s) enregistrée(s).")
+        message=str(len(changes))+" soumission(s) enregistrée(s)."
+        if request.accept_mimetypes.best=="application/json":return {"ok":True,"message":message}
+        flash(message)
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/soumissions-pro/<int:quote_id>/enregistrer")
