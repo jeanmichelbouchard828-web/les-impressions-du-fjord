@@ -1367,7 +1367,7 @@ async function fjordCopy(id,button){
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
             pdf.drawCentredString(222,bottom+18,"CLIQUEZ POUR LES INSTRUCTIONS DE PAIEMENT")
-            pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=0)
+            pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
                 from reportlab.graphics.shapes import Drawing
@@ -1386,7 +1386,7 @@ async function fjordCopy(id,button){
             pdf.roundRect(39,14,315,27,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
             pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
-            pdf.linkURL(accept_url,(39,14,354,41),relative=0)
+            pdf.linkURL(accept_url,(39,14,354,41),relative=1)
         pdf.restoreState()
         w,h=legal
         pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
