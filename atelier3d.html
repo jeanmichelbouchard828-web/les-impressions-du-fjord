@@ -529,6 +529,25 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-ams-manual input[type=color]{max-width:58px;width:58px;height:42px;padding:3px;border-radius:9px}
 .fjord-ams-manual button{flex:1}
 .fjord-ams-colors .tool-note{font-size:12px;line-height:1.5}
+
+/* Paint toolbar floats over the real 3D canvas and folds away like Bambu Studio. */
+.fjord-paint-panel{position:absolute;z-index:90;right:12px;top:74px;max-width:calc(100% - 24px);width:312px;
+ max-height:calc(100% - 95px);overflow:auto;border:1px solid var(--accent);background:var(--panel);
+ border-radius:13px;box-shadow:0 10px 34px #0009;padding:12px;}
+.fjord-paint-panel[hidden]{display:none!important}
+.fjord-paint-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fjord-paint-heading strong{font-size:16px}
+.fjord-paint-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+.fjord-paint-grid button{font-size:12px;min-height:49px;padding:5px}
+.fjord-paint-grid button.active{border-color:var(--accent);background:#17638b;color:white}
+.fjord-paint-field{margin:10px 0}
+.fjord-paint-field label{font-size:12px;display:block;margin-bottom:5px;color:var(--muted)}
+.fjord-paint-field input[type=range]{width:100%;accent-color:var(--accent)}
+.fjord-paint-color-row{display:flex;gap:10px;align-items:center}
+.fjord-paint-color-row input[type=color]{width:56px;height:42px;padding:3px;flex:none}
+.fjord-text-tools .tool-row{display:flex;flex-direction:column}
+.fjord-text-tools .tool-row button{width:100%;min-height:42px}
+@media(max-width:620px){.fjord-paint-panel{position:fixed;top:auto;bottom:78px;right:9px;width:min(360px,calc(100% - 18px));max-height:55dvh;z-index:410}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -609,6 +628,10 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button" data-quick-action="centerXY" data-tooltip="centerXY">⊕</button>
 <button type="button" class="quick-button" data-quick-action="dropToBed" data-tooltip="dropToBed">⇩</button>
 <button type="button" class="quick-button" data-quick-action="layFace" data-tooltip="layFace" aria-pressed="false">▱</button>
+<button type="button" class="quick-button" id="fjordPaintToggle" aria-pressed="false" title="Peinture 3D (couleurs AMS)">🎨</button>
+<button type="button" class="quick-button" id="fjordArrangeQuick" title="Arranger automatiquement les pièces sur le plateau">▦</button>
+<button type="button" class="quick-button" id="fjordMergeQuick" title="Merge : regrouper les pièces sélectionnées">⧉</button>
+<button type="button" class="quick-button" id="fjordSplitQuick" title="Séparer un groupe Merge">↳</button>
 <span class="quick-divider"></span>
 <button type="button" class="quick-button" data-quick-action="viewIso" data-tooltip="viewIso">◈</button>
 <button type="button" class="quick-button" data-quick-action="viewTop" data-tooltip="viewTop">▣</button>
@@ -617,6 +640,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <span class="quickbar-tip" data-i18n="quickbarHint">Glisser pour déplacer · Ctrl + clic pour sélectionner plusieurs pièces · Clic droit pour les outils</span>
 </div>
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
+<button type="button" data-open-tools="text">🔠 Texte</button>
+<button type="button" id="mobilePaintBtn" aria-pressed="false">🎨 Peinture</button>
+<button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
 <button type="button" data-open-tools="size" data-i18n="mobileSize" aria-expanded="false">📏 Taille</button>
@@ -651,7 +677,17 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button data-fjord-panel="size" aria-label="Dimensions"><span class="fjord-nav-icon">⤢</span><span>Dimensions</span></button>
 <button data-fjord-panel="measure" aria-label="Mesure"><span class="fjord-nav-icon">⌁</span><span>Mesure</span></button>
 <button data-fjord-panel="properties" aria-label="Propriétés"><span class="fjord-nav-icon">☷</span><span>Propriétés</span></button>
-</div><section data-tool-panel="shapes"><h2 data-i18n="shapes">Catalogue de formes</h2><div class="fjord-catalog"><details class="fjord-catalog-group"><summary>Formes de base<span>9</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="cube">Cube</button><button type="button" data-fjord-shape="cylinder">Cylindre</button><button type="button" data-fjord-shape="sphere">Sphère</button><button type="button" data-fjord-shape="cone">Cône</button><button type="button" data-fjord-shape="torus">Tore</button><button type="button" data-fjord-shape="tube">Tube</button><button type="button" data-fjord-shape="capsule">Capsule</button><button type="button" data-fjord-shape="hemisphere">Hémisphère</button><button type="button" data-fjord-shape="ellipsoid">Ellipsoïde</button></div></details><details class="fjord-catalog-group"><summary>Prismes et pyramides<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="prism3">Prisme triangulaire</button><button type="button" data-fjord-shape="prism6">Prisme hexagonal</button><button type="button" data-fjord-shape="prism8">Prisme octogonal</button><button type="button" data-fjord-shape="pyramid4">Pyramide carrée</button><button type="button" data-fjord-shape="pyramid3">Pyramide triangulaire</button></div></details><details class="fjord-catalog-group"><summary>Formes plates<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="rectangle">Rectangle</button><button type="button" data-fjord-shape="disc">Disque</button><button type="button" data-fjord-shape="ring">Anneau</button><button type="button" data-fjord-shape="triangle">Triangle</button><button type="button" data-fjord-shape="hexagon">Hexagone</button></div></details><details class="fjord-catalog-group"><summary>Révolution<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="torus">Tore</button><button type="button" data-fjord-shape="tube">Tube</button><button type="button" data-fjord-shape="cylinder">Cylindre</button><button type="button" data-fjord-shape="cone">Cône</button></div></details><details class="fjord-catalog-group"><summary>Polyèdres et ovoïdes<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="sphere">Sphère</button><button type="button" data-fjord-shape="ellipsoid">Ellipsoïde</button><button type="button" data-fjord-shape="icosahedron">Icosaèdre</button><button type="button" data-fjord-shape="dodecahedron">Dodécaèdre</button><button type="button" data-fjord-shape="egg">Œuf</button></div></details><details class="fjord-catalog-group"><summary>Rampes<span>2</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="ramp">Rampe droite</button><button type="button" data-fjord-generator="curved_ramp">Rampe courbe</button></div></details><details class="fjord-catalog-group"><summary>Charnières<span>3</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="hinge_pin">Charnière à axe</button><button type="button" data-fjord-generator="hinge_leaf">Charnière à feuilles</button><button type="button" data-fjord-generator="hinge_articulated">Charnière articulée</button></div></details><details class="fjord-catalog-group"><summary>Roulements et pivots<span>3</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="sleeve">Bague / douille</button><button type="button" data-fjord-generator="bearing">Roulement à billes (maquette)</button><button type="button" data-fjord-generator="pivot">Pivot cylindrique</button></div></details><details class="fjord-catalog-group"><summary>Connecteurs<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="adapter">Adaptateur ventilation</button><button type="button" data-fjord-generator="elbow">Coude de conduit</button><button type="button" data-fjord-generator="pipe">Tuyau droit</button><button type="button" data-fjord-generator="tee">Connecteur en T</button></div></details></div><div class="fjord-shape-native" hidden><div class="tools">
+</div>
+<section data-tool-panel="text" class="fjord-text-tools">
+<h2>🔠 Texte 3D imprimable</h2>
+<p class="tool-note">Crée des lettres en relief, déplace-les, tourne-les et regroupe-les avec une autre pièce.</p>
+<div class="field"><label for="fjordTextInput">Inscription</label><input id="fjordTextInput" maxlength="60" placeholder="Ex. BLACK LABEL" value="MON TEXTE"></div>
+<div class="field"><label for="fjordTextSize">Hauteur des lettres (mm)</label><input type="number" id="fjordTextSize" value="18" min="2" max="100" step=".5"></div>
+<div class="field"><label for="fjordTextDepth">Épaisseur (mm)</label><input type="number" id="fjordTextDepth" value="2" min=".6" max="30" step=".2"></div>
+<div class="tool-row"><button type="button" class="primary" id="fjordTextCreate">✚ Créer le texte 3D</button><button type="button" id="fjordTextUpdate">↻ Modifier le texte sélectionné</button></div>
+<p class="tool-note" id="fjordTextStatus" role="status">Le texte est construit en vrai relief 3D imprimable.</p>
+</section>
+<section data-tool-panel="shapes"><h2 data-i18n="shapes">Catalogue de formes</h2><div class="fjord-catalog"><details class="fjord-catalog-group"><summary>Formes de base<span>9</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="cube">Cube</button><button type="button" data-fjord-shape="cylinder">Cylindre</button><button type="button" data-fjord-shape="sphere">Sphère</button><button type="button" data-fjord-shape="cone">Cône</button><button type="button" data-fjord-shape="torus">Tore</button><button type="button" data-fjord-shape="tube">Tube</button><button type="button" data-fjord-shape="capsule">Capsule</button><button type="button" data-fjord-shape="hemisphere">Hémisphère</button><button type="button" data-fjord-shape="ellipsoid">Ellipsoïde</button></div></details><details class="fjord-catalog-group"><summary>Prismes et pyramides<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="prism3">Prisme triangulaire</button><button type="button" data-fjord-shape="prism6">Prisme hexagonal</button><button type="button" data-fjord-shape="prism8">Prisme octogonal</button><button type="button" data-fjord-shape="pyramid4">Pyramide carrée</button><button type="button" data-fjord-shape="pyramid3">Pyramide triangulaire</button></div></details><details class="fjord-catalog-group"><summary>Formes plates<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="rectangle">Rectangle</button><button type="button" data-fjord-shape="disc">Disque</button><button type="button" data-fjord-shape="ring">Anneau</button><button type="button" data-fjord-shape="triangle">Triangle</button><button type="button" data-fjord-shape="hexagon">Hexagone</button></div></details><details class="fjord-catalog-group"><summary>Révolution<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="torus">Tore</button><button type="button" data-fjord-shape="tube">Tube</button><button type="button" data-fjord-shape="cylinder">Cylindre</button><button type="button" data-fjord-shape="cone">Cône</button></div></details><details class="fjord-catalog-group"><summary>Polyèdres et ovoïdes<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="sphere">Sphère</button><button type="button" data-fjord-shape="ellipsoid">Ellipsoïde</button><button type="button" data-fjord-shape="icosahedron">Icosaèdre</button><button type="button" data-fjord-shape="dodecahedron">Dodécaèdre</button><button type="button" data-fjord-shape="egg">Œuf</button></div></details><details class="fjord-catalog-group"><summary>Rampes<span>2</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="ramp">Rampe droite</button><button type="button" data-fjord-generator="curved_ramp">Rampe courbe</button></div></details><details class="fjord-catalog-group"><summary>Charnières<span>3</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="hinge_pin">Charnière à axe</button><button type="button" data-fjord-generator="hinge_leaf">Charnière à feuilles</button><button type="button" data-fjord-generator="hinge_articulated">Charnière articulée</button></div></details><details class="fjord-catalog-group"><summary>Roulements et pivots<span>3</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="sleeve">Bague / douille</button><button type="button" data-fjord-generator="bearing">Roulement à billes (maquette)</button><button type="button" data-fjord-generator="pivot">Pivot cylindrique</button></div></details><details class="fjord-catalog-group"><summary>Connecteurs<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="adapter">Adaptateur ventilation</button><button type="button" data-fjord-generator="elbow">Coude de conduit</button><button type="button" data-fjord-generator="pipe">Tuyau droit</button><button type="button" data-fjord-generator="tee">Connecteur en T</button></div></details></div><div class="fjord-shape-native" hidden><div class="tools">
 <button data-shape="cube" data-i18n="cube">⬜ Cube</button><button data-shape="cylinder" data-i18n="cylinder">◯ Cylindre</button>
 <button data-shape="sphere" data-i18n="sphere">● Sphère</button><button data-shape="cone" data-i18n="cone">△ Cône</button>
 <button data-shape="torus" data-i18n="torus">◎ Tore</button><button data-shape="tube" data-i18n="tube">▣ Tube</button>
@@ -719,6 +755,23 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></section></aside>
 <div class="stage" id="stage">
+<section class="fjord-paint-panel" id="fjordPaintPanel" hidden aria-label="Panneau de peinture 3D">
+<div class="fjord-paint-heading"><strong>🎨 Peinture 3D</strong><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div>
+<div class="fjord-paint-grid" role="toolbar" aria-label="Outils de peinture">
+<button type="button" data-fjord-paint-tool="brush" class="active" aria-pressed="true">🖌 Pinceau</button>
+<button type="button" data-fjord-paint-tool="sphere" aria-pressed="false">◉ Sphère</button>
+<button type="button" data-fjord-paint-tool="triangle" aria-pressed="false">△ Facette</button>
+<button type="button" data-fjord-paint-tool="fill" aria-pressed="false">▧ Remplir</button>
+<button type="button" data-fjord-paint-tool="height" aria-pressed="false">↕ Hauteur</button>
+<button type="button" data-fjord-paint-tool="eraser" aria-pressed="false">⌫ Gomme</button>
+</div>
+<div class="fjord-paint-field"><label for="fjordPaintSize">Diamètre du pinceau : <strong id="fjordPaintSizeLabel">7 mm</strong></label><input type="range" id="fjordPaintSize" min="1" max="40" step="1" value="7"></div>
+<div class="fjord-paint-field"><label for="fjordPaintColor">Couleur active (les couleurs AMS sont aussi disponibles dans Propriétés)</label>
+<div class="fjord-paint-color-row"><input id="fjordPaintColor" type="color" value="#f04c55"><strong id="fjordPaintColorLabel">#F04C55</strong></div></div>
+<button type="button" id="fjordPaintEraseAll">Effacer la peinture de la pièce</button>
+<p class="tool-note" id="fjordPaintStatus" role="status" aria-live="polite">Clique sur la pièce pour commencer.</p>
+<p class="tool-note">Enregistre ton projet Fjord en JSON pour conserver les zones peintes. Le STL ne transporte pas les couleurs.</p>
+</section>
 <div class="fjord-camera-controls" aria-label="Commandes de caméra">
  <div class="fjord-camera-buttons">
   <button type="button" data-camera-action="home" title="Vue d'accueil" aria-label="Vue d'accueil"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></button>
@@ -812,6 +865,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="duplicate" data-i18n="duplicate">Dupliquer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="paint">🎨 Peindre la pièce</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="textTool">🔠 Inscription 3D</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="arrangeAll">▦ Arranger sur le plateau</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="growSelected">⤢ Agrandir la pièce (+10 %)</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="scaleCustom">⤢ Agrandir / réduire (%)…</button>
@@ -891,6 +947,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {installFjordEnhancements} from '/static/fjord_atelier_enhancements.js';
 import {extraGeneratorKinds,generateExtraGeometry} from '/static/fjord_generator_extensions.js';
 import {artGeneratorKinds,generateArtGeometry} from '/static/fjord_generator_art.js';
 // Load the 3MF loader only when a 3MF file is chosen; avoid blocking all STL imports.
@@ -1353,7 +1410,8 @@ function serialize(){
   vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null,
   // Merge comme Bambu Studio : une pièce principale, avec ses sous-pièces préservées.
   parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null,
-  filament:m.userData.fjordFilament?{...m.userData.fjordFilament}:null
+  filament:m.userData.fjordFilament?{...m.userData.fjordFilament}:null,
+  ...window.fjordPaint?.serializeMesh?.(m)
  }))};
 }
 function restore(data){
@@ -1386,6 +1444,13 @@ function restore(data){
     };
    }
   }
+  if(entry.textSpec && typeof entry.textSpec.value==='string'){
+   m.userData.fjordText={
+    value:entry.textSpec.value.slice(0,60),
+    size:Number(entry.textSpec.size)||18,depth:Number(entry.textSpec.depth)||2
+   };
+  }
+  window.fjordPaint?.restoreMesh?.(m,entry);
   if(entry.type==='imported' && Array.isArray(entry.parts) && entry.parts.length>=2 && entry.parts.length<=100){
    const count=g.getAttribute('position').count;
    const parts=entry.parts.map(p=>({name:String(p.name||'Pièce').slice(0,120),start:p.start,count:p.count,color:p.color}));
@@ -1535,7 +1600,7 @@ function togglePartSelection(m){
  }
  sync();
 }
-function sync(){if(sliceActive){if(models.length)sliceUpdateAll();else sliceClose()}if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
+function sync(){window.fjordPaint?.syncText?.();if(sliceActive){if(models.length)sliceUpdateAll();else sliceClose()}if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 /* Palette AMS réelle, par l'API OctoEverywhere, sans accès direct à l'imprimante.
    Toute la sélection et la recoloration restent locales au projet. */
@@ -1551,6 +1616,7 @@ function fjordApplyFilamentColor(hex,filament=null){
  }
  remember();
  for(const model of targets){
+  window.fjordPaint?.resetForWholeColor?.(model);
   removeSelectionTint(model);
   model.material.color.set(hex);
   if(filament){
@@ -1687,8 +1753,9 @@ function showContextMenu(e){
  contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
- contextMenu.style.left=Math.max(5,Math.min(e.clientX-rect.left,stage.clientWidth-contextMenu.offsetWidth-7))+'px';
- contextMenu.style.top=Math.max(5,Math.min(e.clientY-rect.top,stage.clientHeight-contextMenu.offsetHeight-7))+'px';
+ // Offset the pop-up from the cursor so clicking the same point dismisses it.
+ contextMenu.style.left=Math.max(5,Math.min(e.clientX-rect.left+14,stage.clientWidth-contextMenu.offsetWidth-7))+'px';
+ contextMenu.style.top=Math.max(5,Math.min(e.clientY-rect.top+14,stage.clientHeight-contextMenu.offsetHeight-7))+'px';
 }
 // Prevent the browser menu; the studio menu opens only after a stationary right-click.
 // Browsers can send "contextmenu" on right-button DOWN, so showing it here
@@ -1701,6 +1768,7 @@ stage.addEventListener('contextmenu',e=>{
  e.stopPropagation();
 });
 renderer.domElement.addEventListener('pointerdown',e=>{
+ if(window.fjordPaint?.onPointerDown?.(e))return;
  if(fjordWalkMode)return;
  if(e.pointerType==='touch'){
   activeTouchIds.add(e.pointerId);
@@ -1756,6 +1824,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  e.stopImmediatePropagation();
 },true);
 renderer.domElement.addEventListener('pointermove',e=>{
+ if(window.fjordPaint?.onPointerMove?.(e))return;
  if(rightPanStart&&e.pointerId===rightPanStart.pointerId &&
     Math.hypot(e.clientX-rightPanStart.x,e.clientY-rightPanStart.y)>rightPanThreshold){
    rightPanStart.dragged=true;
@@ -1798,6 +1867,7 @@ function finishDrag(e){
  return true
 }
 renderer.domElement.addEventListener('pointerup',e=>{
+ if(window.fjordPaint?.onPointerUp?.(e))return;
  if(e.button===2&&e.pointerType==='mouse'){
    const gesture=rightPanStart;
    rightPanStart=null;
@@ -1828,10 +1898,10 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(tap && !cutPreviewActive){
    if(layFaceMode){
     if(tap.faceHit?.object===selected)layOnClickedFace(tap.faceHit);
-    else say('layFacePick');
+    else {exitLayFaceMode();pick(null);}
    }else if(measureMode && tap.point)measurePoint(tap.point);
    else if(tap.mesh)pick(tap.mesh);
-   else if(!activeTool&&!touchMoveEnabled)pick(null);
+   else if(!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
    // A tap on the empty build plate must not cancel the active modelling tool.
   }
   return;
@@ -1840,15 +1910,16 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(e.button===0&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<=6){
    const hit=findHit(e);
    if(hit?.object===selected)layOnClickedFace(hit);
-   else say('layFacePick');
+   else {exitLayFaceMode();pick(null);}
   }
   return;
  }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
  const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point);else pick(hit.object)}
- else if(!measureMode&&!cutPreviewActive&&!activeTool&&!touchMoveEnabled)pick(null);
+ else if(!cutPreviewActive&&!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
+ if(window.fjordPaint?.onPointerUp?.(e))return;
  if(multiSelectionPointer===e.pointerId)multiSelectionPointer=null;
  if(rightPanStart&&rightPanStart.pointerId===e.pointerId){rightPanStart=null;hideContext()}
  if(e.pointerType==='touch'){activeTouchIds.delete(e.pointerId);touchTap=null}
@@ -1859,6 +1930,9 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  const action=btn.dataset.contextAction;hideContext();
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
+ if(action==='paint'){$('fjordPaintToggle').click();return;}
+ if(action==='textTool'){document.querySelector('[data-fjord-panel="text"]')?.click();return;}
+ if(action==='arrangeAll'){$('fjordArrangeQuick').click();return;}
  if(action==='splitMerged'){fjordSplitMerged();return;}
  if(action==='growSelected'){
   if(selected){rescaleSelected(1.1);snapPartToBed(selected);sync();}
@@ -1896,6 +1970,7 @@ function deactivateGizmo(){
  updateGizmoButtons();
 }
 function chooseGizmo(mode){
+ window.fjordPaint?.close?.();
  sliceClose();exitLayFaceMode();
  if(activeTool===mode){ // Recliquer garde l'outil actif, comme dans un éditeur 3D professionnel.
   if(selected && transform.object!==selected){transform.attach(selected);transform.getHelper().visible=true;}
@@ -1928,7 +2003,17 @@ transform.addEventListener('mouseUp',()=>{
 [['move','translate'],['rotate','rotate'],['scale','scale']].forEach(([id,mode])=>
  $(id).addEventListener('click',()=>chooseGizmo(mode)));
 updateGizmoButtons();
-$('duplicate').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=makeMesh(selected.geometry.clone(),selected.userData.type,selected.name+' copie');m.position.copy(selected.position);m.position.x+=15;m.rotation.copy(selected.rotation);m.scale.copy(selected.scale);m.material.color.setHex(basePartColor(selected));pick(m)});
+$('duplicate').addEventListener('click',()=>{
+ if(!selected)return say('noSelection');
+ remember();
+ const original=selected,visual=window.fjordPaint?.serializeMesh?.(original);
+ const m=makeMesh(original.geometry.clone(),original.userData.type,original.name+' copie');
+ m.position.copy(original.position);m.position.x+=15;m.rotation.copy(original.rotation);m.scale.copy(original.scale);
+ m.material.color.setHex(basePartColor(original));
+ if(visual?.textSpec)m.userData.fjordText={...visual.textSpec};
+ if(visual?.paintFaces)window.fjordPaint?.restoreMesh?.(m,visual);
+ pick(m);
+});
 $('remove').addEventListener('click',()=>{if(!selected)return say('noSelection');remember();const m=selected;models=models.filter(x=>x!==m);scene.remove(m);transform.detach();m.geometry.dispose();m.material.dispose();pick(null)});
 $('undo').addEventListener('click',()=>{
  if(!undoStack.length)return;
@@ -2014,6 +2099,9 @@ async function importModelFile(file, displayName){
        name:String(item.filament.name||'').slice(0,65)
       };
      }
+     if(item.textSpec && typeof item.textSpec.value==='string')
+       m.userData.fjordText={value:item.textSpec.value.slice(0,60),size:Number(item.textSpec.size)||18,depth:Number(item.textSpec.depth)||2};
+     window.fjordPaint?.restoreMesh?.(m,item);
      last=m;
    }
    pick(last);
@@ -2662,6 +2750,7 @@ function updateLayFaceButton(){
  if(hint)hint.textContent=layFaceMode?langText[currentLang()].layFaceHint:(mobileView()?langText[currentLang()].touchHint:langText[currentLang()].hint);
 }
 function toggleLayFace(){
+ window.fjordPaint?.close?.();
  sliceClose();if(layFaceMode){exitLayFaceMode();say('selected');return}
  if(!selected){say('noSelection');return}
  deactivateGizmo();
@@ -2706,8 +2795,40 @@ updateLayFaceButton();
 // Merge comme Bambu Studio : grouper plusieurs objets sélectionnés sous une
 // même pièce principale. Chaque sous-pièce, sa couleur et ses triangles restent
 // identifiables. Ce n'est pas une union booléenne des solides.
+// Bambu-like Arrange: preserve every mesh and its colours; never move anything if layout cannot fit.
+function fjordArrangeAll(){
+ if(!models.length){say('missing');return;}
+ const gap=5,edge=124,positions=[];
+ let x=-edge,y=-edge,rowHeight=0;
+ for(const model of models){
+  const bounds=modelWorldBounds(model);
+  const size=bounds.getSize(new THREE.Vector3());
+  if(![size.x,size.y,size.z].every(Number.isFinite)||size.x>248||size.y>248||size.z>256){
+   alert('Une pièce dépasse le plateau 256 × 256 mm. Réduis sa taille avant de lancer Arranger.');return;
+  }
+  if(x+size.x>edge){x=-edge;y+=rowHeight+gap;rowHeight=0;}
+  if(y+size.y>edge){alert('Toutes les pièces ne peuvent pas entrer sur le plateau. Aucun objet n’a été déplacé.');return;}
+  const center=bounds.getCenter(new THREE.Vector3());
+  positions.push({model,dx:x+size.x/2-center.x,dy:y+size.y/2-center.y});
+  x+=size.x+gap;rowHeight=Math.max(rowHeight,size.y);
+ }
+ remember();
+ window.fjordPaint?.close?.();
+ deactivateGizmo();
+ for(const item of positions){
+  item.model.position.x+=item.dx;item.model.position.y+=item.dy;
+  snapPartToBed(item.model);
+ }
+ sync();
+ status.textContent='✓ '+models.length+' pièce(s) arrangée(s) automatiquement sur le plateau.';
+}
+$('fjordArrangeQuick').addEventListener('click',fjordArrangeAll);
+$('mobileArrangeBtn')?.addEventListener('click',fjordArrangeAll);
 function fjordMergeAll(){
  const items=models.filter(m=>selectedSet.has(m));
+ if(items.some(m=>m.userData.fjordPaintFaces&&Object.keys(m.userData.fjordPaintFaces).length)){
+  alert('Pour protéger tes couleurs peintes, le Merge de ces pièces est désactivé pour le moment. Enregistre le projet avant de modifier ces surfaces.');return;
+ }
  if(items.length<2){alert('Sélectionne au moins deux pièces (Ctrl + clic ou cases à cocher), puis utilise Merge.');return;}
  sliceClose();exitLayFaceMode();
  const vertices=[],colors=[],parts=[],point=new THREE.Vector3();
@@ -2753,6 +2874,8 @@ function fjordMergeAll(){
  pick(merged);
  status.textContent='Merge créé : '+parts.length+' pièces regroupées, couleurs et positions conservées.';
 }
+document.getElementById('fjordMergeQuick')?.addEventListener('click',fjordMergeAll);
+document.getElementById('fjordSplitQuick')?.addEventListener('click',fjordSplitMerged);
 function fjordSplitMerged(){
  if(!selected?.userData.mergedParts){alert('Sélectionne un objet créé avec Merge.');return;}
  const parent=selected;
@@ -3350,6 +3473,14 @@ function fjordUpdateOrientationCube(){
  const yaw=THREE.MathUtils.radToDeg(Math.atan2(direction.x,-direction.y));
  fjordOrientationRotor.style.transform='rotateX('+(-pitch).toFixed(2)+'deg) rotateY('+(-yaw).toFixed(2)+'deg)';
 }
+// All extended tools share the studio's actual geometry, selected object, undo stack, and AMS palette.
+window.fjordPaint=installFjordEnhancements({
+ THREE,renderer,stage,orbit,models:()=>models,selected:()=>selected,findHit,
+ remember,sync,makeMesh,pick,snapPartToBed,removeSelectionTint,addSelectionTint,
+ getBaseColor:basePartColor,
+ disableCurrentTools:()=>{sliceClose();exitLayFaceMode();if(measureMode)$('measure').click();deactivateGizmo();},
+ clearSelectionOnBlank:()=>{if(measureMode)$('measure').click();pick(null);}
+});
 function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();if(fjordWireframe)fjordApplyWireframe();orbit.update();updateMeasureMarkerSizes();
  if(sliceMotionHead.visible){
   const d=camera.position.distanceTo(sliceMotionHead.position);
@@ -3373,7 +3504,7 @@ function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();i
 const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
 const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
 function selectCategory(name){
- const target=({measure:'edit',projects:'parts',freehand:'edit',text:'shapes'})[name]||name;
+ const target=({measure:'edit',projects:'parts',freehand:'edit'})[name]||name;
  const panel=categorySections.find(p=>p.dataset.toolPanel===target);
  if(!panel)return;
  categoryButtons.forEach(b=>{
