@@ -225,7 +225,16 @@ def _octo_live_status():
  p=urlparse(base)
  if p.scheme!="https" or not p.hostname or not p.hostname.endswith(".octoeverywhere.com") or p.username or p.password or p.port or p.path not in ("","/") or p.query or p.fragment:return None
  try:
-  with u.urlopen(u.Request(base+"/octoeverywhere-command-api/status",headers={"Accept":"application/json"}),timeout=4) as resp:data=j.load(resp)
+  headers={"Accept":"application/json"}
+  bearer=os.environ.get("OCTOEVERYWHERE_AUTH_BEARER_TOKEN","").strip()
+  basic_user=os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_USER","").strip()
+  basic_pass=os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_PASSWORD","")
+  if bearer:
+   headers["Authorization"]="Bearer "+bearer
+  elif basic_user and basic_pass:
+   import base64
+   headers["Authorization"]="Basic "+base64.b64encode((basic_user+":"+basic_pass).encode()).decode("ascii")
+  with u.urlopen(u.Request(base+"/octoeverywhere-command-api/status",headers=headers),timeout=4) as resp:data=j.load(resp)
   if data.get("Status")!=200:return None
   job=(data.get("Result") or {}).get("JobStatus") or {}
   current=job.get("CurrentPrint") or {}
