@@ -542,6 +542,24 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         if not preview:abort(404)
         return send_file(io.BytesIO(preview[1]),mimetype=preview[0],max_age=0)
 
+    @app.post("/admin/modeles/apercu/regenerer")
+    @admin_required
+    def fjord_refresh_library_previews():
+        verify()
+        refreshed=0
+        with db() as c:
+            rows=c.execute("SELECT id,filename,filedata FROM private_models WHERE lower(filename) LIKE '%.3mf' OR lower(filename) LIKE '%.stl'").fetchall()
+            for item in rows:
+                try:
+                    preview=make_model_preview(item["filedata"],item["filename"])
+                    if preview:
+                        c.execute("UPDATE private_models SET preview=%s,preview_mime=%s WHERE id=%s",(preview[1],preview[0],item["id"]))
+                        refreshed+=1
+                except (ValueError,OverflowError,MemoryError):
+                    continue
+        flash(str(refreshed)+" aperçus actualisés dans la bibliothèque.")
+        return redirect("/admin/modeles")
+
     @app.post("/admin/modeles/supprimer/<int:model_id>")
     @admin_required
     def fjord_model_delete(model_id):
