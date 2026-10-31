@@ -2513,6 +2513,9 @@ function fjordCenterView(){
  orbit.update();
 }
 $('viewFit').addEventListener('click',fjordCenterView);
+// Les commandes de caméra sont dans un script distinct du module Three.js.
+window.fjordHomeView=fjordHomeView;
+window.fjordCenterView=fjordCenterView;
 
 function activeCutBounds(){
  if(!selected)return null;
@@ -3031,8 +3034,8 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   const action=button.dataset.cameraAction;
   if(action==='walk'){window.fjordToggleWalk?.();return;}
   if(action==='wireframe'){window.fjordToggleWireframe?.();return;}
-  if(action==='home'){fjordHomeView();return;}
-  if(action==='fit'){fjordCenterView();return;}
+  if(action==='home'){window.fjordHomeView?.();return;}
+  if(action==='fit'){window.fjordCenterView?.();return;}
   if(['back','right','left','bottom'].includes(action)){
    const target=window.fjordCameraTarget||null;
    const orbitTarget=window.fjordOrbitTarget||null;
