@@ -1089,9 +1089,9 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
         if request.method=="POST" and not accepted:
             verify()
             signer=request.form.get("signer","").strip()
-            checked=request.form.get("agree")=="yes"
+            checked=request.form.get("agree")=="yes" and request.form.get("final_sale")=="yes"
             if not (2<=len(signer)<=150 and checked):
-                flash("Indiquez votre nom et confirmez votre acceptation.")
+                flash("Indiquez votre nom et cochez les deux confirmations.")
             elif request.form.get("quote_hash")!=digest:
                 flash("La soumission a changé. Veuillez la relire.")
             else:
@@ -1115,6 +1115,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 {% else %}<form method="post">{{csrf|safe}}<input type="hidden" name="quote_hash" value="{{digest}}">
 <label>Nom complet du client<input name="signer" maxlength="150" required autocomplete="name"></label>
 <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
+<div class="card" style="margin:16px 0;border-color:#68c6e7"><strong>VENTE FINALE – FABRICATION PERSONNALISÉE</strong><p>Le client confirme avoir vérifié et approuvé les caractéristiques convenues du produit, notamment le modèle, les dimensions, le matériau, la couleur et la quantité. Une fois la fabrication commencée, aucune annulation ou modification pour simple changement d'avis n'est garantie, sous réserve des droits prévus par la loi. Les garanties légales et les recours applicables demeurent pleinement en vigueur.</p><label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="final_sale" value="yes" required style="width:auto;margin-top:5px"><span>Je reconnais avoir lu et compris les conditions de vente finale pour cet article personnalisé, sous réserve de mes droits légaux.</span></label></div>
 <button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
 <p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput()))
         response.headers["Cache-Control"]="no-store"
@@ -1322,7 +1323,8 @@ async function fjordCopy(id,button){
          ("5. Usage prévu et sécurité", "Le client est invité à préciser tout usage mécanique, alimentaire, électrique, médical ou de sécurité. Un objet n'est pas présenté comme certifié pour ces usages sans validation explicite. Les consignes d'utilisation et les garanties légales restent applicables."),
          ("6. Prix et approbation", "La soumission est valable 30 jours à compter de sa date, sauf indication contraire. Le prix, les taxes applicables, la livraison et les modalités de paiement sont ceux indiqués à la soumission acceptée."),
          ("7. Livraison et réclamations", "Les délais sont estimatifs sauf engagement précis. Le client peut signaler un défaut ou une non-conformité afin de permettre l'examen du problème. Aucun délai de réclamation contractuel ne réduit les droits prévus par la loi."),
-         ("8. Recours et droits du consommateur", "Aucune disposition des présentes conditions ne supprime ou ne limite les recours impératifs du consommateur. Selon les circonstances, une réparation, un remplacement, un remboursement ou d'autres recours légaux peuvent s'appliquer.")
+         ("8. Vente finale - fabrication personnalisée", "Le client confirme les spécifications convenues. Une fois la fabrication commencée, une annulation ou une modification pour simple changement d'avis n'est pas garantie, sous réserve des droits prévus par la loi. Les garanties légales demeurent pleinement applicables."),
+         ("9. Recours et droits du consommateur", "Aucune disposition des présentes conditions ne supprime ou ne limite les recours impératifs du consommateur. Selon les circonstances, une réparation, un remplacement, un remboursement ou d'autres recours légaux peuvent s'appliquer.")
         ]
         y=h-113
         for heading,paragraph in clauses:
