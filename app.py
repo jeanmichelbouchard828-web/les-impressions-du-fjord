@@ -34,6 +34,16 @@ with db() as c:
  c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS public_progress BOOLEAN NOT NULL DEFAULT FALSE")
 STYLE="""<style>*{box-sizing:border-box}body{margin:0;background:#071321;color:#f2faff;font:16px system-ui,Arial}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 5%;border-bottom:1px solid #2a4a62;background:#091a2b;flex-wrap:wrap}nav{display:flex;gap:15px;flex-wrap:wrap}a{color:#7fe4ff;text-decoration:none}.brand{font-weight:900;letter-spacing:.6px}main{max-width:1100px;margin:auto;padding:28px 20px 70px}.hero{padding:70px 0 90px;background:radial-gradient(ellipse at 80% 10%,#15618a77,transparent 60%)}h1{font-size:clamp(38px,7vw,78px);line-height:1.06;margin:15px 0}h2{font-size:30px}p{color:#c6d7e7;line-height:1.65}.eyebrow{color:#80dfff;letter-spacing:3px;text-transform:uppercase;font-size:13px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{background:#10283b;border:1px solid #2d526d;padding:22px;border-radius:16px;overflow:hidden}.card img{width:100%;height:220px;object-fit:cover;border-radius:10px}.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:14px}.gallery-grid img{width:100%;height:145px;object-fit:cover;border-radius:9px}.gallery-tile{background:#10283b;padding:12px;border-radius:12px}.gallery-tile h3{font-size:15px}.zoom{background:#071321;color:white;border:0;max-width:96vw;max-height:95vh}.zoom::backdrop{background:#000d}.zoom img{max-width:90vw;max-height:78vh;object-fit:contain}.gallery-detail h1{font-size:clamp(26px,4vw,42px);line-height:1.15;overflow-wrap:anywhere;max-width:850px}.gallery-detail .gallery-grid{margin-top:22px}.gallery-photo-link{display:block;cursor:zoom-in}.gallery-photo-link img{display:block;width:100%;height:160px;object-fit:cover;border-radius:10px}.zoom[open]{display:block;position:fixed;inset:0;margin:auto;padding:12px;box-shadow:0 20px 80px #000b}.zoom .row{justify-content:center;margin-bottom:10px}.zoom img{display:block;margin:auto;max-width:min(90vw,1100px);max-height:75vh}@media(max-width:600px){.gallery-detail h1{font-size:clamp(24px,7vw,32px)}.gallery-detail .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}input,textarea,select{display:block;width:100%;padding:12px;margin:7px 0 17px;background:#081827;color:white;border:1px solid #47718b;border-radius:9px;font:inherit}label{display:block;font-weight:600}textarea{min-height:110px}button,.btn{display:inline-block;padding:13px 20px;border:0;border-radius:9px;background:#5ad7f5;color:#061b2a;font-weight:800;cursor:pointer;font:inherit;text-decoration:none}form{max-width:650px}.muted{color:#a9c3d3}.alert{padding:14px;background:#163e50;border-radius:9px;margin:15px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row form{display:inline}.small{font-size:13px}.contact-actions{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 28px}.contact-actions a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:13px 18px;border-radius:10px;background:#163e59;border:1px solid #4a91b6;color:#f2faff;font-weight:750}.contact-actions a:hover{background:#215b7d}.contact-actions a:focus-visible{outline:3px solid #7fe4ff;outline-offset:3px}footer{padding:25px 5%;border-top:1px solid #294b62;color:#a9c3d3}@media(max-width:600px){.hero{padding:40px 0}header{align-items:flex-start}nav{font-size:14px}}</style>"""
 BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""<style>
+.admin-quick-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;border-radius:9px;border:1px solid #5aaed2;padding:8px 12px;font-weight:800}
+@media(max-width:650px){
+ header nav{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+ header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
+ header nav .admin-quick-link{width:100%;background:#145476;color:#fff;min-height:46px}
+ main{padding:18px 12px 60px}
+ .fj-quote-card{min-width:0}
+ .fj-quote-card input,.fj-quote-card select,.fj-quote-card button{max-width:100%}
+ .fj-quote-card .fj-live-form,.fj-card{min-width:0;overflow-wrap:anywhere}
+}
 body.light{background:#f4f8fc;color:#14283c}
 body.light header{background:#fff;border-color:#ccdae8}
 body.light footer{border-color:#ccdae8;color:#466073}
@@ -77,7 +87,7 @@ body.light .referral-footer a{color:#075f90}
 body.light .referral-footer span{color:#466073}
 body.light .referral-page .referral-disclosure{border-color:#c7d8e7}
 @media(max-width:600px){.referral-page .referral-card{padding:18px}.referral-page .referral-cta{width:100%}}
-.public-print-list{display:grid;gap:10px;margin-top:16px}.public-print-job{padding:12px;border-radius:10px;background:#0c1c2caa;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.public-print-job .tracking-progress{flex:1 1 100%;margin:0}.public-print-job span{margin-left:auto}.tracking-billboard{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:10px 0 32px;padding:26px;border:1px solid #4e9cc5;border-radius:18px;background:linear-gradient(120deg,#173a54,#0c2133)}.tracking-billboard h2{margin:8px 0;font-size:clamp(23px,3vw,33px)}.tracking-billboard p{color:#d6e6f1}.tracking-panel{max-width:640px;margin:20px auto}.tracking-result{margin-top:25px;padding:22px;border:1px solid #4e9cc5;border-radius:12px}.tracking-progress{height:16px;border-radius:12px;background:#273b50;overflow:hidden}.tracking-progress span{display:block;height:100%;background:#43b9ec}body.light .tracking-billboard{background:#e5f3fc;color:#173a54}body.light .tracking-billboard p{color:#34536c}</style></head><body><header><a class="brand" href="/"><img src="/identite/logo" alt="Logo Les Impressions du Fjord" style="width:64px;height:64px;object-fit:contain;vertical-align:middle;margin-right:12px" onerror="this.style.display='none'">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div><div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div></footer><script>
+.public-print-list{display:grid;gap:10px;margin-top:16px}.public-print-job{padding:12px;border-radius:10px;background:#0c1c2caa;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.public-print-job .tracking-progress{flex:1 1 100%;margin:0}.public-print-job span{margin-left:auto}.tracking-billboard{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:10px 0 32px;padding:26px;border:1px solid #4e9cc5;border-radius:18px;background:linear-gradient(120deg,#173a54,#0c2133)}.tracking-billboard h2{margin:8px 0;font-size:clamp(23px,3vw,33px)}.tracking-billboard p{color:#d6e6f1}.tracking-panel{max-width:640px;margin:20px auto}.tracking-result{margin-top:25px;padding:22px;border:1px solid #4e9cc5;border-radius:12px}.tracking-progress{height:16px;border-radius:12px;background:#273b50;overflow:hidden}.tracking-progress span{display:block;height:100%;background:#43b9ec}body.light .tracking-billboard{background:#e5f3fc;color:#173a54}body.light .tracking-billboard p{color:#34536c}</style></head><body><header><a class="brand" href="/"><img src="/identite/logo" alt="Logo Les Impressions du Fjord" style="width:64px;height:64px;object-fit:contain;vertical-align:middle;margin-right:12px" onerror="this.style.display='none'">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin/soumissions-pro" class="admin-quick-link">📄 Soumissions PRO 🔒</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div><div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div></footer><script>
 (function(){
 const translations={
 "Services":"Services","Galerie":"Gallery","Soumission":"Quote","Nous joindre":"Contact us","Formulaire":"Contact form","Administration":"Administration",
@@ -142,9 +152,9 @@ def admin_required(f):
  @wraps(f)
  def inner(*a,**kw):
   token=session.get("admin_token","")
-  if not token:return redirect("/admin/login")
+  if not token:return redirect(url_for("login",next=request.path))
   with db() as c:r=c.execute("SELECT 1 FROM sessions WHERE tokenhash=%s AND expires>NOW()",(hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
-  if not r:return redirect("/admin/login")
+  if not r:return redirect(url_for("login",next=request.path))
   return f(*a,**kw)
  return inner
 def rate_limit():
@@ -194,14 +204,37 @@ def voir_mon_impression():
     attempts=c.execute("SELECT count FROM live_lookup_attempts WHERE fingerprint=%s",(fingerprint,)).fetchone()["count"]
     row=None
     if attempts<=5:
-     row=c.execute("""SELECT id,public_number,customer,production_status,live_token,
+     row=c.execute("""SELECT id,public_number,customer,production_status,production_progress,live_token,
        live_enabled,live_expires FROM private_quotes
        WHERE public_number=%s OR (public_number IS NULL AND id=%s)
        LIMIT 1""",(number,int(number[3:]))).fetchone()
    if row and row["customer"].strip().split()[0].casefold()==prenom:
     result=row
   if result is None:flash("Impossible de verifier cette soumission. Verifiez votre numero FJ et votre prenom.")
- return page("Voir mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>🎥 Voir mon impression</h1><p>Consultez votre soumission et accédez à votre impression lorsque le visionnement est autorisé.</p><form method="post">{{csrf|safe}}<label>Numéro de soumission<input name="numero" placeholder="FJ-00011" required maxlength="18" autocomplete="off"></label><label>Prénom du client<input name="prenom" placeholder="Votre prénom" required maxlength="100" autocomplete="given-name"></label><button class="btn">🎥 Voir mon impression</button></form>{% if result %}<div class="tracking-result"><h2>Soumission {{result.public_number or ('FJ-%05d'|format(result.id))}}</h2><p>État de fabrication : <strong>{{result.production_status}}</strong></p>{% if result.live_enabled and result.live_token and result.live_expires and result.live_expires > now %}<p>Votre lien privé est actif.</p><a class="btn" href="{{url_for('fjord_live_view',token=result.live_token)}}">🎥 Ouvrir mon impression en direct</a>{% else %}<p>La caméra n'est pas encore disponible, ou le lien de visionnement a expiré.</p>{% endif %}</div>{% endif %}<p><a href="/">← Retour à l'accueil</a></p></section>''',result=result,csrf=csrfinput(),now=datetime.datetime.now(datetime.timezone.utc))
+ return page("Voir mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>🎥 Voir mon impression</h1><p>Consultez votre soumission et accédez à votre impression lorsque le visionnement est autorisé.</p><form method="post">{{csrf|safe}}<label>Numéro de soumission<input name="numero" placeholder="FJ-00011" required maxlength="18" autocomplete="off"></label><label>Prénom du client<input name="prenom" placeholder="Votre prénom" required maxlength="100" autocomplete="given-name"></label><button class="btn">🎥 Voir mon impression</button></form>{% if result %}<div class="tracking-result"><h2>Soumission {{result.public_number or ('FJ-%05d'|format(result.id))}}</h2><div id="fjord-client-liveprogress" data-number="{{result.public_number or ('FJ-%05d'|format(result.id))}}"><p>État de fabrication : <strong id="fjord-client-state">{{result.production_status}}</strong></p><p>Progression : <strong id="fjord-client-percent">{{result.production_progress or 0}} %</strong></p></div>{% if result.live_enabled and result.live_token and result.live_expires and result.live_expires > now %}<p>Votre lien privé est actif.</p><a class="btn" href="{{url_for('fjord_live_view',token=result.live_token)}}">🎥 Ouvrir mon impression en direct</a>{% else %}<p>La caméra n'est pas encore disponible, ou le lien de visionnement a expiré.</p>{% endif %}</div>{% endif %}<p><a href="/">← Retour à l'accueil</a></p></section>
+<script>
+(function(){
+ const box=document.getElementById('fjord-client-liveprogress');
+ if(!box)return;
+ const number=box.dataset.number;
+ async function reload(){
+  if(document.hidden)return;
+  try{
+   const response=await fetch('/api/production-publique',{cache:'no-store'});
+   if(!response.ok)return;
+   const data=await response.json();
+   const all=[...(data.groups.print||[]),...(data.groups.wait||[]),...(data.groups.done||[])];
+   const job=all.find(item=>item.number===number);
+   if(!job)return;
+   document.getElementById('fjord-client-state').textContent=job.status;
+   const percent=document.getElementById('fjord-client-percent');
+   percent.textContent=Number.isInteger(job.progress)?job.progress+' %':'Non disponible';
+  }catch(error){}
+ }
+ reload();setInterval(reload,30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload()});
+})();
+</script>''',result=result,csrf=csrfinput(),now=datetime.datetime.now(datetime.timezone.utc))
 
 @app.route("/suivi",methods=["GET","POST"])
 def suivi_client():
@@ -216,18 +249,30 @@ def suivi_client():
   if result is None:
    flash("Aucune commande trouvée. Vérifiez votre numéro et votre courriel.")
  return page("Suivre mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>Suivre mon impression</h1><p>Entrez le numéro de votre demande et le courriel utilisé pour la soumission.</p><form method="post">{{csrf|safe}}<label>Numéro de demande<input name="numero" inputmode="numeric" required maxlength="12"></label><label>Courriel<input type="email" name="email" required maxlength="200"></label><button class="btn">Afficher mon suivi</button></form>{% if result %}<div class="tracking-result"><h2>Commande #{{result.id}}</h2><p><strong>{{result.status}}</strong></p>{% if result.status=="En impression" and result.progress is not none %}<div class="tracking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{result.progress}}"><span style="width:{{result.progress}}%"></span></div><p>{{result.progress}} % terminé</p>{% elif result.status=="En impression" %}<p>Progression en attente de mise à jour.</p>{% endif %}{% if result.status=="En impression" and result.live_enabled %}<p>{% if result.live_url %}<a class="btn" href="{{result.live_url}}" target="_blank" rel="noopener noreferrer nofollow">🎥 Regarder mon impression en direct</a><p><strong>📹 Pour voir votre impression en direct :</strong> après avoir ouvert le lien, sélectionnez <strong>« Alternative Cam »</strong> et non « Bambu Cam ».</p><p>Le lien externe OctoEverywhere est accessible à toute personne qui le possède. Ne le partagez pas.</p>{% else %}La caméra n'est pas disponible pour cette commande.{% endif %}</p>{% endif %}</div>{% endif %}</section>''',result=result,csrf=csrfinput())
-_octo_cache={"at":0,"data":None}
+_octo_cache={"at":0,"data":None,"reason":"En attente de connexion"}
 def _octo_live_status():
  import json as j
+ import math
  import urllib.request as u
+ import urllib.error as ue
  from urllib.parse import urlparse
  now=time.monotonic()
  if now-_octo_cache["at"]<20:return _octo_cache["data"]
- _octo_cache["at"]=now
- _octo_cache["data"]=None
+ _octo_cache.update({"at":now,"data":None,"reason":"Connexion indisponible"})
  base=os.environ.get("OCTOEVERYWHERE_CONNECTION_URL","").strip().rstrip("/")
- p=urlparse(base)
- if p.scheme!="https" or not p.hostname or not p.hostname.endswith(".octoeverywhere.com") or p.username or p.password or p.port or p.path not in ("","/") or p.query or p.fragment:return None
+ if not base:
+  _octo_cache["reason"]="Adresse de connexion OctoEverywhere absente dans Railway."
+  return None
+ try:
+  p=urlparse(base)
+  valid=(p.scheme=="https" and p.hostname and p.hostname.endswith(".octoeverywhere.com")
+         and not p.username and not p.password and p.port is None
+         and p.path in ("","/") and not p.query and not p.fragment)
+ except ValueError:
+  valid=False
+ if not valid:
+  _octo_cache["reason"]="Adresse OctoEverywhere invalide : utiliser l'URL de connexion HTTPS sans chemin."
+  return None
  try:
   headers={"Accept":"application/json"}
   bearer=os.environ.get("OCTOEVERYWHERE_AUTH_BEARER_TOKEN","").strip()
@@ -238,15 +283,28 @@ def _octo_live_status():
   elif basic_user and basic_pass:
    import base64
    headers["Authorization"]="Basic "+base64.b64encode((basic_user+":"+basic_pass).encode()).decode("ascii")
-  with u.urlopen(u.Request(base+"/octoeverywhere-command-api/status",headers=headers),timeout=4) as resp:data=j.load(resp)
-  if data.get("Status")!=200:return None
+  with u.urlopen(u.Request(base+"/octoeverywhere-command-api/status",headers=headers),timeout=6) as resp:
+   data=j.load(resp)
+  if data.get("Status")!=200:
+   _octo_cache["reason"]="OctoEverywhere refuse la connexion (code {}).".format(str(data.get("Status"))[:4])
+   return None
   job=(data.get("Result") or {}).get("JobStatus") or {}
   current=job.get("CurrentPrint") or {}
   progress=current.get("Progress")
-  if not isinstance(progress,(int,float)) or not 0<=progress<=100:return None
-  _octo_cache["data"]={"state":str(job.get("State") or "").lower(),"progress":round(progress),"filename":str(current.get("FileName") or "")}
+  if not isinstance(progress,(int,float)) or not math.isfinite(progress) or not 0<=progress<=100:
+   progress=None
+  state=str(job.get("State") or "inconnu").lower()
+  _octo_cache["data"]={"state":state,"progress":round(progress) if progress is not None else None,
+                       "filename":str(current.get("FileName") or "")[:240]}
+  _octo_cache["reason"]="Connexion OctoEverywhere active."
   return _octo_cache["data"]
- except Exception:return None
+ except ue.HTTPError as exc:
+  _octo_cache["reason"]="Connexion refusée (HTTP {}). Vérifier le lien et son autorisation.".format(exc.code)
+ except (ue.URLError,TimeoutError,ConnectionError,OSError):
+  _octo_cache["reason"]="L'imprimante ou la connexion OctoEverywhere ne répond pas."
+ except (ValueError,TypeError,j.JSONDecodeError):
+  _octo_cache["reason"]="Réponse OctoEverywhere invalide."
+ return None
 
 def _octo_job_matches(configured,reported):
  def norm(v):
@@ -259,17 +317,60 @@ def _octo_job_matches(configured,reported):
  match=re.fullmatch(r"fj-\d{5}_(.+)",expected)
  return bool(match and match.group(1)==actual)
 
+def _sync_octo_progress():
+ """Persist a confirmed live OctoEverywhere job against one unambiguous quote."""
+ live=_octo_live_status()
+ result={"connected":live is not None,"reason":_octo_cache["reason"],
+         "state":live["state"] if live else None,"filename":live["filename"] if live else "",
+         "matched":False,"number":None,"progress":None,"updated":False}
+ if not live or live["state"] not in ("printing","warmingup","resuming","paused","complete"):
+  return result
+ filename=live["filename"]
+ if not filename or (live["progress"] is None and live["state"]!="complete"):
+  result["reason"]="OctoEverywhere ne donne pas de nom de travail ou de pourcentage."
+  return result
+ reported=str(filename).replace(chr(92),"/").split("/")[-1]
+ raw=re.sub(r"(?i)(?:\.gcode)?\.(?:3mf|gcode|stl)$","",reported).casefold()
+ match=re.match(r"^(fj-[0-9]{1,8})(?:[_\s-]|$)",raw)
+ with db() as c:
+  quotes=c.execute("""SELECT id,public_number,printer_job_name,production_status,production_progress
+                      FROM private_quotes ORDER BY id DESC LIMIT 300""").fetchall()
+  candidates=[]
+  if match:
+   number=match.group(1).upper()
+   candidates=[q for q in quotes if (q["public_number"] or "FJ-{:05d}".format(q["id"]))==number]
+  else:
+   candidates=[q for q in quotes if _octo_job_matches(q["printer_job_name"],filename)]
+  if len(candidates)!=1:
+   result["reason"]=("Aucune soumission associée au nom du travail de l'imprimante."
+                     if not candidates else "Plusieurs soumissions utilisent le même nom de travail.")
+   return result
+  q=candidates[0]
+  number=q["public_number"] or "FJ-{:05d}".format(q["id"])
+  progress=100 if live["state"]=="complete" else live["progress"]
+  result.update({"matched":True,"id":q["id"],"status":"Terminée" if live["state"]=="complete" else "En production","number":number,
+                 "progress":max(progress,int(q["production_progress"] or 0)),
+                 "reason":"Progression reçue pour "+number+"."})
+  if q["production_status"]!="Terminée":
+   changed=c.execute("""UPDATE private_quotes SET
+                 production_progress=GREATEST(production_progress,%s),
+                 production_status=CASE WHEN %s=100 THEN 'Terminée' ELSE 'En production' END
+                 WHERE id=%s AND production_status!='Terminée' RETURNING id""",
+                 (progress,progress,q["id"])).fetchone()
+   result["updated"]=bool(changed)
+ return result
+
 @app.get("/api/production-publique")
 def public_production():
  # Uniquement les commandes autorisées; aucun identifiant ou renseignement client.
  with db() as c:
   rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
  # Soumissions PRO : statut uniquement, sans données client ni montant.
+ _sync_octo_progress()
  with db() as c:
   quotes=c.execute("""SELECT q.id,q.public_number,q.production_status,q.production_progress,q.printer_job_name,q.payment_status,
       EXISTS(SELECT 1 FROM fjord_quote_acceptances a WHERE a.quote_id=q.id) AS accepted
       FROM private_quotes q ORDER BY q.id DESC LIMIT 150""").fetchall()
- live=_octo_live_status()
  groups={"print":[],"wait":[],"done":[]}
  for q in quotes:
   status=q["production_status"]
@@ -284,13 +385,6 @@ def public_production():
   else:
    key,label="wait","Soumission en attente"
   progress=100 if key=="done" else int(q["production_progress"] or 0)
-  if live and _octo_job_matches(q["printer_job_name"],live["filename"]):
-   if live["state"] in ("printing","paused","warmingup","resuming"):
-    key,label="print","En pause" if live["state"]=="paused" else "En impression"
-    progress=live["progress"]
-   elif live["state"]=="complete":
-    key,label="done","Terminée"
-    progress=100
   groups[key].append({"number":q["public_number"] or "FJ-{:05d}".format(q["id"]),"status":label,"progress":progress})
  for r in rows:
   key="print" if r["status"]=="En impression" else ("done" if r["status"]=="Terminée" else "wait")
@@ -448,7 +542,11 @@ def login():
   if valid:
    token=secrets.token_urlsafe(32)
    with db() as c:c.execute("INSERT INTO sessions(tokenhash,expires) VALUES(%s,NOW()+INTERVAL '12 hours')",(hashlib.sha256(token.encode()).hexdigest(),))
-   session.clear();session["admin_token"]=token;return redirect("/admin")
+   session.clear();session["admin_token"]=token
+   destination=request.args.get("next","")
+   if not (destination.startswith("/admin") and not destination.startswith("//") and "\\\\" not in destination):
+    destination="/admin"
+   return redirect(destination)
   flash("Connexion refusée.")
  return page("Connexion",'<h1>Administration privée</h1><form method="post">{{csrf|safe}}<label>Mot de passe<input type="password" name="password" required autocomplete="current-password"></label><button>Se connecter</button></form>',csrf=csrfinput())
 @app.get("/admin")
