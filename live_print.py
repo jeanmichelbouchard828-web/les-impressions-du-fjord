@@ -53,6 +53,96 @@ def register_live_print(app, db, admin_required, verify, page):
         connection.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_live_token_idx
                               ON private_quotes(live_token)""")
 
+    # Suivi de fabrication indépendant de la diffusion vidéo.
+    with db() as connection:
+        connection.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS tracking_token TEXT")
+        connection.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_status TEXT NOT NULL DEFAULT 'Demande reçue'")
+        connection.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_updated TIMESTAMPTZ DEFAULT NOW()")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_tracking_token_idx ON private_quotes(tracking_token)")
+
+    statuses = ("Demande reçue", "Soumission envoyée", "En attente d'impression",
+                "En impression", "Terminée", "Prête à récupérer", "Livrée")
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/suivi")
+    @admin_required
+    def fjord_tracking_update(quote_id):
+        verify()
+        status = request.form.get("production_status", "")
+        if status not in statuses:
+            abort(400, "Statut de fabrication invalide.")
+        with db() as connection:
+            row = connection.execute("""UPDATE private_quotes
+                SET production_status=%s, production_updated=NOW(),
+                    tracking_token=COALESCE(tracking_token,%s)
+                WHERE id=%s RETURNING id""",
+                (status, secrets.token_urlsafe(32), quote_id)).fetchone()
+        if not row:
+            abort(404)
+        flash("Statut de fabrication mis à jour. Le lien privé est prêt à partager.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
+    @app.get("/suivi-commande/<token>/statut")
+    def fjord_tracking_api(token):
+        from flask import jsonify
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}", token):
+            abort(404)
+        with db() as connection:
+            q = connection.execute("""SELECT production_status, production_updated
+                FROM private_quotes WHERE tracking_token=%s""", (token,)).fetchone()
+        if not q:
+            abort(404)
+        response = jsonify({"status": q["production_status"],
+                            "updated": q["production_updated"].isoformat() if q["production_updated"] else None})
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
+    @app.get("/suivi-commande/<token>")
+    def fjord_tracking_page(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}", token):
+            abort(404)
+        with db() as connection:
+            q = connection.execute("""SELECT id,production_status,live_token,live_enabled,live_expires
+                FROM private_quotes WHERE tracking_token=%s""", (token,)).fetchone()
+        if not q:
+            abort(404)
+        active_video = bool(q["live_enabled"] and q["live_token"] and
+                            q["live_expires"] and q["live_expires"] > datetime.datetime.now(datetime.timezone.utc))
+        result = make_response(page("Suivre ma commande", r"""
+<div class="card" style="max-width:760px;margin:30px auto">
+<div class="eyebrow">Les Impressions du Fjord · Suivi privé</div>
+<h1>Suivi de votre commande</h1>
+<p>Numéro de soumission : <strong>FJ-{{'%05d'|format(quote_id)}}</strong></p>
+<p>Statut de fabrication : <strong id="fjord-production-status" aria-live="polite">{{status}}</strong></p>
+<p style="font-size:14px">Le statut se met à jour automatiquement toutes les 20 secondes.</p>
+{% if video_url %}
+<p><a class="btn" href="{{video_url}}">🎥 Regarder mon impression en direct</a></p>
+{% else %}
+<p>🎥 La caméra n'est pas diffusée actuellement.</p>
+{% endif %}
+</div>
+<script>
+(function(){
+ const target=document.getElementById('fjord-production-status');
+ const endpoint={{api_url|tojson}};
+ async function refresh(){
+  if(document.hidden)return;
+  try{
+   const response=await fetch(endpoint,{cache:'no-store'});
+   if(response.ok){const data=await response.json();target.textContent=data.status;}
+  }catch(e){}
+ }
+ setInterval(refresh,20000);
+})();
+</script>
+""", quote_id=q["id"], status=q["production_status"],
+            api_url=url_for("fjord_tracking_api",token=token),
+            video_url=url_for("fjord_live_view",token=q["live_token"]) if active_video else None))
+        result.headers["Cache-Control"] = "no-store"
+        result.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        result.headers["Referrer-Policy"] = "no-referrer"
+        return result
+
     @app.post("/admin/soumissions-pro/<int:quote_id>/diffusion")
     @admin_required
     def fjord_live_config(quote_id):
