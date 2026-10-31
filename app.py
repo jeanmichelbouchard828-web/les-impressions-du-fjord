@@ -217,10 +217,28 @@ def public_production():
  # Uniquement les commandes autorisées; aucun identifiant ou renseignement client.
  with db() as c:
   rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
+ # Soumissions PRO : statut uniquement, sans données client ni montant.
+ with db() as c:
+  quotes=c.execute("""SELECT q.id,q.production_status,q.payment_status,
+      EXISTS(SELECT 1 FROM fjord_quote_acceptances a WHERE a.quote_id=q.id) AS accepted
+      FROM private_quotes q ORDER BY q.id DESC LIMIT 150""").fetchall()
  groups={"print":[],"wait":[],"done":[]}
+ for q in quotes:
+  status=q["production_status"]
+  if status=="Terminée":
+   key,label="done","Terminée"
+  elif status=="En production":
+   key,label="print","En impression"
+  elif q["payment_status"]=="Payée":
+   key,label="wait","Payée · en attente de production"
+  elif q["accepted"]:
+   key,label="wait","Acceptée · en attente de production"
+  else:
+   key,label="wait","Soumission en attente"
+  groups[key].append({"number":"FJ-{:05d}".format(q["id"]),"status":label,"progress":None})
  for r in rows:
   key="print" if r["status"]=="En impression" else ("done" if r["status"]=="Terminée" else "wait")
-  if len(groups[key])<4:
+  if len(groups[key])<100:
    groups[key].append({"progress":r["progress"] if key=="print" else None,"status":r["status"]})
  response=jsonify({"groups":groups})
  response.headers["Cache-Control"]="no-store, max-age=0"
