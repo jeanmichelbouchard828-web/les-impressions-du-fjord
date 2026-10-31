@@ -299,7 +299,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .quickbar{display:none!important}
 }
 @media(max-width:760px){.fjord-bed-tabs,.fjord-fast-tools{display:none}}
-</style>
+.fjord-generator-catalog{display:flex;flex-direction:column;gap:5px;margin:10px 0 15px}.fjord-generator-catalog button{width:100%;text-align:left;padding:10px 12px;border-radius:9px;border:1px solid #394656;background:#222a34;color:#b8d9f8;cursor:pointer}.fjord-generator-catalog button:hover,.fjord-generator-catalog button.selected{background:#30435a;border-color:#5aaaf0}</style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
 <header>
@@ -421,7 +421,14 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="layFace" class="tool-btn" data-i18n="layFace" aria-pressed="false">▱ Poser sur une face</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div></section>
 <section id="generatorSection" data-tool-panel="generators"><h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
-<div class="generator-block">
+<div class="fjord-generator-catalog" aria-label="Générateurs disponibles">
+<button type="button" data-generator-pick="pipe">◉ Tuyau droit</button>
+<button type="button" data-generator-pick="adapter">⌁ Adaptateur ventilation</button>
+<button type="button" data-generator-pick="elbow">↪ Coude de conduit</button>
+<button type="button" data-generator-pick="sleeve">◎ Bague / douille</button>
+<button type="button" data-generator-pick="gear">⚙ Engrenages</button>
+<button type="button" data-generator-pick="screw">⛭ Vis</button>
+</div><div class="generator-block">
 <label for="generatorKind" data-i18n="generatorChoose">Type de pièce</label>
 <select id="generatorKind" aria-label="Générateur de pièce 3D"></select>
 <div id="generatorFields" class="generator-fields"></div>
@@ -2478,4 +2485,18 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  }));
 })();
 </script>
-</body></html>
+<script>
+(()=>{
+ const select=document.getElementById('generatorKind');
+ const buttons=[...document.querySelectorAll('[data-generator-pick]')];
+ const sync=()=>buttons.forEach(b=>b.classList.toggle('selected',b.dataset.generatorPick===select?.value));
+ buttons.forEach(b=>b.addEventListener('click',()=>{
+  if(!select)return;
+  select.value=b.dataset.generatorPick;
+  select.dispatchEvent(new Event('change',{bubbles:true}));
+  sync();
+ }));
+ select?.addEventListener('change',sync);
+ sync();
+})();
+</script></body></html>
