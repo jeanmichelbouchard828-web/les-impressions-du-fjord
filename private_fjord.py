@@ -761,7 +761,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
-<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span></form>
+<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
 <p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
 <div class="fj-status-board">
 <button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length}}</strong></button>
@@ -1025,9 +1025,36 @@ for(const card of quoteCards){for(const field of card.querySelectorAll('[form="f
  field.addEventListener('change',()=>{card.dataset.edited='1'});
  field.addEventListener('input',()=>{card.dataset.edited='1'});
 }}
-quoteSave?.addEventListener('submit',()=>{for(const card of quoteCards){if(card.dataset.edited==='1')continue;
- for(const field of card.querySelectorAll('[form="fjord-save-global"]'))field.disabled=true;
-}});
+quoteSave?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const message=document.getElementById('fjord-save-feedback');
+ const button=quoteSave.querySelector('button[type="submit"]');
+ const temporarilyDisabled=[];
+ if(button?.disabled)return;
+ for(const card of quoteCards){
+  if(card.dataset.edited==='1')continue;
+  for(const field of card.querySelectorAll('[form="fjord-save-global"]')){
+   if(!field.disabled){field.disabled=true;temporarilyDisabled.push(field);}
+  }
+ }
+ if(button){button.disabled=true;button.textContent='Enregistrement…';}
+ if(message)message.textContent='Enregistrement des modifications…';
+ try{
+  const response=await fetch(quoteSave.action,{method:'POST',body:new FormData(quoteSave),
+   credentials:'same-origin',headers:{'Accept':'application/json'}});
+  if(!(response.headers.get('content-type')||'').includes('application/json'))
+   throw Error('Session expirée ou réponse inattendue. Reconnecte-toi, puis réessaie.');
+  const result=await response.json();
+  if(!response.ok || !result.ok)throw Error(result.error||'Impossible de sauvegarder.');
+  if(message)message.textContent='✓ '+result.message;
+  window.location.assign('/admin/soumissions-pro#soumissions-enregistrees');
+ }catch(error){
+  if(message)message.textContent='⚠ '+String(error.message||error);
+ }finally{
+  for(const field of temporarilyDisabled)field.disabled=false;
+  if(button){button.disabled=false;button.textContent='💾 Enregistrer';}
+ }
+});
 (function(){
  const label=document.getElementById('fjord-auto-progress');
  let active=false;
@@ -1070,6 +1097,21 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 
 
 
+    @app.errorhandler(400)
+    def fjord_quote_bad_save(error):
+        if request.path!="/admin/soumissions-pro/enregistrer-tout":
+            return error
+        message=error.description
+        if message=="The browser (or proxy) sent a request that this server could not understand.":
+            message="Les informations de sauvegarde ne sont plus valides. Recharge la page, reconnecte-toi si nécessaire, puis réessaie."
+        if request.accept_mimetypes.best=="application/json":
+            return {"ok":False,"error":message},400
+        return page("Soumission non enregistrée", """
+        <section class="card"><h1>Soumission non enregistrée</h1>
+        <p>{{message}}</p><p>Aucune modification n'a été sauvegardée.</p>
+        <a class="btn" href="/admin/soumissions-pro">Retour aux soumissions PRO</a></section>""",
+        message=message),400
+
     @app.post("/admin/soumissions-pro/enregistrer-tout")
     @admin_required
     def fjord_quote_save_global():
@@ -1077,7 +1119,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         with db() as c:
             c.execute("SELECT pg_advisory_xact_lock(7342026,4)")
             interac=request.form.get("interac_email","").strip().lower()[:180]
-            if interac and not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+",interac):abort(400)
+            if interac and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",interac):abort(400,"Adresse Interac invalide : vérifie le courriel.")
             rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC LIMIT 150").fetchall()
             changes=[]
             for q in rows:
@@ -1090,9 +1132,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 payment=request.form.get("payment_status"+suffix,"")
                 raw=request.form.get("production_progress"+suffix,"0").strip() or "0"
                 if not re.fullmatch(r"FJ-[0-9]{1,8}",number):abort(400,"Numéro invalide : "+str(q["id"]))
-                if len(job)>160 or production not in ("À traiter","En production","Terminée"):abort(400)
-                if payment not in ("En attente","Paiement partiel","Payée"):abort(400)
-                if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400)
+                if len(job)>160 or production not in ("À traiter","En production","Terminée"):abort(400,"État de fabrication ou nom du travail invalide.")
+                if payment not in ("En attente","Paiement partiel","Payée"):abort(400,"Statut du paiement invalide.")
+                if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400,"Progression invalide : entre 0 et 100 %.")
                 progress=int(raw)
                 if production=="Terminée":progress=100
                 elif production=="À traiter":progress=0
@@ -1125,7 +1167,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 if preview:
                     c.execute("UPDATE private_quotes SET preview_mime=%s,preview=%s WHERE id=%s",
                               (preview[0],preview[1],ident))
-        flash(str(len(changes))+" soumission(s) enregistrée(s).")
+        message=str(len(changes))+" soumission(s) enregistrée(s)."
+        if request.accept_mimetypes.best=="application/json":return {"ok":True,"message":message}
+        flash(message)
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/soumissions-pro/<int:quote_id>/enregistrer")
