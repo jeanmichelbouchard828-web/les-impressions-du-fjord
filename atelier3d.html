@@ -284,6 +284,21 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .context-menu{min-width:230px;max-width:min(300px,90vw);max-height:min(76vh,560px);scrollbar-width:thin}
 .context-menu .context-heading{margin-top:5px}
 .context-menu .context-heading:first-child{margin-top:0}
+
+@media(min-width:761px){
+ .fjord-bed-tabs{display:flex;align-items:flex-end;height:45px;padding:8px 0 0;background:#141a21;border-bottom:2px solid #3169a6}
+ .fjord-bed-tab{height:37px;border:1px solid #3169a6;border-bottom:0;border-radius:12px 12px 0 0;background:#222b36;color:#e5edf8;padding:0 16px;font-weight:700}
+ .fjord-fast-tools{position:absolute;top:auto;left:88px;z-index:14;display:flex;flex-direction:column;align-items:flex-start;max-width:calc(100% - 90px);pointer-events:none}
+ .fjord-fast-row{display:flex;align-items:center;gap:2px;max-width:100%;overflow-x:auto;scrollbar-width:none;background:#20262e;border:1px solid #36414f;border-top:0;border-radius:0 0 23px 0;padding:7px 10px;pointer-events:auto;white-space:nowrap}
+ .fjord-fast-row button{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;color:#dce4eb;border-radius:6px;padding:8px 9px;font-size:14px;cursor:pointer;flex:none}
+ .fjord-fast-row button:hover{background:#344354;color:#fff}
+ .fjord-fast-row button span{font-size:19px;font-style:normal}
+ .fjord-fast-row button em{font-style:normal}
+ .fjord-fast-row.fjord-fast-compact button em{display:none}
+ .fjord-fast-row .fjord-fast-fold{font-size:23px;padding:5px 10px}
+ .quickbar{display:none!important}
+}
+@media(max-width:760px){.fjord-bed-tabs,.fjord-fast-tools{display:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -307,6 +322,29 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <details><summary>Options</summary><div class="fjord-menu-options"><button data-fjord-target="estimateToggle">Estimateur</button><button data-fjord-target="sliceTop">Trancher</button></div></details>
 <details><summary>Aide</summary><div class="fjord-menu-options"><button data-fjord-help="1">Commandes de l'atelier</button></div></details>
 </nav>
+<div class="fjord-bed-tabs" role="tablist" aria-label="Plateaux de travail"><button type="button" role="tab" aria-selected="true" class="fjord-bed-tab">⬡ Plateau 1</button></div>
+<div class="fjord-fast-tools" aria-label="Outils rapides">
+ <div class="fjord-fast-row" role="toolbar" aria-label="Manipulation et mesure">
+  <button class="fjord-fast-fold" type="button" aria-expanded="true" title="Réduire ou développer">‹</button>
+  <button data-fjord-tool="rotate" title="Pivoter"><span>⟳</span><em>Pivoter</em></button>
+  <button data-fjord-tool="duplicate" title="Multi / Dupliquer"><span>▢</span><em>Multi</em></button>
+  <button data-fjord-tool="measure" title="Règle"><span>📏</span><em>Règle</em></button>
+  <button data-fjord-tool="centerXY" title="Accroche et centrage"><span>⊕</span><em>Accroche et centrage</em></button>
+  <button data-fjord-tool="cutZ" title="Vue de coupe"><span>⬡</span><em>Vue de coupe</em></button>
+  <button data-fjord-tool="dropToBed" title="Niveau"><span>▱</span><em>Niveau</em></button>
+  <button data-fjord-tool="layFace" title="Poser sur une face"><span>▣</span><em>Poser sur une face</em></button>
+  <button data-fjord-tool="viewFit" title="Loupe"><span>⊕</span><em>Loupe</em></button>
+ </div>
+ <div class="fjord-fast-row" role="toolbar" aria-label="Découpe et modification">
+  <button class="fjord-fast-fold" type="button" aria-expanded="true" title="Réduire ou développer">‹</button>
+  <button data-fjord-tool="cutZ" title="Découper"><span>✂</span><em>Découper</em></button>
+  <button data-fjord-tool="rotate" title="Tourner"><span>⟳</span><em>Tourner</em></button>
+  <button data-fjord-tool="scale" title="Échelle"><span>⬡</span><em>Échelle</em></button>
+  <button data-fjord-tool="mirrorX" title="Miroir"><span>◩</span><em>Miroir</em></button>
+  <button data-fjord-tool="duplicate" title="Dupliquer"><span>⬡</span><em>Dupliquer</em></button>
+  <button data-fjord-tool="layFace" title="Une face"><span>◇</span><em>Une face</em></button>
+ </div>
+</div>
 <div class="quickbar" role="toolbar" aria-label="3D Tools / Outils 3D">
 <span class="quickbar-label" data-i18n="quickTools">OUTILS</span>
 <span class="quick-divider"></span>
@@ -2421,6 +2459,23 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  window.addEventListener('pointerup',()=>setTimeout(close,0));
  window.addEventListener('pointercancel',close);
  window.addEventListener('blur',close);
+})();
+</script>
+<script>
+/* Deux barres contextuelles : mêmes actions que les commandes déjà présentes. */
+(()=>{
+ document.querySelectorAll('.fjord-fast-fold').forEach(button=>button.addEventListener('click',()=>{
+  const row=button.closest('.fjord-fast-row');
+  const compact=row.classList.toggle('fjord-fast-compact');
+  button.textContent=compact?'›':'‹';
+  button.setAttribute('aria-expanded',String(!compact));
+ }));
+ document.querySelectorAll('[data-fjord-tool]').forEach(button=>button.addEventListener('click',()=>{
+  const id=button.dataset.fjordTool;
+  const quick=document.querySelector('.quickbar [data-quick-action="'+id+'"]');
+  if(quick){quick.click();return;}
+  document.getElementById(id)?.click();
+ }));
 })();
 </script>
 </body></html>
