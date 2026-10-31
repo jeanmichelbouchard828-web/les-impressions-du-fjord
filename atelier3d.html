@@ -1493,6 +1493,7 @@ document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',
 // Mouse interactions: left selects/drags parts; right-drag pans the camera.
 // A stationary right-click still opens the part-tools menu on release.
 const dragStart={x:0,y:0};let directDrag=null,activeTool=null,touchMoveEnabled=false;
+let multiSelectionPointer=null;
 let touchTap=null; // Use a generous finger-tap tolerance, without affecting pinch/orbit gestures.
 const activeTouchIds=new Set();
 const touchTapTolerance=18;
@@ -1587,6 +1588,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  }
  if(e.button!==0){hideContext();return}
  hideContext();dragStart.x=e.clientX;dragStart.y=e.clientY;
+ if(e.pointerType==='mouse' && (e.ctrlKey||e.metaKey||e.shiftKey)){
+  const hit=findHit(e);
+  if(hit)togglePartSelection(hit.object);
+  multiSelectionPointer=e.pointerId;
+  e.preventDefault();e.stopImmediatePropagation();return;
+ }
  if(cutPreviewActive && cutPreviewView.visible){
    findHit(e);
    const mode=raycaster.intersectObject(cutRotateXHandle,false).length?'angleX':
@@ -1672,6 +1679,10 @@ renderer.domElement.addEventListener('pointerup',e=>{
    }else hideContext();
    return; // OrbitControls termine le geste et libère le bouton droit.
  }
+ if(multiSelectionPointer===e.pointerId){
+  multiSelectionPointer=null;
+  e.stopImmediatePropagation();return;
+ }
  const tap=e.pointerType==='touch' && touchTap?.pointerId===e.pointerId &&
   activeTouchIds.size===1 &&
   Math.hypot(e.clientX-touchTap.x,e.clientY-touchTap.y)<=touchTapTolerance ? touchTap : null;
@@ -1710,6 +1721,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
  else if(!measureMode&&!cutPreviewActive&&!activeTool&&!touchMoveEnabled)pick(null);
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
+ if(multiSelectionPointer===e.pointerId)multiSelectionPointer=null;
  if(rightPanStart&&rightPanStart.pointerId===e.pointerId){rightPanStart=null;hideContext()}
  if(e.pointerType==='touch'){activeTouchIds.delete(e.pointerId);touchTap=null}
  if(cutDrag&&cutDrag.pointerId===e.pointerId){cutDrag=null;orbit.enabled=true;renderer.domElement.style.cursor='';return}
