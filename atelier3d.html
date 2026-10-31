@@ -417,6 +417,69 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(33px)!important}
 .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(33px)!important}
 @media(max-width:760px){.fjord-camera-controls .fjord-orientation-widget{width:62px;min-width:62px;height:62px;perspective:300px}.fjord-orientation-rotor{transform-origin:center;scale:.72}}
+
+/* Disposition des commandes identique à la référence : colonne d'icônes,
+   cube de navigation à droite, deux boutons de zoom sous le cube. */
+.fjord-camera-controls{
+ display:grid!important;
+ grid-template-columns:42px 106px!important;
+ grid-template-rows:106px auto!important;
+ column-gap:14px!important;
+ row-gap:12px!important;
+ align-items:start!important;
+ right:14px!important;
+ top:12px!important;
+}
+.fjord-camera-controls .fjord-camera-buttons{
+ grid-column:1;grid-row:1 / span 2;
+ display:flex!important;flex-direction:column!important;gap:5px!important;
+}
+.fjord-camera-controls .fjord-camera-buttons>button{
+ width:42px!important;height:42px!important;min-width:42px!important;
+ border-radius:11px!important;font-size:23px!important;
+}
+.fjord-camera-controls .fjord-orientation-widget{
+ grid-column:2;grid-row:1;
+ width:106px!important;min-width:106px!important;height:106px!important;
+ margin:0!important;perspective:480px!important;
+}
+.fjord-camera-controls .fjord-orientation-rotor{
+ width:94px!important;height:94px!important;
+ margin:-47px 0 0 -47px!important;
+}
+.fjord-camera-controls .fjord-orientation-face{
+ width:94px!important;min-width:94px!important;height:94px!important;
+ font-size:14px!important;border-radius:2px!important;
+}
+.fjord-camera-controls .fjord-orientation-face.face-front{transform:translateZ(47px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-back{transform:rotateY(180deg) translateZ(47px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-right{transform:rotateY(90deg) translateZ(47px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-left{transform:rotateY(-90deg) translateZ(47px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(47px)!important}
+.fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(47px)!important}
+.fjord-camera-controls .fjord-camera-zoom{
+ grid-column:2;grid-row:2;
+ display:flex!important;flex-direction:row!important;
+ justify-content:center!important;align-self:start!important;gap:6px!important;
+}
+.fjord-camera-controls .fjord-camera-zoom>button{
+ width:44px!important;height:42px!important;min-width:44px!important;
+ border-radius:11px!important;font-size:23px!important;
+}
+@media(max-width:760px){
+ .fjord-camera-controls{grid-template-columns:32px 74px!important;grid-template-rows:74px auto!important;column-gap:7px!important;row-gap:8px!important;right:5px!important;top:7px!important}
+ .fjord-camera-controls .fjord-camera-buttons>button{width:32px!important;height:32px!important;min-width:32px!important;font-size:18px!important}
+ .fjord-camera-controls .fjord-orientation-widget{width:74px!important;min-width:74px!important;height:74px!important;perspective:350px!important}
+ .fjord-camera-controls .fjord-orientation-rotor{width:66px!important;height:66px!important;margin:-33px 0 0 -33px!important;scale:1!important}
+ .fjord-camera-controls .fjord-orientation-face{width:66px!important;min-width:66px!important;height:66px!important;font-size:10px!important}
+ .fjord-camera-controls .fjord-orientation-face.face-front{transform:translateZ(33px)!important}
+ .fjord-camera-controls .fjord-orientation-face.face-back{transform:rotateY(180deg) translateZ(33px)!important}
+ .fjord-camera-controls .fjord-orientation-face.face-right{transform:rotateY(90deg) translateZ(33px)!important}
+ .fjord-camera-controls .fjord-orientation-face.face-left{transform:rotateY(-90deg) translateZ(33px)!important}
+ .fjord-camera-controls .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(33px)!important}
+ .fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(33px)!important}
+ .fjord-camera-controls .fjord-camera-zoom>button{width:33px!important;min-width:33px!important;height:32px!important;font-size:18px!important}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
