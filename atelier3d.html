@@ -930,19 +930,25 @@ for(let mm=0;mm<=256;mm+=5){
  pc.lineWidth=mm%50===0?2.2:1;pc.stroke();
 }
 function drawFjordMark(logo){
- pc.save();pc.fillStyle='#171d23';pc.fillRect(570,800,920,410);
- pc.save();pc.translate(N/2,N/2);pc.textAlign='center';pc.textBaseline='middle';
- pc.globalAlpha=.13;pc.fillStyle='#9ba9b8';pc.font='bold 88px Arial,sans-serif';
- pc.fillText('LES IMPRESSIONS',165,-32);pc.font='bold 82px Arial,sans-serif';pc.fillText('DU FJORD',165,74);
- pc.restore();
+ // Gravure intégrée à la texture du plateau : aucune géométrie imprimable.
+ pc.save();
+ pc.fillStyle='#171d23';pc.fillRect(480,775,1150,500);
+ pc.textAlign='center';pc.textBaseline='middle';
+ pc.globalAlpha=.23;pc.fillStyle='#9ab8c9';
+ pc.shadowColor='#1baee8';pc.shadowBlur=9;
+ pc.font='bold 84px Arial,sans-serif';pc.fillText('LES IMPRESSIONS',1210,951);
+ pc.font='bold 91px Arial,sans-serif';pc.fillText('DU FJORD',1210,1066);
+ pc.shadowBlur=0;
+ pc.globalAlpha=.26;pc.strokeStyle='#2c9dd4';pc.lineWidth=4;
+ pc.beginPath();pc.moveTo(905,1004);pc.lineTo(1535,1004);pc.stroke();
  if(logo){
-  const size=360,x=480,y=845;
-  pc.save();pc.globalAlpha=.17;
+  const size=455,x=450,y=797;
   const ratio=Math.min(size/logo.width,size/logo.height);
   const w=logo.width*ratio,h=logo.height*ratio;
+  pc.globalAlpha=.42;pc.shadowColor='#119fe4';pc.shadowBlur=14;
   pc.drawImage(logo,x+(size-w)/2,y+(size-h)/2,w,h);
-  pc.restore();
  }
+ pc.restore();
 }
 drawFjordMark(null);
 const plateTexture=new THREE.CanvasTexture(plateCanvas);plateTexture.colorSpace=THREE.SRGBColorSpace;plateTexture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
@@ -950,7 +956,7 @@ const plate=new THREE.Mesh(new THREE.PlaneGeometry(256,256),new THREE.MeshBasicM
 // Logo officiel chargé depuis les ressources du site; uniquement visuel sur le plateau.
 const fjordLogo=new Image();
 fjordLogo.onload=()=>{drawFjordMark(fjordLogo);plateTexture.needsUpdate=true;};
-fjordLogo.src='/static/logo-fjord.png';
+fjordLogo.src='/static/fjord-plate-mark.svg';
 
 plate.position.z=-.08;scene.add(plate);
 const outlinePoints=[[-128,-128,0],[-128,128,0],[128,128,0],[128,-128,0]].map(p=>new THREE.Vector3(...p));
