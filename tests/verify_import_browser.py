@@ -114,6 +114,42 @@ try:
         assert ImageChops.difference(frame_before,frame_after).getbbox(), "Right-drag did not pan the view"
         assert page.locator("#sceneList").inner_text()==part_list_before, "Right-drag changed model list"
         print("Right-drag camera pan and short right-click menu OK",flush=True)
+        # Multiple selection / Merge / real size change / split — Bambu semantics.
+        # Selecting the parts through their checkboxes works on PC and mobile.
+        checkboxes=page.locator("#sceneList input[type=checkbox]")
+        assert checkboxes.count()==2, "Two independent imported parts expected"
+        checkboxes.nth(0).check()
+        checkboxes.nth(1).check()
+        assert page.locator("#sceneList input[type=checkbox]:checked").count()==2
+        page.evaluate("""() => {
+          const menu=document.getElementById('contextMenu');
+          menu.hidden=false;
+          menu.querySelector('[data-context-action="mergeAll"]').click();
+        }""")
+        assert page.locator("#sceneList input[type=checkbox]").count()==1, "Merge should create one grouped object"
+        assert "2 pièces" in page.locator("#sceneList").inner_text(), "The original parts must remain"
+        start_size=float(page.locator("#sx").input_value())
+        page.evaluate("""() => document.querySelector('[data-context-action="growSelected"]').click()""")
+        resized=float(page.locator("#sx").input_value())
+        assert abs(resized/start_size-1.1)<.005, f"Scale must change actual model size by 10%: {start_size} -> {resized}"
+        import json
+        with page.expect_download() as download_info:
+            page.locator("#save").evaluate("(button) => button.click()")
+        saved=json.loads(pathlib.Path(download_info.value.path()).read_text(encoding="utf-8"))
+        assert len(saved["objects"])==1
+        assert len(saved["objects"][0]["parts"])==2
+        assert saved["objects"][0]["vertices"], "Merged geometry was not saved"
+        # Split should recreate both independently selectable pieces.
+        page.evaluate("""() => document.querySelector('[data-context-action="splitMerged"]').click()""")
+        assert page.locator("#sceneList input[type=checkbox]").count()==2
+        # Reopen the saved merged object: parts and scale must survive reload.
+        page.locator("#projectFile").set_input_files({
+            "name":"merged-fjord.json","mimeType":"application/json",
+            "buffer":json.dumps(saved).encode("utf-8"),
+        })
+        assert page.locator("#sceneList input[type=checkbox]").count()==1
+        assert "2 pièces" in page.locator("#sceneList").inner_text()
+        print("Merge, per-part preservation, real scale, split and project reload OK",flush=True)
         browser.close()
         print("PASSED browser import; JS errors:",errors,flush=True)
 finally:
