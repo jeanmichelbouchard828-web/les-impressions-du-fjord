@@ -1135,6 +1135,36 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes")
         return json.dumps({k:str(q[k]) if q[k] is not None else None for k in fields},ensure_ascii=False,sort_keys=True)
 
+    @app.get("/apercu-soumission/<token>/image")
+    def fjord_client_quote_image(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            q=c.execute("SELECT preview,preview_mime FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
+        if not q or not q["preview"] or q["preview_mime"] not in ("image/png","image/jpeg","image/webp"):abort(404)
+        response=send_file(io.BytesIO(q["preview"]),mimetype=q["preview_mime"])
+        response.headers["Cache-Control"]="private, no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow"
+        return response
+
+    @app.get("/apercu-soumission/<token>/modele.stl")
+    def fjord_client_quote_mesh(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            model=c.execute("""SELECT m.filename,m.filedata FROM private_quotes q
+                JOIN private_models m ON m.id=q.model_id WHERE q.payment_token=%s""",(token,)).fetchone()
+        if not model or not model["filename"].lower().endswith((".stl",".3mf")):abort(404)
+        data=bytes(model["filedata"])
+        if len(data)>MAX_MODEL:abort(413)
+        if model["filename"].lower().endswith(".3mf"):
+            from quote_estimator import _stl_from_3mf, EstimationError
+            try:data=_stl_from_3mf(data)
+            except (EstimationError,ValueError,OverflowError):abort(422)
+        response=send_file(io.BytesIO(data),mimetype="model/stl",download_name="apercu.stl")
+        response.headers["Cache-Control"]="private, no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow"
+        response.headers["Content-Disposition"]="inline"
+        return response
+
     @app.route("/accepter-soumission/<token>",methods=["GET","POST"])
     def fjord_accept_quote(token):
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
@@ -1168,6 +1198,54 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 <p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
 <p><strong>Matériau :</strong> {{q.material}} · <strong>Quantité :</strong> {{q.quantity}}</p>
 <p><strong>Prix total :</strong> {{total}}</p>
+{% if q.model_id or q.preview %}
+<section class="card" style="margin:20px 0;padding:16px">
+<h2>Votre création 3D</h2>
+{% if q.model_id %}
+<div id="fjordQuote3D" style="height:340px;max-width:100%;background:#102235;border-radius:12px;position:relative;overflow:hidden" role="img" aria-label="Aperçu 3D interactif de votre pièce">
+{% if q.preview %}<img id="fjordQuoteFallback" src="{{url_for('fjord_client_quote_image',token=token)}}" alt="Aperçu de votre objet" style="width:100%;height:100%;object-fit:contain">{% endif %}
+</div>
+<p style="font-size:13px">Tournez la pièce avec le doigt ou la souris. Utilisez la molette ou deux doigts pour agrandir.</p>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
+import {STLLoader} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/STLLoader.js';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/controls/OrbitControls.js';
+const host=document.getElementById('fjordQuote3D');
+if(host){try{
+const res=await fetch({{model_url|tojson}},{credentials:'same-origin'});
+if(!res.ok)throw Error('Modèle non disponible');
+const geometry=new STLLoader().parse(await res.arrayBuffer());
+geometry.computeVertexNormals();geometry.computeBoundingBox();
+const bounds=geometry.boundingBox;
+const size=new THREE.Vector3();bounds.getSize(size);
+if(!Number.isFinite(size.length())||size.length()===0)throw Error('Modèle vide');
+const center=new THREE.Vector3();bounds.getCenter(center);geometry.translate(-center.x,-center.y,-center.z);
+const scene=new THREE.Scene();scene.background=new THREE.Color('#102235');
+const camera=new THREE.PerspectiveCamera(40,1,.01,100000);
+const distance=Math.max(size.length()*1.5,10);
+camera.position.set(distance*.8,distance*.65,distance);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.replaceChildren(renderer.domElement);
+renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';
+scene.add(new THREE.HemisphereLight(0xffffff,0x52718d,2.1));
+const light=new THREE.DirectionalLight(0xffffff,2.2);light.position.set(2,3,5);scene.add(light);
+const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x42a9d7,metalness:.12,roughness:.62,side:THREE.DoubleSide}));
+scene.add(mesh);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
+controls.target.set(0,0,0);controls.update();
+function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+new ResizeObserver(resize).observe(host);resize();
+let active=true;const observer=new IntersectionObserver(entries=>{active=entries[0].isIntersecting});observer.observe(host);
+function animate(){requestAnimationFrame(animate);if(active){controls.update();renderer.render(scene,camera)}}animate();
+}catch(err){if(!host.querySelector('img'))host.textContent='Aperçu 3D indisponible pour ce modèle.';}}
+</script>
+{% elif q.preview %}
+<img src="{{url_for('fjord_client_quote_image',token=token)}}" alt="Aperçu de votre objet" style="max-width:100%;max-height:350px;object-fit:contain">
+{% endif %}
+<p style="font-size:12px">Aperçu indicatif : les caractéristiques convenues dans la soumission font foi.</p>
+</section>
+{% endif %}
 <p>Veuillez consulter le PDF de soumission et ses conditions transmis par Les Impressions du Fjord avant d’accepter.</p>
 {% if changed %}<p>Cette soumission a été modifiée depuis son acceptation. Une nouvelle acceptation est nécessaire : communiquez avec Les Impressions du Fjord.</p>
 {% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>
@@ -1176,7 +1254,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
 <div class="card" style="margin:16px 0;border-color:#68c6e7"><strong>VENTE FINALE – FABRICATION PERSONNALISÉE</strong><p>Le client confirme avoir vérifié et approuvé les caractéristiques convenues du produit, notamment le modèle, les dimensions, le matériau, la couleur et la quantité. Une fois la fabrication commencée, aucune annulation ou modification pour simple changement d'avis n'est garantie, sous réserve des droits prévus par la loi. Les garanties légales et les recours applicables demeurent pleinement en vigueur.</p><label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="final_sale" value="yes" required style="width:auto;margin-top:5px"><span>Je reconnais avoir lu et compris les conditions de vente finale pour cet article personnalisé, sous réserve de mes droits légaux.</span></label></div>
 <button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
-<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput()))
+<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),token=token,model_url=url_for("fjord_client_quote_mesh",token=token)))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow"
         response.headers["Referrer-Policy"]="no-referrer"
