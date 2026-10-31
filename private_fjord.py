@@ -1154,11 +1154,449 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                             c.execute("""UPDATE private_models SET preview=%s,preview_mime=%s
                                          WHERE id=%s AND preview IS NULL""",
                                       (preview[1],preview[0],model_id))
+            c.execute("SELECT pg_advisory_xact_lock(7342026, 4)")
+            last=c.execute("""SELECT GREATEST(4,
+                COALESCE(MAX(CASE WHEN public_number ~ '^FJ-[0-9]{1,8}
+               (customer,email,phone,title,description,material,quantity,unit_price,
+                shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
+                machine_hour,setup_cost,markup,payment_token,public_number)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               RETURNING id""",(customer,email,phone,title,description,material,
+               int(quantity),unit,shipping,taxes,model_id,
+               preview[1] if preview else None,preview[0] if preview else None,
+               grams,hours,filament_kg,machine_hour,setup_cost,markup,
+               secrets.token_urlsafe(32),next_number)).fetchone()
+        flash("Soumission créée. Tu peux maintenant télécharger le PDF.")
+        return redirect("/admin/soumissions-pro/"+str(result["id"])+"/pdf")
+
+    @app.get("/admin/soumissions-pro/<int:quote_id>/paiement")
+    @admin_required
+    def fjord_admin_payment_link(quote_id):
+        with db() as c:
+            q=c.execute("SELECT id,payment_token FROM private_quotes WHERE id=%s",
+                        (quote_id,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q:abort(404)
+        if not setting or not setting["value"]:
+            flash("Configure d'abord ton adresse Interac.")
+            return redirect("/admin/soumissions-pro")
+        token=_quote_payment_token(db,q)
+        if not token:abort(500)
+        return redirect(url_for("fjord_payment_page",token=token))
+
+
+    with db() as c:
+        c.execute("""CREATE TABLE IF NOT EXISTS fjord_quote_acceptances (
+          quote_id BIGINT PRIMARY KEY REFERENCES private_quotes(id) ON DELETE CASCADE,
+          accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          signer TEXT NOT NULL, quote_snapshot TEXT NOT NULL,
+          quote_hash TEXT NOT NULL, terms_version TEXT NOT NULL,
+          ip_hash TEXT, user_agent TEXT)""")
+
+    def quote_snapshot(q):
+        fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes")
+        return json.dumps({k:str(q[k]) if q[k] is not None else None for k in fields},ensure_ascii=False,sort_keys=True)
+
+    @app.get("/apercu-soumission/<token>/image")
+    def fjord_client_quote_image(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            q=c.execute("SELECT preview,preview_mime FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
+        if not q or not q["preview"] or q["preview_mime"] not in ("image/png","image/jpeg","image/webp"):abort(404)
+        response=send_file(io.BytesIO(q["preview"]),mimetype=q["preview_mime"])
+        response.headers["Cache-Control"]="private, no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow"
+        return response
+
+    @app.get("/apercu-soumission/<token>/modele.stl")
+    def fjord_client_quote_mesh(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            model=c.execute("""SELECT m.filename,m.filedata FROM private_quotes q
+                JOIN private_models m ON m.id=q.model_id WHERE q.payment_token=%s""",(token,)).fetchone()
+        if not model or not model["filename"].lower().endswith((".stl",".3mf")):abort(404)
+        data=bytes(model["filedata"])
+        if len(data)>MAX_MODEL:abort(413)
+        if model["filename"].lower().endswith(".3mf"):
+            from quote_estimator import _stl_from_3mf, EstimationError
+            try:data=_stl_from_3mf(data)
+            except (EstimationError,ValueError,OverflowError):abort(422)
+        response=send_file(io.BytesIO(data),mimetype="model/stl",download_name="apercu.stl")
+        response.headers["Cache-Control"]="private, no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow"
+        response.headers["Content-Disposition"]="inline"
+        return response
+
+    @app.route("/accepter-soumission/<token>",methods=["GET","POST"])
+    def fjord_accept_quote(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            q=c.execute("SELECT * FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
+            accepted=c.execute("SELECT signer,accepted_at,quote_hash FROM fjord_quote_acceptances WHERE quote_id=%s",(q["id"],)).fetchone() if q else None
+        if not q:abort(404)
+        snapshot=quote_snapshot(q)
+        digest=hashlib.sha256(snapshot.encode()).hexdigest()
+        changed=bool(accepted and accepted["quote_hash"]!=digest)
+        if request.method=="POST" and not accepted:
+            verify()
+            signer=request.form.get("signer","").strip()
+            checked=request.form.get("agree")=="yes" and request.form.get("final_sale")=="yes"
+            if not (2<=len(signer)<=150 and checked):
+                flash("Indiquez votre nom et cochez les deux confirmations.")
+            elif request.form.get("quote_hash")!=digest:
+                flash("La soumission a changé. Veuillez la relire.")
+            else:
+                ip=request.remote_addr or ""
+                iphash=hashlib.sha256((str(app.secret_key)+ip).encode()).hexdigest()
+                with db() as c:
+                    c.execute("""INSERT INTO fjord_quote_acceptances
+                     (quote_id,signer,quote_snapshot,quote_hash,terms_version,ip_hash,user_agent)
+                     VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(quote_id) DO NOTHING""",
+                     (q["id"],signer,snapshot,digest,"QC-2026-10",iphash,(request.user_agent.string or "")[:350]))
+                return redirect(url_for("fjord_accept_quote",token=token))
+        subtotal,gst,qst,total=_quote_amounts(q)
+        response=make_response(page("Acceptation de soumission",'''<section class="tracking-panel">
+<h1 style="font-size:clamp(1.5rem,4vw,2.5rem);overflow-wrap:anywhere">Acceptation de la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}</h1>
+<p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
+<p><strong>Matériau :</strong> {{q.material}} · <strong>Quantité :</strong> {{q.quantity}}</p>
+<p><strong>Prix total :</strong> {{total}}</p>
+{% if q.model_id or q.preview %}
+<section class="card" style="margin:20px 0;padding:16px">
+<h2>Votre création 3D</h2>
+{% if q.model_id %}
+<div id="fjordQuote3D" style="height:340px;max-width:100%;background:#102235;border-radius:12px;position:relative;overflow:hidden" role="img" aria-label="Aperçu 3D interactif de votre pièce">
+{% if q.preview %}<img id="fjordQuoteFallback" src="{{url_for('fjord_client_quote_image',token=token)}}" alt="Aperçu de votre objet" style="width:100%;height:100%;object-fit:contain">{% endif %}
+</div>
+<p style="font-size:13px">Tournez la pièce avec le doigt ou la souris. Utilisez la molette ou deux doigts pour agrandir.</p>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
+import {STLLoader} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/STLLoader.js';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/controls/OrbitControls.js';
+const host=document.getElementById('fjordQuote3D');
+if(host){try{
+const res=await fetch({{model_url|tojson}},{credentials:'same-origin'});
+if(!res.ok)throw Error('Modèle non disponible');
+const geometry=new STLLoader().parse(await res.arrayBuffer());
+geometry.computeVertexNormals();geometry.computeBoundingBox();
+const bounds=geometry.boundingBox;
+const size=new THREE.Vector3();bounds.getSize(size);
+if(!Number.isFinite(size.length())||size.length()===0)throw Error('Modèle vide');
+const center=new THREE.Vector3();bounds.getCenter(center);geometry.translate(-center.x,-center.y,-center.z);
+const scene=new THREE.Scene();scene.background=new THREE.Color('#102235');
+const camera=new THREE.PerspectiveCamera(40,1,.01,100000);
+const distance=Math.max(size.length()*1.5,10);
+camera.position.set(distance*.8,distance*.65,distance);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.replaceChildren(renderer.domElement);
+renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';
+scene.add(new THREE.HemisphereLight(0xffffff,0x52718d,2.1));
+const light=new THREE.DirectionalLight(0xffffff,2.2);light.position.set(2,3,5);scene.add(light);
+const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x42a9d7,metalness:.12,roughness:.62,side:THREE.DoubleSide}));
+scene.add(mesh);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
+controls.target.set(0,0,0);controls.update();
+function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+new ResizeObserver(resize).observe(host);resize();
+let active=true;const observer=new IntersectionObserver(entries=>{active=entries[0].isIntersecting});observer.observe(host);
+function animate(){requestAnimationFrame(animate);if(active){controls.update();renderer.render(scene,camera)}}animate();
+}catch(err){if(!host.querySelector('img'))host.textContent='Aperçu 3D indisponible pour ce modèle.';}}
+</script>
+{% elif q.preview %}
+<img src="{{url_for('fjord_client_quote_image',token=token)}}" alt="Aperçu de votre objet" style="max-width:100%;max-height:350px;object-fit:contain">
+{% endif %}
+<p style="font-size:12px">Aperçu indicatif : les caractéristiques convenues dans la soumission font foi.</p>
+</section>
+{% endif %}
+<p>Veuillez consulter le PDF de soumission et ses conditions transmis par Les Impressions du Fjord avant d’accepter.</p>
+{% if changed %}<p>Cette soumission a été modifiée depuis son acceptation. Une nouvelle acceptation est nécessaire : communiquez avec Les Impressions du Fjord.</p>
+{% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>
+{% else %}<form method="post">{{csrf|safe}}<input type="hidden" name="quote_hash" value="{{digest}}">
+<label>Nom complet du client<input name="signer" maxlength="150" required autocomplete="name"></label>
+<label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
+<div class="card" style="margin:16px 0;border-color:#68c6e7"><strong>VENTE FINALE – FABRICATION PERSONNALISÉE</strong><p>Le client confirme avoir vérifié et approuvé les caractéristiques convenues du produit, notamment le modèle, les dimensions, le matériau, la couleur et la quantité. Une fois la fabrication commencée, aucune annulation ou modification pour simple changement d'avis n'est garantie, sous réserve des droits prévus par la loi. Les garanties légales et les recours applicables demeurent pleinement en vigueur.</p><label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="final_sale" value="yes" required style="width:auto;margin-top:5px"><span>Je reconnais avoir lu et compris les conditions de vente finale pour cet article personnalisé, sous réserve de mes droits légaux.</span></label></div>
+<button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
+<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),token=token,model_url=url_for("fjord_client_quote_mesh",token=token)))
+        response.headers["Cache-Control"]="no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow"
+        response.headers["Referrer-Policy"]="no-referrer"
+        return response
+
+    @app.get("/payer/<token>")
+    def fjord_payment_page(token):
+        # La page ne dévoile ni l'identité du client ni les paramètres internes.
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
+            abort(404)
+        with db() as c:
+            q=c.execute("""SELECT id,quantity,unit_price,shipping,apply_taxes
+                             FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q or not setting or not setting["value"]:
+            abort(404)
+        recipient=setting["value"]
+        subtotal,gst,qst,total=_quote_amounts(q)
+        reference="FJ-{:05d}".format(q["id"])
+        response=make_response(page("Paiement Interac",r"""
+<style>
+.payment-wrap{max-width:660px;margin:30px auto}
+.payment-wrap h1{font-size:clamp(28px,5vw,43px)}
+.payment-total{font-size:clamp(30px,6vw,46px);font-weight:900;color:#7ee7ff;margin:7px 0 18px}
+.payment-detail{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:15px 0}
+.payment-detail strong{font-size:17px;overflow-wrap:anywhere}
+.payment-detail button{font-size:14px;padding:9px 12px}
+.payment-wrap .notice{font-size:13px;color:#b6d1e3}
+body.light .payment-total{color:#076d9d}
+</style>
+<div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
+<h1>💸 Payer par virement Interac</h1>\n<p><a class="btn" href="{{accept_url}}">✓ Accepter officiellement ma soumission</a></p>
+<p>Voici les informations pour payer ta soumission. Le paiement s'effectue dans l'application ou le site de ta banque, et non sur cette page.</p>
+<section class="card">
+<div>Montant total de la soumission, taxes comprises si applicables</div>
+<div class="payment-total">{{amount}}</div>
+<p>Ajoute Les Impressions du Fjord comme destinataire Interac dans ton application bancaire, puis effectue ton virement avec les renseignements suivants :</p>
+<div class="payment-detail"><div>📧 Courriel du destinataire<br><strong id="payEmail">{{recipient}}</strong></div>
+<button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
+<div class="payment-detail"><div>🔖 Référence à inscrire dans le message<br><strong id="payRef">{{reference}}</strong></div>
+<button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
+<div class="payment-detail"><div>💰 Montant du virement<br><strong id="payAmount">{{amount}}</strong></div>
+<button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
+<p class="notice">Vérifie le nom et le courriel du destinataire avant l'envoi. Une fois le virement envoyé, conserve ta confirmation bancaire. Ce site ne reçoit pas le paiement et ne peut pas confirmer automatiquement qu'il a été reçu.</p>
+</section>
+<p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
+</div>
+<script>
+async function fjordCopy(id,button){
+ const value=document.getElementById(id).textContent.trim();
+ try{await navigator.clipboard.writeText(value);button.textContent="Copié ✓"}
+ catch(e){button.textContent="Copie manuelle nécessaire"}
+ setTimeout(()=>button.textContent="Copier",2200);
+}
+</script>""",amount=_money(total),reference=reference,recipient=recipient,accept_url=url_for("fjord_accept_quote",token=token)))
+        response.headers["Cache-Control"]="no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
+        response.headers["Referrer-Policy"]="no-referrer"
+        return response
+
+
+    @app.get("/admin/soumissions-pro/<int:quote_id>/pdf")
+    @admin_required
+    def fjord_quote_pdf(quote_id):
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, legal
+        from reportlab.lib.utils import ImageReader, simpleSplit
+        from reportlab.pdfgen import canvas
+        with db() as c:
+            q=c.execute("SELECT * FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            setting=c.execute("SELECT value FROM settings WHERE key='fjord_quote_logo'").fetchone()
+            interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if not q:abort(404)
+        display_number=q["public_number"] or "FJ-{:05d}".format(q["id"])
+        token=_quote_payment_token(db,q)
+        accept_url=url_for("fjord_accept_quote",token=token,_external=True) if token else None
+        payment_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
+        logo=None
+        if setting:
+            try:logo=base64.b64decode(setting["value"],validate=True)
+            except Exception:logo=None
+        if not logo:
+            try:
+                with open("static/fjord_logo.b64",encoding="ascii") as f:
+                    logo=base64.b64decode(f.read().strip(),validate=True)
+            except (OSError,ValueError):pass
+        buffer=io.BytesIO()
+        pdf=canvas.Canvas(buffer,pagesize=letter)
+        w,h=letter
+        pdf.setPageSize(legal)
+        pdf.saveState()
+        pdf.translate(61,305)
+        pdf.scale(0.80,0.80)
+        navy=colors.HexColor("#071D31")
+        cyan=colors.HexColor("#0697CE")
+        gray=colors.HexColor("#44546B")
+        pdf.setTitle("Soumission {} - Les Impressions du Fjord".format(display_number))
+        pdf.setFillColor(navy);pdf.rect(0,h-154,w,154,stroke=0,fill=1)
+        if logo:
+            try:pdf.drawImage(ImageReader(io.BytesIO(logo)),39,h-134,105,105,mask="auto",preserveAspectRatio=True,anchor="c")
+            except Exception:pass
+        pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",19)
+        pdf.drawString(156,h-71,"LES IMPRESSIONS DU FJORD")
+        pdf.setFont("Helvetica",10)
+        pdf.drawString(157,h-92,"Impression 3D personnalisée  |  Saguenay, Québec")
+        pdf.drawString(157,h-110,"Téléphone : 581-998-0831")
+        pdf.setFillColor(cyan);pdf.rect(0,h-159,w,5,stroke=0,fill=1)
+        def line(text,x,y,font="Helvetica",size=11,color=gray,max_width=520):
+            pdf.setFillColor(color);pdf.setFont(font,size)
+            clean=str(text or "").replace("\n"," ").encode("cp1252","replace").decode("cp1252")
+            for fragment in simpleSplit(clean,font,size,max_width)[:9]:
+                pdf.drawString(x,y,fragment);y-=size+5
+            return y
+        y=h-198
+        y=line("SOUMISSION  {}".format(display_number),38,y,"Helvetica-Bold",19,navy)
+        y-=5
+        y=line("Date : "+q["created"].strftime("%d-%m-%Y")+"    |    Validité : 30 jours",39,y,size=10)
+        y-=17
+        y=line("PRÉPARÉE POUR",39,y,"Helvetica-Bold",10,cyan)
+        y=line(q["customer"],39,y,"Helvetica-Bold",13,navy)
+        if q["email"]:y=line(q["email"],39,y,size=10)
+        if q["phone"]:y=line(q["phone"],39,y,size=10)
+        y-=21
+        y=line("VOTRE PROJET",39,y,"Helvetica-Bold",10,cyan)
+        y=line(q["title"],39,y,"Helvetica-Bold",14,navy)
+        y=line("Matériau : "+q["material"]+"    |    Quantité : "+str(q["quantity"]),39,y)
+        if q["description"]:
+            y-=7
+            y=line(q["description"],39,y,size=10,max_width=490)
+        # Régénérer les anciens aperçus automatiques à partir du modèle 3D.
+        # Conserver les photos personnalisées et les rendus propres à la soumission.
+        quote_preview=q["preview"]
+        if q["model_id"]:
+            with db() as c:
+                source=c.execute("SELECT filename,filedata,preview FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
+            if source and source["filename"].lower().endswith((".stl",".3mf")):
+                old_preview=source["preview"]
+                if not quote_preview or (old_preview and bytes(quote_preview)==bytes(old_preview)):
+                    try:
+                        fresh=make_model_preview(source["filedata"],source["filename"],size=(900,675))
+                        if fresh:quote_preview=fresh[1]
+                    except (ValueError,OverflowError,MemoryError):
+                        pass
+        if quote_preview and y>310:
+            try:
+                reader=ImageReader(io.BytesIO(quote_preview))
+                iw,ih=reader.getSize()
+                factor=min(235/max(iw,1),145/max(ih,1))
+                pw,ph=iw*factor,ih*factor
+                pdf.setFillColor(colors.HexColor("#EDF7FC"))
+                pdf.roundRect(37,y-162,539,165,10,stroke=0,fill=1)
+                pdf.drawImage(reader, (w-pw)/2, y-154+(145-ph)/2,pw,ph,mask="auto")
+                y-=178
+            except Exception:pass
+        y=min(y-14,285 if payment_url else 250)
+        rows=2+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
+        if y-rows*25<(172 if payment_url else 115):
+            y=285
+        subtotal,gst,qst,total=_quote_amounts(q)
+        def totalrow(label,amount,y,bold=False):
+            pdf.setFont("Helvetica-Bold" if bold else "Helvetica",11 if not bold else 15)
+            pdf.setFillColor(navy)
+            pdf.drawString(40,y,label)
+            pdf.drawRightString(w-39,y,_money(amount).encode("cp1252","replace").decode("cp1252"))
+            return y-25
+        y=totalrow("Prix unitaire x "+str(q["quantity"]),float(q["unit_price"])*q["quantity"],y)
+        if float(q["shipping"]):y=totalrow("Livraison / frais fixes",float(q["shipping"]),y)
+        if q["apply_taxes"]:
+            y=totalrow("TPS (5 %)",gst,y)
+            y=totalrow("TVQ (9,975 %)",qst,y)
+        pdf.setStrokeColor(cyan);pdf.line(38,y+12,w-39,y+12)
+        y=totalrow("TOTAL CAD",total,y-8,True)
+        if payment_url:
+            # Lien web vérifiable : aucune demande Interac n'est envoyée par le site.
+            if y<200:
+                y=200
+            top=y-5
+            bottom=top-96
+            pdf.setFillColor(colors.HexColor("#EBF7FE"))
+            pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
+            pdf.setFillColor(navy)
+            pdf.setFont("Helvetica-Bold",12)
+            pdf.drawString(52,top-24,"PAYER PAR VIREMENT INTERAC")
+            pdf.setFont("Helvetica",10)
+            pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
+            pdf.drawString(52,top-58,"Référence : {}".format(display_number))
+            pdf.setFillColor(cyan)
+            pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold",10)
+            pdf.drawCentredString(222,bottom+18,"CLIQUEZ POUR LES INSTRUCTIONS DE PAIEMENT")
+            pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
+            try:
+                from reportlab.graphics.barcode import qr
+                from reportlab.graphics.shapes import Drawing
+                from reportlab.graphics import renderPDF
+                widget=qr.QrCodeWidget(payment_url)
+                x1,y1,x2,y2=widget.getBounds()
+                size=78
+                graphic=Drawing(size,size,transform=[size/(x2-x1),0,0,size/(y2-y1),0,0])
+                graphic.add(widget)
+                renderPDF.draw(graphic,pdf,w-131,bottom+9)
+            except Exception:
+                # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
+                pass
+        if accept_url:
+            pdf.setFillColor(cyan)
+            pdf.roundRect(39,14,315,27,6,stroke=0,fill=1)
+            pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
+            pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
+            pdf.linkURL(accept_url,(39,14,354,41),relative=1)
+            if q["model_id"]:
+                # Le PDF reste statique; ce bouton ouvre la vraie visionneuse Web.
+                model_view_url=accept_url+"#fjordQuote3D"
+                pdf.setFillColor(navy)
+                pdf.roundRect(365,14,211,27,6,stroke=0,fill=1)
+                pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",9)
+                pdf.drawCentredString(470,23,"VOIR MA CRÉATION EN 3D")
+                pdf.linkURL(model_view_url,(365,14,576,41),relative=1)
+        pdf.restoreState()
+        w,h=legal
+        pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
+        pdf.setFillColor(navy);pdf.setFont("Helvetica-Bold",10)
+        pdf.drawString(30,267,"VENTE FINALE - GARANTIES ET CONDITIONS DE VENTE")
+        clauses=[
+         ("1. Garanties légales", "Les garanties légales prévues par les lois applicables, notamment la Loi sur la protection du consommateur et le Code civil du Québec, demeurent pleinement applicables. Le bien doit être conforme à sa description, convenir à son usage normal et avoir une durée raisonnable."),
+         ("2. Fabrication personnalisée", "La fabrication suit les dimensions, le matériau, la couleur et les spécifications convenus avec le client. Toute modification demandée après acceptation peut entraîner une nouvelle estimation et un nouveau délai, sous réserve des droits prévus par la loi."),
+         ("3. Tolérances et apparence", "L'impression 3D peut présenter des lignes de couches et de légères variations de surface ou de teinte. Les caractéristiques et tolérances essentielles doivent être précisées et acceptées avant la production. Cette clause ne limite pas les garanties légales."),
+         ("4. Fichiers fournis par le client", "Le client confirme disposer des droits nécessaires pour faire reproduire le modèle fourni. Les limites techniques ou risques de conception identifiés sont communiqués avant fabrication. Les obligations légales du fabricant demeurent applicables."),
+         ("5. Usage prévu et sécurité", "Le client est invité à préciser tout usage mécanique, alimentaire, électrique, médical ou de sécurité. Un objet n'est pas présenté comme certifié pour ces usages sans validation explicite. Les consignes d'utilisation et les garanties légales restent applicables."),
+         ("6. Prix et approbation", "La soumission est valable 30 jours à compter de sa date, sauf indication contraire. Le prix, les taxes applicables, la livraison et les modalités de paiement sont ceux indiqués à la soumission acceptée."),
+         ("7. Livraison et réclamations", "Les délais sont estimatifs sauf engagement précis. Le client peut signaler un défaut ou une non-conformité afin de permettre l'examen du problème. Aucun délai de réclamation contractuel ne réduit les droits prévus par la loi."),
+         ("8. Vente finale - fabrication personnalisée", "Le client confirme les spécifications convenues. Une fois la fabrication commencée, une annulation ou une modification pour simple changement d'avis n'est pas garantie, sous réserve des droits prévus par la loi. Les garanties légales demeurent pleinement applicables."),
+         ("9. Recours et droits du consommateur", "Aucune disposition des présentes conditions ne supprime ou ne limite les recours impératifs du consommateur. Selon les circonstances, une réparation, un remplacement, un remboursement ou d'autres recours légaux peuvent s'appliquer.")
+        ]
+
+        y=253
+        for heading,paragraph in clauses:
+            heading=heading.encode("cp1252","replace").decode("cp1252")
+            fragments=simpleSplit(paragraph.encode("cp1252","replace").decode("cp1252"),"Helvetica",6.3,w-60)
+            pdf.setFillColor(cyan);pdf.setFont("Helvetica-Bold",6.7)
+            pdf.drawString(30,y,heading);y-=8
+            pdf.setFillColor(gray);pdf.setFont("Helvetica",6.3)
+            for fragment in fragments:
+                pdf.drawString(30,y,fragment);y-=7
+            y-=3
+        pdf.setFont("Helvetica",9);pdf.setFillColor(gray)
+        pdf.drawString(30,18,"Les garanties légales et les recours du consommateur demeurent applicables.")
+
+        pdf.save();buffer.seek(0)
+        return send_file(buffer,mimetype="application/pdf",as_attachment=True,
+                  download_name="Soumission-{}.pdf".format(display_number))
+
+    @app.post("/admin/soumissions-pro/logo")
+    @admin_required
+    def fjord_logo_upload():
+        verify()
+        image=_image(request.files.get("logo"))
+        if not image:abort(400)
+        # Conserver l'image en base64 texte dans les paramètres privés.
+        with db() as c:
+            c.execute("""INSERT INTO settings(key,value) VALUES('fjord_quote_logo',%s)
+             ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value""",
+             (base64.b64encode(image[1]).decode("ascii"),))
+        flash("Logo mis à jour pour les nouvelles impressions PDF.")
+        return redirect("/admin/soumissions-pro")
+
+    from live_print import register_live_print
+    register_live_print(app, db, admin_required, verify, page)
+
+                    THEN substring(public_number from 4)::bigint END),0),
+                COALESCE(MAX(CASE WHEN public_number IS NULL THEN id END),0)
+            ) AS n FROM private_quotes""").fetchone()["n"]
+            next_number="FJ-{:05d}".format(last+1)
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
                 shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
                 machine_hour,setup_cost,markup,payment_token)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
                int(quantity),unit,shipping,taxes,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
