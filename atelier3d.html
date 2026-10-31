@@ -1059,6 +1059,17 @@ const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,0
 // Three.js gère le panoramique de la caméra au bouton droit : aucun déplacement des pièces.
 orbit.mouseButtons.RIGHT=THREE.MOUSE.PAN;orbit.enablePan=true;
 orbit.touches.ONE=THREE.TOUCH.ROTATE;orbit.touches.TWO=THREE.TOUCH.DOLLY_PAN;
+window.fjordCameraZoom=delta=>{
+ if(!orbit.enabled)return;
+ const focus=orbit.target.clone();
+ const offset=camera.position.clone().sub(focus);
+ const current=offset.length();
+ if(current<0.001)return;
+ const distance=THREE.MathUtils.clamp(current*Math.exp(delta*0.0012),3,2500);
+ camera.position.copy(focus).addScaledVector(offset.normalize(),distance);
+ camera.lookAt(focus);
+ orbit.update();
+};
 window.fjordOrientationOrbit=dir=>{
  const distance=Math.max(50,camera.position.distanceTo(orbit.target));
  camera.position.copy(orbit.target).add(new THREE.Vector3(...dir).multiplyScalar(distance));
@@ -3046,11 +3057,10 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   }
   const ids={top:'viewTop',front:'viewFront',iso:'viewIso'};
   if(ids[action]){document.getElementById(ids[action])?.click();return;}
-  const canvas=document.querySelector('#stage canvas');
-  if(!canvas)return;
-  // Les contrôles OrbitControls écoutent l'événement wheel du canevas.
-  const zoom=action==='zoom-in'?-250:250;
-  canvas.dispatchEvent(new WheelEvent('wheel',{deltaY:zoom,deltaMode:0,bubbles:true,cancelable:true}));
+  if(action==='zoom-in'||action==='zoom-out'){
+   window.fjordCameraZoom?.(action==='zoom-in'?-250:250);
+   return;
+  }
  });
 })();
 </script></body></html>
