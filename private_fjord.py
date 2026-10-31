@@ -461,6 +461,11 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 })();
 </script>
 <h2>Modèles enregistrés ({{models|length}})</h2>
+<form method="post" action="/admin/modeles/apercu/regenerer" onsubmit="return confirm('Actualiser les aperçus de tous les modèles STL et 3MF ? Les fichiers 3D seront conservés.')" style="margin:12px 0">
+{{csrf|safe}}
+<button type="submit">🎨 Actualiser les aperçus de toute la bibliothèque</button>
+<p class="muted small">Régénère les images depuis les modèles originaux, en conservant les couleurs 3MF disponibles.</p>
+</form>
 <div class="grid">{% for m in models %}<article class="card fjord-file">
 {% if m.has_preview %}<img loading="lazy" src="/admin/modeles/apercu/{{m.id}}" alt="Aperçu {{m.name}}">
 {% else %}<div class="card" style="text-align:center;font-size:38px">🧊</div>{% endif %}
