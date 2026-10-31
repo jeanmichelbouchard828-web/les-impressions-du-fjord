@@ -648,7 +648,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label>Téléphone<input name="phone" maxlength="40" value="{{incoming.phone if incoming else ''}}"></label>
 <label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else ''}}" required></label>
 <label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
-<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
+<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label><label>Couleur de l'aperçu 3D <input type="color" name="preview_color" value="#168ac2"></label>
 </div>
 <div class="fj-import-panel">
 <h3>🧊 Importer un modèle et calculer son prix</h3>
@@ -995,6 +995,8 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
         phone=request.form.get("phone","").strip()[:40]
         description=request.form.get("description","").strip()[:2500]
         material=request.form.get("material","PETG")
+        preview_color=request.form.get("preview_color","#168ac2")
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}",preview_color):abort(400)
         if not customer or not title or material not in MATERIALS:
             abort(400)
         if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",email):
@@ -1023,6 +1025,9 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
                 model=c.execute("""SELECT preview,preview_mime,filename,filedata
                                    FROM private_models WHERE id=%s""",(model_id,)).fetchone()
                 if not model:abort(400,"Modèle introuvable")
+                if not preview and model["filename"].lower().endswith((".stl", ".3mf")):
+                    try:preview=make_model_preview(model["filedata"],model["filename"],color=preview_color)
+                    except (ValueError, OverflowError):preview=None
                 if not preview:
                     if model["preview"]:
                         preview=(model["preview_mime"],model["preview"])
