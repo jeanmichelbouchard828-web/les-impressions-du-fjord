@@ -480,6 +480,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(33px)!important}
  .fjord-camera-controls .fjord-camera-zoom>button{width:33px!important;min-width:33px!important;height:32px!important;font-size:18px!important}
 }
+
+/* Le bouton + reste centré verticalement dans la barre des plateaux. */
+.fjord-bed-tabs .fjord-add-bed{align-self:center!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;padding:0!important;transform:translateY(-2px)}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -1260,6 +1263,43 @@ fjordAddBed?.addEventListener('click',()=>{
  fjordBedTabs.insertBefore(tab,fjordAddBed);
  fjordSelectBed(index);
 });
+// Menu contextuel propre aux onglets de plateaux.
+const fjordBedContext=document.createElement('div');
+fjordBedContext.className='context-menu';
+fjordBedContext.hidden=true;
+fjordBedContext.style.cssText='position:fixed;z-index:10000;min-width:190px;padding:5px;';
+fjordBedContext.innerHTML='<button type="button" class="part-action" style="display:block;width:100%;text-align:left" data-delete-bed>🗑 Supprimer ce plateau</button>';
+document.body.appendChild(fjordBedContext);
+let fjordContextBed=-1;
+function fjordHideBedContext(){fjordBedContext.hidden=true;fjordContextBed=-1}
+fjordBedTabs?.addEventListener('contextmenu',event=>{
+ const tab=event.target.closest('[data-bed-index]');
+ if(!tab)return;
+ event.preventDefault();event.stopPropagation();
+ fjordContextBed=Number(tab.dataset.bedIndex);
+ fjordBedContext.hidden=false;
+ fjordBedContext.style.left=Math.min(event.clientX,window.innerWidth-205)+'px';
+ fjordBedContext.style.top=Math.min(event.clientY,window.innerHeight-65)+'px';
+});
+fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>{
+ const index=fjordContextBed;fjordHideBedContext();
+ if(index<0||index>=fjordBeds.length)return;
+ if(fjordBeds.length===1){alert('Il faut conserver au moins un plateau.');return}
+ const label='Plateau '+(index+1);
+ if(!confirm('Supprimer '+label+' et toutes les pièces qu’il contient ? Cette opération est irréversible.'))return;
+ fjordBeds[fjordActiveBed]=serialize();
+ fjordBeds.splice(index,1);
+ fjordBedTabs.querySelector('[data-bed-index="'+index+'"]')?.remove();
+ fjordBedTabs.querySelectorAll('[data-bed-index]').forEach((tab,i)=>{
+  tab.dataset.bedIndex=String(i);tab.textContent='⬡ Plateau '+(i+1);
+ });
+ // Recharger le plateau conservé après suppression, même si l'actif est supprimé.
+ const next=index===fjordActiveBed?Math.min(index,fjordBeds.length-1):(fjordActiveBed>index?fjordActiveBed-1:fjordActiveBed);
+ fjordActiveBed=-1;
+ fjordSelectBed(next);
+});
+document.addEventListener('pointerdown',event=>{if(!fjordBedContext.hidden&&!fjordBedContext.contains(event.target))fjordHideBedContext()});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')fjordHideBedContext()});
 fjordBedTabs?.addEventListener('click',event=>{
  const tab=event.target.closest('[data-bed-index]');
  if(tab)fjordSelectBed(Number(tab.dataset.bedIndex));
