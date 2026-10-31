@@ -1753,8 +1753,9 @@ function showContextMenu(e){
  contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
- contextMenu.style.left=Math.max(5,Math.min(e.clientX-rect.left,stage.clientWidth-contextMenu.offsetWidth-7))+'px';
- contextMenu.style.top=Math.max(5,Math.min(e.clientY-rect.top,stage.clientHeight-contextMenu.offsetHeight-7))+'px';
+ // Offset the pop-up from the cursor so clicking the same point dismisses it.
+ contextMenu.style.left=Math.max(5,Math.min(e.clientX-rect.left+14,stage.clientWidth-contextMenu.offsetWidth-7))+'px';
+ contextMenu.style.top=Math.max(5,Math.min(e.clientY-rect.top+14,stage.clientHeight-contextMenu.offsetHeight-7))+'px';
 }
 // Prevent the browser menu; the studio menu opens only after a stationary right-click.
 // Browsers can send "contextmenu" on right-button DOWN, so showing it here
