@@ -339,6 +339,19 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-menubar .fjord-menu-options{min-width:195px!important}
 .fjord-menubar .fjord-menu-options button{font-size:12px!important;padding:8px 10px!important}
 @media(max-width:920px){.fjord-menubar{min-height:34px!important}.fjord-menubar summary{font-size:12px!important;padding:7px 6px!important}}
+
+/* Les barres d'outils suivent la zone de travail quand les tiroirs sont fermés. */
+@media(min-width:761px){
+ #fjordWorkspace .fjord-fast-tools{left:0!important;max-width:100%!important}
+ #fjordWorkspace .fjord-fast-row{max-width:100%!important}
+ .fjord-bed-tabs{height:36px!important;padding:3px 8px 0!important;gap:3px;overflow-x:auto;scrollbar-width:thin}
+ .fjord-bed-tab{height:31px!important;font-size:12px!important;padding:0 12px!important;white-space:nowrap;flex:none}
+ .fjord-bed-tab:not(.active){opacity:.7;background:#19222d!important;border-color:transparent!important}
+ .fjord-bed-tab[aria-selected=true]{opacity:1;background:#24364a!important;border-color:#438fe1!important}
+ .fjord-add-bed{height:29px;min-width:31px;background:transparent;border:0;border-radius:6px;color:#a6b8ca;font-size:21px;cursor:pointer}
+ .fjord-add-bed:hover{background:#304255;color:#fff}
+}
+@media(max-width:760px){.fjord-bed-tabs{display:flex!important;align-items:center;padding:4px 8px;background:#151c25;gap:5px;overflow-x:auto}.fjord-bed-tab{font-size:12px;padding:7px 10px}.fjord-add-bed{background:transparent;border:0;color:#c3d4e5;font-size:22px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -379,7 +392,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button class="fjord-menu-icon" type="button" data-fjord-target="undo" title="Annuler" aria-label="Annuler">↶</button>
 <button class="fjord-menu-icon" type="button" data-fjord-target="redo" title="Rétablir" aria-label="Rétablir">↷</button>
 </nav>
-<div class="fjord-bed-tabs" role="tablist" aria-label="Plateaux de travail"><button type="button" role="tab" aria-selected="true" class="fjord-bed-tab">⬡ Plateau 1</button></div>
+<div class="fjord-bed-tabs" id="fjordBedTabs" role="tablist" aria-label="Plateaux de travail"><button type="button" role="tab" aria-selected="true" class="fjord-bed-tab" data-bed-index="0">⬡ Plateau 1</button><button type="button" class="fjord-add-bed" id="fjordAddBed" title="Ajouter un plateau" aria-label="Ajouter un plateau">+</button></div>
 <div class="fjord-fast-tools" aria-label="Outils rapides">
  <div class="fjord-fast-row" role="toolbar" aria-label="Manipulation et mesure">
   <button class="fjord-fast-fold" type="button" aria-expanded="true" title="Réduire ou développer">‹</button>
@@ -985,6 +998,37 @@ function addSelectionTint(m){
 }
 function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:basePartColor(m),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
 function restore(data){sliceClose();if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');exitLayFaceMode();deactivateGizmo();for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
+// Plateaux indépendants : chaque onglet conserve son propre projet 3D.
+const fjordBedTabs=document.getElementById('fjordBedTabs');
+const fjordAddBed=document.getElementById('fjordAddBed');
+const fjordBeds=[serialize()];
+let fjordActiveBed=0;
+function fjordSelectBed(index){
+ if(index===fjordActiveBed||!fjordBeds[index])return;
+ fjordBeds[fjordActiveBed]=serialize();
+ stopGeneratorPreview();hideCutPreview();clearMeasureLine();
+ restore(fjordBeds[index]);
+ fjordActiveBed=index;undoStack.length=0;redoStack.length=0;
+ fjordBedTabs.querySelectorAll('[data-bed-index]').forEach(tab=>{
+  const active=Number(tab.dataset.bedIndex)===index;
+  tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));
+ });
+}
+fjordAddBed?.addEventListener('click',()=>{
+ if(fjordBeds.length>=12){alert('Maximum de 12 plateaux.');return;}
+ fjordBeds[fjordActiveBed]=serialize();
+ fjordBeds.push({version:1,objects:[]});
+ const index=fjordBeds.length-1;
+ const tab=document.createElement('button');tab.type='button';tab.className='fjord-bed-tab';
+ tab.dataset.bedIndex=String(index);tab.setAttribute('role','tab');
+ tab.textContent='⬡ Plateau '+(index+1);
+ fjordBedTabs.insertBefore(tab,fjordAddBed);
+ fjordSelectBed(index);
+});
+fjordBedTabs?.addEventListener('click',event=>{
+ const tab=event.target.closest('[data-bed-index]');
+ if(tab)fjordSelectBed(Number(tab.dataset.bedIndex));
+});
 function remember(){
  undoStack.push(JSON.stringify(serialize()));
  if(undoStack.length>15)undoStack.shift();
@@ -2597,5 +2641,22 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  };
  document.querySelectorAll('[data-fjord-shape]').forEach(b=>b.addEventListener('click',()=>document.querySelector('[data-shape="'+b.dataset.fjordShape+'"]')?.click()));
  document.querySelectorAll('[data-fjord-generator]').forEach(b=>b.addEventListener('click',()=>openGenerator(b.dataset.fjordGenerator)));
+})();
+</script><script>
+(()=>{
+ const shell=document.getElementById('fjordWorkspace');
+ const toolbar=document.querySelector('.fjord-fast-tools');
+ const stage=shell?.querySelector('.stage');
+ if(shell&&toolbar&&stage){
+  shell.insertBefore(toolbar,stage);
+  toolbar.style.position='absolute';
+  const place=()=>{
+   const bounds=stage.getBoundingClientRect(),shellBounds=shell.getBoundingClientRect();
+   toolbar.style.left=Math.max(0,bounds.left-shellBounds.left)+'px';
+   toolbar.style.maxWidth=bounds.width+'px';
+  };
+  new ResizeObserver(place).observe(stage);
+  place();
+ }
 })();
 </script></body></html>
