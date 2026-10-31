@@ -598,7 +598,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button" data-quick-action="viewTop" data-tooltip="viewTop">▣</button>
 <button type="button" class="quick-button" data-quick-action="viewFit" data-tooltip="viewFit">⌗</button>
 
-<span class="quickbar-tip" data-i18n="quickbarHint">Glisser pour déplacer · Clic droit pour les outils</span>
+<span class="quickbar-tip" data-i18n="quickbarHint">Glisser pour déplacer · Ctrl + clic pour sélectionner plusieurs pièces · Clic droit pour les outils</span>
 </div>
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
@@ -788,8 +788,10 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="zoomSelected">⌕ Agrandir la vue (zoom)</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — fusionner les pièces</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="growSelected">⤢ Agrandir la pièce (+10 %)</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="scaleCustom">⤢ Agrandir / réduire (%)…</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — regrouper les pièces sélectionnées</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="splitMerged">↳ Séparer les pièces du groupe</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="dropToBed" data-i18n="dropToBed">Poser au sol</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
