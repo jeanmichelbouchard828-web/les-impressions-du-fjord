@@ -1253,9 +1253,23 @@ async function fjordCopy(id,button){
         if q["description"]:
             y-=7
             y=line(q["description"],39,y,size=10,max_width=490)
-        if q["preview"] and y>310:
+        # Régénérer les anciens aperçus automatiques à partir du modèle 3D.
+        # Conserver les photos personnalisées et les rendus propres à la soumission.
+        quote_preview=q["preview"]
+        if q["model_id"]:
+            with db() as c:
+                source=c.execute("SELECT filename,filedata,preview FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
+            if source and source["filename"].lower().endswith((".stl",".3mf")):
+                old_preview=source["preview"]
+                if not quote_preview or (old_preview and bytes(quote_preview)==bytes(old_preview)):
+                    try:
+                        fresh=make_model_preview(source["filedata"],source["filename"],size=(900,675))
+                        if fresh:quote_preview=fresh[1]
+                    except (ValueError,OverflowError,MemoryError):
+                        pass
+        if quote_preview and y>310:
             try:
-                reader=ImageReader(io.BytesIO(q["preview"]))
+                reader=ImageReader(io.BytesIO(quote_preview))
                 iw,ih=reader.getSize()
                 factor=min(235/max(iw,1),145/max(ih,1))
                 pw,ph=iw*factor,ih*factor
