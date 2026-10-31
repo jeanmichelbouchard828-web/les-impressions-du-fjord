@@ -254,6 +254,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           paid_at TIMESTAMPTZ,
           created TIMESTAMPTZ DEFAULT NOW())""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_status TEXT NOT NULL DEFAULT 'À traiter'")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_progress INTEGER NOT NULL DEFAULT 0")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS payment_token TEXT")
         c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
                      payment_status TEXT NOT NULL DEFAULT 'En attente'""")
@@ -562,7 +563,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,payment_status,paid_at,created,payment_token,production_status,
+                     apply_taxes,payment_status,paid_at,created,payment_token,production_status,production_progress,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      live_url,live_token,live_enabled,live_expires
@@ -736,6 +737,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <option value="En production" {% if q.production_status=='En production' %}selected{% endif %}>🖨️ En production</option>
 <option value="Terminée" {% if q.production_status=='Terminée' %}selected{% endif %}>📦 Terminée</option>
 </select></label><noscript><button type="submit">Enregistrer</button></noscript></form>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/progression" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px">{{csrf|safe}}<label>Avancement de fabrication (%)<input type="number" name="production_progress" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><button type="submit">Enregistrer %</button></form>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}
 <form class="fj-payment-form" method="post" action="/admin/soumissions-pro/{{q.id}}/statut-paiement">{{csrf|safe}}
@@ -971,6 +973,21 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 </script>""",models=models,quotes=quotes,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
 
+    @app.post("/admin/soumissions-pro/<int:quote_id>/progression")
+    @admin_required
+    def fjord_production_progress(quote_id):
+        verify()
+        raw=request.form.get("production_progress","")
+        if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400)
+        with db() as c:
+            q=c.execute("SELECT id,production_status FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            if not q:abort(404)
+            progress=int(raw)
+            status="Terminée" if progress==100 else ("En production" if progress>0 else q["production_status"])
+            c.execute("UPDATE private_quotes SET production_progress=%s,production_status=%s WHERE id=%s",(progress,status,quote_id))
+        flash("Progression de fabrication enregistrée.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
     @app.post("/admin/soumissions-pro/<int:quote_id>/production")
     @admin_required
     def fjord_production_status(quote_id):
@@ -980,7 +997,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         with db() as c:
             row=c.execute("SELECT id FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
             if not row:abort(404)
-            c.execute("UPDATE private_quotes SET production_status=%s WHERE id=%s",(status,quote_id))
+            c.execute("UPDATE private_quotes SET production_status=%s, production_progress=CASE WHEN %s='Terminée' THEN 100 WHEN %s='À traiter' THEN 0 ELSE LEAST(production_progress,99) END WHERE id=%s",(status,status,status,quote_id))
         flash("État de fabrication mis à jour.")
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
