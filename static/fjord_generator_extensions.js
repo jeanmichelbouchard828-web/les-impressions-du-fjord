@@ -219,13 +219,15 @@ export function generateExtraGeometry(T,kind,p){
   const circ=theta=>p.diameter/2/Math.cos((((theta+pi/6)%(pi/3))+(pi/3))%(pi/3)-pi/6);
   return loft(T,[{z:0,outer:circ,inner:p.bore/2},{z:p.thickness,outer:circ,inner:p.bore/2}],72);
  }
- case 'tap':
+ case 'tap':{
   if(p.bore>=p.diameter-3)throw Error('Paroi trop mince.');
-  // Pilot diameter prototype, without claiming a standardized internal helical thread.
-  return loft(T,Array.from({length:Math.max(24,Math.ceil(p.length/p.pitch)*4)+1},(_,i,a)=>{
-   const z=p.length*i/(a.length-1);
-   return {z,outer:r,inner:a=>p.bore/2+.2*p.pitch*Math.sin(a-z*2*pi/p.pitch)};
+  // Pilot diameter prototype; not a standardized or dimensionally verified tap.
+  const steps=Math.max(24,Math.ceil(p.length/p.pitch)*4);
+  return loft(T,Array.from({length:steps+1},(_,i)=>{
+   const z=p.length*i/steps;
+   return {z,outer:r,inner:angle=>p.bore/2+.2*p.pitch*Math.sin(angle-z*2*pi/p.pitch)};
   }),56);
+ }
  case 'washer':
   return ring(T,r,p.bore/2,p.thickness);
  case 'spring':{
