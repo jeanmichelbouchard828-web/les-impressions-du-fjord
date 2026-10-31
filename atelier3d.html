@@ -316,6 +316,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 /* Barre supérieure de type éditeur CAO, inspirée de la référence fournie. */
 .fjord-menubar{background:#20262d!important;color:#e4e8ee!important;display:flex!important;align-items:center!important;gap:0!important;flex-wrap:nowrap!important;min-height:52px;padding:0 12px!important;border-bottom:1px solid #3a4653!important;overflow:visible!important;position:relative;z-index:120}
 .fjord-menu-brand{display:inline-flex;align-items:center;gap:9px;color:#f2f5f8;text-decoration:none;white-space:nowrap;font-size:19px;padding:0 13px 0 0;font-weight:800}
+.fjord-menu-logo{width:28px;height:28px;max-width:28px;object-fit:contain;border-radius:6px;flex:none;filter:drop-shadow(0 1px 3px #0008)}
 .fjord-brand-cube{color:#52a9ff;font-size:28px;line-height:1}
 .fjord-menubar details{flex:0 0 auto;position:relative}
 .fjord-menubar summary{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:15px 11px!important;font-size:15px;font-weight:700;color:#d9e0e8;border-radius:0!important}
@@ -528,7 +529,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.json" multiple hidden>
 </header>
 <nav class="fjord-menubar" aria-label="Menus de l'atelier">
-<a class="fjord-menu-brand" href="/" title="Les Impressions du Fjord"><span class="fjord-brand-cube">⬡</span><strong>Fjord 3D</strong></a>
+<a class="fjord-menu-brand" href="/" title="Les Impressions du Fjord"><img class="fjord-menu-logo" src="/identite/logo" alt="Logo Les Impressions du Fjord" onerror="this.style.display=\'none\'"><strong>Fjord 3D</strong></a>
 <details><summary>Fichier</summary><div class="fjord-menu-options">
 <button data-fjord-target="new">Nouveau projet</button><button data-fjord-target="open">Ouvrir projet</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF</button>
 </div></details>
