@@ -236,6 +236,24 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  #toolsPanel .fjord-workspace-nav button{cursor:pointer}
  #toolsPanel .fjord-workspace-nav button:focus-visible{outline:2px solid #6ac6ef;outline-offset:1px}
 }
+
+/* Navigation latérale compacte, inspirée de la disposition Fast3D. */
+@media(min-width:761px){
+ .shell{grid-template-columns:88px minmax(300px,1fr) 270px}
+ .shell.fjord-hide-left{grid-template-columns:minmax(300px,1fr) 270px}
+ .shell.fjord-hide-right{grid-template-columns:88px minmax(300px,1fr)}
+ .shell.fjord-hide-left.fjord-hide-right{grid-template-columns:minmax(300px,1fr)}
+ #toolsPanel{position:relative;overflow:visible!important;padding:0!important;z-index:25;background:#171c23!important}
+ #toolsPanel .fjord-workspace-nav{position:relative!important;top:auto!important;display:flex!important;flex-direction:column;align-items:stretch;gap:4px;width:88px;height:100%;padding:10px 5px!important;margin:0!important;overflow-y:auto;scrollbar-width:thin;background:#171c23!important;border-right:1px solid #37404c;border-bottom:0}
+ #toolsPanel .fjord-workspace-nav button{min-height:66px;display:flex;align-items:center;justify-content:center;text-align:center;padding:7px 3px;font-size:11px;line-height:1.35;white-space:normal;border:0;border-radius:6px;background:transparent;color:#b6c3d0}
+ #toolsPanel .fjord-workspace-nav button:hover{background:#283543;color:#f2f8ff}
+ #toolsPanel .fjord-workspace-nav button.selected{background:#203b52;color:#75caff;border-left:2px solid #55b9f4}
+ #toolsPanel [data-tool-panel]{position:absolute;top:0;left:88px;width:278px;max-height:100%;overflow-y:auto;scrollbar-width:thin;background:#20262f;border:1px solid #3a4653;border-top:0;border-radius:0 0 12px 0;padding:15px 12px;box-shadow:12px 12px 28px #0007;z-index:26}
+ #toolsPanel [data-tool-panel].fjord-category-hidden{display:none!important}
+ #toolsPanel [data-tool-panel] h2,#toolsPanel [data-tool-panel] h3{margin-top:4px}
+ .fjord-panel-controls{padding:3px 9px}
+ .fjord-panel-controls button{min-height:28px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
