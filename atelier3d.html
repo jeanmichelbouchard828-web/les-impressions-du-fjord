@@ -1377,12 +1377,14 @@ function findHit(e){
 // et les changements de pivot quand le curseur est sur le plateau vide.
 orbit.enableZoom=false;
 renderer.domElement.addEventListener('wheel',e=>{
- if(!orbit.enabled || directDrag || !models.length)return;
- const hit=findHit(e);
- if(!hit || !models.includes(hit.object))return;
+ if(!orbit.enabled || directDrag)return;
+ const hit=models.length?findHit(e):null;
+ // Sur la pièce: zoomer au point visé. Sur le plateau vide: zoomer la vue.
+ // En dehors du canevas, le navigateur conserve le défilement de la page.
+ const focus=hit&&models.includes(hit.object)?hit.point.clone():orbit.target.clone();
+ if(![focus.x,focus.y,focus.z].every(Number.isFinite))return;
  e.preventDefault();
  e.stopImmediatePropagation();
- const focus=hit.point.clone();
  if(![focus.x,focus.y,focus.z].every(Number.isFinite))return;
  const distance=camera.position.distanceTo(focus);
  const factor=Math.exp(Math.max(-250,Math.min(250,e.deltaY))*.0012);
