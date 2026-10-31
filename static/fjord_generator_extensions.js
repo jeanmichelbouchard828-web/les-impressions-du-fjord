@@ -97,7 +97,7 @@ const loft=(T,defs,sides=64,solid=false)=>{
  g.setAttribute('position',new T.Float32BufferAttribute(tris,3));
  g.computeVertexNormals();g.computeBoundingBox();return g;
 };
-const heightfield=(T,w,d,nx,ny,top,bottom=0)=>{
+export const makeHeightField=(T,w,d,nx,ny,top,bottom=0)=>{
  const vertices=[],points=[];
  nx=Math.max(2,Math.min(130,Math.ceil(nx)));ny=Math.max(2,Math.min(130,Math.ceil(ny)));
  for(let j=0;j<=ny;j++){let row=[];for(let i=0;i<=nx;i++){
@@ -138,8 +138,8 @@ export function generateExtraGeometry(T,kind,p){
  const r=p.diameter/2;
  const normal=(v,min,max)=>Math.max(min,Math.min(max,v));
  switch(kind){
- case 'ramp':return heightfield(T,p.length,p.width,55,9,(x)=>p.height*Math.pow(x,1),0);
- case 'curved_ramp':return heightfield(T,p.length,p.width,65,12,(x)=>p.height*Math.pow(x,p.curve),0);
+ case 'ramp':return makeHeightField(T,p.length,p.width,55,9,(x)=>p.height*Math.pow(x,1),0);
+ case 'curved_ramp':return makeHeightField(T,p.length,p.width,65,12,(x)=>p.height*Math.pow(x,p.curve),0);
  case 'hinge_pin':case 'hinge_leaf':case 'hinge_articulated':{
   const w=p.width,l=p.length,t=p.thickness,shaft=p.diameter/2;
   const count=kind==='hinge_articulated'?7:5;
@@ -346,7 +346,7 @@ export function generateExtraGeometry(T,kind,p){
    box(T,w-2*t,t,h-t,0,-l/2+t/2,t),box(T,w-2*t,t,h-t,0,l/2-t/2,t)]);
  }
  case 'corrugated':
-  return heightfield(T,p.width,p.length,90,50,(x,y)=>p.thickness+p.height*(1+Math.sin(2*pi*x*p.waves))/2,0);
+  return makeHeightField(T,p.width,p.length,90,50,(x,y)=>p.thickness+p.height*(1+Math.sin(2*pi*x*p.waves))/2,0);
  case 'tower':{
   add(cyl(T,r,p.height));
   for(let i=0;i<=p.teeth;i++)add(cyl(T,r*(i%p.teeth===0?1.12:1.06),2,0,0,p.height*i/p.teeth));
