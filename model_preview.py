@@ -168,7 +168,39 @@ def _colored_faces_from_3mf(blob):
             OverflowError, ET.ParseError, zipfile.BadZipFile):
         return None
 
-def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
+
+def _stl_component_faces(blob, primary, secondary):
+    """Color disconnected STL shells, largest first, without claiming STL color data."""
+    faces = list(_faces(blob))
+    if not faces:
+        return []
+    parents = list(range(len(faces)))
+    sizes = [1] * len(faces)
+    seen = {}
+    def root(index):
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+    for index, tri in enumerate(faces):
+        for vertex in tri:
+            key = tuple(round(float(v), 4) for v in vertex)
+            previous = seen.get(key)
+            if previous is None:
+                seen[key] = index
+            else:
+                a, b = root(index), root(previous)
+                if a != b:
+                    if sizes[a] < sizes[b]:
+                        a, b = b, a
+                    parents[b] = a
+                    sizes[a] += sizes[b]
+    counts = Counter(root(i) for i in range(len(faces)))
+    biggest = counts.most_common(1)[0][0]
+    return [(face, primary if root(i) == biggest else secondary)
+            for i, face in enumerate(faces)]
+
+def make_model_preview(blob, filename, size=(640, 480), color="#168ac2", secondary_color=None):
     """Return ('image/png', bytes), or None for invalid/unsupported geometry."""
     ext = filename.lower().rsplit(".", 1)[-1]
     colored_faces = None
@@ -189,7 +221,9 @@ def make_model_preview(blob, filename, size=(640, 480), color="#168ac2"):
     rgb=tuple(int(color[i:i+2],16) for i in (1,3,5))
     projected = []
     # Fixed 3/4 view shows both the face and the piece's thickness.
-    faces = colored_faces if colored_faces is not None else ((tri, None) for tri in _faces(blob))
+    faces = (colored_faces if colored_faces is not None else
+             _stl_component_faces(blob, color, secondary_color) if secondary_color and ext == "stl"
+             else ((tri, None) for tri in _faces(blob)))
     for tri, face_hex in faces:
         if not all(math.isfinite(v) and abs(v) < 100000 for p in tri for v in p):
             continue
