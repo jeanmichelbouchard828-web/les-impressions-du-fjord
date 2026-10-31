@@ -588,6 +588,28 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         flash("Soumission supprimée.")
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
+    @app.post("/admin/api/associer-impression")
+    @admin_required
+    def fjord_associer_impression():
+        verify()
+        from app import _octo_live_status, _octo_cache, _sync_octo_progress
+        live=_octo_live_status()
+        if not live or live["state"] not in ("printing","warmingup","resuming","paused"):
+            return {"ok":False,"error":"Aucune impression en cours détectée."},409
+        filename=(live.get("filename") or "").strip()
+        if not filename or len(filename)>160:
+            return {"ok":False,"error":"Nom du fichier d'impression indisponible ou trop long."},409
+        try:ident=int(request.form.get("quote_id",""))
+        except (ValueError,TypeError):abort(400)
+        with db() as c:
+            row=c.execute("SELECT id,public_number FROM private_quotes WHERE id=%s",(ident,)).fetchone()
+            if not row:abort(404)
+            c.execute("SELECT pg_advisory_xact_lock(7342026, 5)")
+            c.execute("UPDATE private_quotes SET printer_job_name=NULL WHERE printer_job_name=%s AND id<>%s",(filename,ident))
+            c.execute("UPDATE private_quotes SET printer_job_name=%s WHERE id=%s",(filename,ident))
+        state=_sync_octo_progress()
+        return {"ok":True,"message":"Impression associée à "+(row["public_number"] or "FJ-{:05d}".format(ident))+".","progress":state.get("progress")}
+
     @app.get("/admin/api/progression-auto")
     @admin_required
     def fjord_progression_auto():
@@ -761,6 +783,16 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="submit">Mettre à jour le logo PDF</button></form></div>
 <h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
+<div id="fjord-octo-association" class="card" style="display:none;margin:12px 0">
+ <h3>🔗 Associer l'impression en cours</h3>
+ <p id="fjord-octo-filename" class="fj-help"></p>
+ <label>Soumission correspondante
+ <select id="fjord-octo-quote"><option value="">Choisir une soumission…</option>
+ {% for q in quotes %}<option value="{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}} — {{q.customer}}</option>{% endfor %}
+ </select></label>
+ <button type="button" id="fjord-octo-bind">Associer cette impression</button>
+ <p id="fjord-octo-bind-result" role="status"></p>
+</div>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
 <p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
 <div class="fj-status-board">
@@ -1066,6 +1098,11 @@ quoteSave?.addEventListener('submit',async event=>{
    if(!response.ok)throw Error('Connexion indisponible');
    const data=await response.json();
    if(label)label.textContent='🖨️ '+data.reason;
+   const bindBox=document.getElementById('fjord-octo-association');
+   if(bindBox){
+    bindBox.style.display=(data.connected && !data.matched && data.filename)?'block':'none';
+    document.getElementById('fjord-octo-filename').textContent=data.filename?'Travail détecté : '+data.filename:'';
+   }
    if(data.matched && Number.isInteger(data.id)){
     const card=document.querySelector('.fj-quote-card[data-quote-id="'+data.id+'"]');
     if(card){
@@ -1083,6 +1120,23 @@ quoteSave?.addEventListener('submit',async event=>{
    if(label)label.textContent='⚠ Suivi OctoEverywhere temporairement indisponible.';
   }finally{active=false}
  }
+ const bind=document.getElementById('fjord-octo-bind');
+ bind?.addEventListener('click',async()=>{
+  const quote=document.getElementById('fjord-octo-quote').value;
+  const feedback=document.getElementById('fjord-octo-bind-result');
+  if(!quote){feedback.textContent='Choisis la soumission correspondante.';return;}
+  const csrf=document.querySelector('#fjord-save-global [name="csrf"]').value;
+  const payload=new FormData();payload.append('csrf',csrf);payload.append('quote_id',quote);
+  bind.disabled=true;
+  try{
+   const resp=await fetch('/admin/api/associer-impression',{method:'POST',body:payload,credentials:'same-origin'});
+   const result=await resp.json();
+   if(!resp.ok||!result.ok)throw Error(result.error||'Association impossible');
+   feedback.textContent='✓ '+result.message;
+   await checkPrinter();
+  }catch(e){feedback.textContent='⚠ '+String(e.message||e)}
+  finally{bind.disabled=false}
+ });
  checkPrinter();
  setInterval(checkPrinter,30000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkPrinter()});
