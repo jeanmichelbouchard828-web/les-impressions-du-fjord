@@ -910,7 +910,7 @@ $('language').addEventListener('change',e=>{localStorage.setItem('fjord-lang',e.
 $('theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);applyPrefs();syncCanvasTheme()});
 applyPrefs();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x172333);function syncCanvasTheme(){scene.background.set(localStorage.getItem('fjord-theme')==='light'?0xe8f2fa:0x172333)}syncCanvasTheme();
-const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(255,-295,235);camera.up.set(0,0,1);
+const camera=new THREE.PerspectiveCamera(45,1,0.1,3000);camera.position.set(0,0,470);camera.up.set(0,1,0);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));stage.insertBefore(renderer.domElement,stage.firstChild);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,0,15);orbit.enableDamping=true;
 // Three.js gère le panoramique de la caméra au bouton droit : aucun déplacement des pièces.
@@ -1560,7 +1560,7 @@ function resetWorkspace(){
  hideCutPreview();
  clearMeasureLine();
  restore({version:1,objects:[]});
- camera.position.set(255,-295,235);orbit.target.set(0,0,15);camera.lookAt(orbit.target);orbit.update();
+ fjordHomeView();
  say('resetDone');
 }
 $('new').addEventListener('click',resetWorkspace);
@@ -2201,6 +2201,8 @@ function setView(direction,center){
  // View presets must not turn off the current modelling tool.
  const target=center||new THREE.Vector3(0,0,15),distance=Math.max(120,camera.position.distanceTo(orbit.target));
  orbit.target.copy(target);
+ if(Math.abs(direction.clone().normalize().z)>.9999)camera.up.set(0,1,0);
+ else camera.up.set(0,0,1);
  camera.position.copy(target).add(direction.clone().normalize().multiplyScalar(distance));
  camera.lookAt(target);orbit.update()
 }
@@ -2210,9 +2212,9 @@ $('viewFront').addEventListener('click',()=>setView(new THREE.Vector3(0,-1,.0000
 $('viewSide').addEventListener('click',()=>setView(new THREE.Vector3(1,0,.00001)));
 function fjordHomeView(){
  // Retrouver exactement la perspective d'accueil initiale, sans changer les pièces.
- orbit.target.set(0,0,15);
- camera.position.set(255,-295,235);
- camera.up.set(0,0,1);
+ orbit.target.set(0,0,0);
+ camera.up.set(0,1,0);
+ camera.position.set(0,0,470);
  camera.lookAt(orbit.target);
  orbit.update();
 }
