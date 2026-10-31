@@ -224,11 +224,14 @@ export function installFjordEnhancements(api){
   if(!model){notice('Sélectionne une pièce.');return;}
   if(!model.userData.fjordPaintFaces){notice('Aucune peinture sur cette pièce.');return;}
   api.remember();
+  const originalColor=model.userData.fjordPaintBase;
+  api.removeSelectionTint(model);
   delete model.userData.fjordPaintFaces;
   delete model.userData.fjordPaintBase;
   model.geometry.deleteAttribute('color');
   model.material.vertexColors=false;
-  model.material.color.set(api.getBaseColor(model)===0xffffff?0x5bc6eb:api.getBaseColor(model));
+  model.material.color.setHex(Number.isInteger(originalColor)?originalColor:0x5bc6eb);
+  api.addSelectionTint(model);
   model.material.needsUpdate=true;api.sync();
   notice('✓ Peinture de la pièce effacée. Annuler reste disponible.');
  });
