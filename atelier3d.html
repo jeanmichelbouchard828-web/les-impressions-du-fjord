@@ -316,6 +316,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 /* Barre supérieure de type éditeur CAO, inspirée de la référence fournie. */
 .fjord-menubar{background:#20262d!important;color:#e4e8ee!important;display:flex!important;align-items:center!important;gap:0!important;flex-wrap:nowrap!important;min-height:52px;padding:0 12px!important;border-bottom:1px solid #3a4653!important;overflow:visible!important;position:relative;z-index:120}
 .fjord-menu-brand{display:inline-flex;align-items:center;gap:9px;color:#f2f5f8;text-decoration:none;white-space:nowrap;font-size:19px;padding:0 13px 0 0;font-weight:800}
+.fjord-menu-logo{width:28px;height:28px;max-width:28px;object-fit:contain;border-radius:6px;flex:none;filter:drop-shadow(0 1px 3px #0008)}
 .fjord-brand-cube{color:#52a9ff;font-size:28px;line-height:1}
 .fjord-menubar details{flex:0 0 auto;position:relative}
 .fjord-menubar summary{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:15px 11px!important;font-size:15px;font-weight:700;color:#d9e0e8;border-radius:0!important}
@@ -528,7 +529,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.json" multiple hidden>
 </header>
 <nav class="fjord-menubar" aria-label="Menus de l'atelier">
-<a class="fjord-menu-brand" href="/" title="Les Impressions du Fjord"><span class="fjord-brand-cube">⬡</span><strong>Fjord 3D</strong></a>
+<a class="fjord-menu-brand" href="/" title="Les Impressions du Fjord"><img class="fjord-menu-logo" src="/identite/logo" alt="Logo Les Impressions du Fjord" onerror="this.hidden=true"><strong>Fjord 3D</strong></a>
 <details><summary>Fichier</summary><div class="fjord-menu-options">
 <button data-fjord-target="new">Nouveau projet</button><button data-fjord-target="open">Ouvrir projet</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF</button>
 </div></details>
@@ -617,7 +618,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
 <div class="shell" id="fjordWorkspace">
-<button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-label="Ouvrir ou fermer le tiroir gauche" title="Ouvrir / fermer le tiroir gauche">‹</button>
+<button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-expanded="false" aria-label="Ouvrir ou fermer le tiroir des outils" title="Ouvrir / fermer les outils">›</button>
 <button type="button" id="fjordDrawerRight" class="fjord-drawer-handle fjord-drawer-right" aria-label="Ouvrir ou fermer le tiroir droit" title="Ouvrir / fermer le tiroir droit">›</button>
 
 <aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
@@ -2934,17 +2935,26 @@ function selectCategory(name){
  });
  categorySections.forEach(p=>p.classList.toggle('fjord-category-hidden',p!==panel));
  left.scrollTop=0;
+ const handle=document.getElementById('fjordDrawerLeft');
+ if(handle){handle.textContent='‹';handle.setAttribute('aria-expanded','true');}
 }
 categoryButtons.forEach(b=>b.addEventListener('click',()=>selectCategory(b.dataset.fjordPanel)));
 const desktopCategory=window.matchMedia('(min-width:761px)');
 const navArea=left.querySelector('.fjord-workspace-nav');
 let pinnedCategory=false;
 let dismissTimer=null;
-function hideCategoryDrawer(){
- if(!desktopCategory.matches||pinnedCategory)return;
+function hideCategoryDrawer(force=false){
+ if(!desktopCategory.matches||(!force&&pinnedCategory))return;
  categorySections.forEach(p=>p.classList.add('fjord-category-hidden'));
  categoryButtons.forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});
+ const handle=document.getElementById('fjordDrawerLeft');
+ if(handle){handle.textContent='›';handle.setAttribute('aria-expanded','false');}
 }
+window.fjordToggleCategoryDrawer=()=>{
+ const opened=categorySections.some(panel=>!panel.classList.contains('fjord-category-hidden'));
+ if(opened){pinnedCategory=false;hideCategoryDrawer(true);}
+ else{selectCategory('shapes');}
+};
 function scheduleCategoryDismiss(){
  clearTimeout(dismissTimer);
  dismissTimer=setTimeout(()=>{
@@ -2995,7 +3005,9 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   });
   update();
  }
- for(const [handleId,toggleId,cls] of [['fjordDrawerLeft','fjordToggleLeft','fjord-hide-left'],['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
+ const leftHandle=document.getElementById('fjordDrawerLeft');
+ leftHandle?.addEventListener('click',()=>{if(desktop.matches)window.fjordToggleCategoryDrawer?.();});
+ for(const [handleId,toggleId,cls] of [['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
   const handle=document.getElementById(handleId);
   const toggle=document.getElementById(toggleId);
   if(!handle||!toggle)continue;
@@ -3018,19 +3030,41 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
 })();
 </script>
 <script>
-/* Menus utilisables au clic et au survol; ne pas fermer avant le choix. */
+/* Six menus : survol temporaire au pointeur, clic/tactile au besoin. */
 (()=>{
  const menus=[...document.querySelectorAll('.fjord-menubar details')];
+ const mouse=window.matchMedia('(hover:hover) and (pointer:fine)');
  const close=()=>menus.forEach(menu=>menu.open=false);
  menus.forEach(menu=>{
-  menu.addEventListener('toggle',()=>{if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});});
-  menu.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse'&&menus.some(m=>m.open)){menus.forEach(other=>other.open=other===menu);}});
-  menu.querySelectorAll('.fjord-menu-options button').forEach(button=>button.addEventListener('click',()=>{menu.open=false;}));
+  const summary=menu.querySelector('summary');
+  menu.addEventListener('toggle',()=>{
+   if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});
+  });
+  menu.addEventListener('pointerenter',event=>{
+   if(event.pointerType==='mouse'&&mouse.matches){
+    menus.forEach(other=>other.open=other===menu);
+   }
+  });
+  menu.addEventListener('pointerleave',event=>{
+   if(event.pointerType==='mouse'&&mouse.matches)menu.open=false;
+  });
+  // On desktop the menu is driven by hover; clicking never leaves it stuck open.
+  summary?.addEventListener('click',event=>{
+   if(mouse.matches){event.preventDefault();menu.open=true;}
+  });
+  menu.querySelectorAll('.fjord-menu-options button').forEach(button=>
+   button.addEventListener('click',()=>{menu.open=false;}));
  });
- document.addEventListener('pointerdown',event=>{if(!event.target.closest('.fjord-menubar details'))close();});
+ document.addEventListener('pointerdown',event=>{
+  if(!event.target.closest('.fjord-menubar details'))close();
+ });
  document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
  const themeButton=document.getElementById('fjordTopTheme');
- themeButton?.addEventListener('click',()=>{const theme=document.getElementById('theme');if(theme){theme.value=theme.value==='dark'?'light':'dark';theme.dispatchEvent(new Event('change',{bubbles:true}));}});
+ themeButton?.addEventListener('click',()=>{
+  const theme=document.getElementById('theme');
+  if(theme){theme.value=theme.value==='dark'?'light':'dark';
+   theme.dispatchEvent(new Event('change',{bubbles:true}));}
+ });
 })();
 </script>
 <script>
@@ -3085,16 +3119,24 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   toolbar.style.position='absolute';
   const place=()=>{
    const bounds=stage.getBoundingClientRect(),shellBounds=shell.getBoundingClientRect();
-   const leftClosed=shell.classList.contains('fjord-hide-left');
-   const offset=leftClosed?0:Math.max(0,bounds.left-shellBounds.left);
-   const available=leftClosed?shellBounds.width:bounds.width;
-   toolbar.style.setProperty('--fjord-toolbar-left',offset+'px');
+   const closed=shell.classList.contains('fjord-hide-left');
+   const baseLeft=closed?0:Math.max(0,bounds.left-shellBounds.left);
+   const panel=document.querySelector('#toolsPanel [data-tool-panel]:not(.fjord-category-hidden)');
+   // Shift both compact toolbars aside when a floating category drawer opens.
+   const overlap=(panel&&window.matchMedia('(min-width:761px)').matches)?
+    Math.max(0,Math.min(bounds.width-90,panel.getBoundingClientRect().right-bounds.left)):0;
+   const left=baseLeft+overlap;
+   const available=Math.max(90,(closed?shellBounds.width:bounds.width)-overlap);
+   toolbar.style.setProperty('--fjord-toolbar-left',left+'px');
    toolbar.style.setProperty('--fjord-toolbar-width',available+'px');
-   toolbar.style.left=offset+'px';
+   toolbar.style.left=left+'px';
    toolbar.style.maxWidth=available+'px';
   };
   new ResizeObserver(place).observe(stage);
   new MutationObserver(place).observe(shell,{attributes:true,attributeFilter:['class']});
+  const toolSections=document.querySelectorAll('#toolsPanel [data-tool-panel]');
+  const observeToolPanels=new MutationObserver(place);
+  toolSections.forEach(panel=>observeToolPanels.observe(panel,{attributes:true,attributeFilter:['class']}));
   place();
  }
 })();
