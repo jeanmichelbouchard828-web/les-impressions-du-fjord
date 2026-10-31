@@ -1219,7 +1219,7 @@ const transform=new TransformControls(camera,renderer.domElement);scene.add(tran
 // The manipulator must never appear merely because a part has been selected.
 transform.detach();transform.getHelper().visible=false;
 transform.addEventListener('dragging-changed',e=>orbit.enabled=!e.value);
-let models=[], selected=null, undoStack=[], redoStack=[], counter=0, layFaceMode=false;
+let models=[], selected=null, selectedSet=new Set(), undoStack=[], redoStack=[], counter=0, layFaceMode=false;
 let fjordWireframe=false;
 function fjordApplyWireframe(){
  for(const model of models){
@@ -1309,8 +1309,61 @@ function addSelectionTint(m){
  m.material.color.setHex(0xffbd53); // Orange when selected, cyan/original when not.
  if(m.material.emissive){m.material.emissive.setHex(0x783d0e);m.material.emissiveIntensity=.36}
 }
-function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:basePartColor(m),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
-function restore(data){sliceClose();if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');exitLayFaceMode();deactivateGizmo();for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
+function serialize(){
+ return {version:1,objects:models.map(m=>({
+  type:m.userData.type,name:m.name,position:m.position.toArray(),
+  rotation:[m.rotation.x,m.rotation.y,m.rotation.z],
+  scale:m.scale.toArray(),color:basePartColor(m),
+  vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null,
+  // Merge comme Bambu Studio : une pièce principale, avec ses sous-pièces préservées.
+  parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null
+ }))};
+}
+function restore(data){
+ sliceClose();
+ if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');
+ exitLayFaceMode();deactivateGizmo();
+ for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose();}
+ models=[];selected=null;selectedSet.clear();transform.detach();
+ for(const entry of data.objects){
+  let g;
+  if(entry.type==='imported'){
+   if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');
+   g=new THREE.BufferGeometry();
+   g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));
+   g.computeVertexNormals();
+  }else g=shapeGeometry(entry.type);
+  const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));
+  m.position.fromArray(entry.position);
+  m.rotation.set(...entry.rotation);
+  m.scale.fromArray(entry.scale);
+  m.material.color.setHex(entry.color??0x5bc6eb);
+  if(entry.type==='imported' && Array.isArray(entry.parts) && entry.parts.length>=2 && entry.parts.length<=100){
+   const count=g.getAttribute('position').count;
+   const parts=entry.parts.map(p=>({name:String(p.name||'Pièce').slice(0,120),start:p.start,count:p.count,color:p.color}));
+   let next=0;
+   const valid=parts.every(p=>{
+    const okay=Number.isInteger(p.start)&&Number.isInteger(p.count)&&p.start===next&&
+     p.count>0&&p.count%3===0&&p.start+p.count<=count&&
+     Number.isInteger(p.color)&&p.color>=0&&p.color<=0xffffff;
+    next=p.start+p.count;return okay;
+   }) && next===count;
+   if(valid){
+    const colors=new Float32Array(count*3);
+    for(const p of parts){
+     const c=new THREE.Color(p.color);
+     for(let i=p.start;i<p.start+p.count;i++){colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}
+    }
+    g.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    m.userData.mergedParts=parts;
+    m.material.vertexColors=true;
+    m.material.color.setHex(0xffffff);
+    m.material.needsUpdate=true;
+   }
+  }
+ }
+ sync();
+}
 // Plateaux indépendants : chaque onglet conserve son propre projet 3D.
 const fjordBedTabs=document.getElementById('fjordBedTabs');
 const fjordAddBed=document.getElementById('fjordAddBed');
