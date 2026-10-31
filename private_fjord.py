@@ -1064,6 +1064,74 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
         return redirect(url_for("fjord_payment_page",token=token))
 
 
+    with db() as c:
+        c.execute("""CREATE TABLE IF NOT EXISTS fjord_quote_acceptances (
+          quote_id BIGINT PRIMARY KEY REFERENCES private_quotes(id) ON DELETE CASCADE,
+          accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          signer TEXT NOT NULL, quote_snapshot TEXT NOT NULL,
+          quote_hash TEXT NOT NULL, terms_version TEXT NOT NULL,
+          ip_hash TEXT, user_agent TEXT)""")
+
+    def quote_snapshot(q):
+        fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes")
+        return json.dumps({k:str(q[k]) if q[k] is not None else None for k in fields},ensure_ascii=False,sort_keys=True)
+
+    @app.route("/accepter-soumission/<token>",methods=["GET","POST"])
+    def fjord_accept_quote(token):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            q=c.execute("SELECT * FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
+            accepted=c.execute("SELECT signer,accepted_at,quote_hash FROM fjord_quote_acceptances WHERE quote_id=%s",(q["id"],)).fetchone() if q else None
+        if not q:abort(404)
+        snapshot=quote_snapshot(q)
+        digest=hashlib.sha256(snapshot.encode()).hexdigest()
+        changed=bool(accepted and accepted["quote_hash"]!=digest)
+        if request.method=="POST" and not accepted:
+            verify()
+            signer=request.form.get("signer","").strip()
+            checked=request.form.get("agree")=="yes"
+            if not (2<=len(signer)<=150 and checked):
+                flash("Indiquez votre nom et confirmez votre acceptation.")
+            elif request.form.get("quote_hash")!=digest:
+                flash("La soumission a changé. Veuillez la relire.")
+            else:
+                ip=request.remote_addr or ""
+                iphash=hashlib.sha256((str(app.secret_key)+ip).encode()).hexdigest()
+                with db() as c:
+                    c.execute("""INSERT INTO fjord_quote_acceptances
+                     (quote_id,signer,quote_snapshot,quote_hash,terms_version,ip_hash,user_agent)
+                     VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(quote_id) DO NOTHING""",
+                     (q["id"],signer,snapshot,digest,"QC-2026-10",iphash,(request.user_agent.string or "")[:350]))
+                return redirect(url_for("fjord_accept_quote",token=token))
+        subtotal,gst,qst,total=_quote_amounts(q)
+        response=make_response(page("Acceptation de soumission",'''<section class="tracking-panel">
+<h1>Acceptation de la soumission FJ-{{'%05d'|format(q.id)}}</h1>
+<p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
+<p><strong>Matériau :</strong> {{q.material}} · <strong>Quantité :</strong> {{q.quantity}}</p>
+<p><strong>Prix total :</strong> {{total}}</p>
+<p><a href="{{pdf_url}}">Consulter les conditions et garanties légales (PDF)</a></p>
+{% if changed %}<p>Cette soumission a été modifiée depuis son acceptation. Une nouvelle acceptation est nécessaire : communiquez avec Les Impressions du Fjord.</p>
+{% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>
+{% else %}<form method="post">{{csrf|safe}}<input type="hidden" name="quote_hash" value="{{digest}}">
+<label>Nom complet du client<input name="signer" maxlength="150" required autocomplete="name"></label>
+<label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
+<button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
+<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),pdf_url=url_for("fjord_quote_public_pdf",token=token)))
+        response.headers["Cache-Control"]="no-store"
+        response.headers["X-Robots-Tag"]="noindex, nofollow"
+        response.headers["Referrer-Policy"]="no-referrer"
+        return response
+
+    @app.get("/soumission-client/<token>/pdf")
+    def fjord_quote_public_pdf(token):
+        # Le document complet doit rester accessible uniquement via un lien aléatoire.
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
+        with db() as c:
+            q=c.execute("SELECT id FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
+        if not q:abort(404)
+        # Rediriger vers la page d'acceptation tant qu'aucun PDF public dédié n'existe.
+        return redirect(url_for("fjord_accept_quote",token=token))
+
     @app.get("/payer/<token>")
     def fjord_payment_page(token):
         # La page ne dévoile ni l'identité du client ni les paramètres internes.
