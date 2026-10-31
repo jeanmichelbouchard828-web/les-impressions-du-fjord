@@ -979,7 +979,10 @@ function deactivateGizmo(){
 }
 function chooseGizmo(mode){
  sliceClose();exitLayFaceMode();
- if(activeTool===mode){deactivateGizmo();return} // Same button turns the tool off.
+ if(activeTool===mode){ // Recliquer garde l'outil actif, comme dans un éditeur 3D professionnel.
+  if(selected && transform.object!==selected){transform.attach(selected);transform.getHelper().visible=true;}
+  updateGizmoButtons();return;
+ }
  if(measureMode)$('measure').click(); // Never display two different active tools.
  if(cutPreviewActive)hideCutPreview();
  activeTool=mode;
