@@ -212,6 +212,34 @@ def suivi_client():
   if result is None:
    flash("Aucune commande trouvée. Vérifiez votre numéro et votre courriel.")
  return page("Suivre mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>Suivre mon impression</h1><p>Entrez le numéro de votre demande et le courriel utilisé pour la soumission.</p><form method="post">{{csrf|safe}}<label>Numéro de demande<input name="numero" inputmode="numeric" required maxlength="12"></label><label>Courriel<input type="email" name="email" required maxlength="200"></label><button class="btn">Afficher mon suivi</button></form>{% if result %}<div class="tracking-result"><h2>Commande #{{result.id}}</h2><p><strong>{{result.status}}</strong></p>{% if result.status=="En impression" and result.progress is not none %}<div class="tracking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{result.progress}}"><span style="width:{{result.progress}}%"></span></div><p>{{result.progress}} % terminé</p>{% elif result.status=="En impression" %}<p>Progression en attente de mise à jour.</p>{% endif %}{% if result.status=="En impression" and result.live_enabled %}<p>{% if result.live_url %}<a class="btn" href="{{result.live_url}}" target="_blank" rel="noopener noreferrer nofollow">🎥 Regarder mon impression en direct</a><p><strong>📹 Pour voir votre impression en direct :</strong> après avoir ouvert le lien, sélectionnez <strong>« Alternative Cam »</strong> et non « Bambu Cam ».</p><p>Le lien externe OctoEverywhere est accessible à toute personne qui le possède. Ne le partagez pas.</p>{% else %}La caméra n'est pas disponible pour cette commande.{% endif %}</p>{% endif %}</div>{% endif %}</section>''',result=result,csrf=csrfinput())
+_octo_cache={"at":0,"data":None}
+def _octo_live_status():
+ import json as j
+ import urllib.request as u
+ from urllib.parse import urlparse
+ now=time.monotonic()
+ if now-_octo_cache["at"]<20:return _octo_cache["data"]
+ _octo_cache["at"]=now
+ _octo_cache["data"]=None
+ base=os.environ.get("OCTOEVERYWHERE_CONNECTION_URL","").strip().rstrip("/")
+ p=urlparse(base)
+ if p.scheme!="https" or not p.hostname or not p.hostname.endswith(".octoeverywhere.com") or p.username or p.password or p.port or p.path not in ("","/") or p.query or p.fragment:return None
+ try:
+  with u.urlopen(u.Request(base+"/octoeverywhere-command-api/status",headers={"Accept":"application/json"}),timeout=4) as resp:data=j.load(resp)
+  if data.get("Status")!=200:return None
+  job=(data.get("Result") or {}).get("JobStatus") or {}
+  current=job.get("CurrentPrint") or {}
+  progress=current.get("Progress")
+  if not isinstance(progress,(int,float)) or not 0<=progress<=100:return None
+  _octo_cache["data"]={"state":str(job.get("State") or "").lower(),"progress":round(progress),"filename":str(current.get("FileName") or "")}
+  return _octo_cache["data"]
+ except Exception:return None
+
+def _octo_job_matches(configured,reported):
+ def norm(v):
+  return str(v or "").replace(chr(92),"/").split("/")[-1].rsplit(".",1)[0].strip().casefold()
+ return bool(configured and reported and norm(configured)==norm(reported))
+
 @app.get("/api/production-publique")
 def public_production():
  # Uniquement les commandes autorisées; aucun identifiant ou renseignement client.
@@ -219,9 +247,10 @@ def public_production():
   rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
  # Soumissions PRO : statut uniquement, sans données client ni montant.
  with db() as c:
-  quotes=c.execute("""SELECT q.id,q.public_number,q.production_status,q.production_progress,q.payment_status,
+  quotes=c.execute("""SELECT q.id,q.public_number,q.production_status,q.production_progress,q.printer_job_name,q.payment_status,
       EXISTS(SELECT 1 FROM fjord_quote_acceptances a WHERE a.quote_id=q.id) AS accepted
       FROM private_quotes q ORDER BY q.id DESC LIMIT 150""").fetchall()
+ live=_octo_live_status()
  groups={"print":[],"wait":[],"done":[]}
  for q in quotes:
   status=q["production_status"]
@@ -235,7 +264,15 @@ def public_production():
    key,label="wait","Acceptée · en attente de production"
   else:
    key,label="wait","Soumission en attente"
-  groups[key].append({"number":q["public_number"] or "FJ-{:05d}".format(q["id"]),"status":label,"progress":100 if key=="done" else int(q["production_progress"] or 0)})
+  progress=100 if key=="done" else int(q["production_progress"] or 0)
+  if live and _octo_job_matches(q["printer_job_name"],live["filename"]):
+   if live["state"] in ("printing","paused","warmingup","resuming"):
+    key,label="print","En pause" if live["state"]=="paused" else "En impression"
+    progress=live["progress"]
+   elif live["state"]=="complete":
+    key,label="done","Terminée"
+    progress=100
+  groups[key].append({"number":q["public_number"] or "FJ-{:05d}".format(q["id"]),"status":label,"progress":progress})
  for r in rows:
   key="print" if r["status"]=="En impression" else ("done" if r["status"]=="Terminée" else "wait")
   if len(groups[key])<100:
