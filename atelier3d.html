@@ -3118,16 +3118,24 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   toolbar.style.position='absolute';
   const place=()=>{
    const bounds=stage.getBoundingClientRect(),shellBounds=shell.getBoundingClientRect();
-   const leftClosed=shell.classList.contains('fjord-hide-left');
-   const offset=leftClosed?0:Math.max(0,bounds.left-shellBounds.left);
-   const available=leftClosed?shellBounds.width:bounds.width;
-   toolbar.style.setProperty('--fjord-toolbar-left',offset+'px');
+   const closed=shell.classList.contains('fjord-hide-left');
+   const baseLeft=closed?0:Math.max(0,bounds.left-shellBounds.left);
+   const panel=document.querySelector('#toolsPanel [data-tool-panel]:not(.fjord-category-hidden)');
+   // Shift both compact toolbars aside when a floating category drawer opens.
+   const overlap=(panel&&window.matchMedia('(min-width:761px)').matches)?
+    Math.max(0,Math.min(bounds.width-90,panel.getBoundingClientRect().right-bounds.left)):0;
+   const left=baseLeft+overlap;
+   const available=Math.max(90,(closed?shellBounds.width:bounds.width)-overlap);
+   toolbar.style.setProperty('--fjord-toolbar-left',left+'px');
    toolbar.style.setProperty('--fjord-toolbar-width',available+'px');
-   toolbar.style.left=offset+'px';
+   toolbar.style.left=left+'px';
    toolbar.style.maxWidth=available+'px';
   };
   new ResizeObserver(place).observe(stage);
   new MutationObserver(place).observe(shell,{attributes:true,attributeFilter:['class']});
+  const toolSections=document.querySelectorAll('#toolsPanel [data-tool-panel]');
+  const observeToolPanels=new MutationObserver(place);
+  toolSections.forEach(panel=>observeToolPanels.observe(panel,{attributes:true,attributeFilter:['class']}));
   place();
  }
 })();
