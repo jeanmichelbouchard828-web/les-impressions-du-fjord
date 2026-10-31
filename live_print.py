@@ -97,7 +97,7 @@ def register_live_print(app, db, admin_required, verify, page):
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}", token):
             abort(404)
         with db() as connection:
-            q = connection.execute("""SELECT id,live_url FROM private_quotes
+            q = connection.execute("""SELECT id,public_number,live_url FROM private_quotes
                 WHERE live_token=%s AND live_enabled=TRUE AND live_expires>NOW()""",
                 (token,)).fetchone()
         if not q or not q["live_url"]:
@@ -120,7 +120,7 @@ body.light .fj-watch small{color:#39566c}
 <div class="fj-watch">
 <div class="eyebrow">Les Impressions du Fjord · Suivi client</div>
 <h1>📹 Votre impression en direct</h1>
-<p>Soumission <strong>FJ-{{'%05d'|format(quote_id)}}</strong>. Si la diffusion est active chez notre fournisseur vidéo,
+<p>Soumission <strong>{{display_number}}</strong>. Si la diffusion est active chez notre fournisseur vidéo,
 vous pouvez regarder la fabrication de votre pièce.</p>
 {% if embed %}
 <div class="fj-watch-media"><iframe src="{{embed}}" title="Vidéo de votre impression 3D"
@@ -136,7 +136,7 @@ vous pouvez regarder la fabrication de votre pièce.</p>
 <p><small>Le lien de suivi est temporaire. La caméra et les informations diffusées sont fournies
 par un service externe; ce suivi ne permet pas de commander l'imprimante. Le lien
 vidéo peut être partagé par son destinataire, alors évitez de le publier.</small></p>
-</div>""", quote_id=q["id"], viewer_url=source, embed=embed))
+</div>""", display_number=q["public_number"] or "FJ-{:05d}".format(q["id"]), viewer_url=source, embed=embed))
         result.headers["Cache-Control"] = "no-store"
         result.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
         result.headers["Referrer-Policy"] = "no-referrer"
