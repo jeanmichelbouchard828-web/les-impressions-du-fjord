@@ -601,7 +601,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                      FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         def quote_stage(q):
-            if q["production_status"]=="Terminée":return "terminees"
+            if q.get("production_status")=="Terminée":return "terminees"
             if q["production_status"]=="En production":return "production"
             if q["payment_status"]=="Payée":return "payees"
             if q["accepted_at"]:return "acceptees"
@@ -1175,7 +1175,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 COALESCE(MAX(CASE WHEN public_number ~ '^FJ-[0-9]+$'
                     THEN substring(public_number from 4)::bigint END),0),
                 COALESCE(MAX(id),0)
-            ) AS n FROM private_quotes""").fetchone()["n"]
+            ) AS n FROM private_quotes""").fetchone()
+            last=last["n"] if last else 0
             next_number="FJ-{:05d}".format(last+1)
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
@@ -1357,7 +1358,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             abort(404)
         recipient=setting["value"]
         subtotal,gst,qst,total=_quote_amounts(q)
-        reference=q["public_number"] or "FJ-{:05d}".format(q["id"])
+        reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
         response=make_response(page("Paiement Interac",r"""
 <style>
 .payment-wrap{max-width:660px;margin:30px auto}
@@ -1412,7 +1413,7 @@ async function fjordCopy(id,button){
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_quote_logo'").fetchone()
             interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
-        display_number=q["public_number"] or "FJ-{:05d}".format(q["id"])
+        display_number=q.get("public_number") or "FJ-{:05d}".format(q["id"])
         token=_quote_payment_token(db,q)
         accept_url=url_for("fjord_accept_quote",token=token,_external=True) if token else None
         payment_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
