@@ -598,7 +598,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button" data-quick-action="viewTop" data-tooltip="viewTop">▣</button>
 <button type="button" class="quick-button" data-quick-action="viewFit" data-tooltip="viewFit">⌗</button>
 
-<span class="quickbar-tip" data-i18n="quickbarHint">Glisser pour déplacer · Clic droit pour les outils</span>
+<span class="quickbar-tip" data-i18n="quickbarHint">Glisser pour déplacer · Ctrl + clic pour sélectionner plusieurs pièces · Clic droit pour les outils</span>
 </div>
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
@@ -788,8 +788,10 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="zoomSelected">⌕ Agrandir la vue (zoom)</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — fusionner les pièces</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="growSelected">⤢ Agrandir la pièce (+10 %)</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="scaleCustom">⤢ Agrandir / réduire (%)…</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — regrouper les pièces sélectionnées</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="splitMerged">↳ Séparer les pièces du groupe</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="dropToBed" data-i18n="dropToBed">Poser au sol</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
@@ -1217,7 +1219,7 @@ const transform=new TransformControls(camera,renderer.domElement);scene.add(tran
 // The manipulator must never appear merely because a part has been selected.
 transform.detach();transform.getHelper().visible=false;
 transform.addEventListener('dragging-changed',e=>orbit.enabled=!e.value);
-let models=[], selected=null, undoStack=[], redoStack=[], counter=0, layFaceMode=false;
+let models=[], selected=null, selectedSet=new Set(), undoStack=[], redoStack=[], counter=0, layFaceMode=false;
 let fjordWireframe=false;
 function fjordApplyWireframe(){
  for(const model of models){
@@ -1307,8 +1309,61 @@ function addSelectionTint(m){
  m.material.color.setHex(0xffbd53); // Orange when selected, cyan/original when not.
  if(m.material.emissive){m.material.emissive.setHex(0x783d0e);m.material.emissiveIntensity=.36}
 }
-function serialize(){return {version:1,objects:models.map(m=>({type:m.userData.type,name:m.name,position:m.position.toArray(),rotation:[m.rotation.x,m.rotation.y,m.rotation.z],scale:m.scale.toArray(),color:basePartColor(m),vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null}))}}
-function restore(data){sliceClose();if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');exitLayFaceMode();deactivateGizmo();for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose()}models=[];selected=null;transform.detach();for(const entry of data.objects){let g;if(entry.type==='imported'){if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));g.computeVertexNormals()}else g=shapeGeometry(entry.type);const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));m.position.fromArray(entry.position);m.rotation.set(...entry.rotation);m.scale.fromArray(entry.scale);m.material.color.setHex(entry.color||0x5bc6eb)}sync()}
+function serialize(){
+ return {version:1,objects:models.map(m=>({
+  type:m.userData.type,name:m.name,position:m.position.toArray(),
+  rotation:[m.rotation.x,m.rotation.y,m.rotation.z],
+  scale:m.scale.toArray(),color:basePartColor(m),
+  vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null,
+  // Merge comme Bambu Studio : une pièce principale, avec ses sous-pièces préservées.
+  parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null
+ }))};
+}
+function restore(data){
+ sliceClose();
+ if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');
+ exitLayFaceMode();deactivateGizmo();
+ for(const m of models){scene.remove(m);m.geometry.dispose();m.material.dispose();}
+ models=[];selected=null;selectedSet.clear();transform.detach();
+ for(const entry of data.objects){
+  let g;
+  if(entry.type==='imported'){
+   if(!Array.isArray(entry.vertices)||entry.vertices.length>6000000||entry.vertices.length%9!==0)throw Error('Invalid STL data');
+   g=new THREE.BufferGeometry();
+   g.setAttribute('position',new THREE.Float32BufferAttribute(entry.vertices,3));
+   g.computeVertexNormals();
+  }else g=shapeGeometry(entry.type);
+  const m=makeMesh(g,entry.type,String(entry.name||entry.type).slice(0,120));
+  m.position.fromArray(entry.position);
+  m.rotation.set(...entry.rotation);
+  m.scale.fromArray(entry.scale);
+  m.material.color.setHex(entry.color??0x5bc6eb);
+  if(entry.type==='imported' && Array.isArray(entry.parts) && entry.parts.length>=2 && entry.parts.length<=100){
+   const count=g.getAttribute('position').count;
+   const parts=entry.parts.map(p=>({name:String(p.name||'Pièce').slice(0,120),start:p.start,count:p.count,color:p.color}));
+   let next=0;
+   const valid=parts.every(p=>{
+    const okay=Number.isInteger(p.start)&&Number.isInteger(p.count)&&p.start===next&&
+     p.count>0&&p.count%3===0&&p.start+p.count<=count&&
+     Number.isInteger(p.color)&&p.color>=0&&p.color<=0xffffff;
+    next=p.start+p.count;return okay;
+   }) && next===count;
+   if(valid){
+    const colors=new Float32Array(count*3);
+    for(const p of parts){
+     const c=new THREE.Color(p.color);
+     for(let i=p.start;i<p.start+p.count;i++){colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}
+    }
+    g.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    m.userData.mergedParts=parts;
+    m.material.vertexColors=true;
+    m.material.color.setHex(0xffffff);
+    m.material.needsUpdate=true;
+   }
+  }
+ }
+ sync();
+}
 // Plateaux indépendants : chaque onglet conserve son propre projet 3D.
 const fjordBedTabs=document.getElementById('fjordBedTabs');
 const fjordAddBed=document.getElementById('fjordAddBed');
@@ -1383,16 +1438,17 @@ function remember(){
  redoStack.length=0;
 }
 function pick(m){
- if(m && generatorPreviewEnabled)stopGeneratorPreview(); // Preview is never selectable.
- const changed=selected!==m;
+ if(m && generatorPreviewEnabled)stopGeneratorPreview();
+ const changed=selected!==m || selectedSet.size!==(m?1:0);
  if(changed){
   if(cutPreviewActive)hideCutPreview();
-  removeSelectionTint(selected);
+  for(const previous of selectedSet)removeSelectionTint(previous);
  }
+ selectedSet.clear();
  selected=m;
  if(m){
+  selectedSet.add(m);
   addSelectionTint(m);
-  // Selected tools follow the part. Selecting alone never makes arrows appear.
   if(activeTool){
    transform.setMode(activeTool);
    transform.attach(m);
@@ -1402,11 +1458,32 @@ function pick(m){
    transform.getHelper().visible=false;
   }
   say('selected');
-  if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2)}
+  if(changed){const bb=modelWorldBounds(m);if(bb.min.z<bb.max.z)$('cutHeight').value=((bb.min.z+bb.max.z)/2).toFixed(2);}
  }else{
-  exitLayFaceMode();
-  deactivateGizmo();
-  say('empty');
+  exitLayFaceMode();deactivateGizmo();say('empty');
+ }
+ sync();
+}
+function togglePartSelection(m){
+ if(!m||!models.includes(m))return;
+ if(generatorPreviewEnabled)stopGeneratorPreview();
+ if(cutPreviewActive)hideCutPreview();
+ if(selectedSet.has(m)){
+  removeSelectionTint(m);
+  selectedSet.delete(m);
+  if(selected===m)selected=[...selectedSet].at(-1)||null;
+ }else{
+  selectedSet.add(m);
+  selected=m;
+  addSelectionTint(m);
+ }
+ if(selected && activeTool){
+  transform.setMode(activeTool);
+  transform.attach(selected);
+  transform.getHelper().visible=true;
+ }else{
+  transform.detach();
+  transform.getHelper().visible=false;
  }
  sync();
 }
@@ -1416,6 +1493,7 @@ document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',
 // Mouse interactions: left selects/drags parts; right-drag pans the camera.
 // A stationary right-click still opens the part-tools menu on release.
 const dragStart={x:0,y:0};let directDrag=null,activeTool=null,touchMoveEnabled=false;
+let multiSelectionPointer=null;
 let touchTap=null; // Use a generous finger-tap tolerance, without affecting pinch/orbit gestures.
 const activeTouchIds=new Set();
 const touchTapTolerance=18;
@@ -1470,8 +1548,13 @@ renderer.domElement.addEventListener('wheel',e=>{
 },{capture:true,passive:false});
 function hideContext(){contextMenu.hidden=true}
 function showContextMenu(e){
- const hit=findHit(e);if(hit)pick(hit.object);
+ const hit=findHit(e);
+ if(hit&&!selectedSet.has(hit.object))pick(hit.object);
  contextMenu.querySelectorAll('.part-action').forEach(el=>el.hidden=!hit);
+ const mergeAction=contextMenu.querySelector('[data-context-action="mergeAll"]');
+ if(mergeAction)mergeAction.disabled=selectedSet.size<2;
+ const splitAction=contextMenu.querySelector('[data-context-action="splitMerged"]');
+ if(splitAction)splitAction.hidden=!selected?.userData.mergedParts;
  contextMenu.querySelectorAll('.blank-action').forEach(el=>el.hidden=!!hit);
  contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
  contextMenu.hidden=false;
@@ -1505,6 +1588,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  }
  if(e.button!==0){hideContext();return}
  hideContext();dragStart.x=e.clientX;dragStart.y=e.clientY;
+ if(e.pointerType==='mouse' && (e.ctrlKey||e.metaKey||e.shiftKey)){
+  const hit=findHit(e);
+  if(hit)togglePartSelection(hit.object);
+  multiSelectionPointer=e.pointerId;
+  e.preventDefault();e.stopImmediatePropagation();return;
+ }
  if(cutPreviewActive && cutPreviewView.visible){
    findHit(e);
    const mode=raycaster.intersectObject(cutRotateXHandle,false).length?'angleX':
@@ -1590,6 +1679,10 @@ renderer.domElement.addEventListener('pointerup',e=>{
    }else hideContext();
    return; // OrbitControls termine le geste et libère le bouton droit.
  }
+ if(multiSelectionPointer===e.pointerId){
+  multiSelectionPointer=null;
+  e.stopImmediatePropagation();return;
+ }
  const tap=e.pointerType==='touch' && touchTap?.pointerId===e.pointerId &&
   activeTouchIds.size===1 &&
   Math.hypot(e.clientX-touchTap.x,e.clientY-touchTap.y)<=touchTapTolerance ? touchTap : null;
@@ -1628,6 +1721,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
  else if(!measureMode&&!cutPreviewActive&&!activeTool&&!touchMoveEnabled)pick(null);
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
+ if(multiSelectionPointer===e.pointerId)multiSelectionPointer=null;
  if(rightPanStart&&rightPanStart.pointerId===e.pointerId){rightPanStart=null;hideContext()}
  if(e.pointerType==='touch'){activeTouchIds.delete(e.pointerId);touchTap=null}
  if(cutDrag&&cutDrag.pointerId===e.pointerId){cutDrag=null;orbit.enabled=true;renderer.domElement.style.cursor='';return}
@@ -1637,7 +1731,19 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  const action=btn.dataset.contextAction;hideContext();
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
- if(action==='zoomSelected'){fjordCenterView();return;}
+ if(action==='splitMerged'){fjordSplitMerged();return;}
+ if(action==='growSelected'){
+  if(selected){rescaleSelected(1.1);snapPartToBed(selected);sync();}
+  return;
+ }
+ if(action==='scaleCustom'){
+  if(!selected)return;
+  const value=prompt('Échelle de la pièce en % (100 = taille actuelle, 120 = +20 %, 50 = moitié) :','120');
+  if(value===null)return;
+  const percentage=Number(value.replace(',','.'));
+  if(!Number.isFinite(percentage)||percentage<1||percentage>1000){alert('Entre un pourcentage de 1 à 1000.');return;}
+  rescaleSelected(percentage/100);snapPartToBed(selected);sync();return;
+ }
  $(action)?.click();
 }));
 document.querySelectorAll('[data-quick-action]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -2360,12 +2466,45 @@ function snapPartToBed(m){
  return true;
 }
 function renderSceneList(){
- const list=$('sceneList');if(!list)return;list.replaceChildren();
- if(!models.length){const p=document.createElement('p');p.className='tool-note';p.textContent=langText[currentLang()].emptyList;list.append(p);return}
+ const list=$('sceneList');if(!list)return;
+ list.replaceChildren();
+ if(!models.length){
+  const p=document.createElement('p');p.className='tool-note';
+  p.textContent=langText[currentLang()].emptyList;list.append(p);return;
+ }
+ const hint=document.createElement('p');hint.className='tool-note';
+ hint.textContent='Ctrl + clic, ou cases à cocher : sélectionner plusieurs pièces pour Merge.';
+ list.append(hint);
  models.forEach((m,i)=>{
-   const b=document.createElement('button');b.type='button';b.className='scene-item'+(m===selected?' active':'');
-   b.textContent=(i+1)+'. '+m.name;b.title=m.name;
-   b.addEventListener('click',()=>pick(m));list.append(b);
+  const wrap=document.createElement('div');wrap.className='scene-row';
+  wrap.style.cssText='display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:3px 0';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';
+  checkbox.checked=selectedSet.has(m);
+  checkbox.setAttribute('aria-label','Sélectionner '+m.name+' pour Merge');
+  checkbox.style.cssText='width:18px;height:18px;flex:none;margin:0';
+  checkbox.addEventListener('change',()=>togglePartSelection(m));
+  const b=document.createElement('button');b.type='button';
+  b.className='scene-item'+(selectedSet.has(m)?' active':'');
+  b.textContent=(i+1)+'. '+m.name+(m.userData.mergedParts?' ('+m.userData.mergedParts.length+' pièces)':'');
+  b.title=m.name+' — Ctrl + clic pour sélection multiple';
+  b.style.flex='1 1 130px';
+  b.addEventListener('click',event=>{
+   if(event.ctrlKey||event.metaKey||event.shiftKey)togglePartSelection(m);
+   else pick(m);
+  });
+  wrap.append(checkbox,b);
+  if(m.userData.mergedParts){
+   const sub=document.createElement('div');
+   sub.style.cssText='width:100%;margin-left:26px;font-size:12px;opacity:.85';
+   for(const p of m.userData.mergedParts){
+    const part=document.createElement('div');part.textContent='↳ '+p.name;
+    const dot=document.createElement('span');dot.textContent=' ● ';
+    dot.style.color='#'+p.color.toString(16).padStart(6,'0');
+    part.prepend(dot);sub.append(part);
+   }
+   wrap.append(sub);
+  }
+  list.append(wrap);
  });
 }
 /* Lay on face: rotate the chosen surface outward normal toward -Z (the bed),
@@ -2428,33 +2567,86 @@ $('layFace').addEventListener('click',toggleLayFace);
 $('language').addEventListener('change',updateLayFaceButton);
 updateLayFaceButton();
 
-// Fusion géométrique : regroupe les triangles en une seule pièce sans union booléenne.
+// Merge comme Bambu Studio : grouper plusieurs objets sélectionnés sous une
+// même pièce principale. Chaque sous-pièce, sa couleur et ses triangles restent
+// identifiables. Ce n'est pas une union booléenne des solides.
 function fjordMergeAll(){
- if(models.length<2){alert('Ajoute au moins deux pièces pour utiliser Merge.');return}
- if(!confirm('Fusionner les '+models.length+' pièces du plateau en un seul objet ? Les volumes qui se chevauchent ne seront pas soudés (pas une union booléenne).'))return;
- const vertices=[];
- for(const m of models){
+ const items=models.filter(m=>selectedSet.has(m));
+ if(items.length<2){alert('Sélectionne au moins deux pièces (Ctrl + clic ou cases à cocher), puis utilise Merge.');return;}
+ sliceClose();exitLayFaceMode();
+ const vertices=[],colors=[],parts=[],point=new THREE.Vector3();
+ for(const m of items){
   m.updateMatrixWorld(true);
-  const g=m.geometry.index?m.geometry.toNonIndexed():m.geometry;
-  const pos=g.getAttribute('position');
-  const v=new THREE.Vector3();
-  for(let i=0;i<pos.count;i++){
-   v.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld);
-   vertices.push(v.x,v.y,v.z);
+  const geom=m.geometry.index?m.geometry.toNonIndexed():m.geometry;
+  const attribute=geom.getAttribute('position');
+  const subparts=m.userData.mergedParts||[
+   {name:m.name,start:0,count:attribute.count,color:basePartColor(m)}
+  ];
+  for(const sub of subparts){
+   const color=new THREE.Color(sub.color);
+   const first=vertices.length/3;
+   for(let i=sub.start;i<sub.start+sub.count;i++){
+    point.fromBufferAttribute(attribute,i).applyMatrix4(m.matrixWorld);
+    vertices.push(point.x,point.y,point.z);
+    colors.push(color.r,color.g,color.b);
+   }
+   parts.push({name:sub.name,start:first,count:sub.count,color:sub.color});
   }
-  if(g!==m.geometry)g.dispose();
+  if(geom!==m.geometry)geom.dispose();
+  if(vertices.length>6000000){
+   alert('Merge est trop volumineux (maximum 2 millions de sommets par groupe).');return;
+  }
  }
- if(vertices.length>6000000){alert('Fusion trop volumineuse pour ce projet.');return}
  remember();
  const geometry=new THREE.BufferGeometry();
  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+ geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
  geometry.computeVertexNormals();
- const old=[...models];
- for(const m of old){removeSelectionTint(m);scene.remove(m);m.geometry.dispose();m.material.dispose()}
- models=[];selected=null;transform.detach();
- const merged=makeMesh(geometry,'imported','Fusion de '+old.length+' pièces');
+ for(const m of items){
+  removeSelectionTint(m);
+  scene.remove(m);
+  m.geometry.dispose();m.material.dispose();
+ }
+ models=models.filter(m=>!items.includes(m));
+ selectedSet.clear();selected=null;transform.detach();transform.getHelper().visible=false;
+ const merged=makeMesh(geometry,'imported','Merge ('+parts.length+' pièces)');
+ merged.userData.mergedParts=parts;
+ merged.material.vertexColors=true;
+ merged.material.color.setHex(0xffffff);
+ merged.material.needsUpdate=true;
  pick(merged);
- sync();
+ status.textContent='Merge créé : '+parts.length+' pièces regroupées, couleurs et positions conservées.';
+}
+function fjordSplitMerged(){
+ if(!selected?.userData.mergedParts){alert('Sélectionne un objet créé avec Merge.');return;}
+ const parent=selected;
+ const original=parent.userData.mergedParts;
+ sliceClose();remember();
+ parent.updateMatrixWorld(true);
+ const src=parent.geometry.getAttribute('position');
+ const parts=[];
+ for(const part of original){
+  const vertices=[];
+  const v=new THREE.Vector3();
+  for(let i=part.start;i<part.start+part.count;i++){
+   v.fromBufferAttribute(src,i).applyMatrix4(parent.matrixWorld);
+   vertices.push(v.x,v.y,v.z);
+  }
+  parts.push({name:part.name,color:part.color,vertices});
+ }
+ removeSelectionTint(parent);
+ models=models.filter(m=>m!==parent);
+ scene.remove(parent);parent.geometry.dispose();parent.material.dispose();
+ selectedSet.clear();selected=null;transform.detach();
+ for(const part of parts){
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(part.vertices,3));
+  geometry.computeVertexNormals();
+  const mesh=makeMesh(geometry,'imported',part.name);
+  mesh.material.color.setHex(part.color);
+  pick(mesh);
+ }
+ status.textContent='Merge séparé : '+parts.length+' pièces indépendantes.';
 }
 function changeModel(action,confirmation){
  if(!selected){say('noSelection');return}
