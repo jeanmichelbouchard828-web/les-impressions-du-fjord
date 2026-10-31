@@ -27,6 +27,33 @@ class AtelierImportTests(unittest.TestCase):
         self.assertIn("/admin/modeles/api/liste", private)
         self.assertIn("fjordImportSaved", private)
 
+    def test_fast3d_menu_and_drawer_directives_are_preserved(self):
+        for menu in ("Fichier", "Exporter", "Média", "Affichage", "Options", "Aide"):
+            self.assertIn("<summary>"+menu+"</summary>", self.html)
+        self.assertIn("event.pointerType==='mouse'&&mouse.matches", self.html)
+        self.assertIn("menu.addEventListener('pointerleave'", self.html)
+        self.assertIn("window.fjordToggleCategoryDrawer", self.html)
+        self.assertIn("id=\"fjordDrawerLeft\"", self.html)
+        self.assertIn("id=\"fjordDrawerRight\"", self.html)
+        self.assertIn("data-fjord-panel=\"generators\"", self.html)
+        self.assertIn('src="/identite/logo"', self.html)
+        self.assertIn("fjord-plate-mark.svg", self.html)
+        self.assertIn("observeToolPanels.observe", self.html)
+        # Preserve the current 3D toolbox while refining its display.
+        for element in ('id="contextMenu"', 'id="generatorKind"', 'id="cutFloat"',
+                        'id="fjordBedTabs"', 'id="slicePreview"'):
+            self.assertIn(element, self.html)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js n'est pas installé")
+    def test_classic_script_syntax(self):
+        scripts = re.findall(r'<script>(.*?)</script>', self.html, re.S)
+        self.assertGreaterEqual(len(scripts), 5)
+        for index, script in enumerate(scripts):
+            result = subprocess.run(["node", "--check"], input=script,
+                                    encoding="utf-8", capture_output=True,
+                                    timeout=15, check=False)
+            self.assertEqual(result.returncode, 0, f"script {index}: {result.stderr}")
+
     @unittest.skipUnless(shutil.which("node"), "Node.js n'est pas installé")
     def test_module_javascript_syntax_public_and_admin(self):
         for name, page in [("public", public_studio(self.html)),
