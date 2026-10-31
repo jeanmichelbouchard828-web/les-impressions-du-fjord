@@ -1356,7 +1356,13 @@ function showContextMenu(e){
 // Prevent the browser menu; the studio menu opens only after a stationary right-click.
 // Browsers can send "contextmenu" on right-button DOWN, so showing it here
 // would obstruct OrbitControls before the user can drag the view.
-renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation()});
+stage.addEventListener('contextmenu',e=>{
+ // Dans la zone de modélisation, utiliser uniquement le menu de l'atelier.
+ // Les champs de saisie conservent leur menu natif (copier/coller).
+ if(e.target.closest('input,textarea,[contenteditable="true"]'))return;
+ e.preventDefault();
+ e.stopPropagation();
+});
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(fjordWalkMode)return;
  if(e.pointerType==='touch'){
