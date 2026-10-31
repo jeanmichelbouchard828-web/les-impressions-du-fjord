@@ -41,7 +41,7 @@ try:
         page.on("dialog",lambda d:d.accept())
         for kind in expected:
             assert kind in options,kind
-            page.select_option("#generatorKind",kind)
+            page.locator("#generatorKind").evaluate("(el,kind)=>{el.value=kind;el.dispatchEvent(new Event('change',{bubbles:true}));}",kind)
             page.locator("#generatorAdd").evaluate("el=>el.click()")
             page.wait_for_function("""kind=>document.querySelector("#sceneList").innerText.toLowerCase().includes(
               ({ramp:"rampe",hinge_pin:"charnière",hinge_leaf:"charnière",
@@ -61,7 +61,7 @@ try:
         # Real image relief using uploaded pixels, not a placeholder shape.
         image=Image.new("RGB",(34,24),(175,55,30));buf=io.BytesIO();image.save(buf,"PNG")
         for kind in ("lithophane","image_relief","portrait_relief"):
-            page.select_option("#generatorKind",kind)
+            page.locator("#generatorKind").evaluate("(el,kind)=>{el.value=kind;el.dispatchEvent(new Event('change',{bubbles:true}));}",kind)
             page.locator("#generatorImageFile").set_input_files({
               "name":"photo.png","mimeType":"image/png","buffer":buf.getvalue()})
             page.wait_for_function("document.querySelector('#generatorAssetStatus').innerText.includes('prête')",timeout=10000)
@@ -69,7 +69,7 @@ try:
             page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=12000)
             page.locator("#resetProject").evaluate("el=>el.click()")
             print("OK",kind,flush=True)
-        page.select_option("#generatorKind","braille")
+        page.locator("#generatorKind").evaluate("(el)=>{el.value='braille';el.dispatchEvent(new Event('change',{bubbles:true}));}")
         page.locator("#generatorAdd").evaluate("el=>el.click()")
         page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=10000)
         page.locator("#resetProject").evaluate("el=>el.click()")
@@ -83,7 +83,7 @@ try:
                 sample=int(24000*math.sin(2*math.pi*440*i/8000))
                 samples.extend(sample.to_bytes(2,"little",signed=True))
             sound.writeframes(bytes(samples))
-        page.select_option("#generatorKind","waveform")
+        page.locator("#generatorKind").evaluate("(el)=>{el.value='waveform';el.dispatchEvent(new Event('change',{bubbles:true}));}")
         page.locator("#generatorAudioFile").set_input_files({
          "name":"voix.wav","mimeType":"audio/wav","buffer":wav.getvalue()})
         page.wait_for_function("document.querySelector('#generatorAssetStatus').innerText.includes('prête')",timeout=12000)
