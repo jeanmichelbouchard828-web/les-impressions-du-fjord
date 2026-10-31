@@ -265,6 +265,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  #toolsPanel .fjord-workspace-nav button.selected .fjord-nav-icon{color:#52a8ff!important}
  #toolsPanel .fjord-nav-divider{height:1px;flex:none;background:#3b4551;margin:8px 20px}
 }
+
+/* Petites poignées de tiroir, visibles en permanence sur ordinateur. */
+@media(min-width:761px){
+ #fjordWorkspace{position:relative}
+ #fjordWorkspace .fjord-drawer-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:80;width:24px;height:66px;padding:0;border:1px solid #35424f;background:#1c242dcc;color:#c4d5e3;border-radius:0 9px 9px 0;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 2px 12px #0005}
+ #fjordWorkspace .fjord-drawer-left{left:88px}
+ #fjordWorkspace .fjord-drawer-right{right:270px;border-radius:9px 0 0 9px}
+ #fjordWorkspace.fjord-hide-left .fjord-drawer-left{left:0}
+ #fjordWorkspace.fjord-hide-right .fjord-drawer-right{right:0}
+ #fjordWorkspace .fjord-drawer-handle:hover{background:#2a4052;color:#70c7ff}
+}
+@media(max-width:760px){#fjordWorkspace .fjord-drawer-handle{display:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -330,6 +342,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
 <div class="shell" id="fjordWorkspace">
+<button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-label="Ouvrir ou fermer le tiroir gauche" title="Ouvrir / fermer le tiroir gauche">‹</button>
+<button type="button" id="fjordDrawerRight" class="fjord-drawer-handle fjord-drawer-right" aria-label="Ouvrir ou fermer le tiroir droit" title="Ouvrir / fermer le tiroir droit">›</button>
+
 <aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
 <button data-fjord-panel="projects" aria-label="Projets"><span class="fjord-nav-icon">▱</span><span>Projets</span></button>
 <button data-fjord-panel="parts" aria-label="Pièces"><span class="fjord-nav-icon">⬡</span><span>Pièces</span></button>
@@ -2303,6 +2318,16 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
    update();redraw();
   });
   update();
+ }
+ for(const [handleId,toggleId,cls] of [['fjordDrawerLeft','fjordToggleLeft','fjord-hide-left'],['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
+  const handle=document.getElementById(handleId);
+  const toggle=document.getElementById(toggleId);
+  if(!handle||!toggle)continue;
+  const refresh=()=>{handle.textContent=cls==='fjord-hide-left'?(shell.classList.contains(cls)?'›':'‹'):(shell.classList.contains(cls)?'‹':'›');};
+  handle.addEventListener('click',()=>{toggle.click();refresh();});
+  toggle.addEventListener('click',refresh);
+  desktop.addEventListener('change',refresh);
+  refresh();
  }
  const nav=document.querySelector('.fjord-workspace-nav');
  if(nav){
