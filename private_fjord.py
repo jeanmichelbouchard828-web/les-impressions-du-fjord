@@ -1206,6 +1206,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 {% if q.preview %}<img id="fjordQuoteFallback" src="{{url_for('fjord_client_quote_image',token=token)}}" alt="Aperçu de votre objet" style="width:100%;height:100%;object-fit:contain">{% endif %}
 </div>
 <p style="font-size:13px">Tournez la pièce avec le doigt ou la souris. Utilisez la molette ou deux doigts pour agrandir.</p>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 import {STLLoader} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/STLLoader.js';
