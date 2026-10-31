@@ -1,5 +1,7 @@
 """Regression browser tests: editable 3D text, paint palette and blank click tool reset."""
 import json
+import zipfile
+import xml.etree.ElementTree as ET
 import pathlib
 import subprocess
 import sys
@@ -94,6 +96,27 @@ try:
             page.locator("#save").evaluate("el=>el.click()")
         restored=json.loads(pathlib.Path(restored_dl.value.path()).read_text(encoding="utf-8"))
         assert restored["objects"][0]["paintFaces"],restored["objects"][0]
+        # The beta 3MF file is a real ZIP OPC package with per-face material colors.
+        page.locator("#sceneList .scene-item").first.evaluate("el=>el.click()")
+        with page.expect_download() as color_dl:
+            page.locator("#exportColor3MF").evaluate("el=>el.click()")
+        archive=pathlib.Path(color_dl.value.path())
+        assert zipfile.is_zipfile(archive),"3MF must be a valid ZIP archive"
+        with zipfile.ZipFile(archive) as z:
+            assert set(z.namelist())=={"[Content_Types].xml","_rels/.rels","3D/3dmodel.model"}
+            root=ET.fromstring(z.read("3D/3dmodel.model"))
+            ns={"core":"http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
+                "mat":"http://schemas.microsoft.com/3dmanufacturing/material/2015/02"}
+            color_group=root.find("core:resources/mat:colorgroup",ns)
+            assert color_group is not None
+            palette=[c.get("color") for c in color_group]
+            assert len(palette)>=2,palette
+            triangles=root.findall(".//core:triangle",ns)
+            assert len(triangles)>0
+            labels={t.get("p1") for t in triangles}
+            assert len(labels)>=2,labels
+            assert all(t.get("pid")=="1" for t in triangles)
+        print("Standard 3MF ZIP, coloured triangles and metadata PASSED")
         assert not errors,errors
         print("3D text creation/editing, actual face painting, palette, undo/redo and blank click reset PASSED")
         browser.close()
