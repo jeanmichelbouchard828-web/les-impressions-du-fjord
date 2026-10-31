@@ -1109,28 +1109,18 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 <p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
 <p><strong>Matériau :</strong> {{q.material}} · <strong>Quantité :</strong> {{q.quantity}}</p>
 <p><strong>Prix total :</strong> {{total}}</p>
-<p><a href="{{pdf_url}}">Consulter les conditions et garanties légales (PDF)</a></p>
+<p>Veuillez consulter le PDF de soumission et ses conditions transmis par Les Impressions du Fjord avant d’accepter.</p>
 {% if changed %}<p>Cette soumission a été modifiée depuis son acceptation. Une nouvelle acceptation est nécessaire : communiquez avec Les Impressions du Fjord.</p>
 {% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>
 {% else %}<form method="post">{{csrf|safe}}<input type="hidden" name="quote_hash" value="{{digest}}">
 <label>Nom complet du client<input name="signer" maxlength="150" required autocomplete="name"></label>
 <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
 <button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
-<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),pdf_url=url_for("fjord_quote_public_pdf",token=token)))
+<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput()))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow"
         response.headers["Referrer-Policy"]="no-referrer"
         return response
-
-    @app.get("/soumission-client/<token>/pdf")
-    def fjord_quote_public_pdf(token):
-        # Le document complet doit rester accessible uniquement via un lien aléatoire.
-        if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):abort(404)
-        with db() as c:
-            q=c.execute("SELECT id FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
-        if not q:abort(404)
-        # Rediriger vers la page d'acceptation tant qu'aucun PDF public dédié n'existe.
-        return redirect(url_for("fjord_accept_quote",token=token))
 
     @app.get("/payer/<token>")
     def fjord_payment_page(token):
@@ -1158,7 +1148,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 body.light .payment-total{color:#076d9d}
 </style>
 <div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
-<h1>💸 Payer par virement Interac</h1>
+<h1>💸 Payer par virement Interac</h1>\n<p><a class="btn" href="{{accept_url}}">✓ Accepter officiellement ma soumission</a></p>
 <p>Voici les informations pour payer ta soumission. Le paiement s'effectue dans l'application ou le site de ta banque, et non sur cette page.</p>
 <section class="card">
 <div>Montant total de la soumission, taxes comprises si applicables</div>
@@ -1181,7 +1171,7 @@ async function fjordCopy(id,button){
  catch(e){button.textContent="Copie manuelle nécessaire"}
  setTimeout(()=>button.textContent="Copier",2200);
 }
-</script>""",amount=_money(total),reference=reference,recipient=recipient))
+</script>""",amount=_money(total),reference=reference,recipient=recipient,accept_url=url_for("fjord_accept_quote",token=token)))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
