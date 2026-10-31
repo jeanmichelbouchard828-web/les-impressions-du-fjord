@@ -2954,21 +2954,38 @@ function generatorDefinition(){
 function generatorMessage(message){
  $('generatorMessage').textContent=message;
 }
+const generatorAssets={image:null,audio:null};
 function generatorRebuildFields(){
  const cfg=generatorDefinition(),fr=currentLang()==='fr';
  const fields=$('generatorFields');fields.replaceChildren();
- for(const [id,nameFR,nameEN,initial,min,max,step] of cfg.fields){
+ for(const [id,nameFR,nameEN,initial,min,max,step,unit='mm'] of cfg.fields){
   const wrap=document.createElement('div'),label=document.createElement('label'),input=document.createElement('input');
-  input.type='number';input.id='generator-'+id;input.min=min;input.max=max;input.step=step;
-  input.value=generatorState[cfg.id][id];input.setAttribute('inputmode','decimal');
-  label.htmlFor=input.id;label.textContent=(fr?nameFR:nameEN)+(id==='bendAngle'?'':' (mm)');
-  if(id==='teeth')label.textContent=fr?nameFR:nameEN;
+  const text=unit==='text';
+  input.type=text?'text':'number';
+  input.id='generator-'+id;
+  if(text){input.maxLength=200;input.autocomplete='off';}
+  else{input.min=min;input.max=max;input.step=step;input.setAttribute('inputmode','decimal');}
+  input.value=generatorState[cfg.id][id];
+  label.htmlFor=input.id;
+  label.textContent=(fr?nameFR:nameEN)+(text||unit===''?'':(' ('+unit+')'));
   wrap.append(label,input);fields.append(wrap);
   input.addEventListener('input',()=>{
-   if(input.value.trim()!=='')generatorState[cfg.id][id]=Number(input.value);
+   generatorState[cfg.id][id]=text?input.value:Number(input.value);
    if(generatorPreviewEnabled)queueGeneratorPreview();
   });
  }
+ const needs=cfg.needs;
+ $('generatorAssetPanel').hidden=!needs;
+ $('generatorImageLabel').hidden=needs!=='image';
+ $('generatorAudioLabel').hidden=needs!=='audio';
+ $('generatorCamera').hidden=cfg.id!=='portrait_relief';
+ $('generatorAssetHelp').textContent=cfg.id==='portrait_relief'?
+  'La caméra crée un relief photographique en 2,5D (pas un scan 3D du visage). Rien n’est envoyé au serveur.':
+  cfg.id==='lithophane'?'Choisis une photo : les zones sombres deviennent plus épaisses pour la lumière arrière.':
+  needs==='audio'?'Charge un vrai fichier audio pour créer la forme de son onde.':
+  'Choisis une photo : le relief suit les niveaux de gris. Traitement local sur ton appareil.';
+ $('generatorAssetStatus').textContent=needs==='image'&&generatorAssets.image?'✓ Image prête':
+  needs==='audio'&&generatorAssets.audio?'✓ Audio prêt':'';
 }
 function generatorRebuild(){
  const cfg=generatorDefinition(),current=cfg.id,selector=$('generatorKind');
@@ -2978,9 +2995,111 @@ function generatorRebuild(){
  if(generatorPreviewEnabled)queueGeneratorPreview();
  generatorPreviewButtonText();
 }
-function generatorGeometry(){
- return generateGeometry(THREE,generatorDefinition().id,generatorState[generatorDefinition().id]);
+let qrLibraryPromise=null;
+function prepareQrGenerator(){
+ if(generatorDefinition().id!=='qrcode'||typeof globalThis.qrcode==='function')return Promise.resolve();
+ if(!qrLibraryPromise){
+  qrLibraryPromise=new Promise((resolve,reject)=>{
+   const script=document.createElement('script');
+   script.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+   script.onload=()=>typeof globalThis.qrcode==='function'?resolve():reject(Error('Bibliothèque QR indisponible.'));
+   script.onerror=()=>reject(Error('Chargement du vrai QR code impossible : vérifie la connexion Internet.'));
+   document.head.append(script);
+  }).catch(error=>{qrLibraryPromise=null;throw error;});
+ }
+ return qrLibraryPromise;
 }
+async function generatorGeometry(){
+ const cfg=generatorDefinition(),kind=cfg.id,p=generatorState[kind];
+ for(const [name,, , ,min,max,step,unit] of cfg.fields){
+  if(unit==='text'){if(String(p[name]??'').length>200)throw Error('Texte trop long.');continue;}
+  const n=Number(p[name]);
+  if(!Number.isFinite(n)||n<min||n>max)throw Error('Dimension invalide : '+name);
+  if(step===1&&n!==Math.round(n))throw Error('Valeur entière requise : '+name);
+ }
+ await prepareQrGenerator();
+ const geometry=artGeneratorKinds.some(x=>x.id===kind)?
+  generateArtGeometry(THREE,kind,p,generatorAssets):
+  extraGeneratorKinds.some(x=>x.id===kind)?
+  generateExtraGeometry(THREE,kind,p):
+  generateGeometry(THREE,kind,p);
+ if(!geometry?.getAttribute('position'))throw Error('Aucune géométrie valide.');
+ geometry.computeBoundingBox();
+ const bb=geometry.boundingBox,points=geometry.getAttribute('position');
+ if(!points.count||!Number.isFinite(bb.min.x)||!Number.isFinite(bb.max.z))throw Error('Géométrie non valide.');
+ if(points.count>600000)throw Error('Modèle trop lourd pour le navigateur.');
+ return geometry;
+}
+async function generatorReadImage(file){
+ if(file.size>12*1024*1024)throw Error('Image trop volumineuse (12 Mo maximum).');
+ const bitmap=await createImageBitmap(file);
+ try{
+  const max=84,ratio=Math.min(max/bitmap.width,max/bitmap.height,1);
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(12,Math.round(bitmap.width*ratio));
+  canvas.height=Math.max(12,Math.round(bitmap.height*ratio));
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+  const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  const values=[];
+  for(let i=0;i<data.length;i+=4){
+   values.push((data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722)/255);
+  }
+  generatorAssets.image={width:canvas.width,height:canvas.height,values};
+ }finally{bitmap.close?.();}
+}
+$('generatorImageFile').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  await generatorReadImage(file);$('generatorAssetStatus').textContent='✓ Image prête : '+file.name;
+  if(generatorPreviewEnabled)queueGeneratorPreview();
+ }catch(error){$('generatorAssetStatus').textContent='⚠ '+error.message;}
+ e.target.value='';
+});
+$('generatorAudioFile').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ let audioCtx=null;
+ try{
+  if(file.size>12*1024*1024)throw Error('Audio trop volumineux (12 Mo maximum).');
+  const Context=window.AudioContext||window.webkitAudioContext;
+  if(!Context)throw Error('Audio non pris en charge par le navigateur.');
+  audioCtx=new Context();
+  const audio=await audioCtx.decodeAudioData(await file.arrayBuffer());
+  const channel=audio.getChannelData(0),bins=128,samples=[];
+  for(let i=0;i<bins;i++){
+   const from=Math.floor(i*channel.length/bins),end=Math.floor((i+1)*channel.length/bins);
+   let v=0;
+   for(let j=from;j<end;j+=Math.max(1,Math.floor((end-from)/160))){
+    v=Math.max(v,Math.abs(channel[j]));
+   }
+   samples.push(v);
+  }
+  const max=Math.max(...samples,.001);
+  generatorAssets.audio=samples.map(v=>v/max);
+  $('generatorAssetStatus').textContent='✓ Onde audio prête : '+file.name;
+  if(generatorPreviewEnabled)queueGeneratorPreview();
+ }catch(error){$('generatorAssetStatus').textContent='⚠ '+error.message;}
+ finally{await audioCtx?.close?.();e.target.value='';}
+});
+$('generatorCamera').addEventListener('click',async()=>{
+ let stream=null;
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw Error('Caméra indisponible : utilise HTTPS et autorise la caméra.');
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+  const video=document.createElement('video');video.muted=true;video.playsInline=true;video.srcObject=stream;
+  await video.play();
+  if(!video.videoWidth)throw Error('La caméra ne fournit aucune image.');
+  const canvas=document.createElement('canvas');canvas.width=84;canvas.height=84;
+  canvas.getContext('2d').drawImage(video,0,0,84,84);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+  if(!blob)throw Error('Capture impossible.');
+  await generatorReadImage(blob);
+  $('generatorAssetStatus').textContent='✓ Photo capturée localement. Prête pour le relief 2,5D.';
+  if(generatorPreviewEnabled)queueGeneratorPreview();
+ }catch(error){$('generatorAssetStatus').textContent='⚠ '+error.message;}
+ finally{stream?.getTracks().forEach(track=>track.stop());}
+});
 function generatorDrawGhost(){
  generatorTimer=null;clearGeneratorGhost();
  if(!generatorPreviewEnabled)return;
