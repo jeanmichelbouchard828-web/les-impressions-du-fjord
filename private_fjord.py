@@ -1231,7 +1231,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 return redirect(url_for("fjord_accept_quote",token=token))
         subtotal,gst,qst,total=_quote_amounts(q)
         response=make_response(page("Acceptation de soumission",'''<section class="tracking-panel">
-<h1>Acceptation de la soumission FJ-{{'%05d'|format(q.id)}}</h1>
+<h1 style="font-size:clamp(1.5rem,4vw,2.5rem);overflow-wrap:anywhere">Acceptation de la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}</h1>
 <p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
 <p><strong>Matériau :</strong> {{q.material}} · <strong>Quantité :</strong> {{q.quantity}}</p>
 <p><strong>Prix total :</strong> {{total}}</p>
