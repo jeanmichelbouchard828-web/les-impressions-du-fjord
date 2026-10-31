@@ -1366,6 +1366,7 @@ async function fjordCopy(id,button){
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_quote_logo'").fetchone()
             interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
+        display_number=q["public_number"] or "FJ-{:05d}".format(q["id"])
         token=_quote_payment_token(db,q)
         accept_url=url_for("fjord_accept_quote",token=token,_external=True) if token else None
         payment_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
@@ -1388,7 +1389,7 @@ async function fjordCopy(id,button){
         navy=colors.HexColor("#071D31")
         cyan=colors.HexColor("#0697CE")
         gray=colors.HexColor("#44546B")
-        pdf.setTitle("Soumission FJ-{:05d} - Les Impressions du Fjord".format(q["id"]))
+        pdf.setTitle("Soumission {} - Les Impressions du Fjord".format(display_number))
         pdf.setFillColor(navy);pdf.rect(0,h-154,w,154,stroke=0,fill=1)
         if logo:
             try:pdf.drawImage(ImageReader(io.BytesIO(logo)),39,h-134,105,105,mask="auto",preserveAspectRatio=True,anchor="c")
@@ -1406,7 +1407,7 @@ async function fjordCopy(id,button){
                 pdf.drawString(x,y,fragment);y-=size+5
             return y
         y=h-198
-        y=line("SOUMISSION  FJ-{:05d}".format(q["id"]),38,y,"Helvetica-Bold",19,navy)
+        y=line("SOUMISSION  {}".format(display_number),38,y,"Helvetica-Bold",19,navy)
         y-=5
         y=line("Date : "+q["created"].strftime("%d-%m-%Y")+"    |    Validité : 30 jours",39,y,size=10)
         y-=17
@@ -1477,7 +1478,7 @@ async function fjordCopy(id,button){
             pdf.drawString(52,top-24,"PAYER PAR VIREMENT INTERAC")
             pdf.setFont("Helvetica",10)
             pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
-            pdf.drawString(52,top-58,"Référence : FJ-{:05d}".format(q["id"]))
+            pdf.drawString(52,top-58,"Référence : {}".format(display_number))
             pdf.setFillColor(cyan)
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
@@ -1543,7 +1544,7 @@ async function fjordCopy(id,button){
 
         pdf.save();buffer.seek(0)
         return send_file(buffer,mimetype="application/pdf",as_attachment=True,
-                  download_name="Soumission-FJ-{:05d}.pdf".format(q["id"]))
+                  download_name="Soumission-{}.pdf".format(display_number))
 
     @app.post("/admin/soumissions-pro/logo")
     @admin_required
