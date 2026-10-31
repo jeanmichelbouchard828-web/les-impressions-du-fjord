@@ -38,6 +38,7 @@ try:
             "tap","washer","spring","turbine","coupler","funnel","grommet",
             "spoon","keychain","stamp","clamp","grill","roller","pawn","clock",
             "stand","box","mold","corrugated","tower","city"]
+        page.on("dialog",lambda d:d.accept())
         for kind in expected:
             assert kind in options,kind
             page.select_option("#generatorKind",kind)
@@ -54,7 +55,6 @@ try:
             assert len(saved["objects"])>=1,kind
             assert saved["objects"][-1]["type"]=="imported",kind
             assert len(saved["objects"][-1]["vertices"])>=9,kind
-            page.on("dialog",lambda d:d.accept())
             page.locator("#resetProject").evaluate("el=>el.click()")
             page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===0",timeout=5000)
             print("OK",kind,flush=True)
