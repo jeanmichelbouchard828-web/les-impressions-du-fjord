@@ -198,7 +198,7 @@ export function generateExtraGeometry(T,kind,p){
   const strut=(a,b)=>{
    const A=new T.Vector3(...a),B=new T.Vector3(...b),dir=B.clone().sub(A);
    const geom=new T.CylinderGeometry(p.thickness/2,p.thickness/2,dir.length(),6);
-   geom.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize());
+   geom.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize()));
    geom.translate(...A.add(B).multiplyScalar(.5).toArray());return geom;
   };
   for(let j=0;j<rows;j++)for(let i=0;i<n;i++){
