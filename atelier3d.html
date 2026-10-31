@@ -189,6 +189,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-workspace-nav button.selected{border-color:var(--accent);background:#17516c;color:white}
 .fjord-workspace-nav button:focus-visible{outline:2px solid var(--accent)}
 @media(max-width:620px){.fjord-menubar{overflow-x:auto;flex-wrap:nowrap}.fjord-menubar summary{white-space:nowrap}.fjord-workspace-nav{display:none}}
+
+.fjord-panel-controls{display:flex;justify-content:flex-end;gap:7px;padding:5px 12px;background:var(--panel);border-bottom:1px solid var(--border)}
+.fjord-panel-controls button{padding:5px 10px;font-size:12px}
+@media(max-width:760px){.fjord-panel-controls{display:none}}
+/* Espace de travail épuré : panneaux repliables sans désactiver les outils. */
+@media(min-width:761px){
+ .shell.fjord-hide-left{grid-template-columns:minmax(260px,1fr) 246px}
+ .shell.fjord-hide-right{grid-template-columns:210px minmax(260px,1fr)}
+ .shell.fjord-hide-left.fjord-hide-right{grid-template-columns:minmax(260px,1fr)}
+ .shell.fjord-hide-left>.sidebar.left,.shell.fjord-hide-right>.sidebar.right{display:none}
+}
+.fjord-panel-toggle[aria-pressed="true"]{border-color:var(--accent);background:var(--field);color:var(--accent)}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -252,7 +264,8 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="mobile-menu-title"><strong id="mobileMenuTitle">Outils 3D</strong><button type="button" id="mobileMenuClose" aria-label="Fermer le menu">✕</button></div>
 <div id="mobileMenuContent"></div>
 </div>
-<div class="shell">
+<div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-pressed="false" title="Afficher ou masquer les outils">☰ Outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-pressed="false" title="Afficher ou masquer les propriétés">☷ Propriétés</button></div>
+<div class="shell" id="fjordWorkspace">
 <aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
 <button data-fjord-panel="shapes">⬡ Formes</button><button data-fjord-panel="generators">⚙ Générateurs</button>
 <button data-fjord-panel="edit">✥ Modifier</button><button data-fjord-panel="cut">✂ Découpe</button>
@@ -2182,6 +2195,20 @@ document.querySelectorAll('[data-fjord-panel]').forEach(b=>b.addEventListener('c
 document.querySelectorAll('[data-fjord-target]').forEach(b=>b.addEventListener('click',()=>{document.getElementById(b.dataset.fjordTarget)?.click();b.closest('details').open=false}));
 document.querySelectorAll('[data-fjord-quick]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('[data-quick-action="'+b.dataset.fjordQuick+'"]')?.click();b.closest('details').open=false}));
 document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert('Clic gauche : sélectionner une pièce. Clic droit : menu contextuel. Clic droit maintenu : déplacer la vue. Molette : zoom. Utilisez les outils de gauche pour modifier la pièce.'));
+})();
+</script>
+<script>
+(()=>{
+ const shell=document.getElementById('fjordWorkspace');
+ const controls=[['fjordToggleLeft','fjord-hide-left'],['fjordToggleRight','fjord-hide-right']];
+ for(const [id,cls] of controls){
+  const button=document.getElementById(id);
+  button?.addEventListener('click',()=>{
+   const hidden=shell.classList.toggle(cls);
+   button.setAttribute('aria-pressed',String(hidden));
+   window.dispatchEvent(new Event('resize'));
+  });
+ }
 })();
 </script>
 </body></html>
