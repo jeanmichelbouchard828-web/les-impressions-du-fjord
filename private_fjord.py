@@ -811,8 +811,8 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
 {% if q.model_id %}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">
-<label>Corps<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
-<label>Autres pièces<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
+<label>Corps<input form="fjord-save-{{q.id}}" type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Autres pièces<input form="fjord-save-{{q.id}}" type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
 </div>{% endif %}
 <form id="fjord-save-{{q.id}}" method="post" action="/admin/soumissions-pro/{{q.id}}/enregistrer" style="margin:12px 0">{{csrf|safe}}<button type="submit" class="primary">💾 Enregistrer</button></form>
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
