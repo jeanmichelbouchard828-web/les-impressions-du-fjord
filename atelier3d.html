@@ -739,7 +739,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="double">⤢ Agrandir ×2</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="zoomSelected">⌕ Agrandir la vue (zoom)</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — fusionner les pièces</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="dropToBed" data-i18n="dropToBed">Poser au sol</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
@@ -1513,6 +1513,7 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  const action=btn.dataset.contextAction;hideContext();
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
+ if(action==='zoomSelected'){fjordCenterView();return;}
  $(action)?.click();
 }));
 document.querySelectorAll('[data-quick-action]').forEach(btn=>btn.addEventListener('click',()=>{
