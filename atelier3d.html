@@ -352,7 +352,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .fjord-add-bed:hover{background:#304255;color:#fff}
 }
 @media(max-width:760px){.fjord-bed-tabs{display:flex!important;align-items:center;padding:4px 8px;background:#151c25;gap:5px;overflow-x:auto}.fjord-bed-tab{font-size:12px;padding:7px 10px}.fjord-add-bed{background:transparent;border:0;color:#c3d4e5;font-size:22px}}
-@media(min-width:761px){#fjordWorkspace.fjord-hide-left .fjord-fast-tools{left:0!important}#fjordWorkspace.fjord-hide-left .fjord-fast-row{border-top-left-radius:0}}</style>
+@media(min-width:761px){#fjordWorkspace.fjord-hide-left .fjord-fast-tools{left:0!important}#fjordWorkspace.fjord-hide-left .fjord-fast-row{border-top-left-radius:0}}
+.fjord-camera-controls{position:absolute;right:14px;top:14px;z-index:65;display:flex;align-items:flex-start;gap:10px;color:#dfe9f4;pointer-events:none}
+.fjord-camera-controls button{pointer-events:auto;cursor:pointer;color:#dfe9f4;background:#222c37;border:1px solid #3b4957;border-radius:10px;min-width:35px;height:35px;font-size:22px;line-height:1;box-shadow:0 2px 5px #0005}
+.fjord-camera-controls button:hover{background:#344c66;border-color:#61a5e8}
+.fjord-camera-buttons{display:flex;flex-direction:column;gap:5px}
+.fjord-view-cube{display:flex;flex-direction:column;transform:skew(-8deg);filter:drop-shadow(0 2px 4px #0006);margin:0 3px}
+.fjord-view-cube button{width:90px;height:48px;min-width:90px;border-radius:0;border:0;background:#293440;font-size:12px;font-weight:700;transform:skew(8deg)}
+.fjord-view-cube .fjord-cube-top{background:#263341;clip-path:polygon(8% 0,100% 0,93% 100%,0 100%)}
+.fjord-view-cube .fjord-cube-front{background:#1d2733;clip-path:polygon(0 0,93% 0,100% 100%,8% 100%)}
+.fjord-camera-zoom{display:flex;gap:5px;align-self:flex-end}
+@media(max-width:760px){.fjord-camera-controls{right:6px;top:8px;gap:5px}.fjord-camera-controls button{min-width:29px;height:29px;font-size:17px}.fjord-view-cube button{width:62px;min-width:62px;height:33px;font-size:10px}.fjord-camera-zoom{flex-direction:column}}
+</style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
 <header>
@@ -516,7 +527,24 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <p class="tool-note" data-i18n="shortcuts">Raccourcis : W déplacer · E tourner · R échelle · Suppr supprimer · Ctrl+Z annuler.</p>
 <h3 data-i18n="bed">Plateau</h3><select id="bed" aria-label="Imprimante / Printer"><option value="256">Bambu X2D · 256 × 256 mm</option></select>
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></section></aside>
-<div class="stage" id="stage"><div class="hint" data-i18n="hint">Gauche : sélectionner / tourner · Droit maintenu + glisser : déplacer la vue · Molette : zoom · Clic droit : outils</div>
+<div class="stage" id="stage">
+<div class="fjord-camera-controls" aria-label="Commandes de caméra">
+ <div class="fjord-camera-buttons">
+  <button type="button" data-camera-action="home" title="Vue d'accueil" aria-label="Vue d'accueil">⌂</button>
+  <button type="button" data-camera-action="top" title="Vue du dessus" aria-label="Vue du dessus">◉</button>
+  <button type="button" data-camera-action="fit" title="Centrer la vue" aria-label="Centrer la vue">⌗</button>
+  <button type="button" data-camera-action="iso" title="Vue 3D" aria-label="Vue 3D">⬡</button>
+ </div>
+ <div class="fjord-view-cube" aria-label="Cube d'orientation">
+  <button type="button" data-camera-action="top" class="fjord-cube-top" title="Voir du dessus">Dessus</button>
+  <button type="button" data-camera-action="front" class="fjord-cube-front" title="Voir de face">Face</button>
+ </div>
+ <div class="fjord-camera-zoom">
+  <button type="button" data-camera-action="zoom-in" title="Zoom avant" aria-label="Zoom avant">⊕</button>
+  <button type="button" data-camera-action="zoom-out" title="Zoom arrière" aria-label="Zoom arrière">⊖</button>
+ </div>
+</div>
+<div class="hint" data-i18n="hint">Gauche : sélectionner / tourner · Droit maintenu + glisser : déplacer la vue · Molette : zoom · Clic droit : outils</div>
 <div id="mobileStageInfo" class="mobile-stage-info" role="status" aria-live="polite"></div>
 <div id="editorError" class="editor-error" hidden role="alert">
 <span id="editorErrorText">Le moteur 3D n'a pas pu démarrer. Actualise la page pour réessayer.</span>
@@ -2686,5 +2714,20 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   new MutationObserver(place).observe(shell,{attributes:true,attributeFilter:['class']});
   place();
  }
+})();
+</script><script>
+(()=>{
+ const controls=document.querySelector('.fjord-camera-controls');
+ controls?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-camera-action]');if(!button)return;
+  const action=button.dataset.cameraAction;
+  const ids={home:'viewIso',top:'viewTop',front:'viewFront',fit:'viewFit',iso:'viewIso'};
+  if(ids[action]){document.getElementById(ids[action])?.click();return;}
+  const canvas=document.querySelector('#stage canvas');
+  if(!canvas)return;
+  // Les contrôles OrbitControls écoutent l'événement wheel du canevas.
+  const zoom=action==='zoom-in'?-250:250;
+  canvas.dispatchEvent(new WheelEvent('wheel',{deltaY:zoom,deltaMode:0,bubbles:true,cancelable:true}));
+ });
 })();
 </script></body></html>
