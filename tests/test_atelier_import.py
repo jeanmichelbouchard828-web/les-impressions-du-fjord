@@ -44,6 +44,20 @@ class AtelierImportTests(unittest.TestCase):
                         'id="fjordBedTabs"', 'id="slicePreview"'):
             self.assertIn(element, self.html)
 
+    def test_scale_is_not_camera_zoom_and_merge_preserves_parts(self):
+        self.assertIn('data-context-action="growSelected"',self.html)
+        self.assertIn('rescaleSelected(1.1)',self.html)
+        self.assertIn('data-context-action="scaleCustom"',self.html)
+        self.assertNotIn('data-context-action="zoomSelected"',self.html)
+        self.assertIn('Ctrl + clic',self.html)
+        self.assertIn('multiSelectionPointer',self.html)
+        self.assertIn('selectedSet=new Set()',self.html)
+        self.assertIn('items=models.filter(m=>selectedSet.has(m))',self.html)
+        self.assertIn("merged.userData.mergedParts=parts",self.html)
+        self.assertIn('fjordSplitMerged()',self.html)
+        self.assertIn("m.userData.mergedParts=parts",self.html)
+        self.assertIn('colors.push(color.r,color.g,color.b)',self.html)
+
     @unittest.skipUnless(shutil.which("node"), "Node.js n'est pas installé")
     def test_classic_script_syntax(self):
         scripts = re.findall(r'<script>(.*?)</script>', self.html, re.S)
