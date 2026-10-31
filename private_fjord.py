@@ -1011,6 +1011,15 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 })();
 </script>
 <script>
+const quoteSave=document.getElementById('fjord-save-global');
+const quoteCards=[...document.querySelectorAll('.fj-quote-card')];
+for(const card of quoteCards){for(const field of card.querySelectorAll('[form="fjord-save-global"]')){
+ field.addEventListener('change',()=>{card.dataset.edited='1'});
+ field.addEventListener('input',()=>{card.dataset.edited='1'});
+}}
+quoteSave?.addEventListener('submit',()=>{for(const card of quoteCards){if(card.dataset.edited==='1')continue;
+ for(const field of card.querySelectorAll('[form="fjord-save-global"]'))field.disabled=true;
+}});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
  const selected=button.dataset.stage;
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
