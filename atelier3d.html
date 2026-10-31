@@ -1332,18 +1332,27 @@ function findHit(e){
 // Wheel zoom follows the exact surface point under the cursor; if the pointer
 // is off-model, zoom toward the selected part. Keep camera offset unchanged
 // while switching pivot, so focusing doesn't jump before the wheel zoom.
+// La molette ne zoome que si le pointeur survole réellement une pièce.
+// Désactiver le zoom natif d'OrbitControls pour éviter le double zoom
+// et les changements de pivot quand le curseur est sur le plateau vide.
+orbit.enableZoom=false;
 renderer.domElement.addEventListener('wheel',e=>{
- if(!models.length || !orbit.enabled || directDrag)return;
+ if(!orbit.enabled || directDrag || !models.length)return;
  const hit=findHit(e);
- const part=hit?.object || (selected && models.includes(selected) ? selected : null);
- if(!part)return;
- const focus=hit ? hit.point.clone() : new THREE.Box3().setFromObject(part).getCenter(new THREE.Vector3());
- if(!Number.isFinite(focus.x)||!Number.isFinite(focus.y)||!Number.isFinite(focus.z))return;
- const shift=focus.sub(orbit.target);
- camera.position.add(shift);
- orbit.target.add(shift);
+ if(!hit || !models.includes(hit.object))return;
+ e.preventDefault();
+ e.stopImmediatePropagation();
+ const focus=hit.point.clone();
+ if(![focus.x,focus.y,focus.z].every(Number.isFinite))return;
+ const distance=camera.position.distanceTo(focus);
+ const factor=Math.exp(Math.max(-250,Math.min(250,e.deltaY))*.0012);
+ const nextDistance=Math.max(3,Math.min(2500,distance*factor));
+ const direction=camera.position.clone().sub(focus).normalize();
+ camera.position.copy(focus).addScaledVector(direction,nextDistance);
+ orbit.target.copy(focus);
+ camera.lookAt(orbit.target);
  orbit.update();
-},{capture:true,passive:true});
+},{capture:true,passive:false});
 function hideContext(){contextMenu.hidden=true}
 function showContextMenu(e){
  const hit=findHit(e);if(hit)pick(hit.object);
