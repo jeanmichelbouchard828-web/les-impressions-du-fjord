@@ -1,7 +1,8 @@
 import os,io,re,hmac,time,uuid,hashlib,secrets,datetime,smtplib
 from email.message import EmailMessage
 from functools import wraps
-from flask import Flask,request,redirect,render_template_string,session,abort,send_file,flash,url_for
+from urllib.parse import urlparse
+from flask import Flask,request,redirect,render_template_string,session,abort,send_file,flash,url_for,jsonify
 import psycopg
 from psycopg.rows import dict_row
 from werkzeug.utils import secure_filename
@@ -25,6 +26,12 @@ def init():
   c.execute("""CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)""")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
 init()
+# Migration additive : progression renseignée par l'administrateur, jamais simulée.
+with db() as c:
+ c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS progress INTEGER")
+ c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS live_enabled BOOLEAN NOT NULL DEFAULT FALSE")
+ c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS live_url TEXT")
+ c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS public_progress BOOLEAN NOT NULL DEFAULT FALSE")
 STYLE="""<style>*{box-sizing:border-box}body{margin:0;background:#071321;color:#f2faff;font:16px system-ui,Arial}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 5%;border-bottom:1px solid #2a4a62;background:#091a2b;flex-wrap:wrap}nav{display:flex;gap:15px;flex-wrap:wrap}a{color:#7fe4ff;text-decoration:none}.brand{font-weight:900;letter-spacing:.6px}main{max-width:1100px;margin:auto;padding:28px 20px 70px}.hero{padding:70px 0 90px;background:radial-gradient(ellipse at 80% 10%,#15618a77,transparent 60%)}h1{font-size:clamp(38px,7vw,78px);line-height:1.06;margin:15px 0}h2{font-size:30px}p{color:#c6d7e7;line-height:1.65}.eyebrow{color:#80dfff;letter-spacing:3px;text-transform:uppercase;font-size:13px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{background:#10283b;border:1px solid #2d526d;padding:22px;border-radius:16px;overflow:hidden}.card img{width:100%;height:220px;object-fit:cover;border-radius:10px}.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:14px}.gallery-grid img{width:100%;height:145px;object-fit:cover;border-radius:9px}.gallery-tile{background:#10283b;padding:12px;border-radius:12px}.gallery-tile h3{font-size:15px}.zoom{background:#071321;color:white;border:0;max-width:96vw;max-height:95vh}.zoom::backdrop{background:#000d}.zoom img{max-width:90vw;max-height:78vh;object-fit:contain}.gallery-detail h1{font-size:clamp(26px,4vw,42px);line-height:1.15;overflow-wrap:anywhere;max-width:850px}.gallery-detail .gallery-grid{margin-top:22px}.gallery-photo-link{display:block;cursor:zoom-in}.gallery-photo-link img{display:block;width:100%;height:160px;object-fit:cover;border-radius:10px}.zoom[open]{display:block;position:fixed;inset:0;margin:auto;padding:12px;box-shadow:0 20px 80px #000b}.zoom .row{justify-content:center;margin-bottom:10px}.zoom img{display:block;margin:auto;max-width:min(90vw,1100px);max-height:75vh}@media(max-width:600px){.gallery-detail h1{font-size:clamp(24px,7vw,32px)}.gallery-detail .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}input,textarea,select{display:block;width:100%;padding:12px;margin:7px 0 17px;background:#081827;color:white;border:1px solid #47718b;border-radius:9px;font:inherit}label{display:block;font-weight:600}textarea{min-height:110px}button,.btn{display:inline-block;padding:13px 20px;border:0;border-radius:9px;background:#5ad7f5;color:#061b2a;font-weight:800;cursor:pointer;font:inherit;text-decoration:none}form{max-width:650px}.muted{color:#a9c3d3}.alert{padding:14px;background:#163e50;border-radius:9px;margin:15px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row form{display:inline}.small{font-size:13px}.contact-actions{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 28px}.contact-actions a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:13px 18px;border-radius:10px;background:#163e59;border:1px solid #4a91b6;color:#f2faff;font-weight:750}.contact-actions a:hover{background:#215b7d}.contact-actions a:focus-visible{outline:3px solid #7fe4ff;outline-offset:3px}footer{padding:25px 5%;border-top:1px solid #294b62;color:#a9c3d3}@media(max-width:600px){.hero{padding:40px 0}header{align-items:flex-start}nav{font-size:14px}}</style>"""
 BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""<style>
 body.light{background:#f4f8fc;color:#14283c}
@@ -70,7 +77,7 @@ body.light .referral-footer a{color:#075f90}
 body.light .referral-footer span{color:#466073}
 body.light .referral-page .referral-disclosure{border-color:#c7d8e7}
 @media(max-width:600px){.referral-page .referral-card{padding:18px}.referral-page .referral-cta{width:100%}}
-</style></head><body><header><a class="brand" href="/"><img src="/identite/logo" alt="Logo Les Impressions du Fjord" style="width:64px;height:64px;object-fit:contain;vertical-align:middle;margin-right:12px" onerror="this.style.display='none'">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div><div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div></footer><script>
+.public-print-list{display:grid;gap:10px;margin-top:16px}.public-print-job{padding:12px;border-radius:10px;background:#0c1c2caa;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.public-print-job .tracking-progress{flex:1 1 100%;margin:0}.public-print-job span{margin-left:auto}.tracking-billboard{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:10px 0 32px;padding:26px;border:1px solid #4e9cc5;border-radius:18px;background:linear-gradient(120deg,#173a54,#0c2133)}.tracking-billboard h2{margin:8px 0;font-size:clamp(23px,3vw,33px)}.tracking-billboard p{color:#d6e6f1}.tracking-panel{max-width:640px;margin:20px auto}.tracking-result{margin-top:25px;padding:22px;border:1px solid #4e9cc5;border-radius:12px}.tracking-progress{height:16px;border-radius:12px;background:#273b50;overflow:hidden}.tracking-progress span{display:block;height:100%;background:#43b9ec}body.light .tracking-billboard{background:#e5f3fc;color:#173a54}body.light .tracking-billboard p{color:#34536c}</style></head><body><header><a class="brand" href="/"><img src="/identite/logo" alt="Logo Les Impressions du Fjord" style="width:64px;height:64px;object-fit:contain;vertical-align:middle;margin-right:12px" onerror="this.style.display='none'">LES IMPRESSIONS DU FJORD</a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div><div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div></footer><script>
 (function(){
 const translations={
 "Services":"Services","Galerie":"Gallery","Soumission":"Quote","Nous joindre":"Contact us","Formulaire":"Contact form","Administration":"Administration",
@@ -166,9 +173,72 @@ def fjord_public_logo():
  except (OSError,ValueError):
   abort(404)
 
+@app.route("/suivi",methods=["GET","POST"])
+def suivi_client():
+ result=None
+ if request.method=="POST":
+  verify()
+  ident=request.form.get("numero","").strip()
+  email=request.form.get("email","").strip().casefold()
+  if ident.isdigit() and email and len(email)<=200:
+   with db() as c:
+    result=c.execute("SELECT id,status,progress,live_enabled,live_url FROM requests WHERE id=%s AND kind='Soumission' AND LOWER(email)=%s",(int(ident),email)).fetchone()
+  if result is None:
+   flash("Aucune commande trouvée. Vérifiez votre numéro et votre courriel.")
+ return page("Suivre mon impression",'''<section class="tracking-panel"><div class="eyebrow">Les Impressions du Fjord</div><h1>Suivre mon impression</h1><p>Entrez le numéro de votre demande et le courriel utilisé pour la soumission.</p><form method="post">{{csrf|safe}}<label>Numéro de demande<input name="numero" inputmode="numeric" required maxlength="12"></label><label>Courriel<input type="email" name="email" required maxlength="200"></label><button class="btn">Afficher mon suivi</button></form>{% if result %}<div class="tracking-result"><h2>Commande #{{result.id}}</h2><p><strong>{{result.status}}</strong></p>{% if result.status=="En impression" and result.progress is not none %}<div class="tracking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{result.progress}}"><span style="width:{{result.progress}}%"></span></div><p>{{result.progress}} % terminé</p>{% elif result.status=="En impression" %}<p>Progression en attente de mise à jour.</p>{% endif %}{% if result.status=="En impression" and result.live_enabled %}<p>{% if result.live_url %}<a class="btn" href="{{result.live_url}}" target="_blank" rel="noopener noreferrer nofollow">🎥 Regarder mon impression en direct</a><p><strong>📹 Pour voir votre impression en direct :</strong> après avoir ouvert le lien, sélectionnez <strong>« Alternative Cam »</strong> et non « Bambu Cam ».</p><p>Le lien externe OctoEverywhere est accessible à toute personne qui le possède. Ne le partagez pas.</p>{% else %}La caméra n'est pas disponible pour cette commande.{% endif %}</p>{% endif %}</div>{% endif %}</section>''',result=result,csrf=csrfinput())
+@app.get("/api/production-publique")
+def public_production():
+ # Aucun identifiant, nom, courriel, fichier ni lien caméra dans cette réponse.
+ with db() as c:
+  rows=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
+ response=jsonify({"jobs":[{"progress":r["progress"]} for r in rows]})
+ response.headers["Cache-Control"]="no-store, max-age=0"
+ return response
+
 @app.get("/")
 def home():
- return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''')
+ # Seules les impressions expressément autorisées sont affichées, sans identifiants client.
+ with db() as c:
+  public_jobs=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
+ return page("Accueil",'''<div class="hero"><div class="eyebrow">Création · Précision · Innovation</div><h1>Vos idées prennent forme.</h1><p>Impression 3D sur mesure au Saguenay.</p><div class="atelier-feature"><div class="atelier-feature-label">✦ Votre atelier 3D en ligne</div><h2>Imaginez. Créez. Personnalisez.</h2><p>Concevez votre objet en 3D, ajustez ses dimensions et préparez votre création pour une impression sur mesure.</p><a class="btn atelier-cta" href="/atelier-3d">🎨 Créez votre propre création</a><p class="atelier-feature-note">Atelier gratuit · Français / English · Sombre / Clair</p></div><a class="btn secondary-btn" href="/soumission">Demander une soumission</a></div><section class="tracking-billboard" aria-label="Suivi des commandes"><div><div class="eyebrow">🎥 En atelier</div><h2>Votre création prend vie!</h2><p>Demande reçue · Soumission envoyée · En impression · Terminée</p><p>Consultez votre statut et votre progression lorsque celle-ci est disponible.</p><div id="fjordProductionLive" aria-live="polite">{% if public_jobs %}<div class="public-print-list">{% for job in public_jobs %}<div class="public-print-job"><strong>🖨️ Impression en cours</strong>{% if job.progress is not none %}<span>{{job.progress}} %</span><div class="tracking-progress" role="progressbar" aria-label="Progression d'une impression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{job.progress}}"><span style="width:{{job.progress}}%"></span></div>{% else %}<span>Progression non disponible</span>{% endif %}</div>{% endfor %}</div>{% else %}<p>Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.</p>{% endif %}</div><p class="production-updated" id="fjordProductionUpdated">Actualisation automatique toutes les 30 secondes lorsque cette page est ouverte.</p></div><a class="btn" href="/suivi">📦 Suivre mon impression</a></section><script>
+/* Production publique : données anonymes uniquement, sans caméra ni commande client. */
+(function(){
+ const root=document.getElementById("fjordProductionLive");
+ const updated=document.getElementById("fjordProductionUpdated");
+ if(!root)return;
+ function item(progress){
+  const card=document.createElement("div");card.className="public-print-job";
+  const label=document.createElement("strong");label.textContent="🖨️ Impression en cours";card.append(label);
+  const value=document.createElement("span");
+  if(progress===null||!Number.isInteger(progress)||progress<0||progress>100){
+   value.textContent="Progression non disponible";card.append(value);return card;
+  }
+  value.textContent=progress+" %";card.append(value);
+  const bar=document.createElement("div");bar.className="tracking-progress";
+  bar.setAttribute("role","progressbar");bar.setAttribute("aria-label","Progression d'une impression");
+  bar.setAttribute("aria-valuemin","0");bar.setAttribute("aria-valuemax","100");bar.setAttribute("aria-valuenow",String(progress));
+  const fill=document.createElement("span");fill.style.width=progress+"%";bar.append(fill);card.append(bar);
+  return card;
+ }
+ async function refresh(){
+  if(document.hidden)return;
+  try{
+   const response=await fetch("/api/production-publique",{cache:"no-store",credentials:"same-origin"});
+   if(!response.ok)throw Error("Erreur de mise à jour");
+   const data=await response.json();
+   if(!Array.isArray(data.jobs))throw Error("Réponse invalide");
+   const list=document.createElement("div");list.className="public-print-list";
+   data.jobs.slice(0,4).forEach(job=>list.append(item(job.progress)));
+   root.replaceChildren();
+   if(list.childElementCount)root.append(list);
+   else{const p=document.createElement("p");p.textContent="Le tableau de production sera mis à jour dès qu'une impression sera rendue publique.";root.append(p);}
+   if(updated)updated.textContent="Production mise à jour automatiquement.";
+  }catch(error){if(updated)updated.textContent="Actualisation temporairement indisponible. Les dernières données restent affichées.";}
+ }
+ setInterval(refresh,30000);
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh();});
+})();
+</script><section id="services"><h2>Nos services</h2><div class="grid"><div class="card"><h3>Impression 3D personnalisée</h3><p>Pièces et accessoires sur mesure.</p></div><div class="card"><h3>Prototypage</h3><p>Conception et essais de pièces.</p></div><div class="card"><h3>Créations décoratives</h3><p>Objets et cadeaux personnalisés.</p></div></div></section><p><a class="btn" href="/galerie">Voir nos réalisations</a></p>''',public_jobs=public_jobs)
 @app.get("/bons-plans/starlink")
 def starlink_referral():
  return page("Parrainage Starlink",'''<section class="referral-page"><div class="eyebrow">Bon plan partagé</div><h1>Parrainage Starlink</h1><p>Vous envisagez de vous abonner à Starlink au Canada? Voici un lien de parrainage personnel à consulter si cela vous intéresse.</p><div class="card referral-card"><h2>Découvrir Starlink</h2><p>Les nouveaux abonnés admissibles peuvent recevoir une récompense selon les conditions de parrainage en vigueur. La personne qui partage ce lien peut également recevoir une récompense.</p><a class="btn referral-cta" href="https://starlink.com/?referral=RC-4635519-65017-67&amp;app_source=share" target="_blank" rel="nofollow sponsored noopener noreferrer">Consulter mon lien de parrainage</a><p class="small muted referral-disclosure">Lien de parrainage personnel. Les Impressions du Fjord ne vendent pas de services Starlink et ne sont pas affiliées à Starlink. Vérifiez la disponibilité, les tarifs et les conditions directement sur le site Starlink.</p></div><p class="small"><a href="/">← Retour à l'accueil</a></p></section>''')
@@ -274,15 +344,24 @@ def login():
 @admin_required
 def admin():
  with db() as c:
-  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status FROM requests ORDER BY id DESC LIMIT 200").fetchall()
+  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 200").fetchall()
   gallery=c.execute("SELECT id,title,category FROM gallery ORDER BY id DESC").fetchall()
- return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/modeles">📚 Mes modèles 3D</a><a class="btn" href="/admin/soumissions-pro">📄 Soumissions PRO</a><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><h2>Galerie</h2><div class="grid">{% for g in gallery %}<div class="card"><strong>{{g.title}}</strong><p>{{g.category}}</p><a href="/admin/edit/{{g.id}}">Modifier / Photos</a><form method="post" action="/admin/delete/{{g.id}}" onsubmit="return confirm('Supprimer cette réalisation?')">{{csrf|safe}}<button>Supprimer</button></form></div>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
+ return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/modeles">📚 Mes modèles 3D</a><a class="btn" href="/admin/soumissions-pro">📄 Soumissions PRO</a><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><h2>Galerie</h2><div class="grid">{% for g in gallery %}<div class="card"><strong>{{g.title}}</strong><p>{{g.category}}</p><a href="/admin/edit/{{g.id}}">Modifier / Photos</a><form method="post" action="/admin/delete/{{g.id}}" onsubmit="return confirm('Supprimer cette réalisation?')">{{csrf|safe}}<button>Supprimer</button></form></div>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
 @app.post("/admin/status/<int:id>")
 @admin_required
 def status(id):
  verify();value=request.form.get("status")
  if value not in STATUSES:abort(400)
- with db() as c:c.execute("UPDATE requests SET status=%s WHERE id=%s",(value,id))
+ progress=request.form.get("progress","").strip()
+ if progress and (not progress.isdigit() or not 0<=int(progress)<=100):abort(400)
+ pct=int(progress) if progress else None
+ live=request.form.get("live_enabled")=="1"
+ public_progress=request.form.get("public_progress")=="1"
+ live_url=request.form.get("live_url","").strip()
+ if live_url:
+  parsed=urlparse(live_url)
+  if parsed.scheme!="https" or parsed.hostname not in ("oe.ink","www.oe.ink") or not parsed.path.startswith("/l/") or parsed.username or parsed.password or len(live_url)>500:abort(400)
+ with db() as c:c.execute("UPDATE requests SET status=%s,progress=%s,live_enabled=%s,live_url=%s,public_progress=%s WHERE id=%s",(value,pct,live,live_url or None,public_progress,id))
  return redirect("/admin")
 @app.get("/admin/file/<int:id>")
 @admin_required
