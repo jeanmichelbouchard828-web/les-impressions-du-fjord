@@ -617,7 +617,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
 <div class="shell" id="fjordWorkspace">
-<button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-label="Ouvrir ou fermer le tiroir gauche" title="Ouvrir / fermer le tiroir gauche">‹</button>
+<button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-expanded="false" aria-label="Ouvrir ou fermer le tiroir des outils" title="Ouvrir / fermer les outils">›</button>
 <button type="button" id="fjordDrawerRight" class="fjord-drawer-handle fjord-drawer-right" aria-label="Ouvrir ou fermer le tiroir droit" title="Ouvrir / fermer le tiroir droit">›</button>
 
 <aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
@@ -2934,17 +2934,26 @@ function selectCategory(name){
  });
  categorySections.forEach(p=>p.classList.toggle('fjord-category-hidden',p!==panel));
  left.scrollTop=0;
+ const handle=document.getElementById('fjordDrawerLeft');
+ if(handle){handle.textContent='‹';handle.setAttribute('aria-expanded','true');}
 }
 categoryButtons.forEach(b=>b.addEventListener('click',()=>selectCategory(b.dataset.fjordPanel)));
 const desktopCategory=window.matchMedia('(min-width:761px)');
 const navArea=left.querySelector('.fjord-workspace-nav');
 let pinnedCategory=false;
 let dismissTimer=null;
-function hideCategoryDrawer(){
- if(!desktopCategory.matches||pinnedCategory)return;
+function hideCategoryDrawer(force=false){
+ if(!desktopCategory.matches||(!force&&pinnedCategory))return;
  categorySections.forEach(p=>p.classList.add('fjord-category-hidden'));
  categoryButtons.forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});
+ const handle=document.getElementById('fjordDrawerLeft');
+ if(handle){handle.textContent='›';handle.setAttribute('aria-expanded','false');}
 }
+window.fjordToggleCategoryDrawer=()=>{
+ const opened=categorySections.some(panel=>!panel.classList.contains('fjord-category-hidden'));
+ if(opened){pinnedCategory=false;hideCategoryDrawer(true);}
+ else{selectCategory('shapes');}
+};
 function scheduleCategoryDismiss(){
  clearTimeout(dismissTimer);
  dismissTimer=setTimeout(()=>{
@@ -2995,7 +3004,9 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   });
   update();
  }
- for(const [handleId,toggleId,cls] of [['fjordDrawerLeft','fjordToggleLeft','fjord-hide-left'],['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
+ const leftHandle=document.getElementById('fjordDrawerLeft');
+ leftHandle?.addEventListener('click',()=>{if(desktop.matches)window.fjordToggleCategoryDrawer?.();});
+ for(const [handleId,toggleId,cls] of [['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
   const handle=document.getElementById(handleId);
   const toggle=document.getElementById(toggleId);
   if(!handle||!toggle)continue;
