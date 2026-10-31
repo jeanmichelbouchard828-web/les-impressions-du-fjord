@@ -280,6 +280,10 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 
 /* Les poignées fléchées sont les seuls contrôles visibles des tiroirs. */
 .fjord-panel-controls{display:none!important}
+
+.context-menu{min-width:230px;max-width:min(300px,90vw);max-height:min(76vh,560px);scrollbar-width:thin}
+.context-menu .context-heading{margin-top:5px}
+.context-menu .context-heading:first-child{margin-top:0}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -480,6 +484,24 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="remove" data-i18n="remove">Supprimer</button>
+<div class="context-heading part-action">Autres outils</div>
+<button type="button" class="part-action" role="menuitem" data-context-action="undo">↶ Annuler</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="redo">↷ Rétablir</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="rotX90">↻ Rotation X 90°</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="rotY90">↻ Rotation Y 90°</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="rotZ90">↻ Rotation Z 90°</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="mirrorY">Miroir Y</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="mirrorZ">Miroir Z</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="half">½ Réduire</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="double">×2 Agrandir</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="fitBed">Adapter au plateau</button>
+<div class="context-heading common-action">Vue et projet</div>
+<button type="button" class="common-action" role="menuitem" data-context-action="viewIso">◈ Vue 3D</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="viewTop">▣ Vue du dessus</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="viewFit">⌗ Ajuster la vue</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="import">⬆ Importer STL / 3MF</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="sliceTop">▥ Trancher</button>
+<button type="button" class="common-action" role="menuitem" data-context-action="estimateToggle">💰 Estimateur</button>
 <div class="context-heading blank-action" data-i18n="contextCreate">Créer une pièce</div>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cube" data-i18n="cube">Cube</button>
 <button type="button" class="blank-action" role="menuitem" data-context-action="shape-cylinder" data-i18n="cylinder">Cylindre</button>
@@ -903,6 +925,7 @@ function showContextMenu(e){
  const hit=findHit(e);if(hit)pick(hit.object);
  contextMenu.querySelectorAll('.part-action').forEach(el=>el.hidden=!hit);
  contextMenu.querySelectorAll('.blank-action').forEach(el=>el.hidden=!!hit);
+ contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
  contextMenu.style.left=Math.max(5,Math.min(e.clientX-rect.left,stage.clientWidth-contextMenu.offsetWidth-7))+'px';
