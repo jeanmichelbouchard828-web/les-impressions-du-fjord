@@ -90,6 +90,14 @@ try:
         page.locator("#generatorAdd").evaluate("el=>el.click()")
         page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=10000)
         print("OK waveform",flush=True)
+        page.locator("#resetProject").evaluate("el=>el.click()")
+        page.locator("#generatorKind").evaluate("""el => {
+          el.value='qrcode';el.dispatchEvent(new Event('change',{bubbles:true}));
+        }""")
+        page.locator("#generatorAdd").evaluate("el=>el.click()")
+        page.wait_for_function("document.querySelectorAll('#sceneList input[type=checkbox]').length===1",timeout=30000)
+        assert "QR code" in page.locator("#sceneList").inner_text()
+        print("OK real QR code",flush=True)
         assert not errors,errors
         browser.close()
         print("All generator catalogue browser checks succeeded",flush=True)
