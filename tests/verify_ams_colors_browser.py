@@ -62,6 +62,8 @@ try:
         page.locator("#fjordAmsRefresh").evaluate("el=>el.click()")
         page.wait_for_function("document.querySelector('#fjordAmsStatus').innerText.includes('non connecté')",timeout=10000)
         assert page.locator("#fjordAmsSlots button").count()==0
+        # Undo/redo restore intentionally clears the active object selection.
+        page.locator("#sceneList .scene-item").first.evaluate("el=>el.click()")
         page.locator("#fjordManualColor").evaluate("el=>{el.value='#35AE73';el.dispatchEvent(new Event('change',{bubbles:true}));}")
         page.locator("#fjordApplyColor").evaluate("el=>el.click()")
         with page.expect_download() as third_download:
