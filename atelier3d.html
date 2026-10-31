@@ -844,12 +844,29 @@ for(let mm=0;mm<=256;mm+=5){
  pc.strokeStyle=mm%50===0?'#45515d':mm%10===0?'#303b45':'#26313b';
  pc.lineWidth=mm%50===0?2.2:1;pc.stroke();
 }
-pc.save();pc.translate(N/2,N/2);pc.textAlign='center';pc.textBaseline='middle';
-pc.globalAlpha=.13;pc.fillStyle='#9ba9b8';pc.font='bold 116px Arial,sans-serif';
-pc.fillText('LES IMPRESSIONS',0,-34);pc.font='bold 105px Arial,sans-serif';pc.fillText('DU FJORD',0,83);
-pc.restore();
+function drawFjordMark(logo){
+ pc.save();pc.fillStyle='#171d23';pc.fillRect(570,800,920,410);
+ pc.save();pc.translate(N/2,N/2);pc.textAlign='center';pc.textBaseline='middle';
+ pc.globalAlpha=.13;pc.fillStyle='#9ba9b8';pc.font='bold 88px Arial,sans-serif';
+ pc.fillText('LES IMPRESSIONS',165,-32);pc.font='bold 82px Arial,sans-serif';pc.fillText('DU FJORD',165,74);
+ pc.restore();
+ if(logo){
+  const size=360,x=480,y=845;
+  pc.save();pc.globalAlpha=.17;
+  const ratio=Math.min(size/logo.width,size/logo.height);
+  const w=logo.width*ratio,h=logo.height*ratio;
+  pc.drawImage(logo,x+(size-w)/2,y+(size-h)/2,w,h);
+  pc.restore();
+ }
+}
+drawFjordMark(null);
 const plateTexture=new THREE.CanvasTexture(plateCanvas);plateTexture.colorSpace=THREE.SRGBColorSpace;plateTexture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
 const plate=new THREE.Mesh(new THREE.PlaneGeometry(256,256),new THREE.MeshBasicMaterial({map:plateTexture,side:THREE.DoubleSide,depthWrite:false}));
+// Logo officiel chargé depuis les ressources du site; uniquement visuel sur le plateau.
+const fjordLogo=new Image();
+fjordLogo.onload=()=>{drawFjordMark(fjordLogo);plateTexture.needsUpdate=true;};
+fjordLogo.src='/static/logo-fjord.png';
+
 plate.position.z=-.08;scene.add(plate);
 const outlinePoints=[[-128,-128,0],[-128,128,0],[128,128,0],[128,-128,0]].map(p=>new THREE.Vector3(...p));
 const border=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(outlinePoints),new THREE.LineBasicMaterial({color:0x9baab7}));scene.add(border);
