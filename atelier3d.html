@@ -178,6 +178,17 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .slice-price-row strong{font-size:19px}.slice-metrics{font-size:11px;gap:4px 7px}
  .slice-disclaimer{font-size:10px}.slice-actions button{font-size:11px}
 }
+
+/* Navigation de l'atelier inspirée de la référence présentée */
+.fjord-menubar{display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:6px 14px;background:var(--panel);border-bottom:1px solid var(--border)}
+.fjord-menubar details{position:relative}.fjord-menubar summary{cursor:pointer;list-style:none;padding:8px 12px;border-radius:7px;font-weight:650}.fjord-menubar summary:hover,.fjord-menubar details[open] summary{background:var(--field);color:var(--accent)}
+.fjord-menu-options{position:absolute;z-index:110;left:0;top:100%;min-width:195px;padding:7px;background:var(--panel);border:1px solid var(--border);border-radius:9px;box-shadow:0 12px 30px #0008}
+.fjord-menu-options button{display:block;width:100%;text-align:left;margin:2px 0}
+.fjord-workspace-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:15px}
+.fjord-workspace-nav button{font-size:12px;text-align:left;min-height:40px;padding:8px}
+.fjord-workspace-nav button.selected{border-color:var(--accent);background:#17516c;color:white}
+.fjord-workspace-nav button:focus-visible{outline:2px solid var(--accent)}
+@media(max-width:620px){.fjord-menubar{overflow-x:auto;flex-wrap:nowrap}.fjord-menubar summary{white-space:nowrap}.fjord-workspace-nav{display:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -193,6 +204,14 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
 <input id="projectFile" type="file" accept=".json" hidden><input id="stlFile" type="file" accept=".stl,.3mf,.json" multiple hidden>
 </header>
+<nav class="fjord-menubar" aria-label="Menus de l'atelier">
+<details><summary>Fichier</summary><div class="fjord-menu-options"><button data-fjord-target="new">Nouveau</button><button data-fjord-target="open">Ouvrir</button><button data-fjord-target="save">Enregistrer</button><button data-fjord-target="import">Importer STL / 3MF</button></div></details>
+<details><summary>Exporter</summary><div class="fjord-menu-options"><button data-fjord-target="export">Exporter STL</button><button data-fjord-target="quote">Faire imprimer</button></div></details>
+<details><summary>Média</summary><div class="fjord-menu-options"><button data-fjord-target="import">Importer un modèle</button></div></details>
+<details><summary>Affichage</summary><div class="fjord-menu-options"><button data-fjord-quick="viewIso">Vue 3D</button><button data-fjord-quick="viewTop">Vue du dessus</button><button data-fjord-quick="viewFit">Ajuster la vue</button></div></details>
+<details><summary>Options</summary><div class="fjord-menu-options"><button data-fjord-target="estimateToggle">Estimateur</button><button data-fjord-target="sliceTop">Trancher</button></div></details>
+<details><summary>Aide</summary><div class="fjord-menu-options"><button data-fjord-help="1">Commandes de l'atelier</button></div></details>
+</nav>
 <div class="quickbar" role="toolbar" aria-label="3D Tools / Outils 3D">
 <span class="quickbar-label" data-i18n="quickTools">OUTILS</span>
 <span class="quick-divider"></span>
@@ -234,7 +253,12 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div id="mobileMenuContent"></div>
 </div>
 <div class="shell">
-<aside class="sidebar left" id="toolsPanel"><section data-tool-panel="shapes"><h2 data-i18n="shapes">Créer des formes</h2><div class="tools">
+<aside class="sidebar left" id="toolsPanel"><div class="fjord-workspace-nav" aria-label="Catégories d'outils">
+<button data-fjord-panel="shapes">⬡ Formes</button><button data-fjord-panel="generators">⚙ Générateurs</button>
+<button data-fjord-panel="edit">✥ Modifier</button><button data-fjord-panel="cut">✂ Découpe</button>
+<button data-fjord-panel="parts">🧩 Pièces</button><button data-fjord-panel="size">📐 Dimensions</button>
+<button data-fjord-panel="measure">📏 Mesure</button><button data-fjord-panel="properties">☷ Propriétés</button>
+</div><section data-tool-panel="shapes"><h2 data-i18n="shapes">Créer des formes</h2><div class="tools">
 <button data-shape="cube" data-i18n="cube">⬜ Cube</button><button data-shape="cylinder" data-i18n="cylinder">◯ Cylindre</button>
 <button data-shape="sphere" data-i18n="sphere">● Sphère</button><button data-shape="cone" data-i18n="cone">△ Cône</button>
 <button data-shape="torus" data-i18n="torus">◎ Tore</button><button data-shape="tube" data-i18n="tube">▣ Tube</button>
@@ -2143,4 +2167,18 @@ function animate(){requestAnimationFrame(animate);orbit.update();updateMeasureMa
     'Le moteur 3D ne démarre pas sur cet appareil. Actualise la page pour réessayer.';}
  },16000);
 })();
-</script></body></html>
+</script><script>
+(()=>{const left=document.getElementById('toolsPanel');
+document.querySelectorAll('[data-fjord-panel]').forEach(b=>b.addEventListener('click',()=>{
+ const name=b.dataset.fjordPanel;
+ const panel=left.querySelector('[data-tool-panel="'+name+'"]') || (name==='measure'?left.querySelector('[data-tool-panel="edit"]'):null);
+ if(!panel)return;
+ document.querySelectorAll('[data-fjord-panel]').forEach(x=>x.classList.toggle('selected',x===b));
+ panel.scrollIntoView({behavior:'smooth',block:'start'});
+}));
+document.querySelectorAll('[data-fjord-target]').forEach(b=>b.addEventListener('click',()=>{document.getElementById(b.dataset.fjordTarget)?.click();b.closest('details').open=false}));
+document.querySelectorAll('[data-fjord-quick]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('[data-quick-action="'+b.dataset.fjordQuick+'"]')?.click();b.closest('details').open=false}));
+document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert('Clic gauche : sélectionner une pièce. Clic droit : menu contextuel. Clic droit maintenu : déplacer la vue. Molette : zoom. Utilisez les outils de gauche pour modifier la pièce.'));
+})();
+</script>
+</body></html>
