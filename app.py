@@ -304,6 +304,77 @@ def _octo_live_status():
   _octo_cache["reason"]="Réponse OctoEverywhere invalide."
  return None
 
+# Read-only AMS colour palette; never forward printer access credentials to browsers.
+_ams_palette_cache={"at":0,"data":{"connected":False,"available":False,"sources":[]}}
+def _octo_ams_palette():
+ import json as j
+ import urllib.request as urlrequest
+ from urllib.parse import urlparse
+ now=time.monotonic()
+ if now-_ams_palette_cache["at"]<45:
+  return _ams_palette_cache["data"]
+ fallback={"connected":False,"available":False,"sources":[]}
+ _ams_palette_cache.update({"at":now,"data":fallback})
+ base=os.environ.get("OCTOEVERYWHERE_CONNECTION_URL","").strip().rstrip("/")
+ if not base:return fallback
+ try:
+  parsed=urlparse(base)
+  if (parsed.scheme!="https" or not parsed.hostname or
+      not parsed.hostname.endswith(".octoeverywhere.com") or
+      parsed.username or parsed.password or parsed.port is not None or
+      parsed.path not in ("","/") or parsed.query or parsed.fragment):return fallback
+  headers={"Accept":"application/json"}
+  bearer=os.environ.get("OCTOEVERYWHERE_AUTH_BEARER_TOKEN","").strip()
+  basic_user=os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_USER","").strip()
+  basic_pass=os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_PASSWORD","")
+  if bearer:headers["Authorization"]="Bearer "+bearer
+  elif basic_user and basic_pass:
+   import base64
+   headers["Authorization"]="Basic "+base64.b64encode((basic_user+":"+basic_pass).encode()).decode("ascii")
+  req=urlrequest.Request(base+"/octoeverywhere-command-api/status?IncludeMaterialSystem=true",headers=headers)
+  with urlrequest.urlopen(req,timeout=6) as resp:
+   raw=resp.read(1024*1024+1)
+  if len(raw)>1024*1024:return fallback
+  payload=j.loads(raw)
+  if payload.get("Status")!=200:return fallback
+  job=((payload.get("Result") or {}).get("JobStatus") or {})
+  material=job.get("MaterialSystem")
+  result={"connected":True,"available":isinstance(material,dict),"sources":[]}
+  if isinstance(material,dict):
+   names={str(unit.get("Id")):str(unit.get("Name") or "")[:60]
+          for unit in (material.get("Units") or [])[:8] if isinstance(unit,dict)}
+   sources=[]
+   for src in (material.get("Sources") or [])[:64]:
+    if not isinstance(src,dict) or src.get("IsEmpty") is True:continue
+    spool=src.get("Material") or {}
+    if not isinstance(spool,dict):continue
+    hexcolor=str(spool.get("ColorHex") or "").strip().lstrip("#")
+    if not re.fullmatch(r"[0-9A-Fa-f]{6}",hexcolor):continue
+    type_name=str(spool.get("Type") or "")[:36]
+    filament_name=str(spool.get("Name") or type_name or "Filament")[:65]
+    slot=str(src.get("Name") or "Bobine")[:70]
+    unit=names.get(str(src.get("UnitId")))
+    if unit and not slot.lower().startswith(unit.lower()):slot=unit+" · "+slot
+    entry={"slot":slot,"color":"#"+hexcolor.upper(),"material":type_name,
+           "name":filament_name}
+    remainder=spool.get("RemainingPercent")
+    if isinstance(remainder,(int,float)) and 0<=remainder<=100:
+     entry["remaining"]=round(remainder)
+    sources.append(entry)
+   result["sources"]=sources
+  _ams_palette_cache["data"]=result
+  return result
+ except (OSError,TimeoutError,ValueError,TypeError,j.JSONDecodeError):
+  return fallback
+
+@app.get("/api/atelier/filaments")
+def atelier_ams_filaments():
+ # Only selected slot names, material and colours are public; no printer state,
+ # identifiers, tokens, control commands, or internal network data.
+ response=jsonify(_octo_ams_palette())
+ response.headers["Cache-Control"]="no-store"
+ return response
+
 def _octo_job_matches(configured,reported):
  def norm(v):
   return str(v or "").replace(chr(92),"/").split("/")[-1].rsplit(".",1)[0].strip().casefold()
