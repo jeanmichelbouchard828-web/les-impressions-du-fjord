@@ -53,6 +53,11 @@ try:
        "nonce":"one-use-confirmation-token-0123456789",
        "next":"/admin/atelier-imprimer?selected=gcode/fjord_auto_test.3mf"}))
   page.route("**/admin/atelier-imprimer/transmettre",transfer)
+  page.route("**/api/admin/atelier/impression-diagnostic",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body=json.dumps({"ok":True,"status_ok":True,"files_ok":False,
+                     "diagnosis":"La connexion d'état répond, mais l'accès aux fichiers échoue.",
+                     "details":[]})))
   page.route("**/api/admin/atelier/impression-etat",lambda route:route.fulfill(
     status=200,content_type="application/json",
     body=json.dumps({"ok":True,"state":"idle","progress":0,"file":"",
@@ -116,6 +121,10 @@ try:
   page.locator("#fjordReviewKgRate").fill("50")
   assert "$" in page.locator("#fjordReviewPrice").inner_text()
   assert page.locator("#fjordReviewDownload").is_enabled()
+  assert page.locator("#fjordReviewDiagnostic").is_enabled()
+  page.locator("#fjordReviewDiagnostic").evaluate("el=>el.click()")
+  page.wait_for_function("document.querySelector('#fjordReviewDiagnosticResult').textContent.includes('Fichiers : échec')")
+  assert not transfers and not starts, "Read-only diagnostic cannot upload or start" 
   page.locator("#fjordReview3DToggle").evaluate("el=>el.click()")
   assert page.locator("#fjordReview3DToggle").get_attribute("aria-pressed")=="false"
   page.locator("#fjordReview3DToggle").evaluate("el=>el.click()")

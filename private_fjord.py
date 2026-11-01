@@ -356,6 +356,8 @@ if(fjordAutoButton){
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
  '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
  '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Bambu Studio)</button>'+
+ '<button type="button" id="fjordReviewDiagnostic">🔎 Tester la connexion des fichiers X2D</button>'+
+ '<p id="fjordReviewDiagnosticResult" role="status" aria-live="polite" hidden></p>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
  '<section id="fjordStartAtelier" hidden aria-label="Imprimer directement depuis l’Atelier">'+
  '<h3>🖨️ Mon 3MF est sur la X2D</h3><p id="fjordStartFile"></p>'+
@@ -685,6 +687,27 @@ if(fjordAutoButton){
   invalidatePreview();
   state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
  });
+ const diagnosticButton=panel.querySelector('#fjordReviewDiagnostic');
+ const diagnosticResult=panel.querySelector('#fjordReviewDiagnosticResult');
+ diagnosticButton.addEventListener('click',async()=>{
+  if(busy)return;
+  diagnosticButton.disabled=true;
+  diagnosticResult.hidden=false;
+  diagnosticResult.textContent='Lecture de la connexion et des fichiers X2D… Aucun envoi ni démarrage.';
+  try{
+   const response=await fetch('/api/admin/atelier/impression-diagnostic',{
+    credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}
+   });
+   if(!response.ok)throw Error('Diagnostic inaccessible. Vérifie ta session administrateur.');
+   const result=await response.json();
+   if(!result.ok)throw Error('Impossible de lire le diagnostic.');
+   const status=result.status_ok?'État : OK':'État : échec';
+   const files=result.files_ok?'Fichiers : OK en lecture':'Fichiers : échec';
+   diagnosticResult.textContent=status+' · '+files+'\n'+String(result.diagnosis||'');
+  }catch(error){
+   diagnosticResult.textContent='⚠ '+String(error.message||error).slice(0,220);
+  }finally{diagnosticButton.disabled=false;}
+ });
  const download3mf=panel.querySelector('#fjordReviewDownload');
  download3mf.addEventListener('click',async()=>{
   if(!prepared||busy)return;
@@ -759,8 +782,10 @@ if(fjordAutoButton){
    beginPrinterPolling();
    startScreen.scrollIntoView({block:'nearest',behavior:'smooth'});
   }catch(error){
-   state.textContent='⚠ '+String(error.message||error).slice(0,240)+
-    ' Aucune impression physique n’a été démarrée.';
+   // Show the whole safe server message; a 240-character truncation previously
+   // split sentences and made the transfer warning misleading on mobile.
+   const msg=String(error.message||error).slice(0,650);
+   state.textContent='⚠ '+msg;
   }finally{
    busy=false;
    panel.querySelector('#fjordAutoClose').disabled=false;
@@ -1044,6 +1069,13 @@ if(fjordAutoButton){
 #fjordReviewBreakdown{font-size:12px;color:#c6e3ed}
 #fjordReviewDownload{display:block;width:100%;min-height:48px;border:1px solid #6792af;
  border-radius:10px;background:#17344b;color:#e2f5ff;margin:8px 0;padding:9px;font-weight:700}
+#fjordReviewDiagnostic{display:block;width:100%;min-height:46px;color:#d5f3fc;
+ background:#17344b;border:1px solid #547d99;border-radius:10px;margin:7px 0;padding:8px;font-weight:650}
+#fjordReviewDiagnosticResult{white-space:pre-line;overflow-wrap:anywhere;border:1px solid #557f95;
+ border-radius:8px;padding:10px;font-size:13px;line-height:1.5;margin:7px 0}
+#fjordReviewDiagnosticResult[hidden]{display:none!important}
+#fjordAutoPrintDialog #fjordAutoState{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+
 @media(max-width:390px){.fjord-review-facts strong{font-size:12px}}
 #fjordReviewCanvas{width:100%;height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;touch-action:none;user-select:none}
 .fjord-review-zoom{display:flex;position:absolute;right:8px;bottom:8px;gap:5px}

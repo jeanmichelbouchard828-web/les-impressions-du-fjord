@@ -192,6 +192,53 @@ class RemotePrintTests(unittest.TestCase):
             self.assertEqual(starts[0].kwargs["payload"],{
                 "Path":"gcode/X2D_test.3mf","Plate":1,"UseAms":True})
 
+    def test_752_upload_error_is_actionable_but_never_leaks_upstream_details(self):
+        from fjord_printer import _upload_error_hint
+        hint = _upload_error_hint({
+            "Status": 752,
+            "Error": "FTPS data transfer exception printer=192.0.2.1 token=MY-SECRET"
+        })
+        self.assertIn("FTP", hint)
+        self.assertNotIn("192.0.2.1", hint)
+        self.assertNotIn("MY-SECRET", hint)
+        with (
+            patch("fjord_printer._connection", return_value="https://test.octoeverywhere.com"),
+            patch("fjord_printer.urllib.request.build_opener") as opener,
+        ):
+            opener.return_value.open.return_value = io.BytesIO(
+                json.dumps({"Status":752,"Error":"FTPS transfer failed"}).encode()
+            )
+            with self.assertRaisesRegex(PrinterError,"code|752") as exc:
+                _upload("gcode/fjord_test.3mf", b"three-mf-file-bytes")
+            self.assertIn("FTP", str(exc.exception))
+            self.assertIn("Télécharger", str(exc.exception))
+            opener.return_value.open.assert_called_once()
+            req = opener.return_value.open.call_args.args[0]
+            self.assertEqual(req.get_method(), "PUT")
+            self.assertIn("files/upload", req.full_url)
+
+    def test_diagnostic_is_read_only_and_reports_file_access(self):
+        with patch("fjord_printer._api", side_effect=fake_api) as commands:
+            res = self.client.get("/api/admin/atelier/impression-diagnostic")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json["status_ok"])
+        self.assertTrue(res.json["files_ok"])
+        self.assertIn("consultation", res.json["diagnosis"])
+        self.assertEqual([x.args[0] for x in commands.call_args_list],
+                         ["/status", "/files/list"])
+        self.assertNotIn("X2D_test.3mf", str(res.json))
+
+        def broken_file_access(path, **kw):
+            if path == "/files/list":
+                raise PrinterError("OctoEverywhere ne permet pas cette opération (code 752).")
+            return fake_api(path, **kw)
+        with patch("fjord_printer._api", side_effect=broken_file_access):
+            res = self.client.get("/api/admin/atelier/impression-diagnostic")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json["status_ok"])
+        self.assertFalse(res.json["files_ok"])
+        self.assertIn("FTP/FTPS", res.json["diagnosis"])
+
     def test_upload_never_starts_printer_automatically(self):
         with patch("fjord_printer._api",side_effect=fake_api) as call:
             with patch("fjord_printer._upload",return_value={"VirtualPath":"gcode/x.3mf"}) as upload:
