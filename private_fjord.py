@@ -74,6 +74,18 @@ def admin_studio(html, csrf_token):
     """Le bouton d'enregistrement est ajouté UNIQUEMENT à l'atelier authentifié."""
     button = '<button type="button" id="fjordPrivateImport">📚 Importer de ma bibliothèque</button><button type="button" class="primary" id="fjordPrivateSave">💾 Enregistrer dans ma bibliothèque</button><a href="/admin/modeles">Voir mes modèles</a><a href="/admin/profils-bambu" title="Importer ou consulter les paramètres Bambu Studio">⚙️ Mes profils Bambu</a>'
     html = html.replace('<button id="export" data-i18n="export">', button + '<button id="export" data-i18n="export">', 1)
+    # Always-visible shortcut on desktop AND mobile, independent of the
+    # collapsible "Projet" menu. This HTML is served only to authenticated admins.
+    admin_shortcut = (
+        '<a id="fjordAdminShortcut" href="/admin" '
+        'title="Retour au tableau de bord administrateur" '
+        'style="display:inline-flex;align-items:center;justify-content:center;'
+        'min-height:40px;padding:8px 12px;border-radius:9px;'
+        'border:1px solid #67b0d9;background:#11577e;color:#fff;'
+        'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
+        '⚙️ Administration</a>'
+    )
+    html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + admin_shortcut, 1)
     injection = r"""
 // Sauvegarde serveur des modèles du propriétaire; cet extrait n'est jamais servi au public.
 const privateSaveBtn=document.getElementById("fjordPrivateSave");
