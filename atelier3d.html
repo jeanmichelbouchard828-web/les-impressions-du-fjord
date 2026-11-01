@@ -624,7 +624,12 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-paint-field>label{margin-top:9px}
 .fjord-paint-grid button{background:#1d3850;border-color:#4b7999}
 .fjord-paint-grid button.active{background:#0b76a4;border-color:#81e1ff}
+#fjordPaintMobileFold{display:none}
+.fjord-paint-heading-actions{display:flex;align-items:center;gap:8px}
 @media(max-width:760px){
+ #fjordPaintMobileFold{display:inline-flex;min-height:44px;padding:6px 12px}
+ .fjord-paint-panel.mobile-collapsed{max-height:69px!important;overflow:hidden!important}
+ .fjord-paint-panel.mobile-collapsed > :not(.fjord-paint-heading){display:none!important}
  .fjord-paint-panel{
   position:fixed!important;top:auto!important;
   bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;
@@ -930,7 +935,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></section></aside>
 <div class="stage" id="stage">
 <section class="fjord-paint-panel" id="fjordPaintPanel" hidden aria-label="Panneau de peinture 3D">
-<div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div>
+<div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><div class="fjord-paint-heading-actions"><button type="button" id="fjordPaintMobileFold" aria-expanded="true" aria-controls="fjordPaintPanel" title="Masquer ou afficher les options de peinture">▾ Réduire</button><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div></div>
 <div class="fjord-paint-mode-note">Pièce : <strong id="fjordPaintModelLabel">Aucune pièce sélectionnée</strong></div>
 <p class="fjord-paint-help">🖌 Clic gauche : peindre. 🖱️ Clic droit maintenu : tourner autour de la pièce. Molette : zoomer.</p>
 <button type="button" id="fjordPaintOrbit" class="fjord-paint-view-button" aria-pressed="false" title="Tourner la vue sans peindre, utile sur mobile">🔄 Tourner la vue 3D (sans peindre)</button>
