@@ -397,7 +397,7 @@ body.light .fj-print-hint{color:#496477!important}
   <section class="fj-print-card" id="fjordAutoSliceCard" style="margin-bottom:18px" aria-labelledby="fjordAutoSliceTitle">
     <div class="fj-print-step-title"><span class="fj-print-number" aria-hidden="true">★</span>
       <h2 id="fjordAutoSliceTitle">Tranchage automatique Bambu Studio · X2D</h2></div>
-    <p>Pour une création de l’Atelier, utilise le bouton « Préparer sur ma X2D » directement dans l’Atelier administrateur. Choisis trois profils complets : imprimante X2D, impression et filament. Le serveur tranche puis transfère le 3MF sur l’imprimante. Le démarrage reste soumis à une confirmation.</p>
+    <p>Pour une création de l’Atelier, utilise le bouton « Préparer sur ma X2D » directement dans l’Atelier administrateur. Choisis trois profils complets : imprimante X2D, impression et filament. Le serveur tranche, affiche les trajectoires du G-code couche par couche, puis attend ta validation avant de transmettre le 3MF. Le démarrage physique demande une confirmation distincte.</p>
     {% if auto_engine_ready %}
       <div class="fj-print-notice" role="status">Moteur Bambu Studio détecté. La compatibilité réelle dépend des profils sélectionnés et de l'imprimante.</div>
     {% else %}
@@ -406,9 +406,9 @@ body.light .fj-print-hint{color:#496477!important}
     <a class="fj-print-refresh" style="display:inline-block;margin-top:12px" href="/admin/atelier-3d">← Ouvrir ma création dans l'Atelier</a>
   </section>
   <div class="fj-print-step-bar" aria-label="Étapes d’impression">
-    <div><strong aria-hidden="true">1</strong><span>Vérifier la X2D</span></div>
-    <div><strong aria-hidden="true">2</strong><span>Envoyer le fichier 3MF</span></div>
-    <div><strong aria-hidden="true">3</strong><span>Vérifier et démarrer</span></div>
+    <div><strong aria-hidden="true">1</strong><span>Trancher dans l’Atelier</span></div>
+    <div><strong aria-hidden="true">2</strong><span>Voir les couches et envoyer</span></div>
+    <div><strong aria-hidden="true">3</strong><span>Confirmer et imprimer</span></div>
   </div>
 
   {% for notice in messages %}
@@ -533,8 +533,9 @@ body.light .fj-print-hint{color:#496477!important}
     @app.post("/admin/atelier-imprimer/preparer")
     @admin_required
     def fjord_print_auto_prepare():
-        """Slice a binary STL with the *official* X2D CLI and upload, never start."""
+        """Slice official Bambu 3MF and stage for owner review; never upload here."""
         from bambu_auto import cli_location, full_preset, slice_x2d, AutoSliceError, MAX_STL
+        from fjord_slice_review import stage_slice, SliceReviewError
         request.max_content_length = MAX_STL + 2 * 1024 * 1024
         verify()
         try:
@@ -575,21 +576,48 @@ body.light .fj-print-hint{color:#496477!important}
                 actual = actual[0] if actual else ""
             if str(actual).strip().upper() != expected_material:
                 raise AutoSliceError("Profil filament incompatible avec le matériau de l'Atelier : aucun transfert.")
-            # No printer commands until successful Bambu slicing AND 3MF validation.
+            # Stage only: do not contact OctoEverywhere until explicit review.
             sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf)
+            token, preview = stage_slice(sliced, verify_sliced_bambu_3mf)
+            success = "Tranchage Bambu terminé. Examine les couches avant d’envoyer à la X2D."
+            if request.accept_mimetypes.best == "application/json":
+                response = jsonify(ok=True, stage=token, preview=preview, message=success)
+                response.headers["Cache-Control"] = "no-store"
+                return response
+            flash("3MF prêt pour l’aperçu dans l’Atelier administrateur. Aucun fichier envoyé.")
+            return redirect(url_for("fjord_printer_page"))
+        except (AutoSliceError, SliceReviewError, PrinterError) as exc:
+            if request.accept_mimetypes.best == "application/json":
+                return jsonify(ok=False, error=str(exc)), 422
+            flash(str(exc))
+            return redirect(url_for("fjord_printer_page"))
+
+    @app.post("/admin/atelier-imprimer/transmettre")
+    @admin_required
+    def fjord_print_review_transfer():
+        """Second explicit action: upload a reviewed 3MF, never start printer."""
+        from fjord_slice_review import get_staged, consume_staged, SliceReviewError
+        request.max_content_length = 128 * 1024
+        verify()
+        try:
+            token = str(request.form.get("stage",""))
+            staged = get_staged(token)
+            verify_sliced_bambu_3mf(staged)
             printer = _status()
             if not printer["can_start"]:
-                raise AutoSliceError("Imprimante indisponible/occupée : transfert annulé.")
+                raise PrinterError("X2D occupée ou indisponible : aucune transmission.")
             virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
-            _upload(virtual_path, sliced)
-            success = "✅ Tranchage Bambu Studio terminé et fichier envoyé. Vérifie la pièce et confirme le démarrage ci-dessous."
+            _upload(virtual_path, staged)
+            consume_staged(token)
+            message = "3MF tranché envoyé. Vérifie les matériaux et le plateau avant le démarrage."
+            next_page = url_for("fjord_printer_page", selected=virtual_path)
             if request.accept_mimetypes.best == "application/json":
-                return jsonify(ok=True, file=virtual_path,
-                               next=url_for("fjord_printer_page", selected=virtual_path),
-                               message=success)
-            flash(success)
-            return redirect(url_for("fjord_printer_page", selected=virtual_path))
-        except (AutoSliceError, PrinterError) as exc:
+                response = jsonify(ok=True, file=virtual_path, next=next_page, message=message)
+                response.headers["Cache-Control"] = "no-store"
+                return response
+            flash(message)
+            return redirect(next_page)
+        except (PrinterError, SliceReviewError) as exc:
             if request.accept_mimetypes.best == "application/json":
                 return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))

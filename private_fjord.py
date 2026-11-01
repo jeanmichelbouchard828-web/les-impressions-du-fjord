@@ -291,13 +291,26 @@ if(fjordAutoButton){
  panel.id='fjordAutoPrintDialog';
  panel.setAttribute('aria-label','Préparer l’impression X2D depuis l’Atelier');
  panel.innerHTML='<div class="fjord-dialog-head"><strong>🖨️ Ma X2D · Préparation automatique</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
- '<p>Profils mémorisés par matériau et hauteur de couche. Après validation, un clic suffit pour trancher et envoyer. Le démarrage physique nécessitera toujours une confirmation distincte.</p>'+
+ '<p>Profils mémorisés par matériau et hauteur de couche. Une fois tes profils choisis, un clic tranche et ouvre l’aperçu des couches. Tu décides ensuite d’envoyer le 3MF. Le démarrage physique demande une confirmation distincte.</p>'+
  '<p id="fjordAutoState" role="status" aria-live="polite">Vérification de la configuration…</p>'+
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
  '<label>Filament<select name="filament" required></select></label>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordAutoRemember" checked> Mémoriser ces profils après une préparation réussie</label>'+
- '<button id="fjordAutoSubmit" type="submit" disabled>🧩 Trancher et envoyer à ma X2D</button></form>'+
+ '<button id="fjordAutoSubmit" type="submit" disabled>▥ Trancher et voir les couches</button></form>'+
+ '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
+ '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
+ '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
+ '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue du dessus du G-code réel. Glisse pour déplacer et pince pour zoomer."></canvas>'+
+ '<div class="fjord-review-zoom" role="group" aria-label="Zoom de l’aperçu"><button type="button" id="fjordReviewZoomOut" aria-label="Dézoomer">−</button><button type="button" id="fjordReviewFit" aria-label="Recentrer et ajuster le zoom">⌗</button><button type="button" id="fjordReviewZoomIn" aria-label="Agrandir">+</button></div></div>'+
+ '<p class="fjord-review-gesture">Glisse pour déplacer · pince à deux doigts pour zoomer · vue du dessus.</p>'+
+ '<label for="fjordReviewLayer">Couche <strong id="fjordReviewLabel">—</strong></label>'+
+ '<div class="fjord-review-layerbar"><button type="button" id="fjordReviewPrevious" aria-label="Couche précédente">◀</button><input id="fjordReviewLayer" type="range" min="0" max="0" value="0" step="1"><button type="button" id="fjordReviewNext" aria-label="Couche suivante">▶</button></div>'+
+ '<label class="fjord-auto-remember"><input id="fjordReviewAccumulated" type="checkbox"> Afficher les couches précédentes</label>'+
+ '<p id="fjordReviewSummary" role="status"></p>'+
+ '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
+ '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
+ '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
  '<p><a href="/admin/profils-bambu">⚙️ Vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Page d’impression classique</a></p>';
  document.body.append(panel);
  const state=panel.querySelector('#fjordAutoState');
@@ -306,7 +319,157 @@ if(fjordAutoButton){
  const remember=panel.querySelector('#fjordAutoRemember');
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
  const preferenceKey='fjord-x2d-profile-preferences-v1';
- let inventory=null,busy=false,opened=false;
+ let inventory=null,busy=false,opened=false,prepared=null;
+ const review=panel.querySelector('#fjordSliceReview');
+ const transfer=panel.querySelector('#fjordReviewTransfer');
+ const slider=panel.querySelector('#fjordReviewLayer');
+ let reviewZoom=1,reviewPanX=0,reviewPanY=0;
+ const reviewTouches=new Map();
+ function invalidatePreview(){
+  prepared=null;
+  review.hidden=true;
+  panel.classList.remove('fjord-preview-active');
+  transfer.disabled=true;
+  reviewZoom=1;reviewPanX=reviewPanY=0;
+ }
+ function drawBambuReview(){
+  if(!prepared)return;
+  const layers=prepared.preview.layers;
+  const index=Math.min(layers.length-1,Math.max(0,Number(slider.value)||0));
+  const canvas=panel.querySelector('#fjordReviewCanvas'),ctx=canvas.getContext('2d');
+  if(!ctx)return;
+  ctx.fillStyle='#101c29';ctx.fillRect(0,0,canvas.width,canvas.height);
+  const side=Math.min(canvas.width,canvas.height)-38;
+  // Transform about canvas centre; identical geometry for mouse and touch.
+  const tx=x=>canvas.width/2+(19+(x/256)*side-canvas.width/2)*reviewZoom+reviewPanX;
+  const ty=y=>canvas.height/2+(canvas.height-19-(y/256)*side-canvas.height/2)*reviewZoom+reviewPanY;
+  ctx.strokeStyle='#365064';ctx.lineWidth=.7;
+  for(let mm=0;mm<=256;mm+=32){
+   ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
+   ctx.beginPath();ctx.moveTo(tx(0),ty(mm));ctx.lineTo(tx(256),ty(mm));ctx.stroke();
+  }
+  const accumulated=panel.querySelector('#fjordReviewAccumulated').checked;
+  const shown=accumulated?layers.slice(0,index+1):[layers[index]];
+  for(let i=0;i<shown.length;i++){
+   const layer=shown[i];
+   ctx.strokeStyle=i===shown.length-1?'#ffa857':'#47738d';
+   ctx.lineWidth=i===shown.length-1?1.3:.7;
+   ctx.beginPath();
+   for(const segment of layer.segments||[]){
+    ctx.moveTo(tx(segment[0]),ty(segment[1]));
+    ctx.lineTo(tx(segment[2]),ty(segment[3]));
+   }
+   ctx.stroke();
+  }
+  const active=layers[index];
+  panel.querySelector('#fjordReviewLabel').textContent=
+   (index+1)+' / '+layers.length+' · Z '+Number(active.z).toFixed(2)+' mm';
+  panel.querySelector('#fjordReviewSummary').textContent=
+   active.moves.toLocaleString('fr-CA')+' mouvements extrudés sur cette couche · '+
+   prepared.preview.total_moves.toLocaleString('fr-CA')+' au total'+
+   (prepared.preview.sampled?' · tracé partiellement échantillonné':'');
+ }
+ slider.addEventListener('input',drawBambuReview);
+ for(const [id,direction] of [['fjordReviewPrevious',-1],['fjordReviewNext',1]]){
+  panel.querySelector('#'+id).addEventListener('click',()=>{
+   if(!prepared)return;
+   slider.value=String(Math.max(0,Math.min(Number(slider.max),Number(slider.value)+direction)));
+   drawBambuReview();
+  });
+ }
+ panel.querySelector('#fjordReviewAccumulated').addEventListener('change',drawBambuReview);
+ function zoomReview(next){
+  reviewZoom=Math.min(6,Math.max(.75,next));
+  reviewPanX=Math.min(500,Math.max(-500,reviewPanX));
+  reviewPanY=Math.min(500,Math.max(-500,reviewPanY));
+  drawBambuReview();
+ }
+ panel.querySelector('#fjordReviewZoomOut').addEventListener('click',()=>zoomReview(reviewZoom/1.4));
+ panel.querySelector('#fjordReviewZoomIn').addEventListener('click',()=>zoomReview(reviewZoom*1.4));
+ panel.querySelector('#fjordReviewFit').addEventListener('click',()=>{
+  reviewZoom=1;reviewPanX=reviewPanY=0;drawBambuReview();
+ });
+ const canvas=panel.querySelector('#fjordReviewCanvas');
+ let lastTouch={x:0,y:0,d:0};
+ function touchState(){
+  const p=[...reviewTouches.values()];
+  const x=p.reduce((sum,a)=>sum+a.x,0)/p.length;
+  const y=p.reduce((sum,a)=>sum+a.y,0)/p.length;
+  const d=p.length>=2?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0;
+  return {x,y,d};
+ }
+ canvas.addEventListener('pointerdown',event=>{
+  if(!prepared)return;
+  reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  lastTouch=touchState();
+  try{canvas.setPointerCapture(event.pointerId);}catch(_){}
+ });
+ canvas.addEventListener('pointermove',event=>{
+  if(!prepared||!reviewTouches.has(event.pointerId))return;
+  reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  const now=touchState();
+  reviewPanX+=now.x-lastTouch.x;
+  reviewPanY+=now.y-lastTouch.y;
+  if(now.d&&lastTouch.d)reviewZoom=Math.min(6,Math.max(.75,reviewZoom*now.d/lastTouch.d));
+  lastTouch=now;
+  drawBambuReview();
+ });
+ function endReviewTouch(event){
+  reviewTouches.delete(event.pointerId);
+  if(reviewTouches.size)lastTouch=touchState();
+  try{canvas.releasePointerCapture(event.pointerId);}catch(_){}
+ }
+ canvas.addEventListener('pointerup',endReviewTouch);
+ canvas.addEventListener('pointercancel',endReviewTouch);
+ canvas.addEventListener('wheel',event=>{
+  if(!prepared)return;
+  event.preventDefault();zoomReview(reviewZoom*(event.deltaY>0?.85:1.15));
+ },{passive:false});
+ panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
+  invalidatePreview();
+  state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
+ });
+ transfer.addEventListener('click',async()=>{
+  if(busy||!prepared)return;
+  const approved=prepared;
+  if(!confirm('Envoyer ce 3MF tranché à ta X2D ? L’impression ne démarrera PAS encore.'))return;
+  busy=true;transfer.disabled=true;submit.disabled=true;
+  panel.querySelector('#fjordAutoClose').disabled=true;
+  state.textContent='Étape 3/3 · Transfert du 3MF approuvé sur ma X2D…';
+  try{
+   const body=new FormData();
+   body.append('csrf',__FJORD_CSRF__);
+   body.append('stage',approved.stage);
+   const response=await fetch('/admin/atelier-imprimer/transmettre',{
+    method:'POST',body,credentials:'same-origin',headers:{Accept:'application/json'}
+   });
+   if(!(response.headers.get('content-type')||'').includes('application/json'))
+    throw Error('Session administrateur expirée : reconnecte-toi.');
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw Error(result.error||'Transfert impossible.');
+   if(typeof result.next!=='string'||!result.next.startsWith('/admin/atelier-imprimer?'))
+    throw Error('Adresse de confirmation invalide.');
+   if(remember.checked){
+    try{
+     const settings=savedProfiles();
+     settings[approved.config]=approved.chosen;
+     localStorage.setItem(preferenceKey,JSON.stringify(settings));
+    }catch(_){}
+   }
+   invalidatePreview();
+   state.textContent='✓ 3MF envoyé. Vérifie maintenant ta X2D avant le démarrage physique.';
+   location.assign(result.next);
+  }catch(error){
+   state.textContent='⚠ '+String(error.message||error).slice(0,240)+
+    ' Aucune impression physique n’a été démarrée.';
+  }finally{
+   busy=false;
+   panel.querySelector('#fjordAutoClose').disabled=false;
+   if(prepared)transfer.disabled=false;
+   updateReady();
+  }
+ });
+
  const material=()=>String(document.getElementById('sliceMaterial')?.value||'PLA').trim().toUpperCase();
  const layer=()=>String(document.getElementById('sliceLayerHeight')?.value||'0.2');
  const jobKey=()=>material()+'|'+layer();
@@ -347,7 +510,7 @@ if(fjordAutoButton){
  }
  panel.querySelector('#fjordAutoClose').addEventListener('click',()=>{if(!busy)panel.close()});
  panel.addEventListener('click',event=>{if(event.target===panel&&!busy)panel.close()});
- form.addEventListener('change',updateReady);
+ form.addEventListener('change',event=>{if(event.target?.tagName==='SELECT')invalidatePreview();updateReady();});
  function ensureValidScene(){
   if(!models.length)throw Error('Ajoute une pièce au plateau.');
   if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces))
@@ -382,7 +545,8 @@ if(fjordAutoButton){
    requestBody.append('stl',blob,'Creation-du-Fjord.stl');
    requestBody.append('material',material());
    for(const [field,id] of Object.entries(chosen))requestBody.append(field,id);
-   state.textContent='Étape 2/3 · Tranchage Bambu Studio, puis transfert si le fichier est validé…';
+   invalidatePreview();
+   state.textContent='Étape 2/3 · Tranchage Bambu Studio, puis aperçu réel des couches…';
    const response=await fetch('/admin/atelier-imprimer/preparer',{
     method:'POST',body:requestBody,credentials:'same-origin',
     headers:{'Accept':'application/json'},redirect:'follow'
@@ -391,18 +555,20 @@ if(fjordAutoButton){
     throw Error('Le serveur n’a pas retourné de résultat. Vérifie ta session administrateur.');
    const result=await response.json();
    if(!response.ok||!result.ok)throw Error(result.error||'Préparation impossible.');
-   // Remember ONLY after successful slicing and upload. Store IDs, no secrets.
-   if(remember.checked){
-    try{
-     const settings=savedProfiles();
-     settings[config]=chosen;
-     localStorage.setItem(preferenceKey,JSON.stringify(settings));
-    }catch(_){}
-   }
-   state.textContent='Étape 3/3 · 3MF transféré. Ouverture de la confirmation d’impression…';
-   if(typeof result.next!=='string'||!result.next.startsWith('/admin/atelier-imprimer?'))
-    throw Error('Adresse de confirmation invalide.');
-   location.assign(result.next);
+   if(typeof result.stage!=='string'||!Array.isArray(result.preview?.layers)||!result.preview.layers.length)
+    throw Error('Aucun aperçu réel disponible : envoi désactivé.');
+   prepared={stage:result.stage,preview:result.preview,chosen,config};
+   const review=panel.querySelector('#fjordSliceReview');
+   review.hidden=false;
+   panel.classList.add('fjord-preview-active');
+   reviewZoom=1;reviewPanX=reviewPanY=0;
+   const slider=panel.querySelector('#fjordReviewLayer');
+   slider.max=String(result.preview.layers.length-1);
+   slider.value=slider.max;
+   panel.querySelector('#fjordReviewTransfer').disabled=false;
+   state.textContent='✓ Tranchage terminé. Inspecte le résultat avant d’envoyer.';
+   drawBambuReview();
+   review.scrollIntoView({block:'nearest',behavior:'smooth'});
   }catch(error){
    state.textContent='⚠ '+String(error.message||error).slice(0,240)+
     ' Aucune commande de démarrage n’a été envoyée.';
@@ -420,6 +586,7 @@ if(fjordAutoButton){
   state.textContent='Lecture des profils Bambu Studio X2D…';
   submit.disabled=true;
   inventory=null;
+  invalidatePreview();
   try{
    const response=await fetch('/api/admin/atelier/impression-profils',{
     credentials:'same-origin',cache:'no-store'
@@ -483,6 +650,41 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog button{min-height:42px}
 #fjordAutoPrintDialog button:disabled{opacity:.5;cursor:not-allowed}
 #fjordAutoPrintDialog a{color:#94e5fb}
+#fjordSliceReview[hidden]{display:none!important}
+#fjordSliceReview{border-top:1px solid #4c7388;margin-top:16px;padding-top:12px}
+#fjordSliceReview h3{font-size:15px;margin:4px 0}
+.fjord-review-preview{position:relative;width:min(100%,420px);margin:10px auto}
+#fjordReviewCanvas{width:100%;height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;touch-action:none;user-select:none}
+.fjord-review-zoom{display:flex;position:absolute;right:8px;bottom:8px;gap:5px}
+.fjord-review-zoom button{min-width:45px;min-height:45px;color:#fff;background:#183c53ea;border:1px solid #8eb3c9;border-radius:9px;font-size:22px}
+.fjord-review-gesture{font-size:12px;text-align:center;margin:3px 0!important}
+.fjord-review-layerbar{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;align-items:center}
+.fjord-review-layerbar button{min-height:48px;border-radius:10px}
+#fjordReviewLayer{min-width:0}
+#fjordAutoPrintDialog .fjord-auto-remember{display:flex;align-items:center;gap:8px}
+#fjordAutoPrintDialog .fjord-auto-remember input[type=checkbox]{width:19px;height:19px;flex-shrink:0}
+#fjordReviewLayer{width:100%;min-height:38px;accent-color:#51d3fb}
+#fjordSliceReview .fjord-review-note{font-size:12px;color:#b9d6e6}
+#fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
+#fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
+#fjordAutoPrintDialog{max-height:90dvh}
+@media(max-width:760px){
+ #fjordAutoPrintDialog{box-sizing:border-box;width:100vw;max-width:100vw;min-height:100dvh;max-height:100dvh;height:100dvh;margin:0;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));
+  border-radius:0;border:none;overflow-y:auto;overscroll-behavior:contain}
+ #fjordAutoPrintDialog .fjord-dialog-head{position:sticky;top:calc(-12px - env(safe-area-inset-top,0px));
+  background:#112c40;z-index:3;padding:10px 0;border-bottom:1px solid #476e80}
+ #fjordAutoPrintDialog .fjord-dialog-head button{min-width:48px;min-height:48px}
+ #fjordAutoPrintDialog form{gap:10px}
+ #fjordAutoPrintDialog form select,#fjordAutoPrintDialog form button{min-height:50px;font-size:16px}
+ #fjordAutoPrintDialog #fjordReviewLayer{height:52px;touch-action:pan-y}
+ #fjordAutoPrintDialog .fjord-review-layerbar button{min-width:48px;min-height:52px}
+ #fjordAutoPrintDialog .fjord-review-zoom button{min-width:48px;min-height:48px}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordAutoForm{display:none}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview{padding-top:5px}
+ #fjordReviewTransfer{position:sticky;bottom:0;z-index:2;min-height:56px!important;
+  margin:9px 0 3px;box-shadow:0 -7px 14px #112c40c9}
+}
 #fjordModelChooser .fjord-dialog-head{display:flex;gap:12px;justify-content:space-between;align-items:center}
 #fjordModelChooser .fjord-dialog-head strong{font-size:19px}
 #fjordModelChooser input{width:100%;margin:10px 0 14px;min-height:44px}

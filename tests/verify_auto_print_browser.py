@@ -32,19 +32,28 @@ try:
      "Imprimante":[{"id":1,"name":"X2D 0.4","model":"Bambu Lab X2D","nozzle":"0.4"}],
      "Impression":[{"id":2,"name":"0.20 standard","layer":"0.2"}],
      "Filament":[{"id":3,"name":"PETG bleu","material":"PETG"}]}}
-  posts=[]
   page.route("**/api/admin/atelier/impression-profils",lambda route:route.fulfill(
     status=200,content_type="application/json",body=json.dumps(inventory)))
   page.route("**/api/atelier/filaments",lambda route:route.fulfill(
     status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
-  def upload(route):
-   posts.append({"body":route.request.post_data_buffer,"headers":route.request.headers})
+  slices=[];transfers=[]
+  review={"source":"G-code réel du 3MF Bambu Studio","layer_count":2,"total_moves":4,
+          "sampled":False,"layers":[
+           {"z":0.2,"moves":2,"segments":[[100,100,120,100],[120,100,120,120]]},
+           {"z":0.4,"moves":2,"segments":[[100,100,125,100],[125,100,125,125]]}]}
+  page.route("**/admin/atelier-imprimer/preparer",lambda route:(
+    slices.append(route.request.post_data_buffer),
+    route.fulfill(status=200,content_type="application/json",
+      body=json.dumps({"ok":True,"stage":"a"*40,"preview":review}))))
+  def transfer(route):
+   transfers.append(route.request.post_data)
    route.fulfill(status=200,content_type="application/json",
-                 body=json.dumps({"ok":True,"file":"gcode/fjord_auto_test.3mf",
-                                  "next":"/admin/atelier-imprimer?selected=gcode/fjord_auto_test.3mf"}))
-  page.route("**/admin/atelier-imprimer/preparer",upload)
+     body=json.dumps({"ok":True,"file":"gcode/fjord_auto_test.3mf",
+       "next":"/admin/atelier-imprimer?selected=gcode/fjord_auto_test.3mf"}))
+  page.route("**/admin/atelier-imprimer/transmettre",transfer)
   page.route("**/admin/atelier-imprimer?selected=*",lambda route:route.fulfill(
     status=200,content_type="text/html",body="<h1>Étape 3 : Confirmer et démarrer</h1>"))
+  page.on("dialog",lambda dialog:dialog.accept())
   def prepare_scene():
    page.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
    page.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
@@ -54,26 +63,89 @@ try:
   assert page.locator("#fjordAutoPrintLauncher").count()==1
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
   assert page.locator("#fjordAutoPrintDialog").is_visible()
+  try:
+   page.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=8000)
+  except Exception:
+   print("X2D UI DEBUG",page.evaluate("""() => ({
+      ready:!!window.__fjordEditorStarted,
+      dialog:document.querySelector('#fjordAutoPrintDialog')?.open,
+      state:document.querySelector('#fjordAutoState')?.innerText,
+      machine:document.querySelector('#fjordAutoForm [name=machine]')?.value,
+      selects:[...document.querySelectorAll('#fjordAutoForm select')].map(el=>el.outerHTML.slice(0,350)),
+      preview:document.querySelector('#fjordSliceReview')?.outerHTML.slice(0,280)
+     })"""),"JS ERRORS",errors)
+   raise
   assert page.locator('[name="machine"]').input_value()=="1"
   assert page.locator('[name="process"]').input_value()=="2"
   assert page.locator('[name="filament"]').input_value()=="3"
-  assert len(posts)==0,"First choice should not start without a deliberate submission"
+  assert len(slices)==0 and len(transfers)==0,"No automatic transmission at initial selection"
   page.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
+  assert len(slices)==1 and len(transfers)==0,"Slice must never auto-upload"
+  assert page.locator("#fjordReviewCanvas").is_visible()
+  assert page.locator("#fjordReviewLayer").get_attribute("max")=="1"
+  page.locator("#fjordReviewLayer").evaluate("""el=>{
+    el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));}""")
+  assert "Z 0.20 mm" in page.locator("#fjordReviewLabel").inner_text()
+  assert "G-code" in page.locator("#fjordSliceReview").inner_text()
+  assert page.evaluate("localStorage.getItem('fjord-x2d-profile-preferences-v1')") is None
+  page.locator("#fjordReviewTransfer").evaluate("el=>el.click()")
   page.wait_for_url("**/admin/atelier-imprimer?selected=**",wait_until="commit",timeout=12000)
-  assert len(posts)==1,len(posts)
+  assert len(transfers)==1 and len(slices)==1
   saved=page.evaluate("JSON.parse(localStorage.getItem('fjord-x2d-profile-preferences-v1'))")
   assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3"},saved
-  # Next creation with the same material/layer: single green button click
-  # automatically slices/uploads, but does NOT issue a print-start command.
+  # Previously remembered settings auto-slice but still require preview approval.
   prepare_scene()
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
+  page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
+  assert len(slices)==2 and len(transfers)==1,"Even remembered profiles must wait for approval"
+  page.locator("#fjordReviewTransfer").evaluate("el=>el.click()")
   page.wait_for_url("**/admin/atelier-imprimer?selected=**",wait_until="commit",timeout=12000)
-  assert len(posts)==2,posts
-  assert all("application/json" in p["headers"].get("accept","") for p in posts)
-  assert all(b'name="material"' in (p["body"] or b"") for p in posts)
+  assert len(transfers)==2
+  assert all(b'name="material"' in (chunk or b"") for chunk in slices)
   assert not errors,errors
+
+  # Mobile review uses a true full-height sheet, accessible layer controls,
+  # and finger-friendly zoom without uploading before approval.
+  mobile=browser.new_page(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+  mobile_errors=[]
+  mobile.on("pageerror",lambda e:mobile_errors.append(str(e)))
+  mobile.route("**/api/admin/atelier/impression-profils",lambda route:route.fulfill(
+    status=200,content_type="application/json",body=json.dumps(inventory)))
+  mobile.route("**/api/atelier/filaments",lambda route:route.fulfill(
+    status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
+  mobile.route("**/admin/atelier-imprimer/preparer",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body=json.dumps({"ok":True,"stage":"b"*40,"preview":review})))
+  mobile.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
+  mobile.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
+  mobile.locator('[data-shape="cube"]').evaluate("el=>el.click()")
+  mobile.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
+  mobile.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
+  mobile.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
+  mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  mobile.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=20000)
+  rect=mobile.locator("#fjordAutoPrintDialog").bounding_box()
+  assert rect and rect["width"] >= 380,rect
+  assert mobile.locator("#fjordReviewLayer").is_visible()
+  assert mobile.locator("#fjordReviewTransfer").is_visible()
+  assert not mobile.locator("#fjordAutoForm").is_visible(),"Profiles should yield room to layer preview on mobile"
+  canvas=mobile.locator("#fjordReviewCanvas")
+  original=canvas.evaluate("el=>el.toDataURL()")
+  mobile.locator("#fjordReviewZoomIn").evaluate("el=>el.click()")
+  zoomed=canvas.evaluate("el=>el.toDataURL()")
+  assert original!=zoomed,"Mobile preview zoom should visually alter the toolpath canvas"
+  mobile.locator("#fjordReviewPrevious").evaluate("el=>el.click()")
+  assert "1 / 2" in mobile.locator("#fjordReviewLabel").inner_text()
+  mobile.locator("#fjordReviewNext").evaluate("el=>el.click()")
+  assert "2 / 2" in mobile.locator("#fjordReviewLabel").inner_text()
+  mobile.locator("#fjordReviewRedo").evaluate("el=>el.click()")
+  assert mobile.locator("#fjordSliceReview").is_hidden()
+  assert mobile.locator("#fjordAutoForm").is_visible(),"Edit and re-slice must restore accessible profiles"
+  assert not mobile_errors,mobile_errors
+  mobile.close()
   browser.close()
- print("OK: first-time profile choice and remembered one-click slice/upload (without print start)")
+ print("OK: verified toolpath review before explicit upload; remembered profiles still require approval")
 finally:
  server.terminate()
  try:server.wait(timeout=5)
