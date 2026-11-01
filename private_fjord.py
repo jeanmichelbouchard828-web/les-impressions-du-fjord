@@ -872,6 +872,26 @@ if(fjordAutoButton){
 #fjordSliceReview{border-top:1px solid #4c7388;margin-top:9px;padding-top:8px}
 #fjordSliceReview h3{font-size:15px;margin:4px 0}
 .fjord-review-preview{position:relative;width:min(100%,420px);margin:10px auto}
+.fjord-review-mode{position:absolute;top:8px;left:8px;min-height:42px;min-width:56px;
+ background:#183c53eb;color:#fff;border:1px solid #9cbdd0;border-radius:9px;font-weight:800}
+.fjord-review-mode[aria-pressed=true]{border-color:#4de0bd;color:#bcffed}
+.fjord-review-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+.fjord-review-facts>div{background:#183c53;border:1px solid #43687b;padding:9px 7px;border-radius:10px}
+.fjord-review-facts span{display:block;font-size:11px;color:#b8d3e1}
+.fjord-review-facts strong{display:block;font-size:14px;color:#fff;overflow-wrap:anywhere;margin-top:4px}
+.fjord-review-price{border:1px solid #49ad96;border-radius:11px;padding:12px;background:#173d40;margin:9px 0}
+.fjord-review-price span{display:block;font-weight:700}
+.fjord-review-price>strong{display:block;font-size:27px;color:#b8ffe7;margin:4px 0}
+.fjord-review-price p{font-size:12px;color:#d0e5dc;margin:5px 0}
+.fjord-review-pricing{margin:8px 0;border:1px solid #48677d;padding:9px;border-radius:10px}
+.fjord-review-pricing summary{font-weight:700;cursor:pointer}
+.fjord-review-rategrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:9px 0}
+.fjord-review-rategrid label{font-size:12px;min-width:0}
+.fjord-review-rategrid input{width:100%;min-width:0;min-height:43px;padding:6px}
+#fjordReviewBreakdown{font-size:12px;color:#c6e3ed}
+#fjordReviewDownload{display:block;width:100%;min-height:48px;border:1px solid #6792af;
+ border-radius:10px;background:#17344b;color:#e2f5ff;margin:8px 0;padding:9px;font-weight:700}
+@media(max-width:390px){.fjord-review-facts strong{font-size:12px}}
 #fjordReviewCanvas{width:100%;height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;touch-action:none;user-select:none}
 .fjord-review-zoom{display:flex;position:absolute;right:8px;bottom:8px;gap:5px}
 .fjord-review-zoom button{min-width:45px;min-height:45px;color:#fff;background:#183c53ea;border:1px solid #8eb3c9;border-radius:9px;font-size:22px}
