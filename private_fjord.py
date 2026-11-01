@@ -1276,6 +1276,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           quantity INTEGER NOT NULL, unit_price NUMERIC(12,2) NOT NULL,
           shipping NUMERIC(12,2) NOT NULL DEFAULT 0, apply_taxes BOOLEAN NOT NULL DEFAULT FALSE,
           military_discount BOOLEAN NOT NULL DEFAULT FALSE,
+          atelier_preview BOOLEAN NOT NULL DEFAULT FALSE,
           model_id BIGINT REFERENCES private_models(id) ON DELETE SET NULL,
           preview BYTEA, preview_mime TEXT,
           grams DOUBLE PRECISION, hours DOUBLE PRECISION, filament_kg DOUBLE PRECISION,
@@ -1285,6 +1286,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           paid_at TIMESTAMPTZ,
           created TIMESTAMPTZ DEFAULT NOW())""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS military_discount BOOLEAN NOT NULL DEFAULT FALSE")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS atelier_preview BOOLEAN NOT NULL DEFAULT FALSE")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_status TEXT NOT NULL DEFAULT 'À traiter'")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_progress INTEGER NOT NULL DEFAULT 0")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS public_number TEXT")
@@ -1671,6 +1673,13 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         counters={k:sum(stage==k for stage in stages.values()) for k in ("attente","acceptees","payees","production","terminees")}
         interac_email=payment_setting["value"] if payment_setting else ""
         chosen=request.args.get("model_id","",type=str)
+        atelier_model=next((m for m in models if str(m["id"])==chosen),None)
+        from_atelier=bool(atelier_model and request.args.get("atelier")=="1")
+        atelier_material=request.args.get("material","PETG") if from_atelier else "PETG"
+        if atelier_material not in MATERIALS:atelier_material="PETG"
+        atelier_layer=request.args.get("layer","0.2") if from_atelier else "0.2"
+        if atelier_layer not in ("0.08","0.12","0.2","0.28"):atelier_layer="0.2"
+        atelier_colors=request.args.get("colors","") if from_atelier else ""
         request_id=request.args.get("request_id",type=int)
         incoming=None
         if request_id:
@@ -1750,16 +1759,18 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
 <p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
 <div class="card fj-card"><h2>Nouvelle soumission</h2>
+{% if from_atelier %}<p class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.{% if atelier_colors=='3mf' %} Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %} Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</p>{% endif %}
 <form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
+<input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
 <div class="fj-two">
 <label>Nom du client<input name="customer" maxlength="120" value="{{incoming.name if incoming else ''}}" required></label>
 <label>Adresse courriel<input type="email" name="email" maxlength="180" value="{{incoming.email if incoming else ''}}"></label>
 <label>Téléphone<input name="phone" maxlength="40" value="{{incoming.phone if incoming else ''}}"></label>
-<label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else ''}}" required></label>
+<label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else (atelier_model.name if from_atelier else '')}}" required></label>
 <label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
 <label>Couleur principale de l'aperçu<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
 <label>Couleur des autres pièces (STL multiparties)<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
-<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else 'PETG') %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
+<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else atelier_material) %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
 </div>
 <div class="fj-import-panel">
 <h3>🧊 Importer un modèle et calculer son prix</h3>
@@ -1774,7 +1785,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 </dialog>
 <label>Choisir un fichier STL ou 3MF déjà créé<input type="file" id="fjUpload" accept=".stl,.3mf"></label>
 <div class="fj-two">
-<label>Hauteur de couche<select id="fjLayer"><option value="0.08">0,08 mm — très fin</option><option value="0.12">0,12 mm — qualité</option><option value="0.2" selected>0,20 mm — standard</option><option value="0.28">0,28 mm — rapide</option></select></label>
+<label>Hauteur de couche<select id="fjLayer"><option value="0.08" {% if atelier_layer=='0.08' %}selected{% endif %}>0,08 mm — très fin</option><option value="0.12" {% if atelier_layer=='0.12' %}selected{% endif %}>0,12 mm — qualité</option><option value="0.2" {% if atelier_layer=='0.2' %}selected{% endif %}>0,20 mm — standard</option><option value="0.28" {% if atelier_layer=='0.28' %}selected{% endif %}>0,28 mm — rapide</option></select></label>
 <label>Remplissage<select id="fjInfill"><option value="10">10 %</option><option value="15">15 %</option><option value="18" selected>18 %</option><option value="20">20 %</option><option value="30">30 %</option><option value="40">40 %</option><option value="50">50 %</option><option value="75">75 %</option><option value="100">100 %</option></select></label>
 </div>
 <p role="status" id="fjEstimateStatus" class="fj-help">Sélectionne un modèle ou importe un fichier pour estimer le poids, le temps et le prix automatiquement.</p>
@@ -2011,11 +2022,13 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
    const src=selector.selectedOptions[0]?.dataset.preview||"";
    previewBox.hidden=true;
    if(src){
-     const primary=f.elements.namedItem("preview_color").value;
-     const secondary=f.elements.namedItem("preview_secondary").value;
-     image.src=src+"?primary="+encodeURIComponent(primary)+"&secondary="+encodeURIComponent(secondary);
-   }
-   else image.removeAttribute("src");
+     if(f.elements.namedItem("use_atelier_preview")?.value==="yes")image.src=src;
+     else{
+       const primary=f.elements.namedItem("preview_color").value;
+       const secondary=f.elements.namedItem("preview_secondary").value;
+       image.src=src+"?primary="+encodeURIComponent(primary)+"&secondary="+encodeURIComponent(secondary);
+     }
+   }else image.removeAttribute("src");
  }
  async function estimate(){
   const id=selector.value,serial=++requestNumber;
@@ -2050,7 +2063,11 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
  }
  selector.addEventListener("change",estimate);
  for(const field of ["preview_color","preview_secondary"]){
-   f.elements.namedItem(field).addEventListener("input",updateImage);
+   f.elements.namedItem(field).addEventListener("input",()=>{
+     const original=f.elements.namedItem("use_atelier_preview");
+     if(original)original.value="no"; // Custom recoloring requested by owner.
+     updateImage();
+   });
  }
  material.addEventListener("change",()=>{if(selector.value)estimate()});
  layer.addEventListener("change",()=>{if(selector.value)estimate()});
@@ -2186,7 +2203,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
  document.querySelectorAll('.fj-quote-card').forEach(card=>{card.hidden=selected!=='all' && card.dataset.stage!==selected});
 }));
 </script>""",models=models,quotes=quotes,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
-          money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email)
+          money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
+          from_atelier=from_atelier,atelier_model=atelier_model,atelier_material=atelier_material,
+          atelier_layer=atelier_layer,atelier_colors=atelier_colors)
 
 
 
@@ -2442,6 +2461,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         if unit>100000:abort(400)
         taxes=request.form.get("apply_taxes")=="yes"
         military_discount=request.form.get("military_discount")=="yes"
+        want_atelier_preview=request.form.get("use_atelier_preview")=="yes"
+        atelier_preview=False
         model_input=request.form.get("model_id","").strip()
         try:model_id=int(model_input) if model_input else None
         except ValueError:abort(400)
@@ -2451,6 +2472,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 model=c.execute("""SELECT preview,preview_mime,filename,filedata
                                    FROM private_models WHERE id=%s""",(model_id,)).fetchone()
                 if not model:abort(400,"Modèle introuvable")
+                if not preview and want_atelier_preview and model["preview"] and model["preview_mime"] in ("image/png","image/jpeg","image/webp"):
+                    preview=(model["preview_mime"],model["preview"])
+                    atelier_preview=True
                 if not preview and model["filename"].lower().endswith((".stl", ".3mf")):
                     try:preview=make_model_preview(model["filedata"],model["filename"],color=preview_color,secondary_color=preview_secondary)
                     except (ValueError, OverflowError):preview=None
@@ -2476,11 +2500,11 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
             next_number="FJ-{:05d}".format(last+1)
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
-                shipping,apply_taxes,military_discount,model_id,preview,preview_mime,grams,hours,filament_kg,
+                shipping,apply_taxes,military_discount,atelier_preview,model_id,preview,preview_mime,grams,hours,filament_kg,
                 machine_hour,setup_cost,markup,payment_token,public_number)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
-               int(quantity),unit,shipping,taxes,military_discount,model_id,
+               int(quantity),unit,shipping,taxes,military_discount,atelier_preview,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
                grams,hours,filament_kg,machine_hour,setup_cost,markup,
                secrets.token_urlsafe(32),next_number)).fetchone()
@@ -2802,7 +2826,7 @@ async function fjordCopy(id,button){
                 source=c.execute("SELECT filename,filedata,preview FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
             if source and source["filename"].lower().endswith((".stl",".3mf")):
                 old_preview=source["preview"]
-                if not quote_preview or (old_preview and bytes(quote_preview)==bytes(old_preview)):
+                if not quote_preview or (not q.get("atelier_preview") and old_preview and bytes(quote_preview)==bytes(old_preview)):
                     try:
                         fresh=make_model_preview(source["filedata"],source["filename"],size=(900,675))
                         if fresh:quote_preview=fresh[1]
