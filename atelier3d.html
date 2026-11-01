@@ -832,7 +832,9 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  .slice-float-header button{min-width:42px!important;min-height:42px!important}
  .fjord-slice-scroll{display:flex;flex:1 1 auto;flex-direction:column;
   padding:7px 11px 13px;overflow-y:auto!important;
-  touch-action:pan-y;overscroll-behavior:contain}
+  overscroll-behavior:contain}
+ #sliceLayerSlider,#sliceHeadSlider{touch-action:none!important;min-height:46px!important}
+ .fjord-slice-scroll .slice-mode-tabs button{min-height:48px!important}
  .fjord-slice-scroll .slice-results-top{order:0;margin:2px 0 8px}
  .fjord-slice-scroll .slice-mode-tabs{order:1;position:sticky;
   top:-7px;z-index:4;margin:4px 0 7px!important;background:var(--panel)}
