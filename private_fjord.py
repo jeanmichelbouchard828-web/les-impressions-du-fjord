@@ -86,6 +86,16 @@ def admin_studio(html, csrf_token):
         '⚙️ Administration</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + admin_shortcut, 1)
+    print_shortcut = (
+        '<a id="fjordPrintShortcut" href="/admin/atelier-imprimer" '
+        'title="Envoyer un fichier 3MF tranché et imprimer sur ma X2D" '
+        'style="display:inline-flex;align-items:center;justify-content:center;'
+        'min-height:40px;padding:8px 12px;border-radius:9px;'
+        'border:1px solid #68c4a4;background:#115f4e;color:#fff;'
+        'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
+        '🖨️ Imprimer sur ma X2D</a>'
+    )
+    html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + print_shortcut, 1)
     injection = r"""
 // Sauvegarde serveur des modèles du propriétaire; cet extrait n'est jamais servi au public.
 const privateSaveBtn=document.getElementById("fjordPrivateSave");
