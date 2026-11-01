@@ -49,7 +49,39 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,
 body.light .card,body.light .gallery-tile{background:#f2f9ff;border-color:#b0d7ea}
 @media(max-width:650px){header{padding:13px 4%}main{padding:20px 13px 55px}.card{padding:16px}}
 </style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+"""<style>
+FJORD_SITE_PREMIUM="""<style>
+/* Identité Fjord 2026 : présentation commune aux pages publiques et administratives */
+:root{--fjord-neon:#29bcff;--fjord-edge:#267fba}
+body:not(.light){background:radial-gradient(ellipse at 85% 0%,#10517a40,transparent 48%),linear-gradient(160deg,#040e1c 0%,#071a30 52%,#040f1f 100%)}
+header{position:relative;isolation:isolate;min-height:105px;padding:15px clamp(16px,3vw,50px);border-bottom:2px solid #128de2;background:linear-gradient(110deg,#030e1e 0%,#082b4b 60%,#041326 100%);box-shadow:0 9px 26px #0008}
+header:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.7;background:linear-gradient(133deg,transparent 0%,transparent 65%,#1177c033 66%,transparent 74%,#098ce02b 80%,transparent 89%)}
+header .brand{display:flex;align-items:center;gap:14px;max-width:100%;font-size:clamp(16px,2vw,25px);font-weight:950;font-style:italic;letter-spacing:.035em;color:#f4fbff;text-shadow:0 2px 1px #00101f,0 0 18px #138ad555}
+header .brand img{width:78px!important;height:78px!important;margin-right:0!important;filter:drop-shadow(0 0 9px #0db9ff66)}
+header nav{align-items:center;gap:8px 14px}
+header nav a{padding:9px 8px;border-radius:8px;font-weight:700;color:#c6eaff}
+header nav a:hover{background:#0c4774;color:#fff}
+header nav a[href="/atelier-3d"]{background:linear-gradient(125deg,#006db8,#159ce1);color:#fff;border:1px solid #65d8ff;box-shadow:0 0 15px #08a9ff44}
+.pref-controls select{border-color:#317aa8;background:#0a2139;color:#e5f8ff}
+main{max-width:1320px}
+.hero{padding:70px clamp(12px,3vw,35px);border-radius:20px;border:1px solid #1b6190;background:radial-gradient(ellipse at 80% 12%,#087ec65c,transparent 55%),linear-gradient(120deg,#071b32,#0a3150);box-shadow:0 16px 38px #0005}
+.hero h1{color:#fff;text-shadow:0 3px 18px #0008}
+.card,.gallery-tile,.tracking-billboard,.atelier-feature{border:1px solid #2783b7;box-shadow:0 10px 26px #0003}
+.card h2,.card h3{color:#eaf9ff}
+.btn{background:linear-gradient(115deg,#0879bf,#25c0f4);color:#fff;border:1px solid #70d9ff;box-shadow:0 4px 14px #006ca544;font-weight:800}
+.btn:hover{background:linear-gradient(115deg,#1195df,#5bd5fa)}
+.contact-section{padding:22px;border-radius:18px;border:1px solid #21577c;background:linear-gradient(120deg,#0c2339,#0c2c45)}
+footer{background:#050f1e}
+body.light header{background:linear-gradient(110deg,#e7f5ff,#c8eaff);border-bottom-color:#2589bd}
+body.light header .brand{color:#10314c;text-shadow:none}
+body.light header nav a{color:#154d70}
+body.light header nav a:hover{color:#fff}
+body.light .hero{background:linear-gradient(120deg,#e9f8ff,#b8e7ff);border-color:#77bce3}
+body.light .hero h1,body.light .card h2,body.light .card h3{color:#14354c;text-shadow:none}
+body.light .contact-section{background:#f1faff;border-color:#add6ec}
+@media(max-width:850px){header{min-height:0;gap:12px}header .brand{flex:1 1 100%}header nav{order:3;width:100%;justify-content:flex-start}header .brand img{width:57px!important;height:57px!important}.pref-controls{margin-left:auto}.hero{padding:32px 18px}}
+@media(max-width:480px){header nav{gap:3px 5px}header nav a{font-size:13px;padding:7px}header .brand{font-size:18px}.pref-controls select{min-width:0;max-width:115px}.contact-section{padding:15px}}
+</style>"""
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+"""<style>
 @media(max-width:650px){
  header nav{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
  header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
