@@ -276,9 +276,11 @@ class PrivateFjordTests(unittest.TestCase):
     def test_square_payment_link_validation_and_stale_amount_guard(self):
         self.assertEqual(_square_checkout_url("https://square.link/u/abc"),"https://square.link/u/abc")
         self.assertEqual(_square_checkout_url("https://checkout.square.site/abc"),"https://checkout.square.site/abc")
+        self.assertEqual(_square_checkout_url("https://buy.stripe.com/test_abc123"),"https://buy.stripe.com/test_abc123")
         for bad in ("http://square.link/u/abc", "https://square.link.evil.example/u/abc",
                     "https://square.link@evil.example/u/abc", "javascript:alert(1)",
-                    "https://square.link/", "https://square.link/u/abc#fragment"):
+                    "https://square.link/", "https://square.link/u/abc#fragment",
+                    "https://buy.stripe.com.evil.example/test_abc123"):
             self.assertIsNone(_square_checkout_url(bad), bad)
         q={"unit_price":20.0, "quantity":2, "shipping":5.0,
            "apply_taxes":False, "military_discount":False,
@@ -313,6 +315,17 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b"20,00",page.data)
         self.assertNotIn(b'id="payEmail"',page.data)
         self.assertEqual(page.headers["Cache-Control"],"no-store")
+
+    def test_stripe_checkout_link_is_accepted_for_exact_quote(self):
+        from private_fjord import _active_square_url, _payment_link_provider
+        q={"unit_price":28.59, "quantity":1, "shipping":0.0,
+           "apply_taxes":False, "military_discount":False,
+           "square_link_url":"https://buy.stripe.com/test_abc123",
+           "square_link_amount_cents":2859}
+        self.assertEqual(_active_square_url(q),"https://buy.stripe.com/test_abc123")
+        self.assertEqual(_payment_link_provider(q["square_link_url"]),"Stripe")
+        q["shipping"]=1.0
+        self.assertIsNone(_active_square_url(q))
 
     def test_public_payment_link_disabled_without_interac_address(self):
         self.assertEqual(self.client.get("/payer/" + "a" * 43).status_code, 404)
