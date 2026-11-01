@@ -134,9 +134,9 @@ def admin_studio(html, csrf_token):
             return ''.join(by_id.pop(key, '') for key in ids)
 
         primary = take(("new", "import", "save", "fjordPrivateImport",
-                        "fjordPrivateSave", "sliceTop"))
+                        "fjordPrivateSave", "sliceTop", "quote"))
         secondary = take(("open", "export", "exportColor3MF", "estimateToggle",
-                          "quote", "/admin/modeles", "/admin/profils-bambu", "/"))
+                          "/admin/modeles", "/admin/profils-bambu", "/"))
         secondary += ''.join(by_id.values())
         compact = (
             '<div class="fjord-admin-core" role="group" aria-label="Actions principales">' +
@@ -145,6 +145,8 @@ def admin_studio(html, csrf_token):
             '<div class="fjord-admin-more-menu">' + secondary + '</div></details>'
         )
         html = html[:menu.start(2)] + compact + html[menu.end(2):]
+        html = html.replace('<button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>',
+                            '<button id="quote" class="primary" title="Créer une soumission depuis le plateau">💰 Soumission PRO</button>', 1)
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
@@ -154,6 +156,7 @@ def admin_studio(html, csrf_token):
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
             + print_shortcut
+            + '<button type="button" id="fjordQuoteFromSlice" class="fjord-quote-from-slice">💰 Créer une soumission PRO</button>'
             + '<button type="button" hidden id="fjordAutoPrintLauncher" '
               'title="Préparer le tranchage Bambu Studio sur ma X2D"></button>'
             + '<p>Aperçu du plateau ci-dessus : estimation. '
@@ -188,43 +191,84 @@ def admin_studio(html, csrf_token):
 })();
 </script></body>""", 1)
     injection = r"""
-// Sauvegarde serveur des modèles du propriétaire; cet extrait n'est jamais servi au public.
+// Sauvegarde privee et creation directe de soumissions depuis l'Atelier.
 const privateSaveBtn=document.getElementById("fjordPrivateSave");
-if(privateSaveBtn)privateSaveBtn.addEventListener("click", async ()=>{
- if(!models.length){alert("Ajoute une pièce avant de sauvegarder.");return;}
- const suggested=models.length===1?models[0].name:"Projet 3D du Fjord";
- const name=prompt("Nom du modèle à sauvegarder dans ta bibliothèque :",suggested);
- if(!name || !name.trim())return;
- privateSaveBtn.disabled=true;privateSaveBtn.textContent="Enregistrement…";
+const fjordQuoteButton=document.getElementById("quote");
+const fjordSliceQuoteButton=document.getElementById("fjordQuoteFromSlice");
+let fjordSavingQuote=false;
+async function fjordSaveStudioModel(forQuote,button){
+ if(fjordSavingQuote)return;
+ if(!models.length){alert("Ajoute au moins une piece au plateau.");return;}
+ const suggestion=models.length===1?models[0].name:"Projet 3D du Fjord";
+ const name=prompt(forQuote?"Nom de la creation pour la soumission :":"Nom du modele a sauvegarder :",suggestion)?.trim().slice(0,120);
+ if(!name)return;
+ fjordSavingQuote=true;
+ const buttons=[privateSaveBtn,fjordQuoteButton,fjordSliceQuoteButton].filter(Boolean);
+ const oldNames=buttons.map(b=>b.textContent);
+ buttons.forEach(b=>b.disabled=true);
+ if(button)button.textContent="Preparation du modele…";
  try{
-   const group=new THREE.Group();
-   models.forEach(m=>{const clone=m.clone();clone.geometry=m.geometry;clone.material=m.material;group.add(clone)});
-   const binary=new STLExporter().parse(group,{binary:true});
-   const blob=new Blob([binary],{type:"application/octet-stream"});
-   if(blob.size>8*1024*1024)throw new Error("Modèle de plus de 8 Mo.");
-   // Capture le rendu actuel sans les aides de l'atelier.
-   const oldGrid=grid.visible,oldBorder=border.visible,oldHelp=transform.getHelper().visible;
-   grid.visible=false;border.visible=false;transform.getHelper().visible=false;
-   let imageData;
-   try{renderer.render(scene,camera);imageData=renderer.domElement.toDataURL("image/png")}
-   finally{grid.visible=oldGrid;border.visible=oldBorder;transform.getHelper().visible=oldHelp}
-   const form=new FormData();
-   form.append("csrf", __FJORD_CSRF__);
-   form.append("name",name.trim().slice(0,120));
-   form.append("model",blob,"Creation-du-Fjord.stl");
-   if(imageData&&imageData.startsWith("data:image/png;base64,")){
-     const image=await (await fetch(imageData)).blob();
-     if(image.size<4*1024*1024)form.append("preview",image,"apercu.png");
+  let blob=null,filename="Creation-du-Fjord.stl",colored=false;
+  if(forQuote){
+   try{
+    const result=makeColored3MF(THREE,models);
+    if(result.blob.size<=8*1024*1024){blob=result.blob;filename="Creation-du-Fjord-couleurs.3mf";colored=true}
+    else if(!confirm("Le 3MF avec couleurs depasse 8 Mo. Continuer avec STL (sans couleurs AMS, mais photo conservee)?"))return;
+   }catch(error){
+    if(!confirm("Le 3MF en couleurs ne peut pas etre produit : "+String(error?.message||error)+
+      ". Continuer avec STL (sans couleurs AMS, mais photo conservee)?"))return;
    }
-   const response=await fetch("/admin/modeles/api/save",{method:"POST",body:form,credentials:"same-origin"});
-   const result=await response.json();
-   if(!response.ok)throw new Error(result.error||"Sauvegarde impossible");
-   if(confirm("Modèle enregistré! Veux-tu préparer la soumission maintenant?"))
-      location.href="/admin/soumissions-pro?model_id="+encodeURIComponent(result.id);
-   else location.href="/admin/modeles";
- }catch(e){alert("Erreur : "+String(e.message||e))}
- finally{privateSaveBtn.disabled=false;privateSaveBtn.textContent="💾 Mes modèles (privé)"}
-});
+  }
+  if(!blob){
+   const group=new THREE.Group();
+   models.forEach(m=>{const c=m.clone();c.geometry=m.geometry;c.material=m.material;group.add(c)});
+   blob=new Blob([new STLExporter().parse(group,{binary:true})],{type:"model/stl"});
+  }
+  if(!blob.size||blob.size>8*1024*1024)throw Error("Fichier trop volumineux (maximum 8 Mo).");
+  const oldGrid=grid.visible,oldBorder=border.visible,oldHelper=transform.getHelper().visible;
+  grid.visible=false;border.visible=false;transform.getHelper().visible=false;
+  let imageData;
+  try{renderer.render(scene,camera);imageData=renderer.domElement.toDataURL("image/png")}
+  catch(error){console.warn("Apercu indisponible",error)}
+  finally{grid.visible=oldGrid;border.visible=oldBorder;transform.getHelper().visible=oldHelper;renderer.render(scene,camera)}
+  const form=new FormData();
+  form.append("csrf",__FJORD_CSRF__);form.append("name",name);
+  form.append("model",blob,filename);
+  if(forQuote)form.append("skip_duplicates","yes");
+  if(imageData?.startsWith("data:image/png;base64,")){
+   try{
+    const image=await(await fetch(imageData)).blob();
+    if(image.size<4*1024*1024)form.append("preview",image,"apercu-atelier.png");
+   }catch(error){console.warn("Photo indisponible",error)}
+  }
+  if(button)button.textContent="Enregistrement…";
+  const response=await fetch("/admin/modeles/api/save",{method:"POST",body:form,
+     credentials:"same-origin",headers:{"Accept":"application/json"}});
+  if(!(response.headers.get("content-type")||"").includes("application/json"))
+   throw Error("Reconnecte-toi : la session administrateur a expire.");
+  const result=await response.json();
+  if(!response.ok||!result.ok||!Number.isSafeInteger(Number(result.id))||Number(result.id)<1)
+   throw Error(result.error||"Enregistrement impossible.");
+  if(forQuote){
+   const params=new URLSearchParams({model_id:String(result.id),atelier:"1",colors:colored?"3mf":"stl"});
+   const material=document.getElementById("sliceMaterial")?.value||
+     document.getElementById("estimateMaterial")?.value||"PETG";
+   const layer=document.getElementById("sliceLayerHeight")?.value||"0.2";
+   if(["PLA","PETG","PETG-CF","ASA","TPU","Autre"].includes(material))params.set("material",material);
+   if(["0.08","0.12","0.2","0.28"].includes(layer))params.set("layer",layer);
+   location.assign("/admin/soumissions-pro?"+params+"#fjQuote");
+  }else if(confirm("Modele enregistre! Preparer une soumission maintenant?")){
+   location.assign("/admin/soumissions-pro?model_id="+encodeURIComponent(result.id)+"#fjQuote");
+  }else location.assign("/admin/modeles");
+ }catch(error){alert("Erreur : "+String(error.message||error))}
+ finally{fjordSavingQuote=false;buttons.forEach((b,i)=>{b.disabled=false;b.textContent=oldNames[i]})}
+}
+privateSaveBtn?.addEventListener("click",()=>fjordSaveStudioModel(false,privateSaveBtn));
+// Le bouton public Faire imprimer existe deja : interception avant son action.
+fjordQuoteButton?.addEventListener("click",event=>{
+ event.preventDefault();event.stopImmediatePropagation();fjordSaveStudioModel(true,fjordQuoteButton);
+},true);
+fjordSliceQuoteButton?.addEventListener("click",()=>fjordSaveStudioModel(true,fjordSliceQuoteButton));
 """.replace("__FJORD_CSRF__", json.dumps(csrf_token))
     open_model = r"""
 // Bibliothèque privée consultable sans quitter le plateau.
@@ -1126,6 +1170,12 @@ if(fjordAutoButton){
  .fjord-slice-print-entry #fjordPrintShortcut{width:100%;display:flex!important;min-height:51px!important;
   border-radius:10px!important;justify-content:center;font-weight:800;font-size:14px!important}
  .fjord-slice-print-entry #fjordAutoPrintLauncher{display:none!important}
+ .fjord-slice-print-entry .fjord-quote-from-slice{
+  width:100%;display:flex;justify-content:center;align-items:center;min-height:48px;
+  margin-top:9px;border:1px solid #6ac5ed;border-radius:10px;
+  background:#116b91;color:#fff;font-size:14px;font-weight:800
+ }
+ .fjord-slice-print-entry .fjord-quote-from-slice:disabled{opacity:.55;cursor:wait}
  .fjord-slice-print-entry p{font-size:11px;line-height:1.45;color:var(--muted);margin:8px 0 0}
 
 #fjordStartAtelier[hidden]{display:none!important}
