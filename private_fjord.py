@@ -231,7 +231,21 @@ if(savedModelId && /^[0-9]+$/.test(savedModelId)){
 
 
 def public_studio(html):
-    """Ne pas afficher les réglages de coût dans l'Atelier des visiteurs."""
+    """Hide private costs, while offering a sign-in route to the private Atelier."""
+    # The shortcut is public, but /admin/atelier-3d itself remains protected by
+    # admin_required. Signed-in admins go directly to the private editor; other
+    # visitors are sent to /admin/login?next=/admin/atelier-3d.
+    shortcut = (
+        '<a id="fjordAdminAccess" href="/admin/atelier-3d" '
+        'title="Ouvrir l’Atelier administrateur (connexion requise)" '
+        'style="display:inline-flex;align-items:center;justify-content:center;'
+        'min-height:40px;padding:8px 12px;border-radius:9px;'
+        'border:1px solid #67b0d9;background:#11577e;color:#fff;'
+        'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
+        '⚙️ Administration</a>'
+    )
+    html = html.replace('<div class="top-preferences">',
+                        '<div class="top-preferences">' + shortcut, 1)
     style = """<style>
     #estimatePanel details:has(#estimateKg), #estimateBreakdown,
     #sliceMaterialCostValue, #sliceMachineCostValue, #sliceSetupMarkupValue,
