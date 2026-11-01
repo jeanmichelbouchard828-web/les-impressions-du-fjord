@@ -3,7 +3,7 @@ import io
 import json
 import unittest
 import zipfile
-from bambu_presets import parse_bambu_presets, PresetImportError
+from bambu_presets import parse_bambu_presets, PresetImportError, profile_tier, PREFERRED_SIGNATURES, ALTERNATIVE_SIGNATURES
 
 def zip_bundle(data):
     buffer = io.BytesIO()
@@ -13,6 +13,15 @@ def zip_bundle(data):
     return buffer.getvalue()
 
 class BambuPresetTests(unittest.TestCase):
+    def test_curated_library_labels_are_non_destructive(self):
+        self.assertEqual(len(PREFERRED_SIGNATURES),10)
+        self.assertEqual(len(ALTERNATIVE_SIGNATURES),6)
+        self.assertFalse(PREFERRED_SIGNATURES & ALTERNATIVE_SIGNATURES)
+        for s in PREFERRED_SIGNATURES:self.assertEqual(profile_tier(s),"essentiel")
+        for s in ALTERNATIVE_SIGNATURES:self.assertEqual(profile_tier(s),"alternative")
+        self.assertEqual(profile_tier("0"*64),"archive")
+        self.assertEqual(profile_tier(""),"archive")
+
     def test_single_filament_json(self):
         raw=json.dumps({"name":"PETG CF noir","type":"filament","filament_flow_ratio":["0.96"],
                         "nozzle_temperature":["240"],"inherits":"Generic PETG"}).encode()
