@@ -6,6 +6,7 @@ prepare/upload a machine-ready 3MF, but it NEVER starts the printer.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -14,8 +15,11 @@ import tempfile
 import threading
 from pathlib import Path
 
+LOG = logging.getLogger('fjord.bambu_slicer')
+
 MAX_STL = 8 * 1024 * 1024
 MAX_3MF = 30 * 1024 * 1024
+OUTPUT_NAME = 'x2d_tranche.gcode.3mf'
 _SLICING_SLOT = threading.BoundedSemaphore(1)
 
 
@@ -66,6 +70,38 @@ def full_preset(raw, category):
     return data
 
 
+
+def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> str:
+    """Classify CLI failures without exposing raw output or secrets in the UI."""
+    message = output.decode("utf-8", "replace")[-16000:].lower()
+    if exit_code < 0:
+        return "Le moteur Bambu Studio s’est arrêté anormalement (signal {}).".format(-exit_code)
+    if any(term in message for term in ("unknown option", "unrecognized option", "unrecognised option")):
+        return "Bambu Studio a refusé un paramètre de commande."
+    if any(term in message for term in ("preset", "filament", "config", "machine settings", "process settings")):
+        return "Bambu Studio a signalé un problème de compatibilité ou de contenu des profils choisis."
+    if exit_code != 0:
+        return "Le moteur Bambu Studio a interrompu le tranchage (code {}).".format(exit_code)
+    if not output_exists:
+        return "Bambu Studio a terminé sans produire le 3MF tranché attendu."
+    return "Le tranchage Bambu Studio n’a pas produit un résultat exploitable."
+
+
+def _log_failure(output: bytes, exit_code: int, output_exists: bool):
+    """Record minimal, scrubbed diagnostics in Railway logs only."""
+    lines = output.decode("utf-8", "replace")[-16000:].splitlines()
+    important = [line for line in lines if any(
+        word in line.lower() for word in ("error", "failed", "fatal", "invalid",
+                                          "config", "preset", "filament", "not found",
+                                          "could not", "unable", "exit")
+    )]
+    summary = " | ".join(important[-8:] if important else lines[-5:])
+    summary = re.sub(r"https?://\S+", "[url]", summary)
+    summary = re.sub(r"(?:(?:/tmp|/app|/opt|/home)/[^\s;,]+)", "[chemin]", summary)
+    summary = re.sub(r"(?i)(token|bearer|password|secret|authorization)\s*[:=]\s*\S+", "[masqué]", summary)
+    LOG.warning("Bambu slicing failed: exit=%s, file_written=%s, diagnostics=%s",
+                exit_code, bool(output_exists), summary[:1300])
+
 def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
     """Return verified native sliced 3MF; fail closed before any network transfer.
 
@@ -92,7 +128,10 @@ def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
         filament = full_preset(presets.get("Filament"), "Filament")
         with tempfile.TemporaryDirectory(prefix="fjord_x2d_") as work:
             root = Path(work)
-            input_file, output_file = root / "atelier.stl", root / "x2d_tranche.3mf"
+            input_file = root / "atelier.stl"
+            output_dir = root / "resultats"
+            output_dir.mkdir(mode=0o700)
+            output_file = output_dir / OUTPUT_NAME
             input_file.write_bytes(stl)
             files = []
             for category, name, preset in (
@@ -104,11 +143,12 @@ def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
                 target.write_text(json.dumps(preset, ensure_ascii=False), encoding="utf-8")
                 files.append(target)
             args = [
-                cli, "--debug", "2", "--arrange", "1",
+                cli, "--debug", "3", "--arrange", "1",
                 "--load-settings", "{};{}".format(files[0], files[1]),
                 "--load-filaments", str(files[2]),
                 "--slice", "0",
-                "--export-3mf", str(output_file),
+                "--outputdir", str(output_dir),
+                "--export-3mf", OUTPUT_NAME,
                 str(input_file),
             ]
             try:
@@ -117,11 +157,16 @@ def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     env={**os.environ, "HOME": work},
                 )
-            except (OSError, subprocess.TimeoutExpired) as exc:
-                raise AutoSliceError("Le moteur Bambu Studio n'a pas terminé le tranchage.") from exc
+            except subprocess.TimeoutExpired as exc:
+                LOG.warning("Bambu CLI slicing timed out after 95 seconds")
+                raise AutoSliceError("Le tranchage a dépassé 95 secondes. Essaie une pièce plus simple.") from exc
+            except OSError as exc:
+                LOG.warning("Bambu CLI launch error: %s", type(exc).__name__)
+                raise AutoSliceError("Le moteur Bambu Studio n'a pas pu être lancé sur Railway.") from exc
             if result.returncode != 0 or not output_file.is_file():
+                _log_failure(result.stdout, result.returncode, output_file.is_file())
                 raise AutoSliceError(
-                    "Le tranchage Bambu Studio a échoué. Vérifie que les trois profils sont complets et compatibles."
+                    _safe_cli_diagnostic(result.stdout, result.returncode, output_file.is_file())
                 )
             if output_file.stat().st_size > MAX_3MF:
                 raise AutoSliceError("Le fichier tranché dépasse 30 Mo.")
