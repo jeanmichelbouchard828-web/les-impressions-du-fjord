@@ -309,7 +309,7 @@ class PrivateFjordTests(unittest.TestCase):
         page=app.test_client().get("/payer/"+"a"*43)
         self.assertEqual(page.status_code,200)
         self.assertIn(b"https://square.link/u/checkout42",page.data)
-        self.assertIn("Paiement sécurisé Square".encode("utf-8"),page.data)
+        self.assertIn("Carte bancaire".encode("utf-8"),page.data)
         self.assertIn(b"20,00",page.data)
         self.assertNotIn(b'id="payEmail"',page.data)
         self.assertEqual(page.headers["Cache-Control"],"no-store")
