@@ -313,6 +313,11 @@ if(fjordAutoButton){
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
  '<label>Filament<select name="filament" required></select></label>'+
+ '<section id="fjordMonoApproval" class="fjord-mono-approval" hidden>'+
+ '<strong>🎨 Plusieurs couleurs détectées sur ta création.</strong>'+
+ '<p>Le STL ne conserve pas la peinture AMS. Pour vérifier le tranchage, tu peux envoyer seulement la géométrie en <b>une couleur PETG</b>. Ta création peinte restera inchangée dans l’Atelier.</p>'+
+ '<label class="fjord-auto-remember"><input type="checkbox" id="fjordMonoConsent"> Je confirme : pour cet essai, trancher en UNE couleur, sans peinture ni couleurs AMS.</label>'+
+ '</section>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordAutoRemember" checked> Mémoriser ces profils après une préparation réussie</label>'+
  '<button id="fjordAutoSubmit" type="submit" disabled>▥ Trancher et voir les couches</button></form>'+
  '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
@@ -347,6 +352,8 @@ if(fjordAutoButton){
  const form=panel.querySelector('#fjordAutoForm');
  const submit=panel.querySelector('#fjordAutoSubmit');
  const remember=panel.querySelector('#fjordAutoRemember');
+ const monoWrap=panel.querySelector('#fjordMonoApproval');
+ const monoConsent=panel.querySelector('#fjordMonoConsent');
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
  const preferenceKey='fjord-x2d-profile-preferences-v1';
  let inventory=null,busy=false,opened=false,prepared=null,transferred=null,printerCanStart=false,printerPoll=null;
@@ -636,12 +643,55 @@ if(fjordAutoButton){
  panel.querySelector('#fjordAutoClose').addEventListener('click',()=>{if(!busy)panel.close()});
  panel.addEventListener('click',event=>{if(event.target===panel&&!busy)panel.close()});
  form.addEventListener('change',event=>{if(event.target?.tagName==='SELECT')invalidatePreview();updateReady();});
+ function modelHasColorChanges(mesh){
+  // Paint mode may create an empty face map and enable vertex colours even
+  // without applying a single paint stroke. That is not multicolour.
+  if(Array.isArray(mesh.material))return true;
+  if(mesh.userData?.fjordPaintFaces &&
+     Object.keys(mesh.userData.fjordPaintFaces).length>0)return true;
+  if(!mesh.material?.vertexColors)return false;
+  const attr=mesh.geometry?.getAttribute('color');
+  if(!attr)return false;
+  if(attr.itemSize<3||!attr.count)return true;
+  const r=attr.getX(0),g=attr.getY(0),b=attr.getZ(0);
+  if(![r,g,b].every(Number.isFinite))return true;
+  for(let i=1;i<attr.count;i++)
+   if(Math.abs(attr.getX(i)-r)>.002||
+      Math.abs(attr.getY(i)-g)>.002||
+      Math.abs(attr.getZ(i)-b)>.002)return true;
+  return false;
+ }
+ function actualModelColor(mesh){
+  if(mesh.material?.vertexColors){
+   const colors=mesh.geometry?.getAttribute('color');
+   if(colors?.count)return new THREE.Color().fromBufferAttribute(colors,0).getHex();
+  }
+  return basePartColor(mesh);
+ }
+ function hasMultipleSceneColors(){
+  const colors=new Set();
+  for(const mesh of models){
+   if(modelHasColorChanges(mesh))return true;
+   colors.add(actualModelColor(mesh));
+   if(colors.size>1)return true;
+  }
+  return false;
+ }
+ function updateMonoApproval(){
+  const multi=hasMultipleSceneColors();
+  monoWrap.hidden=!multi;
+  if(!multi)monoConsent.checked=false;
+  return multi;
+ }
+ monoConsent.addEventListener('change',()=>{
+  state.textContent=monoConsent.checked
+   ?'✓ Essai en une couleur : la géométrie sera tranchée sans transférer la peinture AMS.'
+   :'⚠ Cette création contient plusieurs couleurs. Coche le mode UNE couleur pour l’essai.';
+ });
  function ensureValidScene(){
   if(!models.length)throw Error('Ajoute une pièce au plateau.');
-  if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces))
-   throw Error('Pièce peinte ou multicolore : conserve les couleurs AMS en tranchant dans Bambu Studio.');
-  const colors=new Set(models.map(m=>basePartColor(m)));
-  if(colors.size>1)throw Error('Plusieurs couleurs : le STL ne les conserverait pas.');
+  if(updateMonoApproval()&&!monoConsent.checked)
+   throw Error('Plusieurs couleurs détectées : coche « Je confirme : pour cet essai, trancher en UNE couleur » ci-dessous, ou utilise Bambu Studio pour une impression multicolore AMS.');
   const extents=models.reduce((b,m)=>b.union(modelWorldBounds(m)),new THREE.Box3());
   const size=extents.getSize(new THREE.Vector3());
   if([size.x,size.y,size.z].some(n=>!Number.isFinite(n)||n<=0)||
@@ -720,6 +770,8 @@ if(fjordAutoButton){
   invalidatePreview();
   clearPrintScreen();
   stopPrinterPolling();
+  monoConsent.checked=false;
+  updateMonoApproval();
   try{
    const response=await fetch('/api/admin/atelier/impression-profils',{
     credentials:'same-origin',cache:'no-store'
@@ -808,6 +860,13 @@ if(fjordAutoButton){
  padding:8px 10px;background:#153b43;border-radius:7px;
  color:#d9f4e9;font-size:12px;line-height:1.45
 }
+#fjordMonoApproval[hidden]{display:none!important}
+#fjordMonoApproval{display:grid;gap:8px;padding:11px 12px;margin:9px 0;
+ border:1px solid #d49a48;border-radius:10px;background:#392d1c;color:#fff1da}
+#fjordMonoApproval strong{font-size:14px}
+#fjordMonoApproval p{margin:0;font-size:12px;line-height:1.5}
+#fjordMonoApproval label{font-size:13px;line-height:1.5}
+#fjordMonoApproval input[type=checkbox]{min-width:23px;min-height:23px}
 #fjordAutoPrintDialog.fjord-preview-active .fjord-auto-stock-note{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active .fjord-auto-intro{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active #fjordAutoState{margin:6px 0!important;font-size:12px}
