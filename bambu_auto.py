@@ -181,13 +181,18 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
         plate_temperatures = filament.get(temperature_key, [])
         if not isinstance(plate_temperatures, list):
             plate_temperatures = [plate_temperatures]
-        if plate_temperatures and all(
-            float(value) <= 0 for value in plate_temperatures
-        ):
-            raise AutoSliceError(
-                "Le profil filament ne permet pas l'impression sur cette plaque : "
-                + bed_type + ". Sélectionne une plaque compatible réellement installée."
-            )
+        if plate_temperatures:
+            try:
+                compatible = any(float(value) > 0 for value in plate_temperatures)
+            except (ValueError, TypeError, OverflowError) as exc:
+                raise AutoSliceError(
+                    "Température de plaque illisible dans le profil filament."
+                ) from exc
+            if not compatible:
+                raise AutoSliceError(
+                    "Le profil filament ne permet pas l'impression sur cette plaque : "
+                    + bed_type + ". Sélectionne une plaque compatible réellement installée."
+                )
         with tempfile.TemporaryDirectory(prefix="fjord_x2d_") as work:
             root = Path(work)
             input_file = root / "atelier.stl"
