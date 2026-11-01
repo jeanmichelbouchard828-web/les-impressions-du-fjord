@@ -136,8 +136,24 @@ def admin_studio(html, csrf_token):
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
-                            print_shortcut + '<button type="button" id="fjordAutoPrintLauncher" title="Trancher la création avec les profils Bambu X2D et transférer sur l imprimante">⚡ Préparer ma création</button>' + admin_shortcut +
+                            admin_shortcut +
                             '</div><div class="top-preferences">', 1)
+        # Print controls belong to the Slice panel, not the crowded header.
+        slice_entry = (
+            '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
+            + print_shortcut
+            + '<button type="button" hidden id="fjordAutoPrintLauncher" '
+              'title="Préparer le tranchage Bambu Studio sur ma X2D"></button>'
+            + '<p>Aperçu du plateau ci-dessus : estimation. '
+              'Pour préparer le vrai G-code Bambu, clique sur Imprimer sur ma X2D, '
+              'examine les couches et confirme l’envoi avant le démarrage.</p>'
+            + '</div>'
+        )
+        slice_location = '</div>\n</section>\n<div id="cutFloat"'
+        if slice_location not in html:
+            raise ValueError('Emplacement du bouton X2D dans le tranchage introuvable')
+        html = html.replace(slice_location, '</div>\n' + slice_entry +
+                            '\n</section>\n<div id="cutFloat"', 1)
         html = html.replace('<header>\n<div><div class="brand">🏔️ Atelier 3D du Fjord',
                             '<header class="fjord-admin-header">\n<div class="fjord-admin-brand">'
                             '<div class="brand">🏔️ Atelier 3D du Fjord', 1)
@@ -779,6 +795,12 @@ if(fjordAutoButton){
 #fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
 #fjordAutoPrintDialog{max-height:90dvh}
 #fjordAutoPrintDialog.fjord-print-ready #fjordAutoForm,#fjordAutoPrintDialog.fjord-print-ready #fjordSliceReview{display:none!important}
+ .fjord-slice-print-entry{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+ .fjord-slice-print-entry #fjordPrintShortcut{width:100%;display:flex!important;min-height:51px!important;
+  border-radius:10px!important;justify-content:center;font-weight:800;font-size:14px!important}
+ .fjord-slice-print-entry #fjordAutoPrintLauncher{display:none!important}
+ .fjord-slice-print-entry p{font-size:11px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+
 #fjordStartAtelier[hidden]{display:none!important}
 #fjordStartAtelier{border-top:1px solid #597e93;padding-top:14px;margin-top:12px;display:grid;gap:12px}
 #fjordStartAtelier h3{font-size:17px;margin:4px 0}
