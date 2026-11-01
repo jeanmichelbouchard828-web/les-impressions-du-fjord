@@ -95,6 +95,12 @@ try:
   state=page.evaluate("window.fjordMeasureDebug()")
   assert state["active"] and state["mode"]=="auto" and state["points"]==0,state
   assert "bord" in page.locator("#measureHint").inner_text()
+  assert page.locator("#fjordMeasureCircleQuick").get_attribute("aria-pressed")=="true"
+  page.locator("#fjordMeasureCircleQuick").evaluate("el=>el.click()")
+  assert not page.evaluate("window.fjordMeasureDebug().active"),"Second click should deactivate measure"
+  assert page.locator("#fjordMeasureCircleQuick").get_attribute("aria-pressed")=="false"
+  page.locator("#fjordMeasureCircleQuick").evaluate("el=>el.click()")
+  assert page.evaluate("window.fjordMeasureDebug().active")
   page.locator("#fjordMeasureMode").select_option("distance")
   state=page.evaluate("window.fjordMeasureDebug()")
   assert state["active"] and state["mode"]=="distance",state
