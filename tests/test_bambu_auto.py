@@ -80,6 +80,77 @@ class AutoTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
 
+    def test_profile_summary_avoids_leaking_slicer_machine_gcode(self):
+        class FakeDb:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def execute(self,query,args=None):
+                if "SELECT id,name,category,settings" in query:
+                    return self
+                raise AssertionError(query)
+            def fetchall(self):
+                return [
+                    {"id":11,"name":"X2D P0.4","category":"Imprimante",
+                     "settings":json.dumps(MACHINE)},
+                    {"id":12,"name":"0.20 mm","category":"Impression",
+                     "settings":json.dumps(PROCESS)},
+                    {"id":13,"name":"PLA 215","category":"Filament",
+                     "settings":json.dumps(FILAMENT)},
+                    {"id":14,"name":"partial","category":"Filament",
+                     "settings":'{"inherits":"Generic PLA"}'},
+                ]
+        app=Flask("x2d-summary")
+        app.secret_key="test"
+        register_printer_admin(app,lambda fn:fn,lambda:None,lambda:"",
+                               lambda title,html,**kw:render_template_string(html,**kw),
+                               db=FakeDb)
+        with patch("bambu_auto.cli_location",return_value="/opt/bambu"):
+            result=app.test_client().get("/api/admin/atelier/impression-profils")
+        self.assertEqual(result.status_code,200)
+        info=result.json
+        self.assertEqual(len(info["profiles"]["Filament"]),1)
+        self.assertEqual(info["profiles"]["Filament"][0]["material"],"PLA")
+        self.assertEqual(info["profiles"]["Imprimante"][0]["nozzle"],"0.4")
+        self.assertEqual(info["profiles"]["Impression"][0]["layer"],"0.2")
+        self.assertNotIn("machine_start_gcode",result.get_data(as_text=True))
+
+    def test_filament_mismatch_never_slices_or_uploads(self):
+        class FakeDb:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def execute(self,query,args=None):
+                assert "WHERE id = ANY" in query
+                return self
+            def fetchall(self):
+                return [
+                    {"id":11,"name":"X2D","category":"Imprimante",
+                     "settings":json.dumps(MACHINE)},
+                    {"id":12,"name":"Process","category":"Impression",
+                     "settings":json.dumps(PROCESS)},
+                    {"id":13,"name":"PETG","category":"Filament",
+                     "settings":json.dumps({**FILAMENT,"filament_type":["PETG"]})},
+                ]
+        app=Flask("x2d-material-guard")
+        app.secret_key="test"
+        app.config["TESTING"]=True
+        register_printer_admin(app,lambda fn:fn,lambda:None,lambda:"",
+                               lambda title,html,**kw:render_template_string(html,**kw),
+                               db=FakeDb)
+        with patch("bambu_auto.cli_location",return_value="/opt/bambu"), \
+             patch("fjord_printer._upload") as upload, \
+             patch("fjord_printer._status") as printer_status, \
+             patch("fjord_printer.slice_x2d",create=True) as slice_mock:
+            response=app.test_client().post("/admin/atelier-imprimer/preparer",
+                data={"stl":(io.BytesIO(stl()),"creation.stl"),"machine":"11",
+                      "process":"12","filament":"13","material":"PLA"},
+                headers={"Accept":"application/json"},content_type="multipart/form-data")
+            self.assertEqual(response.status_code,422,response.get_data(as_text=True))
+            self.assertFalse(response.json["ok"])
+            self.assertIn("incompatible",response.json["error"])
+            upload.assert_not_called()
+            printer_status.assert_not_called()
+            slice_mock.assert_not_called()
+
     def test_admin_auto_endpoint_only_when_engine_ready(self):
         app=Flask("x2d-auto")
         app.secret_key="test"
