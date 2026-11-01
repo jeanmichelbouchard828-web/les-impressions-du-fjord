@@ -13,6 +13,7 @@ import json
 import os
 import re
 import secrets
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -609,10 +610,17 @@ body.light .fj-print-hint{color:#496477!important}
             virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
             _upload(virtual_path, staged)
             consume_staged(token)
+            # Trust only the exact uploaded path returned by the printer.
+            # Token is session-bound, short-lived and consumed by start.
+            start_nonce = secrets.token_urlsafe(32)
+            session["fjord_atelier_start"] = {
+                "path": virtual_path, "nonce": start_nonce, "time": time.time()
+            }
             message = "3MF tranché envoyé. Vérifie les matériaux et le plateau avant le démarrage."
             next_page = url_for("fjord_printer_page", selected=virtual_path)
             if request.accept_mimetypes.best == "application/json":
-                response = jsonify(ok=True, file=virtual_path, next=next_page, message=message)
+                response = jsonify(ok=True, file=virtual_path, nonce=start_nonce,
+                                   next=next_page, message=message)
                 response.headers["Cache-Control"] = "no-store"
                 return response
             flash(message)
@@ -622,6 +630,63 @@ body.light .fj-print-hint{color:#496477!important}
                 return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
             return redirect(url_for("fjord_printer_page"))
+
+    @app.get("/api/admin/atelier/impression-etat")
+    @admin_required
+    def fjord_printer_atelier_status():
+        """Read-only status used by Atelier while reviewing or starting prints."""
+        try:
+            status = _status()
+            response = jsonify(ok=True, **{
+                "state": status["state"],
+                "progress": status["progress"],
+                "file": status["file"],
+                "can_start": status["can_start"]
+            })
+        except PrinterError as exc:
+            response = jsonify(ok=False, error=str(exc))
+            response.status_code = 503
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.post("/admin/atelier-imprimer/demarrer-atelier")
+    @admin_required
+    def fjord_printer_start_in_atelier():
+        """Explicit launch of *only* the 3MF transferred in this admin session."""
+        request.max_content_length = 128 * 1024
+        verify()
+        pending = session.pop("fjord_atelier_start", None)
+        if (not isinstance(pending, dict)
+            or not isinstance(request.form.get("nonce"), str)
+            or not secrets.compare_digest(str(pending.get("nonce", "")), request.form["nonce"])
+            or time.time() - float(pending.get("time", 0)) > 30 * 60):
+            return jsonify(ok=False, error="Confirmation expirée : renvoie le 3MF depuis l’Atelier."), 422
+        if request.form.get("verified") != "yes" or request.form.get("cleared") != "yes":
+            return jsonify(ok=False, error="Confirme le filament, le plateau et la surveillance avant le départ."), 422
+        path = pending.get("path")
+        if not _safe_virtual_path(path):
+            return jsonify(ok=False, error="Fichier à démarrer invalide."), 422
+        try:
+            status = _status()
+            if not status["can_start"]:
+                raise PrinterError("La X2D est occupée ou ne permet pas le démarrage.")
+            listed = _printer_files(_api("/files/list"))
+            if not any(item["path"] == path for item in listed):
+                raise PrinterError("Le fichier préparé n’est pas présent sur la X2D.")
+            response = _api("/start", method="POST", payload={
+                "Path": path, "Plate": 1, "UseAms": request.form.get("ams") == "yes"
+            }, timeout=15)
+            if response.get("VirtualPath") not in (None, path):
+                raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
+            result = jsonify(
+                ok=True,
+                message="Commande de démarrage acceptée. Vérifie le démarrage réel sur ta X2D.",
+                file=path
+            )
+            result.headers["Cache-Control"] = "no-store"
+            return result
+        except PrinterError as exc:
+            return jsonify(ok=False, error=str(exc)), 422
 
     @app.post("/admin/atelier-imprimer/envoyer")
     @admin_required
