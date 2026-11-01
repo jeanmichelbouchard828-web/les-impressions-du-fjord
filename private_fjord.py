@@ -3115,16 +3115,21 @@ function fjordCopyAll(button){
         cyan=colors.HexColor("#0697CE")
         gray=colors.HexColor("#44546B")
         pdf.setTitle("Soumission {} - Les Impressions du Fjord".format(display_number))
+        # En-tête Fjord : contraste élevé, logo officiel et accents cyan.
         pdf.setFillColor(navy);pdf.rect(0,h-154,w,154,stroke=0,fill=1)
+        pdf.setFillColor(colors.HexColor("#103A60"));pdf.roundRect(26,h-140,w-52,123,14,stroke=0,fill=1)
+        pdf.setFillColor(colors.HexColor("#146B9C"));pdf.roundRect(31,h-135,113,113,11,stroke=0,fill=1)
         if logo:
-            try:pdf.drawImage(ImageReader(io.BytesIO(logo)),39,h-134,105,105,mask="auto",preserveAspectRatio=True,anchor="c")
+            try:pdf.drawImage(ImageReader(io.BytesIO(logo)),36,h-130,103,103,mask="auto",preserveAspectRatio=True,anchor="c")
             except Exception:pass
-        pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",19)
-        pdf.drawString(156,h-71,"LES IMPRESSIONS DU FJORD")
+        pdf.setFillColor(colors.HexColor("#8FE4FF"));pdf.setFont("Helvetica-Bold",9)
+        pdf.drawString(161,h-47,"IMPRESSION 3D SUR MESURE")
+        pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",18)
+        pdf.drawString(160,h-72,"LES IMPRESSIONS DU FJORD")
         pdf.setFont("Helvetica",10)
-        pdf.drawString(157,h-92,"Impression 3D personnalisée  |  Saguenay, Québec")
-        pdf.drawString(157,h-110,"Téléphone : 581-998-0831")
-        pdf.setFillColor(cyan);pdf.rect(0,h-159,w,5,stroke=0,fill=1)
+        pdf.drawString(161,h-95,"Créations personnalisées  |  Saguenay, Québec")
+        pdf.drawString(161,h-113,"581-998-0831")
+        pdf.setFillColor(colors.HexColor("#36C5FF"));pdf.rect(0,h-160,w,6,stroke=0,fill=1)
         def line(text,x,y,font="Helvetica",size=11,color=gray,max_width=520):
             pdf.setFillColor(color);pdf.setFont(font,size)
             clean=str(text or "").replace("\n"," ").encode("cp1252","replace").decode("cp1252")
