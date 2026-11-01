@@ -22,6 +22,17 @@ MAX_TOTAL_UNCOMPRESSED = 18 * 1024 * 1024
 class PresetImportError(ValueError):
     pass
 
+
+# Library organization only; not a statement of physical print readiness.
+# SHA-256 identifies the exact curated file, not just a duplicated display name.
+PREFERRED_SIGNATURES = frozenset(['58c7e63222d6e385f1c1593b719eb64f5702b6e442d8f2024b27893b5f835961','7ddb9f098c5e32885486fb4fa0a85c3cafd6a5acd626cf4f9d089660e53e62e3','93b4bc654a12810eb25f985ba6bc9f0a5a8c4fafabec137089aaf26834bc0241','617c9203c46fa32894da5db5f1f750cae1b7f7039149f2d0c84b23a89db7fae4','c34bfaf76018ecbe30457639ff5753798e8341fff0043fcaaac361ce254e7aa1','70e50104183fb045e2bb6738ca4038a52ad9ed1e48628444763c4d6393cafcf4','2f585053861d2a91e497b419984f870cd6d5ce15ed6a95b514108702c16a4bb1','c4444b90cba97134be2ac2deb32ad8ae65dfd9798a561b4bdcb4894d8cc127db','95a25ef382a6c6db47588d91a7049b51e3ed7c9642ba47d8eb4cd790724fede8','5f9c096525ae9666559a4d1a51f8b8c8437b5e6d666a49d5132852499ea9d58c'])
+ALTERNATIVE_SIGNATURES = frozenset(['12e8c9fdf341cfb2ff5831968d515bd6bb39de40e94f362601c04f6b13f919cd','1e451aefcee77c06ac67128b51772b79f1a9a10bd15dd82ea6fbe1e195042958','a125956a1909701c4d405639dea0379db29a27e74aee9091da631f56b0a5dd6a','fecc557a6252b185032e598abbd47f2df79cfeaf980957d3bfecf64bc06b6ec2','622be63e2e98f687c710b0f45718f0c585a37e91fb4018e29b9c3701eae763a9','617f46444a1fc7f7132837f5287191cc22e66f6fa2308a64d2064bed567bece0'])
+
+def profile_tier(signature):
+    if signature in PREFERRED_SIGNATURES: return "essentiel"
+    if signature in ALTERNATIVE_SIGNATURES: return "alternative"
+    return "archive"
+
 def _category(data, path):
     # Bambu Studio filenames and export bundles are not uniform across versions.
     declared = str(data.get("type") or data.get("preset_type") or "").lower()
@@ -182,10 +193,16 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
                 if errors:
                     message += " Erreurs : " + "; ".join(errors[:8])
         with db() as c:
-            items = c.execute("""SELECT id,name,category,source_file,internal_path,imported_at
+            items = c.execute("""SELECT id,name,category,source_file,internal_path,signature,imported_at
               FROM bambu_user_presets ORDER BY id DESC LIMIT 1000""").fetchall()
             counts = c.execute("""SELECT category,COUNT(*) AS total FROM bambu_user_presets
               GROUP BY category ORDER BY category""").fetchall()
+        tiers = {"essentiel": 0, "alternative": 0, "archive": 0}
+        for item in items:
+            item["tier"] = profile_tier(item["signature"])
+            tiers[item["tier"]] += 1
+        items.sort(key=lambda item: ({"essentiel": 0, "alternative": 1, "archive": 2}[item["tier"]], item["name"].casefold()))
+        default_tier = "essentiel" if tiers["essentiel"] else "tous"
         return page("Profils Bambu Studio", r"""
 <h1>⚙️ Mes profils Bambu Studio</h1>
 <p><a class="btn" href="/admin/atelier-3d">↩ Retour à mon Atelier 3D</a></p>
@@ -200,24 +217,62 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
  <p class="muted small">Jusqu'à 15 fichiers à la fois, 8 Mo par fichier et 10 Mo au total par envoi. Tu peux recommencer autant de fois que nécessaire. Les doublons identiques sont ignorés.</p>
 </form>
 {% if message %}<p role="status" class="card">{{message}}</p>{% endif %}
-<h2>Profils conservés</h2>
+<h2>Mes profils classés</h2>
+<p>Ce classement facilite le choix : <strong>aucun profil d'imprimante ou ancien essai n'est effacé automatiquement.</strong> Les profils essentiels et alternatifs restent <strong>à vérifier dans Bambu Studio</strong> avant toute impression.</p>
+<p><strong>Essentiels : {{tiers.essentiel}}</strong> · Alternatives : {{tiers.alternative}} · Archives : {{tiers.archive}}</p>
 {% for item in counts %}<span style="display:inline-block;margin:4px;padding:8px;border:1px solid #5b8199;border-radius:8px">{{item.category}} : <strong>{{item.total}}</strong></span>{% endfor %}
 {% if items %}
+<div class="row" style="align-items:end;flex-wrap:wrap">
+<label style="min-width:180px">Afficher
+<select id="fjordBambuTier" aria-label="Filtrer les profils par classement">
+<option value="essentiel" {% if default_tier == 'essentiel' %}selected{% endif %}>⭐ Mes essentiels</option>
+<option value="alternative">🧪 Alternatives à tester</option>
+<option value="archive">📦 Archives / anciens essais</option>
+<option value="tous" {% if default_tier == 'tous' %}selected{% endif %}>Tous les profils</option>
+</select></label>
+<label style="min-width:230px;flex:1">Rechercher un profil
+<input id="fjordBambuSearch" type="search" placeholder="PETG, ASA, 0.12, SIGNATURE..." autocomplete="off">
+</label>
+</div>
+<p id="fjordBambuFilteredCount" role="status" aria-live="polite"></p>
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse">
-<thead><tr><th style="text-align:left">Profil</th><th>Catégorie</th><th>Fichier d'origine</th><th>Action</th></tr></thead>
+<thead><tr><th style="text-align:left">Profil</th><th>Classement</th><th>Catégorie</th><th>Fichier d'origine</th><th>Action</th></tr></thead>
 <tbody>
 {% for item in items %}
-<tr style="border-top:1px solid #56758c">
-<td style="padding:8px">{{item.name}}</td><td>{{item.category}}</td><td>{{item.source_file}}</td>
+<tr class="fjord-bambu-profile-row" data-tier="{{item.tier}}" data-name="{{item.name|lower}}" data-category="{{item.category|lower}}" style="border-top:1px solid #56758c">
+<td style="padding:8px">{{item.name}}</td>
+<td>{% if item.tier == 'essentiel' %}⭐ Essentiel (à vérifier){% elif item.tier == 'alternative' %}🧪 Alternative{% else %}📦 Archive{% endif %}</td>
+<td>{{item.category}}</td><td>{{item.source_file}}</td>
 <td><a href="/admin/profils-bambu/{{item.id}}.json">JSON</a>
 <form style="display:inline" method="post" action="/admin/profils-bambu/{{item.id}}/supprimer" onsubmit="return confirm('Supprimer ce profil archivé ?')">
 {{csrf_field|safe}}<button type="submit" aria-label="Supprimer {{item.name}}">✕</button>
 </form></td>
 </tr>{% endfor %}</tbody>
 </table></div>
+<script>
+(function(){
+ const tier=document.getElementById("fjordBambuTier");
+ const query=document.getElementById("fjordBambuSearch");
+ const output=document.getElementById("fjordBambuFilteredCount");
+ const rows=Array.from(document.querySelectorAll(".fjord-bambu-profile-row"));
+ function filter(){
+   const kind=tier.value;
+   const needle=query.value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+   let shown=0;
+   rows.forEach(row=>{
+     const content=(row.dataset.name+" "+row.dataset.category).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+     const visible=(kind==="tous"||row.dataset.tier===kind)&&(!needle||content.includes(needle));
+     row.hidden=!visible;if(visible)shown++;
+   });
+   output.textContent=shown+" profil(s) affiché(s) sur "+rows.length+".";
+ }
+ tier.addEventListener("change",filter);query.addEventListener("input",filter);filter();
+})();
+</script>
+<style>.fjord-bambu-profile-row[hidden]{display:none!important}</style>
 {% else %}<p>Ta bibliothèque de profils est vide pour le moment.</p>{% endif %}
-""", csrf_field=csrfinput(), message=message, counts=counts, items=items)
+""", csrf_field=csrfinput(), message=message, counts=counts, items=items, tiers=tiers, default_tier=default_tier)
 
     @app.get("/admin/profils-bambu/<int:profile_id>.json")
     @admin_required
