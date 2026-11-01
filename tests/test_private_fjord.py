@@ -101,6 +101,14 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn('class="fjord-admin-more"', admin)
         self.assertIn('/static/atelier_admin_header.css', admin)
         self.assertIn('class="fjord-admin-links"', admin)
+        self.assertIn('id="fjordAdminModeBanner"', admin)
+        self.assertIn('🔒 ADMINISTRATEUR', admin)
+        self.assertIn('id="fjordPublicAtelierShortcut" href="/atelier-3d"', admin)
+        self.assertNotIn('fjordAdminModeBanner', public)
+        self.assertIn('function fjordSaveStudioModel(forQuote,button)', admin)
+        self.assertIn('makeColored3MF(THREE,models)', admin)
+        self.assertIn('/admin/soumissions-pro?', admin)
+        self.assertEqual(admin.count('id="fjordQuoteFromSlice"'), 1)
         for control in (
             "projectMenuButton", "new", "open", "import", "save",
             "export", "exportColor3MF", "sliceTop", "estimateToggle",
