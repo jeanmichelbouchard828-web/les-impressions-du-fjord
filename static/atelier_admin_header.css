@@ -218,7 +218,10 @@ header.fjord-admin-header{
  }
  .fjord-admin-header .fjord-admin-mode-badge{
   display:inline-flex!important;padding:2px 4px!important;
-  font-size:9px!important;line-height:1.1!important;letter-spacing:0!important;
+  font-size:0!important;line-height:1.1!important;letter-spacing:0!important;
+ }
+ .fjord-admin-header .fjord-admin-mode-badge::after{
+  content:"🔒 ADMIN";font-size:9px!important;font-weight:900;white-space:nowrap;
  }
 }
 @media(max-width:350px){
