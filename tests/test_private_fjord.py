@@ -91,6 +91,31 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertLess(public.index('fjordAdminAccess'), public.index('id="theme"'))
         self.assertEqual(public.count('fjordAdminAccess'), 1)
 
+    def test_admin_header_is_compact_and_keeps_all_original_controls(self):
+        with open("atelier3d.html", encoding="utf-8") as source:
+            original = source.read()
+        admin = admin_studio(original, "testtoken")
+        public = public_studio(original)
+        self.assertIn('class="fjord-admin-header"', admin)
+        self.assertIn('class="fjord-admin-core"', admin)
+        self.assertIn('class="fjord-admin-more"', admin)
+        self.assertIn('/static/atelier_admin_header.css', admin)
+        self.assertIn('class="fjord-admin-links"', admin)
+        for control in (
+            "projectMenuButton", "new", "open", "import", "save",
+            "export", "exportColor3MF", "sliceTop", "estimateToggle",
+            "quote", "fjordPrivateImport", "fjordPrivateSave",
+            "fjordPrintShortcut", "fjordAdminShortcut"
+        ):
+            self.assertEqual(admin.count('id="' + control + '"'), 1, control)
+        for ref in ("/admin/modeles", "/admin/profils-bambu"):
+            self.assertIn('href="' + ref + '"', admin)
+        self.assertLess(admin.index('id="fjordPrintShortcut"'),
+                        admin.index('id="fjordAdminShortcut"'))
+        self.assertNotIn('fjord-admin-header', public)
+        self.assertNotIn('fjord-admin-core', public)
+        self.assertNotIn('fjordPrintShortcut', public)
+
     def test_library_page_links_to_atelier_for_3mf(self):
         class ModelConnection(DummyConnection):
             def fetchall(self):
