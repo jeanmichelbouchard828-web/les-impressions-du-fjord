@@ -49,7 +49,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,
 body.light .card,body.light .gallery-tile{background:#f2f9ff;border-color:#b0d7ea}
 @media(max-width:650px){header{padding:13px 4%}main{padding:20px 13px 55px}.card{padding:16px}}
 </style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+"""<style>
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+"""<style>
 @media(max-width:650px){
  header nav{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
  header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
