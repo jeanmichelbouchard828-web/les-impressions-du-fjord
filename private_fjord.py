@@ -328,7 +328,7 @@ if(fjordAutoButton){
  '</section>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordAutoRemember" checked> Mémoriser ces profils après une préparation réussie</label>'+
  '<button id="fjordAutoSubmit" type="submit" disabled>▥ Trancher et voir les couches</button></form>'+
- '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
+ '<section id="fjordSliceReview" tabindex="-1" hidden aria-label="Aperçu des couches réellement tranchées">'+
  '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
  '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
  '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue pivotable en 3D du G-code tranché, un doigt pour tourner et deux doigts pour zoomer ou déplacer."></canvas>'+
@@ -953,7 +953,8 @@ if(fjordAutoButton){
    panel.querySelector('#fjordReviewTransfer').disabled=false;
    state.textContent='✓ Tranchage terminé. Inspecte le résultat avant d’envoyer.';
    drawBambuReview();
-   // The first visible content on mobile is now the result, not settings.
+   // Move focus away from the hidden submit button directly to the preview.
+   review.focus({preventScroll:true});
    panel.scrollTop=0;
    requestAnimationFrame(()=>{if(panel.open&&prepared)panel.scrollTop=0;});
   }catch(error){
@@ -1104,6 +1105,7 @@ if(fjordAutoButton){
 #fjordMonoApproval p{margin:0;font-size:12px;line-height:1.5}
 #fjordMonoApproval label{font-size:13px;line-height:1.5}
 #fjordMonoApproval input[type=checkbox]{min-width:23px;min-height:23px}
+#fjordAutoPrintDialog.fjord-preview-active #fjordAutoForm{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active .fjord-auto-stock-note{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active .fjord-auto-intro{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active #fjordAutoState{margin:6px 0!important;font-size:12px}
