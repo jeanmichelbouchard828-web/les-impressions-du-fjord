@@ -125,7 +125,7 @@ class StockTests(unittest.TestCase):
             values={"stl":(io.BytesIO(mock_stl),"cube.stl"),
                 "machine":"stock:machine:x2d04",
                 "process":"stock:process:020",
-                "filament":"stock:filament:PETG","material":"PETG"}
+                "filament":"stock:filament:PETG","material":"PETG","bed_type":"Textured PEI Plate"}
             result=client.post("/admin/atelier-imprimer/preparer",data=values,
                                headers={"Accept":"application/json"})
             self.assertEqual(result.status_code,422)
@@ -136,7 +136,7 @@ class StockTests(unittest.TestCase):
                 "stl":(io.BytesIO(mock_stl),"cube.stl"),
                 "machine":"stock:machine:not-real",
                 "process":"stock:process:020",
-                "filament":"stock:filament:PETG","material":"PETG"},
+                "filament":"stock:filament:PETG","material":"PETG","bed_type":"Textured PEI Plate"},
                 headers={"Accept":"application/json"})
             self.assertEqual(invalid.status_code,422)
             self.assertEqual(slicer.call_count,1)
