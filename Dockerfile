@@ -21,8 +21,9 @@ RUN mkdir -p /opt/bambu && \
     chmod 755 /usr/local/bin/bambu-studio
 ENV BAMBU_STUDIO_CLI=/usr/local/bin/bambu-studio
 # Fail deployment rather than falsely report an unusable Bambu slicer.
-RUN timeout 30 /usr/local/bin/bambu-studio --help >/tmp/bambu-help.log 2>&1 && \
-    grep -q -- '--slice' /tmp/bambu-help.log && rm /tmp/bambu-help.log
+RUN ( timeout 30 /usr/local/bin/bambu-studio --help >/tmp/bambu-help.log 2>&1 && \
+      grep -q -- '--slice' /tmp/bambu-help.log ) || ( cat /tmp/bambu-help.log; exit 1 ); \
+    rm -f /tmp/bambu-help.log
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py atelier3d.html ./
