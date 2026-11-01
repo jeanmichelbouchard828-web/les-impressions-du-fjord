@@ -95,6 +95,11 @@ class AutoTests(unittest.TestCase):
             with patch("bambu_auto.subprocess.run",return_value=failed):
                 with self.assertRaisesRegex(AutoSliceError,"profils choisis"):
                     slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
+            missing=subprocess.CompletedProcess([],127,
+                b"error while loading shared libraries: libwebkit2gtk-4.1.so.0: cannot open shared object file")
+            with patch("bambu_auto.subprocess.run",return_value=missing):
+                with self.assertRaisesRegex(AutoSliceError,"libwebkit2gtk-4.1.so.0"):
+                    slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
             crashed=subprocess.CompletedProcess([],-11,b"segmentation fault")
             with patch("bambu_auto.subprocess.run",return_value=crashed):
                 with self.assertRaisesRegex(AutoSliceError,"signal 11"):
