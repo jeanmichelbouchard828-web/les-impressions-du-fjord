@@ -1883,6 +1883,31 @@ body.light .fj-square-section>summary{background:#e1f2f8}
 }
 
 </style>
+<style>
+/* Soumission Pro : déclinaison du tableau de bord Fjord */
+.fj-pro-hero{position:relative;overflow:hidden;padding:24px 28px;margin:0 0 20px;border:1px solid #2baaf0;border-radius:17px;background:linear-gradient(115deg,#061427,#0b385e 65%,#086aa4);box-shadow:0 10px 28px #0005}
+.fj-pro-hero:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.45;background:linear-gradient(145deg,transparent 72%,#32c7ff44 73%,transparent 78%)}
+.fj-pro-hero .fjord-pro-label{font-size:11px;letter-spacing:.23em;font-weight:850;color:#83ddff}
+.fj-pro-hero h2{margin:7px 0;font-size:clamp(24px,3vw,35px);line-height:1.13;color:white;text-shadow:0 3px 15px #0008}
+.fj-pro-hero h2 span{color:#39c5ff}
+.fj-pro-hero p{margin:0;color:#c5eaff;font-size:14px}
+.fj-quote-card{border:1px solid #247bb6!important;border-radius:16px!important;background:linear-gradient(140deg,#102b46,#081c31)!important;box-shadow:0 12px 26px #0004}
+.fj-quote-card h3{color:#fff}
+.fj-quote-card>.eyebrow{color:#74d8ff;font-weight:850}
+.fj-quote-total{padding:15px;border:1px solid #2087c8;border-radius:12px;background:linear-gradient(115deg,#10334f,#086ca3)}
+.fj-quote-total strong{color:#b0eeff}
+.fj-top-panel,.fj-card-section{border-radius:14px;border-color:#2977ac;overflow:hidden}
+.fj-top-panel>summary,.fj-card-section>summary{background:#113653}
+.fj-status-btn{border-radius:11px;border-color:#277bb1;background:#102e49}
+.fj-status-btn.active{background:linear-gradient(110deg,#075b99,#148dcc)}
+.fj-quick-actions .btn{border-radius:10px}
+body.light .fj-quote-card{background:#f2f9ff!important;border-color:#92c7e7!important}
+body.light .fj-quote-card h3{color:#133e5c}
+body.light .fj-quote-total{background:#e3f5ff}
+body.light .fj-quote-total strong{color:#07608e}
+@media(max-width:650px){.fj-pro-hero{padding:17px}.fj-quote-card{padding:14px}}
+</style>
+<section class="fj-pro-hero" aria-label="Les Impressions du Fjord"><div class="fjord-pro-label">IMPRESSION 3D SUR MESURE · SAGUENAY</div><h2>🏔️ LES IMPRESSIONS <span>DU FJORD</span></h2><p>Soumissions · Aperçus 3D · Paiements sécurisés</p></section>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
 <div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
 <p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
