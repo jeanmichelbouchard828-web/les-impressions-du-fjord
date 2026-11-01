@@ -641,7 +641,30 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-paint-view-button:hover,.fjord-paint-view-button.active{
  background:#076a97!important;border-color:#a4e6ff!important;color:#fff!important}
 
+/* Distance et cercle mesurés via le même outil Mesure. */
+.fjord-measure-workspace{margin:11px 0 14px;padding:13px;border:1px solid var(--border);border-radius:11px;background:var(--field);display:grid;gap:9px}
+.fjord-measure-workspace label{font-size:12px;font-weight:800;color:var(--text)}
+.fjord-measure-workspace select{width:100%;min-height:42px;padding:8px 9px;font-size:13px}
+.fjord-measure-workspace #measureHint{font-size:12px;line-height:1.5;color:var(--accent);margin:2px 0}
+.fjord-measure-result{padding:11px;border-radius:9px;border:1px solid #4a99c3;background:#102c41;color:#eaf7ff}
+.fjord-measure-result[hidden],.fjord-measure-values[hidden],#fjordMeasureDistanceValue[hidden]{display:none!important}
+.fjord-measure-result-heading{font-size:12px;color:#a9d7ed;margin-bottom:8px;font-weight:700}
+.fjord-measure-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.fjord-measure-values>div{padding:9px;background:#1b4460;border-radius:7px;min-width:0}
+.fjord-measure-values span{display:block;font-size:11px;color:#cae6f4}
+.fjord-measure-values strong{font-size:18px;color:#fff;font-weight:850;line-height:1.45;overflow-wrap:anywhere}
+#fjordMeasureDistanceValue{font-size:17px;font-weight:800;color:#fff;margin:0}
+.fjord-measure-disclaimer{font-size:11px;line-height:1.5;color:var(--muted);margin:0}
+#fjordMeasureClear{min-height:38px;width:100%;font-size:12px}
+#fjordMeasureCircleQuick{border:1px solid #478ba8}
+body.light .fjord-measure-result{background:#e6f5fd;color:#124665}
+body.light .fjord-measure-result-heading{color:#26566f}
+body.light .fjord-measure-values>div{background:#d2e9f7}
+body.light .fjord-measure-values span{color:#29576f}
+body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{color:#0f4b6b}
+
 </style>
+<script src="/static/fjord_measure_circle.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
 <header>
@@ -689,6 +712,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   <button data-fjord-tool="rotate" title="Pivoter"><span>⟳</span><em>Pivoter</em></button>
   <button data-fjord-tool="duplicate" title="Multi / Dupliquer"><span>▢</span><em>Multi</em></button>
   <button data-fjord-tool="measure" title="Règle"><span>📏</span><em>Règle</em></button>
+<button type="button" id="fjordMeasureCircleQuick" title="Rayon et diamètre : 3 points du même contour circulaire"><span>◎</span><em>Rayon / Ø</em></button>
   <button data-fjord-tool="centerXY" title="Accroche et centrage"><span>⊕</span><em>Accroche et centrage</em></button>
   <button data-fjord-tool="cutZ" title="Vue de coupe"><span>⬡</span><em>Vue de coupe</em></button>
   <button data-fjord-tool="dropToBed" title="Niveau"><span>▱</span><em>Niveau</em></button>
@@ -814,7 +838,25 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="remove" data-i18n="remove">Supprimer</button><button id="undo" data-i18n="undo">↶ Annuler</button>
 <button id="redo" data-i18n="redo">↷ Rétablir</button>
 <button id="resetProject" data-i18n="resetProject">⟲ Réinitialiser</button>
-<button id="measure" class="tool-btn" data-i18n="measure">📏 Mesurer</button></div><p id="measureHint" class="tool-note" data-i18n="measureHint">Cliquez deux points sur la pièce pour mesurer la distance.</p><div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
+<button id="measure" class="tool-btn" data-i18n="measure">📏 Mesurer</button></div>
+<div id="fjordMeasureWorkspace" class="fjord-measure-workspace">
+<label for="fjordMeasureMode">Type de mesure</label>
+<select id="fjordMeasureMode" aria-label="Type de mesure 3D">
+<option value="distance">📏 Distance · 2 points</option>
+<option value="circle">◎ Rayon + diamètre · 3 points</option>
+</select>
+<p id="measureHint" class="tool-note" role="status" aria-live="polite">Sélectionne Mesurer, puis clique deux points sur la pièce.</p>
+<div id="fjordMeasureResults" class="fjord-measure-result" hidden aria-live="polite">
+<div id="fjordMeasureResultHeading" class="fjord-measure-result-heading">Résultat</div>
+<div id="fjordMeasureCircleValues" class="fjord-measure-values" hidden>
+<div><span>Rayon</span><strong id="fjordMeasureRadius">—</strong></div>
+<div><span>Diamètre</span><strong id="fjordMeasureDiameter">—</strong></div>
+</div>
+<p id="fjordMeasureDistanceValue" hidden></p>
+</div>
+<p class="fjord-measure-disclaimer">Rayon et diamètre <strong>estimés avec trois points du même contour circulaire</strong>. Les STL sont faits de facettes : vérifie les cotes critiques au pied à coulisse.</p>
+<button id="fjordMeasureClear" type="button" title="Effacer les repères de mesure">✕ Effacer la mesure</button>
+</div><div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
 </div></section>
 <section data-tool-panel="size"><h3 data-i18n="toolSize">Taille rapide</h3><div class="tools"><button id="half" data-i18n="half">½ Réduire</button><button id="double" data-i18n="double">×2 Agrandir</button>
 <button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
