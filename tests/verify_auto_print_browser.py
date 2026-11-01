@@ -89,6 +89,46 @@ try:
   assert len(transfers)==2
   assert all(b'name="material"' in (chunk or b"") for chunk in slices)
   assert not errors,errors
+
+  # Mobile review uses a true full-height sheet, accessible layer controls,
+  # and finger-friendly zoom without uploading before approval.
+  mobile=browser.new_page(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+  mobile_errors=[]
+  mobile.on("pageerror",lambda e:mobile_errors.append(str(e)))
+  mobile.route("**/api/admin/atelier/impression-profils",lambda route:route.fulfill(
+    status=200,content_type="application/json",body=json.dumps(inventory)))
+  mobile.route("**/api/atelier/filaments",lambda route:route.fulfill(
+    status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
+  mobile.route("**/admin/atelier-imprimer/preparer",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body=json.dumps({"ok":True,"stage":"b"*40,"preview":review})))
+  mobile.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
+  mobile.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
+  mobile.locator('[data-shape="cube"]').evaluate("el=>el.click()")
+  mobile.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
+  mobile.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
+  mobile.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
+  mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  mobile.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=20000)
+  rect=mobile.locator("#fjordAutoPrintDialog").bounding_box()
+  assert rect and rect["width"] >= 380,rect
+  assert mobile.locator("#fjordReviewLayer").is_visible()
+  assert mobile.locator("#fjordReviewTransfer").is_visible()
+  assert not mobile.locator("#fjordAutoForm").is_visible(),"Profiles should yield room to layer preview on mobile"
+  canvas=mobile.locator("#fjordReviewCanvas")
+  original=canvas.evaluate("el=>el.toDataURL()")
+  mobile.locator("#fjordReviewZoomIn").evaluate("el=>el.click()")
+  zoomed=canvas.evaluate("el=>el.toDataURL()")
+  assert original!=zoomed,"Mobile preview zoom should visually alter the toolpath canvas"
+  mobile.locator("#fjordReviewPrevious").evaluate("el=>el.click()")
+  assert "1 / 2" in mobile.locator("#fjordReviewLabel").inner_text()
+  mobile.locator("#fjordReviewNext").evaluate("el=>el.click()")
+  assert "2 / 2" in mobile.locator("#fjordReviewLabel").inner_text()
+  mobile.locator("#fjordReviewRedo").evaluate("el=>el.click()")
+  assert mobile.locator("#fjordSliceReview").is_hidden()
+  assert mobile.locator("#fjordAutoForm").is_visible(),"Edit and re-slice must restore accessible profiles"
+  assert not mobile_errors,mobile_errors
+  mobile.close()
   browser.close()
  print("OK: verified toolpath review before explicit upload; remembered profiles still require approval")
 finally:
