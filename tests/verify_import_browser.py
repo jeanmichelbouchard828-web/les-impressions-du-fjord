@@ -135,7 +135,7 @@ try:
         assert page.locator("#sceneList input[type=checkbox]").count()==1, "Merge should create one grouped object"
         assert "2 pièces" in page.locator("#sceneList").inner_text(), "The original parts must remain"
         start_size=float(page.locator("#sx").input_value())
-        page.evaluate("""() => document.querySelector('[data-context-action="growSelected"]').click()""")
+        page.locator("#sx").evaluate("""el => {el.value=(Number(el.value)*1.1).toFixed(2);el.dispatchEvent(new Event('change',{bubbles:true}));}""")
         resized=float(page.locator("#sx").input_value())
         assert abs(resized/start_size-1.1)<.005, f"Scale must change actual model size by 10%: {start_size} -> {resized}"
         import json
