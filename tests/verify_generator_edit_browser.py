@@ -93,6 +93,8 @@ try:
   page.locator("#redo").evaluate("el=>el.click()")
   assert save()["objects"][0]["generator"]["params"]["diameter"]==96
 
+  # Undo/redo restores the geometry but clears the selection; reselect it.
+  page.locator("#sceneList .scene-item").first.evaluate("el=>el.click()")
   page.locator("#duplicate").evaluate("el=>el.click()")
   duplicated=save()["objects"]
   assert len(duplicated)==2
