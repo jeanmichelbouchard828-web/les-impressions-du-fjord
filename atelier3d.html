@@ -578,6 +578,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .context-menu .fjord-primitive-list{background:#22252b;border-left:2px solid #41a9c6;margin:3px 4px 4px 13px;padding:2px 3px}
 .context-menu .fjord-primitive-list button{padding-left:14px}
 
+
+/* Search all 3D generators without hiding the live configuration. */
+.fjord-generator-search{border:1px solid #4b697b;border-radius:10px;background:var(--field);
+ padding:11px;margin:12px 0 13px}
+.fjord-generator-search label{display:block;font-size:13px;font-weight:750;margin:0 0 7px}
+.fjord-generator-search-row input{display:block;width:100%;min-height:43px;
+ border:1px solid #678ea4;border-radius:8px;padding:10px 12px;font-size:14px}
+.fjord-generator-search input:focus{outline:2px solid #3bb6ed;outline-offset:1px}
+#fjordGeneratorSearchStatus{font-size:12px;color:var(--muted);margin:7px 0 0;line-height:1.4}
+#generatorSection [data-generator-pick][hidden],
+#generatorSection .fjord-catalog-group[hidden]{display:none!important}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -757,6 +769,11 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="layFace" class="tool-btn" data-i18n="layFace" aria-pressed="false">▱ Poser sur une face</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div></section>
 <section id="generatorSection" data-tool-panel="generators"><h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
+<div class="fjord-generator-search">
+<label for="fjordGeneratorSearch">🔎 Rechercher un générateur</label>
+<div class="fjord-generator-search-row"><input id="fjordGeneratorSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Ex. ressort à torsion, engrenage, adaptateur…" aria-controls="generatorKind" aria-describedby="fjordGeneratorSearchStatus"></div>
+<p id="fjordGeneratorSearchStatus" role="status" aria-live="polite">Tous les générateurs sont disponibles.</p>
+</div>
 <div class="fjord-catalog" aria-label="Catalogue des générateurs"><details class="fjord-catalog-group"><summary>Créations artistiques<span>8</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="lithophane">Lithophanie</button><button type="button" data-generator-pick="sculpture">Sculpture</button><button type="button" data-generator-pick="image_relief">Image → forme</button><button type="button" data-generator-pick="braille">Braille</button><button type="button" data-generator-pick="waveform">Onde vocale</button><button type="button" data-generator-pick="organic">Sculptures organiques</button><button type="button" data-generator-pick="voronoi">Voronoï ajouré</button><button type="button" data-generator-pick="portrait_relief">Portrait en relief (webcam bêta)</button></div></details><details class="fjord-catalog-group"><summary>Mécanique<span>10</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="pulley">Poulie personnalisée</button><button type="button" data-generator-pick="screw">Vis</button><button type="button" data-generator-pick="nut">Écrou</button><button type="button" data-generator-pick="tap">Douille taraudée (prototype)</button><button type="button" data-generator-pick="washer">Rondelle</button><button type="button" data-generator-pick="gear">Engrenages</button><button type="button" data-generator-pick="spring">Ressort hélicoïdal</button><button type="button" data-generator-pick="torsion_spring">🌀 Ressort à torsion</button><button type="button" data-generator-pick="turbine">Hélices et turbines</button><button type="button" data-generator-pick="bearing">Roulements et pivots</button></div></details><details class="fjord-catalog-group"><summary>Ventilation et tuyauterie<span>6</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="adapter">Adaptateur ventilation</button><button type="button" data-generator-pick="pipe">Tuyau droit</button><button type="button" data-generator-pick="elbow">Coude de conduit</button><button type="button" data-generator-pick="coupler">Raccords de tuyaux</button><button type="button" data-generator-pick="funnel">Entonnoirs</button><button type="button" data-generator-pick="grommet">Passe-câbles</button></div></details><details class="fjord-catalog-group"><summary>Objets et accessoires<span>12</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="spoon">Cuillère doseuse</button><button type="button" data-generator-pick="keychain">Porte-clés</button><button type="button" data-generator-pick="stamp">Tampon & emporte-pièce</button><button type="button" data-generator-pick="clamp">Brides</button><button type="button" data-generator-pick="grill">Grilles et résilles</button><button type="button" data-generator-pick="roller">Rouleau en relief</button><button type="button" data-generator-pick="pawn">Pions de jeux</button><button type="button" data-generator-pick="clock">Horloge personnalisée</button><button type="button" data-generator-pick="stand">Support universel</button><button type="button" data-generator-pick="box">Boîte avec couvercle</button><button type="button" data-generator-pick="mold">Moule ouvert (prototype)</button><button type="button" data-generator-pick="qrcode">QR code</button></div></details><details class="fjord-catalog-group"><summary>Architecture et atelier<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="corrugated">Surface ondulée</button><button type="button" data-generator-pick="tower">Tour (atelier)</button><button type="button" data-generator-pick="city">Quartier 3D (bêta)</button><button type="button" data-generator-pick="sleeve">Bague / douille</button></div></details></div><div class="generator-block">
 <label for="generatorKind" data-i18n="generatorChoose">Type de pièce</label>
 <select id="generatorKind" aria-label="Générateur de pièce 3D"></select>
@@ -3329,11 +3346,56 @@ function generatorRebuildFields(){
  $('generatorAssetStatus').textContent=needs==='image'&&generatorAssets.image?'✓ Image prête':
   needs==='audio'&&generatorAssets.audio?'✓ Audio prêt':'';
 }
+const generatorSearchInput=$('fjordGeneratorSearch');
+const normalizeGeneratorQuery=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+function updateGeneratorSearch(){
+ const query=normalizeGeneratorQuery(generatorSearchInput?.value);
+ const matched=generatorKinds.filter(k=>!query||normalizeGeneratorQuery([k.fr,k.en,k.id,...k.fields.flatMap(f=>[f[1],f[2]])].join(' ')).includes(query));
+ const matchedIds=new Set(matched.map(k=>k.id));
+ document.querySelectorAll('#generatorSection [data-generator-pick]').forEach(button=>{
+  const ok=!query||matchedIds.has(button.dataset.generatorPick);
+  button.hidden=!ok;
+ });
+ document.querySelectorAll('#generatorSection .fjord-catalog-group').forEach(group=>{
+  const visible=[...group.querySelectorAll('[data-generator-pick]')].some(button=>!button.hidden);
+  group.hidden=!visible;
+  if(query&&visible)group.open=true;
+  else if(!query)group.open=false;
+ });
+ const status=$('fjordGeneratorSearchStatus');
+ if(status)status.textContent=matched.length?(
+  query?matched.length+' générateur(s) correspondant(s) — clique sur un résultat ou choisis dans la liste.':
+  generatorKinds.length+' générateurs disponibles.'
+ ):'Aucun générateur trouvé. Essaie un autre mot.';
+ const selector=$('generatorKind'),current=selector.value;
+ const options=matched.map(k=>new Option(currentLang()==='en'?k.en:k.fr,k.id));
+ if(query&&!matchedIds.has(current)&&matched.length)options.unshift(new Option(
+  '— '+(currentLang()==='en'?'Current selection':'Choix actuel')+' —',current
+ ));
+ if(!matched.length)options.push(new Option('Aucun résultat',''));
+ selector.replaceChildren(...options);
+ if(matchedIds.has(current)||!matched.length||query)selector.value=matchedIds.has(current)?current:(
+  matched.length?current:'' );
+ else selector.value=matched[0].id;
+ $('generatorShow').disabled=!matched.length;
+ $('generatorAdd').disabled=!matched.length;
+}
+generatorSearchInput?.addEventListener('input',updateGeneratorSearch);
+generatorSearchInput?.addEventListener('keydown',event=>{
+ if(event.key!=='Enter')return;
+ event.preventDefault();
+ const visible=[...document.querySelectorAll('#generatorSection [data-generator-pick]')].filter(b=>!b.hidden);
+ if(!visible.length)return;
+ const select=$('generatorKind');
+ select.value=visible[0].dataset.generatorPick;
+ select.dispatchEvent(new Event('change',{bubbles:true}));
+});
 function generatorRebuild(){
  const cfg=generatorDefinition(),current=cfg.id,selector=$('generatorKind');
  selector.replaceChildren(...generatorKinds.map(k=>new Option(currentLang()==='en'?k.en:k.fr,k.id)));
  selector.value=current;
  generatorRebuildFields();
+ updateGeneratorSearch();
  if(generatorPreviewEnabled)queueGeneratorPreview();
  generatorPreviewButtonText();
 }
