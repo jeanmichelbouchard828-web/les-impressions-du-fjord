@@ -170,9 +170,47 @@ try:
   mobile.locator('[data-shape="cube"]').evaluate("el=>el.click()")
   mobile.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
   mobile.wait_for_function("document.documentElement.scrollWidth <= window.innerWidth+2")
+  # Editing maximises 3D plate without losing any file/admin/mobile tools.
+  assert mobile.evaluate("""() => {
+    const hdr=document.querySelector('header.fjord-admin-header');
+    const stage=document.querySelector('#stage');
+    return hdr.getBoundingClientRect().height<=56 &&
+      stage.getBoundingClientRect().height >= window.innerHeight-150 &&
+      getComputedStyle(document.querySelector('.fjord-menubar')).display==='none' &&
+      getComputedStyle(document.querySelector('.quickbar')).display==='none' &&
+      document.querySelector('#projectMenuButton')!==null &&
+      document.querySelector('#fjordAdminShortcut')!==null;
+  }"""),"Full-height phone plate with compact accessible header"
   mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
+  assert mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"),"Slicer must enter fullscreen"
+  assert mobile.evaluate("""() => {
+   const pane=document.querySelector('#sliceFloat').getBoundingClientRect();
+   const stage=document.querySelector('#stage').getBoundingClientRect();
+   const footer=document.querySelector('.fjord-slice-print-entry').getBoundingClientRect();
+   return pane.left>=-2&&pane.right<=innerWidth+2&&
+     Math.abs(pane.bottom-innerHeight)<2 &&
+     pane.height>=innerHeight*.5 &&
+     stage.width>=innerWidth-2 &&
+     footer.bottom<=innerHeight+2 && footer.top>=pane.top &&
+     !document.querySelector('.fjord-slice-print-entry').parentElement.classList.contains('fjord-slice-scroll');
+  }"""),"Fullscreen slice with fixed print footer and live build plate"
+  mobile.locator("#sliceBuildTab").evaluate("el=>el.click()")
+  assert mobile.locator("#sliceBuildPanel").is_visible(),"Construction tab must remain accessible"
+  assert mobile.locator("#sliceHeadSlider").count()==1
+  assert mobile.locator("#slicePlayPause").count()==1
+  mobile.locator("#fjordSliceContents").evaluate("el=>el.scrollTop=el.scrollHeight")
+  assert mobile.locator("#fjordPrintShortcut").is_visible(),"Printer must stay visible after scroll"
+  mobile.locator("#sliceViewSize").evaluate("el=>el.click()")
+  assert mobile.evaluate("document.body.classList.contains('fjord-slice-model-focus')")
+  assert mobile.evaluate("document.querySelector('#sliceFloat').getBoundingClientRect().height<innerHeight*.45")
+  mobile.locator("#sliceViewSize").evaluate("el=>el.click()")
+  assert not mobile.evaluate("document.body.classList.contains('fjord-slice-model-focus')")
+  mobile.locator("#sliceLayersTab").evaluate("el=>el.click()")
+  assert mobile.locator("#sliceLayersPanel").is_visible()
+  mobile.locator("#fjordSliceContents").evaluate("el=>el.scrollTop=0")
   assert mobile.locator("#sliceFloat").is_visible(),"Mobile slice drawer should open"
   assert mobile.locator("#sliceFloat #fjordPrintShortcut").is_visible()
+  assert mobile.locator("#sliceFloat .fjord-slice-scroll").is_visible()
   assert mobile.locator("#sliceFloat .slice-results-top").is_visible()
   assert mobile.evaluate("""() => {
     const result=document.querySelector('#sliceFloat .slice-results-top');
@@ -235,6 +273,12 @@ try:
   mobile.locator("#fjordReviewRedo").evaluate("el=>el.click()")
   assert mobile.locator("#fjordSliceReview").is_hidden()
   assert mobile.locator("#fjordAutoForm").is_visible(),"Edit and re-slice must restore accessible profiles"
+  # Closing the preview must return the compact editor, not trap the phone
+  # in a blank full-screen overlay.
+  mobile.locator("#fjordAutoClose").evaluate("el=>el.click()")
+  mobile.locator("#sliceClose").evaluate("el=>el.click()")
+  assert not mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')")
+  assert mobile.locator("#mobileIconBar").is_visible()
   assert not mobile_errors,mobile_errors
   mobile.close()
   browser.close()
