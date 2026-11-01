@@ -54,6 +54,8 @@ def run():
             page.on("pageerror", lambda exc: errors.append(str(exc)))
             page.set_content(document, wait_until="load")
             assert page.locator("#fjResetQuote").count() == 1
+            page.locator(".fj-top-panel").first.locator("summary").click()
+            assert page.locator('input[name="customer"]').is_visible()
 
             # Cancel first: the user's work must still be there.
             page.locator('input[name="customer"]').fill("Client en cours")
