@@ -29,11 +29,15 @@ class PrinterError(ValueError):
 
 def _connection():
     base = os.environ.get("OCTOEVERYWHERE_CONNECTION_URL", "").strip().rstrip("/")
-    parsed = urllib.parse.urlsplit(base)
-    if (parsed.scheme != "https" or not parsed.hostname or
-        not parsed.hostname.endswith(".octoeverywhere.com") or
-        parsed.hostname == ".octoeverywhere.com" or
-        parsed.username or parsed.password or parsed.port is not None or
+    try:
+        parsed = urllib.parse.urlsplit(base)
+        hostname, port, username, password = parsed.hostname, parsed.port, parsed.username, parsed.password
+    except ValueError as exc:
+        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Railway.") from exc
+    if (parsed.scheme != "https" or not hostname or
+        not hostname.endswith(".octoeverywhere.com") or
+        hostname == ".octoeverywhere.com" or
+        username or password or port is not None or
         parsed.path not in ("", "/") or parsed.query or parsed.fragment):
         raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Railway.")
     return base
@@ -260,6 +264,9 @@ J'ai vérifié que le plateau est libre, que l'imprimante est prête et que je p
     @app.post("/admin/atelier-imprimer/envoyer")
     @admin_required
     def fjord_printer_upload():
+        # This endpoint alone may accept larger Bambu 3MF uploads. The rest
+        # of the public website retains its global 10 MB request limit.
+        request.max_content_length = MAX_SLICED_3MF + 2 * 1024 * 1024
         verify()
         upload = request.files.get("sliced_file")
         if not upload or not upload.filename or not upload.filename.lower().endswith(".3mf"):
