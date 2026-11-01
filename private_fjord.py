@@ -2829,7 +2829,7 @@ function fjordCopyAll(button){
  const email=document.getElementById('payEmail').textContent.trim();
  const amount=document.getElementById('payAmount').textContent.trim();
  const reference=document.getElementById('payRef').textContent.trim();
- fjordCopyText('Les Impressions du Fjord\\nCourriel Interac : '+email+'\\nMontant : '+amount+'\\nRéférence : '+reference,button);
+ fjordCopyText('Les Impressions du Fjord\nCourriel Interac : '+email+'\nMontant : '+amount+'\nRéférence : '+reference,button);
 }
 </script>""",amount=_money(total),reference=reference,recipient=recipient))
         response.headers["Cache-Control"]="no-store"
