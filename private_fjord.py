@@ -96,6 +96,64 @@ def admin_studio(html, csrf_token):
         '🖨️ Imprimer sur ma X2D</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + print_shortcut, 1)
+    # Reorganize only the private Atelier header; keep every original button
+    # and its ID so all existing actions and keyboard shortcuts remain intact.
+    import re as _re
+    menu = _re.search(
+        r'(<div id="projectMenu" class="project-menu"><button[^>]*id="projectMenuButton"[^>]*>.*?</button><div class="top-actions">)(.*?)(</div></div>)',
+        html, _re.S
+    )
+    if menu:
+        controls = _re.findall(r'<(?:button|a)\b[^>]*>.*?</(?:button|a)>',
+                               menu.group(2), _re.S)
+        by_id = {}
+        for control in controls:
+            mid = _re.search(r'\bid="([^"]+)"', control)
+            href = _re.search(r'\bhref="([^"]+)"', control)
+            key = mid.group(1) if mid else (href.group(1) if href else None)
+            if key:
+                by_id[key] = control
+        def take(ids):
+            return ''.join(by_id.pop(key, '') for key in ids)
+
+        primary = take(("new", "import", "save", "fjordPrivateImport",
+                        "fjordPrivateSave", "sliceTop"))
+        secondary = take(("open", "export", "exportColor3MF", "estimateToggle",
+                          "quote", "/admin/modeles", "/admin/profils-bambu", "/"))
+        secondary += ''.join(by_id.values())
+        compact = (
+            '<div class="fjord-admin-core" role="group" aria-label="Actions principales">' +
+            primary + '</div>' +
+            '<details class="fjord-admin-more"><summary>⋯ Plus</summary>' +
+            '<div class="fjord-admin-more-menu">' + secondary + '</div></details>'
+        )
+        html = html[:menu.start(2)] + compact + html[menu.end(2):]
+        html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
+        html = html.replace('<div class="top-preferences">',
+                            '<div class="fjord-admin-links" aria-label="Accès privé">' +
+                            print_shortcut + admin_shortcut +
+                            '</div><div class="top-preferences">', 1)
+        html = html.replace('<header>\n<div><div class="brand">🏔️ Atelier 3D du Fjord',
+                            '<header class="fjord-admin-header">\n<div class="fjord-admin-brand">'
+                            '<div class="brand">🏔️ Atelier 3D du Fjord', 1)
+        html = html.replace('</head>',
+                            '<link rel="stylesheet" href="/static/atelier_admin_header.css">'
+                            '</head>', 1)
+        html = html.replace('</body>', """<script>
+(function(){
+  const menu=document.querySelector('.fjord-admin-more');
+  if(!menu)return;
+  document.addEventListener('pointerdown',event=>{
+    if(!menu.contains(event.target))menu.open=false;
+  });
+  menu.querySelector('.fjord-admin-more-menu')?.addEventListener('click',event=>{
+    if(event.target.closest('button,a'))menu.open=false;
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape')menu.open=false;
+  });
+})();
+</script></body>""", 1)
     injection = r"""
 // Sauvegarde serveur des modèles du propriétaire; cet extrait n'est jamais servi au public.
 const privateSaveBtn=document.getElementById("fjordPrivateSave");
