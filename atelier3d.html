@@ -871,6 +871,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <div id="contextMenu" class="context-menu" role="menu" hidden>
 <div class="context-heading part-action" data-i18n="contextHeading">Outils de la pièce</div>
+<button type="button" class="part-action" role="menuitem" data-context-action="remove" data-i18n="remove">Supprimer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="move" data-i18n="move">Déplacer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="rotate" data-i18n="rotate">Tourner</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="scale" data-i18n="scale">Échelle</button>
@@ -881,24 +882,16 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="common-action" role="menuitem" data-context-action="textTool">🔠 Inscription 3D</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="arrangeAll">▦ Arranger sur le plateau</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="growSelected">⤢ Agrandir la pièce (+10 %)</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="scaleCustom">⤢ Agrandir / réduire (%)…</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — regrouper les pièces sélectionnées</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="splitMerged">↳ Séparer les pièces du groupe</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="dropToBed" data-i18n="dropToBed">Poser au sol</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="remove" data-i18n="remove">Supprimer</button>
 <div class="context-heading part-action">Autres outils</div>
 <button type="button" class="part-action" role="menuitem" data-context-action="undo">↶ Annuler</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="redo">↷ Rétablir</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="rotX90">↻ Rotation X 90°</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="rotY90">↻ Rotation Y 90°</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="rotZ90">↻ Rotation Z 90°</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorY">Miroir Y</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorZ">Miroir Z</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="half">½ Réduire</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="double">×2 Agrandir</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="fitBed">Adapter au plateau</button>
 <div class="context-heading common-action">Vue et projet</div>
 <button type="button" class="common-action" role="menuitem" data-context-action="viewIso">◈ Vue 3D</button>
