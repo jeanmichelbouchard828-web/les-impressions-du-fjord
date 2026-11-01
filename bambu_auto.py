@@ -71,7 +71,7 @@ def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
 
     verifier validates the actual sliced Bambu archive used by manual uploads.
     """
-    if not isinstance(stl, bytes) or not 84 <= len(stl) <= MAX_STL or not stl.startswith(b""):
+    if not isinstance(stl, bytes) or not 84 <= len(stl) <= MAX_STL:
         raise AutoSliceError("STL vide ou trop volumineux (maximum 8 Mo).")
     # Binary STL: 80-byte header + uint32 triangle count + 50 bytes per triangle.
     if len(stl) < 134:
