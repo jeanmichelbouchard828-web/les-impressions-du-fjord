@@ -3185,7 +3185,7 @@ function fjordCopyAll(button){
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"PAYER EN LIGNE AVEC SQUARE" if active_square_url else "PAYER PAR INTERAC")
+            pdf.drawString(52,top-24,"PAYER EN LIGNE AVEC SQUARE" if active_square_url else "MODALITÉS DE PAIEMENT INTERAC")
             pdf.setFont("Helvetica",10)
             pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
             pdf.drawString(52,top-58,"Référence : {}".format(display_number))
@@ -3193,7 +3193,7 @@ function fjordCopyAll(button){
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"PAYER PAR CARTE - SQUARE" if active_square_url else "PAYER PAR INTERAC - CLIQUEZ ICI")
+            pdf.drawCentredString(222,bottom+18,"PAYER PAR CARTE - SQUARE" if active_square_url else "VOIR LES OPTIONS DE PAIEMENT")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
