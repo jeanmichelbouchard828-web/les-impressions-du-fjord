@@ -505,6 +505,23 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 /* Le bouton + reste centré verticalement dans la barre des plateaux. */
 .fjord-bed-tabs .fjord-add-bed{align-self:center!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;padding:0!important;transform:translateY(-2px)}
 
+/* Cube orientable a la souris et panneau de tranchage toujours lisible. */
+#fjordWorkspace .fjord-camera-controls .fjord-orientation-widget{
+ pointer-events:auto!important;cursor:grab;touch-action:none;user-select:none;
+}
+#fjordWorkspace .fjord-camera-controls .fjord-orientation-widget button{touch-action:none;user-select:none}
+#fjordWorkspace .fjord-camera-controls .fjord-orientation-widget.is-dragging,
+#fjordWorkspace .fjord-camera-controls .fjord-orientation-widget.is-dragging button{cursor:grabbing!important}
+#fjordWorkspace .fjord-fast-row [data-fjord-tool].active{
+ background:#17638b!important;color:#fff!important;border-color:#64c7ea!important;
+}
+@media(min-width:761px){
+ #fjordWorkspace .stage.fjord-slice-open #sliceFloat{z-index:90!important}
+ #fjordWorkspace .stage.fjord-slice-open .fjord-camera-controls{
+  right:calc(min(295px, 100% - 24px) + 26px)!important;z-index:25!important;
+ }
+ #fjordWorkspace .stage.fjord-slice-open.fjord-slice-tight .fjord-camera-controls{display:none!important}
+}
 /* Le cube 3D doit tenir dans son espace, même tourné. */
 .fjord-camera-controls{grid-template-columns:36px 106px!important;grid-template-rows:106px auto!important;column-gap:10px!important;row-gap:9px!important}
 .fjord-camera-controls .fjord-camera-buttons>button{width:36px!important;min-width:36px!important;height:36px!important}
@@ -1654,6 +1671,52 @@ window.fjordOrientationOrbit=dir=>{
  if(Math.abs(dir[2])===1)camera.up.set(0,1,0);
  camera.lookAt(orbit.target);orbit.update();
 };
+// Glisser le cube fait orbiter la camera sans bouger les objets sur le plateau.
+const fjordCube=document.querySelector('.fjord-orientation-widget');
+let fjordCubePointer=null,suppressCubeFaceClick=false;
+fjordCube?.addEventListener('pointerdown',event=>{
+ if(event.button!==0||!orbit.enabled||fjordWalkMode)return;
+ fjordCubePointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,
+  x:event.clientX,y:event.clientY,moved:false};
+});
+document.addEventListener('pointermove',event=>{
+ const drag=fjordCubePointer;
+ if(!drag||drag.id!==event.pointerId)return;
+ if(event.pointerType==='mouse'&&!(event.buttons&1))return;
+ if(!drag.moved&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<5)return;
+ drag.moved=true;
+ const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+ drag.x=event.clientX;drag.y=event.clientY;
+ if(!dx&&!dy)return;
+ event.preventDefault();
+ const offset=camera.position.clone().sub(orbit.target);
+ const distance=offset.length();if(distance<.001)return;
+ const yaw=Math.atan2(offset.x,-offset.y)-dx*.012;
+ const elevation=THREE.MathUtils.clamp(
+  Math.asin(THREE.MathUtils.clamp(offset.z/distance,-1,1))+dy*.010,
+  -Math.PI/2+.06,Math.PI/2-.06);
+ const horizontal=distance*Math.cos(elevation);
+ camera.position.copy(orbit.target).add(new THREE.Vector3(
+  horizontal*Math.sin(yaw),-horizontal*Math.cos(yaw),distance*Math.sin(elevation)));
+ camera.up.set(0,0,1);camera.lookAt(orbit.target);orbit.update();
+ fjordCube.classList.add('is-dragging');
+},{passive:false});
+document.addEventListener('pointerup',event=>{
+ if(!fjordCubePointer||fjordCubePointer.id!==event.pointerId)return;
+ if(fjordCubePointer.moved){
+  suppressCubeFaceClick=true;
+  setTimeout(()=>{suppressCubeFaceClick=false;},0);
+ }
+ fjordCubePointer=null;fjordCube.classList.remove('is-dragging');
+},true);
+document.addEventListener('pointercancel',event=>{
+ if(fjordCubePointer?.id!==event.pointerId)return;
+ fjordCubePointer=null;fjordCube.classList.remove('is-dragging');
+},true);
+fjordCube?.addEventListener('click',event=>{
+ if(!suppressCubeFaceClick)return;
+ event.preventDefault();event.stopImmediatePropagation();suppressCubeFaceClick=false;
+},true);
 scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));
 const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(-90,-130,230);scene.add(sun);
 // Plateau de travail Fjord : grille, graduations et marquage intégrés à une texture.
@@ -2148,6 +2211,18 @@ $('touchMoveBtn').addEventListener('click',()=>{
 $('language').addEventListener('change',syncTouchMoveButton);
 window.matchMedia('(max-width:620px)').addEventListener('change',syncTouchMoveButton);
 syncTouchMoveButton();
+// Clic/tap dans le vide = aucune selection ni outil actif, sans effacer l'objet.
+function clearActiveEditingToolsOnBlank(){
+ if(measureMode)$('measure').click();
+ window.fjordPaint?.closeOnBlank?.();
+ if(layFaceMode)exitLayFaceMode();
+ if(cutPreviewActive)hideCutPreview();
+ if(touchMoveEnabled){touchMoveEnabled=false;syncTouchMoveButton();}
+ if(fjordWalkMode)fjordSetWalkMode(false);
+ if(fjordWireframe)fjordToggleWireframe();
+ pick(null);
+ window.fjordCloseCategoryDrawer?.();
+}
 const contextMenu=$('contextMenu');
 let contextGeneratorTarget=null;
 let rightPanStart=null;
@@ -2368,8 +2443,9 @@ renderer.domElement.addEventListener('pointerup',e=>{
     else {exitLayFaceMode();pick(null);}
    }else if(measureMode && tap.point)measurePoint(tap.point,tap.mesh,tap.faceHit);
    else if(tap.mesh)pick(tap.mesh);
-   else if(!touchMoveEnabled){if(measureMode)setMeasureHint();else{window.fjordPaint?.closeOnBlank?.();pick(null);}}
-   // A tap on the empty build plate must not cancel the active modelling tool.
+   else clearActiveEditingToolsOnBlank();
+  }else if(tap && cutPreviewActive && !tap.mesh){
+   clearActiveEditingToolsOnBlank();
   }
   return;
  }
@@ -2383,7 +2459,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
  }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
  const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point,hit.object,hit);else pick(hit.object)}
- else if(!cutPreviewActive&&!touchMoveEnabled){if(measureMode)setMeasureHint();else{window.fjordPaint?.closeOnBlank?.();pick(null);}}
+ else clearActiveEditingToolsOnBlank();
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
  if(window.fjordPaint?.onPointerUp?.(e))return;
@@ -2452,7 +2528,7 @@ function updateGizmoButtons(){
   const on=activeTool===mode;
   $(id).classList.toggle('active',on);
   $(id).setAttribute('aria-pressed',String(on));
-  document.querySelectorAll('.quick-tool[data-quick-action="'+id+'"]').forEach(b=>{
+  document.querySelectorAll('.quick-tool[data-quick-action="'+id+'"],[data-fjord-tool="'+id+'"]').forEach(b=>{
    b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));
   });
  }
@@ -3123,7 +3199,7 @@ $('sliceBuildTab').addEventListener('click',()=>setSliceMode('construction'));
 function sliceUpdateAll(){if(sliceActive){sliceUpdateRange();sliceUpdatePrice();applySlicePreviewMode()}}
 function sliceClose(){
  if(!sliceActive)return;
- sliceActive=false;$('sliceFloat').hidden=true;
+ sliceActive=false;stage.classList.remove('fjord-slice-open','fjord-slice-tight');$('sliceFloat').hidden=true;
  document.body.classList.remove('fjord-mobile-slicing','fjord-slice-model-focus');
  $('sliceViewSize').setAttribute('aria-pressed','false');$('sliceViewSize').textContent='↕ Vue';
  sliceMode='layers';
@@ -3142,6 +3218,8 @@ function sliceOpen(){
  deactivateGizmo();stopGeneratorPreview();
  window.fjordPaint?.close?.(); // Avoid a floating paint palette covering the slice workspace.
  sliceActive=true;sliceRealData=null;sliceMode='layers';$('sliceFloat').hidden=false;
+ stage.classList.add('fjord-slice-open');
+ stage.classList.toggle('fjord-slice-tight',stage.clientWidth<510);
  document.body.classList.toggle('fjord-mobile-slicing',window.matchMedia('(max-width:760px)').matches);
  document.body.classList.remove('fjord-slice-model-focus');
  $('sliceViewSize').setAttribute('aria-pressed','false');$('sliceViewSize').textContent='↕ Vue';
@@ -4344,7 +4422,7 @@ document.addEventListener('keydown',e=>{
  if(key==='escape')hideContext();
  if(key==='delete'||key==='backspace'){$('remove').click()}
 });
-function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);if(sliceActive)stage.classList.toggle('fjord-slice-tight',w<510)}
 new ResizeObserver(resize).observe(stage);resize();
 const fjordOrientationRotor=document.getElementById('fjordOrientationRotor');
 function fjordUpdateOrientationCube(){
@@ -4411,6 +4489,7 @@ function hideCategoryDrawer(force=false){
  const handle=document.getElementById('fjordDrawerLeft');
  if(handle){handle.textContent='›';handle.setAttribute('aria-expanded','false');}
 }
+window.fjordCloseCategoryDrawer=()=>{if(!desktopCategory.matches)return;pinnedCategory=false;hideCategoryDrawer(true);};
 window.fjordToggleCategoryDrawer=()=>{
  const opened=categorySections.some(panel=>!panel.classList.contains('fjord-category-hidden'));
  if(opened){pinnedCategory=false;hideCategoryDrawer(true);}
