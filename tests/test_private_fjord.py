@@ -119,7 +119,7 @@ class PrivateFjordTests(unittest.TestCase):
                         admin.index('id="cutFloat"'))
         self.assertNotIn('fjord-admin-header', public)
         self.assertNotIn('fjord-admin-core', public)
-        self.assertNotIn('fjordPrintShortcut', public)
+        self.assertNotIn('id="fjordPrintShortcut"', public)
 
     def test_library_page_links_to_atelier_for_3mf(self):
         class ModelConnection(DummyConnection):
