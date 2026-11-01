@@ -40,6 +40,21 @@ try:
             assert page.locator('#contextMenu [data-context-action="'+removed+'"]').count()==0,removed
         assert page.locator('#contextMenu [data-context-action="move"]').count()==1
         assert page.locator('#contextMenu [data-context-action="scale"]').count()==1
+        # The empty-plate context menu is compact and opens the real primitive submenu.
+        canvas=page.locator("#stage canvas")
+        bounds=canvas.bounding_box()
+        assert bounds
+        blank_x=bounds["x"]+bounds["width"]*0.6
+        blank_y=bounds["y"]+bounds["height"]*0.75
+        page.mouse.click(blank_x,blank_y,button="right")
+        assert page.locator("#contextMenu .fjord-plate-context").is_visible()
+        assert page.locator('#contextMenu [data-context-action="selectAll"]').is_visible()
+        assert page.locator('#contextMenu [data-context-action="deleteAll"]').is_disabled()
+        page.locator("#contextMenu .fjord-primitive-submenu summary").click()
+        assert page.locator('#contextMenu [data-context-action="shape-cube"]').is_visible()
+        page.keyboard.press("Escape")
+        page.mouse.click(blank_x,blank_y,button="left")
+        assert page.locator("#contextMenu").is_hidden()
         # Entry points must all launch the same working painting palette.
         page.locator("#fjordPaintLaunch").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
