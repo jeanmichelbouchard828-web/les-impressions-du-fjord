@@ -44,10 +44,21 @@ try:
         canvas=page.locator("#stage canvas")
         bounds=canvas.bounding_box()
         assert bounds
-        blank_x=bounds["x"]+bounds["width"]*0.6
-        blank_y=bounds["y"]+bounds["height"]*0.75
-        page.mouse.click(blank_x,blank_y,button="right")
-        assert page.locator("#contextMenu .fjord-plate-context").is_visible()
+        blank_x=blank_y=None
+        for u,v in ((.55,.58),(.65,.65),(.40,.56),(.7,.70),(.55,.76)):
+            x=bounds["x"]+bounds["width"]*u
+            y=bounds["y"]+bounds["height"]*v
+            on_canvas=page.evaluate("""p=>document.elementFromPoint(p.x,p.y)===document.querySelector('#stage canvas')""",{"x":x,"y":y})
+            if not on_canvas:continue
+            page.mouse.click(x,y,button="right")
+            if page.locator("#contextMenu .fjord-plate-context").is_visible():
+                blank_x,blank_y=x,y
+                break
+        assert blank_x is not None, page.evaluate("""() => ({
+            menuHidden:document.querySelector('#contextMenu').hidden,
+            plateHidden:document.querySelector('#contextMenu .fjord-plate-context').hidden,
+            canvasSize:document.querySelector('#stage canvas').getBoundingClientRect().toJSON()
+        })""")
         assert page.locator('#contextMenu [data-context-action="selectAll"]').is_visible()
         assert page.locator('#contextMenu [data-context-action="deleteAll"]').is_disabled()
         page.locator("#contextMenu .fjord-primitive-submenu summary").click()
