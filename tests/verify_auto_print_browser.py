@@ -59,7 +59,7 @@ try:
   assert page.locator('[name="filament"]').input_value()=="3"
   assert len(posts)==0,"First choice should not start without a deliberate submission"
   page.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
-  page.wait_for_url("**/admin/atelier-imprimer?selected=*",timeout=30000)
+  page.wait_for_url("**/admin/atelier-imprimer?selected=*",wait_until="commit",timeout=20000)
   assert len(posts)==1,len(posts)
   saved=page.evaluate("JSON.parse(localStorage.getItem('fjord-x2d-profile-preferences-v1'))")
   assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3"},saved
@@ -67,7 +67,7 @@ try:
   # automatically slices/uploads, but does NOT issue a print-start command.
   prepare_scene()
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
-  page.wait_for_url("**/admin/atelier-imprimer?selected=*",timeout=30000)
+  page.wait_for_url("**/admin/atelier-imprimer?selected=*",wait_until="commit",timeout=20000)
   assert len(posts)==2,posts
   assert all("application/json" in p["headers"].get("accept","") for p in posts)
   assert all(b'name="material"' in (p["body"] or b"") for p in posts)
