@@ -19,7 +19,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from flask import abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, session, url_for
+from flask import abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, send_file, session, url_for
 
 MAX_SLICED_3MF = 30 * 1024 * 1024
 MAX_ZIP_ENTRIES = 2500
@@ -123,7 +123,16 @@ def _upload(virtual_path, raw):
         raise PrinterError("Impossible de confirmer le transfert à l'imprimante.") from exc
     if not isinstance(result, dict) or result.get("Status") != 200:
         code = result.get("Status", "?") if isinstance(result, dict) else "?"
-        raise PrinterError("La connexion ne prend pas en charge l'envoi de fichiers (code {}).".format(str(code)[:5]))
+        if code == 752:
+            raise PrinterError(
+                "OctoEverywhere a échoué pendant le transfert (code 752). "
+                "Le tranchage est réussi, mais le fichier n'est pas confirmé sur la X2D. "
+                "Télécharge le 3MF avec le bouton ci-dessous et utilise Bambu Studio, "
+                "ou vérifie le transfert de fichiers OctoEverywhere et la connexion de l'imprimante."
+            )
+        if code == 788:
+            raise PrinterError("L'envoi de fichiers n'est pas pris en charge sur cette connexion OctoEverywhere (code 788).")
+        raise PrinterError("OctoEverywhere a refusé le transfert du fichier (code {}).".format(str(code)[:5]))
     remote = result.get("Result") or {}
     if not isinstance(remote, dict) or remote.get("VirtualPath") != virtual_path:
         raise PrinterError("Le chemin du fichier envoyé n'a pas été confirmé par l'imprimante.")
@@ -607,6 +616,26 @@ body.light .fj-print-hint{color:#496477!important}
                 return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
             return redirect(url_for("fjord_printer_page"))
+
+    @app.post("/admin/atelier-imprimer/telecharger-3mf")
+    @admin_required
+    def fjord_download_reviewed_3mf():
+        """Download the session-bound, verified slicer output; no printer contact."""
+        from fjord_slice_review import get_staged, SliceReviewError
+        request.max_content_length = 128 * 1024
+        verify()
+        try:
+            raw = get_staged(str(request.form.get("stage", "")))
+            verify_sliced_bambu_3mf(raw)
+        except (PrinterError, SliceReviewError) as exc:
+            return jsonify(ok=False, error=str(exc)), 422
+        response = send_file(
+            io.BytesIO(raw), as_attachment=True, download_name="Creation-du-Fjord-X2D-tranche.3mf",
+            mimetype="model/3mf", max_age=0
+        )
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @app.post("/admin/atelier-imprimer/transmettre")
     @admin_required
