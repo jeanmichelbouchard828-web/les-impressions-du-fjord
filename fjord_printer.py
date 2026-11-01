@@ -210,10 +210,24 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None
             if category not in result:
                 continue
             try:
-                full_preset(row["settings"], category)
+                data = full_preset(row["settings"], category)
             except (AutoSliceError, TypeError, ValueError):
                 continue
-            result[category].append({"id": row["id"], "name": row["name"]})
+            # Only non-sensitive profile metadata is sent to the administrator.
+            def plain(key):
+                value = data.get(key)
+                if isinstance(value, list):
+                    value = value[0] if value else ""
+                return str(value or "")[:65]
+            entry = {"id": row["id"], "name": row["name"]}
+            if category == "Imprimante":
+                entry["nozzle"] = plain("nozzle_diameter")
+                entry["model"] = plain("printer_model")
+            elif category == "Filament":
+                entry["material"] = plain("filament_type").upper()
+            else:
+                entry["layer"] = plain("layer_height")
+            result[category].append(entry)
         return result
 
     @app.get("/api/admin/atelier/impression-profils")
@@ -552,6 +566,15 @@ body.light .fj-print-hint{color:#496477!important}
                     presets[cat] = row["settings"]
             if len(presets) != 3:
                 raise AutoSliceError("Les profils choisis ne sont pas tous complets.")
+            # Never silently swap PLA/PETG/ASA/TPU for a different material.
+            expected_material = str(request.form.get("material", "")).strip().upper()
+            if expected_material not in ("PLA", "PETG", "ASA", "TPU"):
+                raise AutoSliceError("Choisis explicitement le matériau PLA, PETG, ASA ou TPU dans l'Atelier.")
+            actual = full_preset(presets["Filament"], "Filament")["filament_type"]
+            if isinstance(actual, list):
+                actual = actual[0] if actual else ""
+            if str(actual).strip().upper() != expected_material:
+                raise AutoSliceError("Profil filament incompatible avec le matériau de l'Atelier : aucun transfert.")
             # No printer commands until successful Bambu slicing AND 3MF validation.
             sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf)
             printer = _status()
@@ -559,9 +582,16 @@ body.light .fj-print-hint{color:#496477!important}
                 raise AutoSliceError("Imprimante indisponible/occupée : transfert annulé.")
             virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
             _upload(virtual_path, sliced)
-            flash("✅ Tranchage Bambu Studio terminé et fichier envoyé. Vérifie la pièce et confirme le démarrage ci-dessous.")
+            success = "✅ Tranchage Bambu Studio terminé et fichier envoyé. Vérifie la pièce et confirme le démarrage ci-dessous."
+            if request.accept_mimetypes.best == "application/json":
+                return jsonify(ok=True, file=virtual_path,
+                               next=url_for("fjord_printer_page", selected=virtual_path),
+                               message=success)
+            flash(success)
             return redirect(url_for("fjord_printer_page", selected=virtual_path))
         except (AutoSliceError, PrinterError) as exc:
+            if request.accept_mimetypes.best == "application/json":
+                return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
             return redirect(url_for("fjord_printer_page"))
 
