@@ -319,6 +319,8 @@ try:
   assert factory.locator('[name=filament]').input_value()=="stock:filament:PETG"
   assert factory.locator('[name=filament] option').count()==3, "The original and CHATOU must both remain"
   assert factory.locator("#fjordAutoSubmit").is_disabled(), "Plate must be selected explicitly"
+  assert factory.locator('#fjordAutoForm [name=bed_type] option:has-text("Cool Plate SuperTack")').get_attribute("value")=="Supertack Plate"
+  assert factory.locator('#fjordAutoForm [name=bed_type] option:has-text("PEI lisse")').get_attribute("value")=="High Temp Plate"
   factory.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   assert factory.locator("#fjordAutoSubmit").is_enabled()
   # Regression for a simple piece that merely entered Paint mode: the mode
