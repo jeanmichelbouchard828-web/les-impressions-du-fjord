@@ -316,9 +316,9 @@ if(fjordAutoButton){
  '<label>Type de plaque installé sur la X2D<select name="bed_type" required>'+
  '<option value="">— Choisir la plaque réelle —</option>'+
  '<option value="Textured PEI Plate">PEI texturé</option>'+
- '<option value="Smooth PEI Plate / High Temp Plate">PEI lisse / haute température</option>'+
+ '<option value="High Temp Plate">PEI lisse / haute température</option>'+
  '<option value="Engineering Plate">Engineering Plate</option>'+
- '<option value="Cool Plate SuperTack">Cool Plate SuperTack</option>'+
+ '<option value="Supertack Plate">Cool Plate SuperTack</option>'+
  '<option value="Cool Plate">Cool Plate (certains filaments incompatibles)</option>'+
  '</select></label>'+
  '<section id="fjordMonoApproval" class="fjord-mono-approval" hidden>'+
