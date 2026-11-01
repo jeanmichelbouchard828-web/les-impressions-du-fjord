@@ -269,9 +269,30 @@ export function installFjordEnhancements(api){
   syncText();
   notice('🖌 Clique gauche pour peindre · Clic droit maintenu pour tourner autour de la pièce · Molette pour zoomer. Sur mobile, utilise « Tourner la vue ».');
  }
+ // Mouse hover previews/open the painting tools. Clicking the already-open
+ // button closes them, and the same hovering pointer must leave before an
+ // automatic reopen. Touch and keyboard activation continue to use clicks.
+ let suppressHoverUntilLeave=false;
+ const fastPaint=$('fjordPaintFast');
  function toggle(){paintOn?close():open();}
  $('fjordPaintToggle')?.addEventListener('click',toggle);
- $('fjordPaintFast')?.addEventListener('click',toggle);
+ fastPaint?.addEventListener('pointerenter',event=>{
+  if(event.pointerType!=='mouse'||suppressHoverUntilLeave||paintOn)return;
+  open();
+ });
+ fastPaint?.addEventListener('pointerleave',()=>{
+  suppressHoverUntilLeave=false;
+ });
+ fastPaint?.addEventListener('click',()=>{
+  if(paintOn){
+   suppressHoverUntilLeave=true;
+   close();
+  }else{
+   // A click on a closed button should still open painting, including touch.
+   suppressHoverUntilLeave=false;
+   open();
+  }
+ });
  $('fjordPaintOrbit')?.addEventListener('click',()=>setCameraNavigate(!cameraNavigate));
  $('mobilePaintBtn')?.addEventListener('click',toggle);
  $('fjordPaintClose')?.addEventListener('click',close);

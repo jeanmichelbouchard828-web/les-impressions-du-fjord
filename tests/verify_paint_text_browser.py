@@ -53,7 +53,25 @@ try:
         assert page.locator("#fjordPaintOpenAms").count()==0
         assert page.locator("#fjordAmsSlots").is_hidden()
         assert page.locator("#fjordPaintFast").count()==1
+        # Desktop hover opens painting; a click closes it and prevents
+        # auto-reopening until the pointer has left the button.
+        page.locator("#fjordPaintFast").evaluate("""el=>el.dispatchEvent(
+          new PointerEvent('pointerenter',{pointerType:'mouse'}))""")
+        assert page.locator("#fjordPaintPanel").is_visible()
         page.locator("#fjordPaintFast").evaluate("el=>el.click()")
+        assert page.locator("#fjordPaintPanel").is_hidden()
+        assert page.locator("#fjordPaintFast").get_attribute("aria-pressed")=="false"
+        page.locator("#fjordPaintFast").evaluate("""el=>el.dispatchEvent(
+          new PointerEvent('pointerenter',{pointerType:'mouse'}))""")
+        assert page.locator("#fjordPaintPanel").is_hidden(),"Hover must not reopen right after close"
+        page.locator("#fjordPaintFast").evaluate("""el=>el.dispatchEvent(
+          new PointerEvent('pointerleave',{pointerType:'mouse'}))""")
+        page.locator("#fjordPaintFast").evaluate("""el=>el.dispatchEvent(
+          new PointerEvent('pointerenter',{pointerType:'mouse'}))""")
+        assert page.locator("#fjordPaintPanel").is_visible()
+        page.locator("#fjordPaintFast").evaluate("el=>el.click()")
+        assert page.locator("#fjordPaintPanel").is_hidden()
+        page.locator("#fjordPaintToggle").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
         assert page.locator("#fjordPaintFast").get_attribute("aria-pressed")=="true"
         page.wait_for_function("document.querySelectorAll('#fjordPaintAmsPalette button').length===2",timeout=8000)
