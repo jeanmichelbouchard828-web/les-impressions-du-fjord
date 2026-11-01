@@ -2839,7 +2839,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             abort(404)
         subtotal,gst,qst,total=_quote_amounts(q)
         reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
-        response=make_response(page("Paiement Interac",r"""
+        response=make_response(page("Paiement sécurisé" if square_url else "Paiement Interac",r"""
 <style>
 .payment-wrap{max-width:660px;margin:25px auto}
 .payment-wrap *{box-sizing:border-box}
@@ -2869,7 +2869,7 @@ body.light .payment-fallback{border-color:#9bc9df}
 body.light .payment-total{color:#076d9d}
 </style>
 <div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
-<h1>💸 Payer par virement Interac</h1>
+<h1>{% if square_url %}💳 Paiement sécurisé Square{% else %}💸 Payer par virement Interac{% endif %}</h1>
 <p>Votre soumission <strong>{{reference}}</strong> est prête à payer. Aucun mot de passe bancaire n'est demandé ici.</p>
 <section class="card">
 <div>Montant exact à transférer (taxes comprises si applicables)</div>
