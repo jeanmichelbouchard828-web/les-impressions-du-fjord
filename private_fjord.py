@@ -703,7 +703,8 @@ if(fjordAutoButton){
    if(!result.ok)throw Error('Impossible de lire le diagnostic.');
    const status=result.status_ok?'État : OK':'État : échec';
    const files=result.files_ok?'Fichiers : OK en lecture':'Fichiers : échec';
-   diagnosticResult.textContent=status+' · '+files+'\n'+String(result.diagnosis||'');
+   diagnosticResult.textContent=status+' · '+files+'\n'+String(result.diagnosis||'')+
+     (result.last_upload?'\nDernier transfert refusé : '+String(result.last_upload).slice(0,420):'');
   }catch(error){
    diagnosticResult.textContent='⚠ '+String(error.message||error).slice(0,220);
   }finally{diagnosticButton.disabled=false;}

@@ -162,26 +162,47 @@ def _plugin_log_hint():
 
 
 def _upload_error_hint(envelope):
-    """Map known OctoEverywhere transfer diagnostics without exposing raw
-    exception text, LAN addresses, printer IDs, or authentication secrets."""
+    """Classify the *actual failed upload response*, without exposing details.
+
+    OctoEverywhere normally includes the FTPS exception in its JSON Error
+    envelope even when the plugin does not write that exception to its log.
+    Return only fixed, safe French hints: never leak the full response,
+    IP/hostnames, serial numbers, credentials or filenames.
+    """
     if not isinstance(envelope, dict):
-        return ""
+        return " Le serveur n'a pas transmis de diagnostic de transfert exploitable."
     messages = []
     for value in (envelope.get("Error"), envelope.get("Message"),
                   (envelope.get("Result") or {}).get("Error")
                   if isinstance(envelope.get("Result"), dict) else None):
         if isinstance(value, str):
-            messages.append(value[:300].lower())
-    context = " ".join(messages)
-    if any(word in context for word in ("permission", "denied", "auth", "login", "password", "access code")):
-        return " Le plugin signale un refus d'accès : vérifie le code d'accès X2D enregistré dans OctoEverywhere."
-    if any(word in context for word in ("timeout", "timed out", "unreachable", "refused", "cannot connect", "connection failed")):
-        return " Le plugin signale une connexion de transfert interrompue vers la X2D."
-    if "ftp" in context or "ftps" in context:
-        return " Le plugin signale une erreur FTP/FTPS sur la connexion de fichiers."
-    if any(word in context for word in ("no space", "disk full", "storage full")):
-        return " Le plugin signale un problème d'espace de stockage sur l'imprimante."
-    return ""
+            messages.append(value[:600].lower())
+    error = " ".join(messages)
+    if any(word in error for word in ("no usb", "not mounted", "no storage",
+                                      "storage missing", "no sd card")):
+        return " Le transfert signale un stockage USB absent ou non monté."
+    if any(word in error for word in ("no space", "disk full", "storage full",
+                                      "out of space", "quota exceeded")) or re.search(r"(?<!\\d)552(?!\\d)",error):
+        return " Le transfert signale un stockage plein (FTP 552). Vérifie l'espace libre."
+    if any(word in error for word in ("permission denied", "read only", "read-only",
+                                      "access denied", "not permitted", "permission error",
+                                      "not found", "invalid path", "failed to create")) or re.search(r"(?<!\\d)(550|553)(?!\\d)",error):
+        return " Le transfert signale un chemin inaccessible ou un refus d'écriture (FTP 550/553)."
+    if any(word in error for word in ("authentication failed", "login failed",
+                                      "incorrect password", "bad credentials",
+                                      "not logged in")) or re.search(r"(?<!\\d)530(?!\\d)",error):
+        return " Le transfert signale une authentification FTPS refusée (FTP 530). Vérifie le code d'accès."
+    if any(word in error for word in ("ssl", "tls", "handshake", "certificate",
+                                      "unexpected eof", "end of file", "eof occurred")):
+        return " Le transfert signale une erreur de négociation ou de fermeture TLS sur le canal FTPS."
+    if any(word in error for word in ("timeout", "timed out", "unreachable", "connection refused",
+                                      "connection failed", "connection reset", "broken pipe",
+                                      "passive", "data channel", "data connection")) or re.search(r"(?<!\\d)(425|426)(?!\\d)",error):
+        return " Le transfert signale une erreur de canal de données FTP ou une interruption réseau."
+    if "ftp" in error or "storbinary" in error or "stor " in error:
+        return " Le transfert échoue dans la commande d'écriture FTPS STOR, sans code d'erreur plus précis."
+    return " OctoEverywhere a retourné 752, mais sans raison FTPS exploitable dans sa réponse."
+
 
 
 def _upload(virtual_path, raw):
@@ -742,6 +763,7 @@ body.light .fj-print-hint{color:#496477!important}
                 raise PrinterError("X2D occupée ou indisponible : aucune transmission.")
             virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
             _upload(virtual_path, staged)
+            session.pop("fjord_last_upload_diagnostic", None)
             consume_staged(token)
             # Trust only the exact uploaded path returned by the printer.
             # Token is session-bound, short-lived and consumed by start.
@@ -759,6 +781,12 @@ body.light .fj-print-hint{color:#496477!important}
             flash(message)
             return redirect(next_page)
         except (PrinterError, SliceReviewError) as exc:
+            # Preserve only the sanitized status returned to the admin browser.
+            # Never retain raw FTPS logs, credentials, URLs or exception data.
+            if isinstance(exc, PrinterError) and "OctoEverywhere (752)" in str(exc):
+                session["fjord_last_upload_diagnostic"] = {
+                    "at": time.time(), "hint": str(exc)[:420]
+                }
             if request.accept_mimetypes.best == "application/json":
                 return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
@@ -812,8 +840,14 @@ body.light .fj-print-hint{color:#496477!important}
                 "La connexion OctoEverywhere ne répond pas complètement. "
                 "Vérifie que le conteneur et la X2D sont connectés."
             )
+        prior = session.get("fjord_last_upload_diagnostic")
+        previous_hint = ""
+        if (isinstance(prior, dict) and
+            0 <= time.time() - float(prior.get("at", 0)) < 3600):
+            previous_hint = str(prior.get("hint", ""))[:420]
         response = jsonify(ok=True, status_ok=checks["status"], files_ok=checks["files"],
-                           diagnosis=diagnosis, details=details)
+                           diagnosis=diagnosis, details=details,
+                           last_upload=previous_hint)
         response.headers["Cache-Control"] = "private, no-store"
         return response
 

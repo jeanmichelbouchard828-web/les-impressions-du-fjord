@@ -165,6 +165,57 @@ class ReviewTests(unittest.TestCase):
             self.assertFalse(list(Path(temp).glob("*.3mf")))
 
 
+    def test_752_remains_downloadable_and_last_api_error_is_visible_in_diagnostic(self):
+        from fjord_printer import PrinterError
+        app=Flask("bambu-752-diagnostic")
+        app.secret_key="test-diagnostic-key"
+        app.config["TESTING"]=True
+        register_printer_admin(app,lambda fn:fn,lambda:None,lambda:"",
+                               lambda *args,**kw:"ok",db=FakeDb)
+        client=app.test_client()
+        archive=native_archive()
+        def probe(path, **kwargs):
+            if path == "/status":
+                return {"Features":32,"JobStatus":{"State":"idle","CurrentPrint":{}}}
+            if path == "/files/list":
+                return {"Root":[]}
+            raise AssertionError("Read-only diagnostic may not issue printer commands.")
+        safe_error=("Échec du transfert OctoEverywhere (752). Ton 3MF est tranché, "
+                    "mais il n'est pas confirmé sur la X2D. "
+                    "Le transfert signale un chemin inaccessible ou un refus d'écriture (FTP 550/553).")
+        with (
+            tempfile.TemporaryDirectory() as temp,
+            patch.object(fjord_slice_review,"STAGING_DIRECTORY",Path(temp)),
+            patch("bambu_auto.cli_location",return_value="/usr/local/bin/bambu-studio"),
+            patch("bambu_auto.slice_x2d",return_value=archive),
+            patch("fjord_printer._status",return_value={"can_start":True,"state":"idle","progress":0,"file":""}),
+            patch("fjord_printer._upload",side_effect=PrinterError(safe_error)) as upload,
+            patch("fjord_printer._api",side_effect=probe) as printer_api,
+            patch("fjord_printer._plugin_log_hint",return_value=None),
+        ):
+            prepare=client.post("/admin/atelier-imprimer/preparer",data={
+                "stl":(io.BytesIO(b"x"*134),"cube.stl"),"machine":"1","process":"2",
+                "filament":"3","material":"PETG","bed_type":"Textured PEI Plate"},
+                headers={"Accept":"application/json"},content_type="multipart/form-data")
+            self.assertEqual(prepare.status_code,200)
+            stage=prepare.json["stage"]
+            failed=client.post("/admin/atelier-imprimer/transmettre",data={"stage":stage},
+                               headers={"Accept":"application/json"})
+            self.assertEqual(failed.status_code,422)
+            self.assertIn("FTP 550/553", failed.json["error"])
+            self.assertEqual(upload.call_count,1)
+            diagnostic=client.get("/api/admin/atelier/impression-diagnostic")
+            self.assertEqual(diagnostic.status_code,200)
+            self.assertIn("FTP 550/553", diagnostic.json["last_upload"])
+            self.assertNotIn("192.0.2.",str(diagnostic.json))
+            downloadable=client.post("/admin/atelier-imprimer/telecharger-3mf",
+                                     data={"stage":stage},
+                                     headers={"Accept":"application/octet-stream"})
+            self.assertEqual(downloadable.status_code,200)
+            self.assertEqual(downloadable.data,archive)
+            self.assertFalse(any(c.args[0]=="/start" for c in printer_api.call_args_list))
+
+
     def test_atelier_start_guard_rejects_busy_unverified_expired_and_wrong_nonce(self):
         import time
         app=Flask("x2d-start-guards")
