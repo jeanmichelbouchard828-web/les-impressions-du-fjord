@@ -634,6 +634,13 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   font-weight:800;font-style:normal}
 }
 
+
+.fjord-paint-view-button{display:block;width:100%;padding:10px 9px;min-height:43px;
+ border-radius:9px;background:#23394b!important;color:#d6effa!important;
+ border:1px solid #6b9dbe!important;text-align:center;font-size:13px;font-weight:750}
+.fjord-paint-view-button:hover,.fjord-paint-view-button.active{
+ background:#076a97!important;border-color:#a4e6ff!important;color:#fff!important}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -857,7 +864,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <section class="fjord-paint-panel" id="fjordPaintPanel" hidden aria-label="Panneau de peinture 3D">
 <div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div>
 <div class="fjord-paint-mode-note">Pièce : <strong id="fjordPaintModelLabel">Aucune pièce sélectionnée</strong></div>
-<p class="fjord-paint-help">Choisis ton outil et une couleur. <strong>Clique ou glisse sur la surface</strong> de la pièce pour la peindre.</p>
+<p class="fjord-paint-help">🖌 Clic gauche : peindre. 🖱️ Clic droit maintenu : tourner autour de la pièce. Molette : zoomer.</p>
+<button type="button" id="fjordPaintOrbit" class="fjord-paint-view-button" aria-pressed="false" title="Tourner la vue sans peindre, utile sur mobile">🔄 Tourner la vue 3D (sans peindre)</button>
+<p class="fjord-paint-help">Sur téléphone : active « Tourner la vue », glisse pour regarder l’autre côté puis désactive pour continuer à peindre.</p>
 <div class="fjord-paint-grid" role="toolbar" aria-label="Outils de peinture">
 <button type="button" data-fjord-paint-tool="brush" class="active" aria-pressed="true">🖌 Pinceau</button>
 <button type="button" data-fjord-paint-tool="sphere" aria-pressed="false">◉ Sphère</button>
@@ -1910,6 +1919,7 @@ stage.addEventListener('contextmenu',e=>{
 });
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(window.fjordPaint?.onPointerDown?.(e))return;
+ if(window.fjordPaint?.isOrbiting?.())return; // Permit OrbitControls to rotate the camera without moving a model.
  if(fjordWalkMode)return;
  if(e.pointerType==='touch'){
   activeTouchIds.add(e.pointerId);
@@ -1966,6 +1976,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
 },true);
 renderer.domElement.addEventListener('pointermove',e=>{
  if(window.fjordPaint?.onPointerMove?.(e))return;
+ if(window.fjordPaint?.isOrbiting?.())return;
  if(rightPanStart&&e.pointerId===rightPanStart.pointerId &&
     Math.hypot(e.clientX-rightPanStart.x,e.clientY-rightPanStart.y)>rightPanThreshold){
    rightPanStart.dragged=true;
@@ -2009,10 +2020,13 @@ function finishDrag(e){
 }
 renderer.domElement.addEventListener('pointerup',e=>{
  if(window.fjordPaint?.onPointerUp?.(e))return;
+ if(window.fjordPaint?.isOrbiting?.())return;
  if(e.button===2&&e.pointerType==='mouse'){
    const gesture=rightPanStart;
    rightPanStart=null;
-   if(gesture&&gesture.pointerId===e.pointerId&&!gesture.dragged &&
+   if(window.fjordPaint?.isActive?.()){
+     hideContext(); // A right drag belongs to 3D navigation while painting.
+   }else if(gesture&&gesture.pointerId===e.pointerId&&!gesture.dragged &&
       Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)<=rightPanThreshold){
      showContextMenu(e);
    }else hideContext();
