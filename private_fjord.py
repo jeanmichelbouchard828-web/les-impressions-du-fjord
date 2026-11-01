@@ -614,7 +614,7 @@ if(fjordAutoButton){
  }
  panel.querySelector('#fjordReviewAccumulated').addEventListener('change',drawBambuReview);
  function zoomReview(next){
-  reviewZoom=Math.min(6,Math.max(.75,next));
+  reviewZoom=Math.min(6,Math.max(.5,next));
   reviewPanX=Math.min(500,Math.max(-500,reviewPanX));
   reviewPanY=Math.min(500,Math.max(-500,reviewPanY));
   drawBambuReview();
@@ -622,45 +622,66 @@ if(fjordAutoButton){
  panel.querySelector('#fjordReviewZoomOut').addEventListener('click',()=>zoomReview(reviewZoom/1.4));
  panel.querySelector('#fjordReviewZoomIn').addEventListener('click',()=>zoomReview(reviewZoom*1.4));
  panel.querySelector('#fjordReviewFit').addEventListener('click',()=>{
-  reviewZoom=1;reviewPanX=reviewPanY=0;drawBambuReview();
+  reviewZoom=1;reviewPanX=reviewPanY=0;
+  reviewYaw=-.6;reviewPitch=.7;drawBambuReview();
  });
- const canvas=panel.querySelector('#fjordReviewCanvas');
- let lastTouch={x:0,y:0,d:0};
+ const modeSwitch=panel.querySelector('#fjordReview3DToggle');
+ modeSwitch.addEventListener('click',()=>{
+  review3D=!review3D;
+  modeSwitch.textContent=review3D?'◈ 3D':'▤ 2D';
+  modeSwitch.setAttribute('aria-pressed',String(review3D));
+  panel.querySelector('#fjordReviewGesture').textContent=review3D
+   ?'Un doigt : pivoter · deux doigts : zoomer et déplacer · bouton 3D/2D.'
+   :'Glisse pour déplacer · pince à deux doigts pour zoomer · vue du dessus.';
+  drawBambuReview();
+ });
+ let lastTouch={x:0,y:0,d:0},rightDrag=false;
  function touchState(){
   const p=[...reviewTouches.values()];
+  if(!p.length)return {x:0,y:0,d:0};
   const x=p.reduce((sum,a)=>sum+a.x,0)/p.length;
   const y=p.reduce((sum,a)=>sum+a.y,0)/p.length;
   const d=p.length>=2?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0;
   return {x,y,d};
  }
- canvas.addEventListener('pointerdown',event=>{
+ reviewCanvas.addEventListener('contextmenu',event=>event.preventDefault());
+ reviewCanvas.addEventListener('pointerdown',event=>{
   if(!prepared)return;
+  event.preventDefault();
   reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  rightDrag=event.button===2;
   lastTouch=touchState();
-  try{canvas.setPointerCapture(event.pointerId);}catch(_){}
+  try{reviewCanvas.setPointerCapture(event.pointerId);}catch(_){}
  });
- canvas.addEventListener('pointermove',event=>{
+ reviewCanvas.addEventListener('pointermove',event=>{
   if(!prepared||!reviewTouches.has(event.pointerId))return;
+  event.preventDefault();
   reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
   const now=touchState();
-  reviewPanX+=now.x-lastTouch.x;
-  reviewPanY+=now.y-lastTouch.y;
-  if(now.d&&lastTouch.d)reviewZoom=Math.min(6,Math.max(.75,reviewZoom*now.d/lastTouch.d));
+  const dx=now.x-lastTouch.x,dy=now.y-lastTouch.y;
+  if(reviewTouches.size>=2){
+   reviewPanX+=dx;reviewPanY+=dy;
+   if(now.d&&lastTouch.d)reviewZoom=Math.min(6,Math.max(.5,reviewZoom*now.d/lastTouch.d));
+  }else if(review3D&&!rightDrag){
+   reviewYaw+=dx*.012;
+   reviewPitch=Math.min(1.48,Math.max(-1.48,reviewPitch+dy*.009));
+  }else{reviewPanX+=dx;reviewPanY+=dy;}
   lastTouch=now;
   drawBambuReview();
  });
  function endReviewTouch(event){
   reviewTouches.delete(event.pointerId);
-  if(reviewTouches.size)lastTouch=touchState();
-  try{canvas.releasePointerCapture(event.pointerId);}catch(_){}
+  rightDrag=false;
+  lastTouch=touchState();
+  try{reviewCanvas.releasePointerCapture(event.pointerId);}catch(_){}
  }
- canvas.addEventListener('pointerup',endReviewTouch);
- canvas.addEventListener('pointercancel',endReviewTouch);
- canvas.addEventListener('wheel',event=>{
+ reviewCanvas.addEventListener('pointerup',endReviewTouch);
+ reviewCanvas.addEventListener('pointercancel',endReviewTouch);
+ reviewCanvas.addEventListener('wheel',event=>{
   if(!prepared)return;
   event.preventDefault();zoomReview(reviewZoom*(event.deltaY>0?.85:1.15));
  },{passive:false});
- panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
+  panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
   invalidatePreview();
   state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
  });
@@ -856,6 +877,16 @@ if(fjordAutoButton){
    if(review.previousElementSibling!==heading)heading.insertAdjacentElement('afterend',review);
    panel.classList.add('fjord-preview-active');
    reviewZoom=1;reviewPanX=reviewPanY=0;
+   review3D=true;reviewYaw=-.6;reviewPitch=.7;
+   modeSwitch.textContent='◈ 3D';
+   modeSwitch.setAttribute('aria-pressed','true');
+   panel.querySelector('#fjordReviewAccumulated').checked=true;
+   for(const [from,to] of [['estimateKg','fjordReviewKgRate'],
+    ['estimateHourRate','fjordReviewHourRate'],['estimateSetup','fjordReviewSetupRate'],
+    ['estimateMargin','fjordReviewMarkup']]){
+    const source=document.getElementById(from),target=panel.querySelector('#'+to);
+    if(source&&source.value!==''&&Number.isFinite(Number(source.value)))target.value=source.value;
+   }
    const slider=panel.querySelector('#fjordReviewLayer');
    slider.max=String(result.preview.layers.length-1);
    slider.value=slider.max;
