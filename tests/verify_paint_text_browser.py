@@ -27,7 +27,7 @@ try:
         errors=[]
         page.on("pageerror",lambda err:errors.append(str(err)))
         page.route("**/api/atelier/filaments",lambda route:route.fulfill(status=200,
-            content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
+            content_type="application/json",body='{"connected":true,"available":true,"sources":[{"slot":"AMS A1","material":"PLA","name":"Rouge","color":"#E63838"},{"slot":"AMS A2","material":"PETG","name":"Bleu","color":"#2458E8"}]}'))
         page.goto(BASE+"/atelier3d.html",wait_until="domcontentloaded")
         page.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
         # Typing into the real 3D text panel creates printable geometry and retains edit metadata.
@@ -48,8 +48,15 @@ try:
         edited=json.loads(pathlib.Path(dl2.value.path()).read_text(encoding="utf-8"))
         assert edited["objects"][0]["textSpec"]["value"]=="FJORD",edited["objects"][0]["textSpec"]
         # Paint opens, selects tools and palette; clicking blank plate exits paint mode.
-        page.locator("#fjordPaintToggle").evaluate("el=>el.click()")
+        assert page.locator("#fjordPaintFast").count()==1
+        page.locator("#fjordPaintFast").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
+        assert page.locator("#fjordPaintFast").get_attribute("aria-pressed")=="true"
+        page.wait_for_function("document.querySelectorAll('#fjordPaintAmsPalette button').length===2",timeout=8000)
+        page.locator('#fjordPaintAmsPalette [data-fjord-color="#E63838"]').click()
+        assert "#E63838" in page.locator("#fjordPaintColorLabel").inner_text()
+        page.locator('#fjordPaintPresets [data-fjord-color="#25A3EB"]').click()
+        assert "#25A3EB" in page.locator("#fjordPaintColorLabel").inner_text()
         page.locator('[data-fjord-paint-tool="triangle"]').evaluate("el=>el.click()")
         assert page.locator('[data-fjord-paint-tool="triangle"]').get_attribute("aria-pressed")=="true"
         page.locator("#fjordPaintColor").evaluate("""el=>{el.value='#EE44AA';el.dispatchEvent(new Event('input',{bubbles:true}))}""")
