@@ -730,3 +730,7 @@ register_private_fjord(app,db,admin_required,verify,csrfinput,csrf,page)
 # Secure, admin-only archive of the owner\'s Bambu Studio preset bundles.
 from bambu_presets import register_bambu_preset_library
 register_bambu_preset_library(app,db,admin_required,verify,csrfinput,page)
+
+# Private X2D print console (OctoEverywhere capabilities verified at runtime).
+from fjord_printer import register_printer_admin
+register_printer_admin(app,admin_required,verify,csrfinput,page)
