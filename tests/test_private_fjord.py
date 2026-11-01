@@ -281,6 +281,10 @@ class PrivateFjordTests(unittest.TestCase):
                              "paid_at": datetime.datetime(2026, 10, 30),
                              "created": datetime.datetime(2026, 10, 29)}]
                 return []
+            def fetchone(self):
+                if "fjord_interac_email" in self.query:
+                    return {"value": "virements@example.ca"}
+                return None
         app = Flask(__name__)
         app.secret_key = "test-payment"
         register_private_fjord(app, PaidQuotesConnection, lambda f: f, lambda: None,
