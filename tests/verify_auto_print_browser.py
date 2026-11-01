@@ -137,6 +137,15 @@ try:
   mobile.route("**/admin/atelier-imprimer/preparer",lambda route:route.fulfill(
     status=200,content_type="application/json",
     body=json.dumps({"ok":True,"stage":"b"*40,"preview":review})))
+  mobile.route("**/admin/atelier-imprimer/transmettre",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body=json.dumps({"ok":True,"file":"gcode/fjord_mobile_demo.3mf",
+       "nonce":"mobile-confirmation-0123456789abcdefghijk"})))
+  mobile.route("**/api/admin/atelier/impression-etat",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body=json.dumps({"ok":True,"state":"idle","can_start":True,
+                     "progress":0,"file":""})))
+  mobile.on("dialog",lambda dialog:dialog.accept())
   mobile.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
   mobile.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
   mobile.locator('[data-shape="cube"]').evaluate("el=>el.click()")
@@ -159,6 +168,23 @@ try:
   assert "1 / 2" in mobile.locator("#fjordReviewLabel").inner_text()
   mobile.locator("#fjordReviewNext").evaluate("el=>el.click()")
   assert "2 / 2" in mobile.locator("#fjordReviewLabel").inner_text()
+  # Verify the final printer controls stay inside the mobile Atelier.
+  mobile.locator("#fjordReviewTransfer").evaluate("el=>el.click()")
+  mobile.wait_for_function("!document.querySelector('#fjordStartAtelier').hidden",timeout=12000)
+  mobile.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Prête')",timeout=12000)
+  assert mobile.locator("#fjordStartNow").is_disabled()
+  assert mobile.locator("#fjordStartVerified").is_visible()
+  assert mobile.locator("#fjordStartCleared").is_visible()
+  mobile.locator("#fjordStartVerified").evaluate("el=>el.click()")
+  mobile.locator("#fjordStartCleared").evaluate("el=>el.click()")
+  assert mobile.locator("#fjordStartNow").is_enabled()
+  assert "atelier3d_auto_print_e2e.html" in mobile.url
+  mobile.locator("#fjordStartAnother").evaluate("el=>el.click()")
+  assert mobile.locator("#fjordStartAtelier").is_hidden()
+  assert mobile.locator("#fjordAutoForm").is_visible()
+  # A fresh slice remains available without requiring a page change.
+  mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  mobile.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=20000)
   mobile.locator("#fjordReviewRedo").evaluate("el=>el.click()")
   assert mobile.locator("#fjordSliceReview").is_hidden()
   assert mobile.locator("#fjordAutoForm").is_visible(),"Edit and re-slice must restore accessible profiles"
