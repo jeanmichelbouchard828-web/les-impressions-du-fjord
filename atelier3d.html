@@ -641,7 +641,30 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-paint-view-button:hover,.fjord-paint-view-button.active{
  background:#076a97!important;border-color:#a4e6ff!important;color:#fff!important}
 
+/* Distance et cercle mesurés via le même outil Mesure. */
+.fjord-measure-workspace{margin:11px 0 14px;padding:13px;border:1px solid var(--border);border-radius:11px;background:var(--field);display:grid;gap:9px}
+.fjord-measure-workspace label{font-size:12px;font-weight:800;color:var(--text)}
+.fjord-measure-workspace select{width:100%;min-height:42px;padding:8px 9px;font-size:13px}
+.fjord-measure-workspace #measureHint{font-size:12px;line-height:1.5;color:var(--accent);margin:2px 0}
+.fjord-measure-result{padding:11px;border-radius:9px;border:1px solid #4a99c3;background:#102c41;color:#eaf7ff}
+.fjord-measure-result[hidden],.fjord-measure-values[hidden],#fjordMeasureDistanceValue[hidden]{display:none!important}
+.fjord-measure-result-heading{font-size:12px;color:#a9d7ed;margin-bottom:8px;font-weight:700}
+.fjord-measure-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.fjord-measure-values>div{padding:9px;background:#1b4460;border-radius:7px;min-width:0}
+.fjord-measure-values span{display:block;font-size:11px;color:#cae6f4}
+.fjord-measure-values strong{font-size:18px;color:#fff;font-weight:850;line-height:1.45;overflow-wrap:anywhere}
+#fjordMeasureDistanceValue{font-size:17px;font-weight:800;color:#fff;margin:0}
+.fjord-measure-disclaimer{font-size:11px;line-height:1.5;color:var(--muted);margin:0}
+#fjordMeasureClear{min-height:38px;width:100%;font-size:12px}
+#fjordMeasureCircleQuick{border:1px solid #478ba8}
+body.light .fjord-measure-result{background:#e6f5fd;color:#124665}
+body.light .fjord-measure-result-heading{color:#26566f}
+body.light .fjord-measure-values>div{background:#d2e9f7}
+body.light .fjord-measure-values span{color:#29576f}
+body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{color:#0f4b6b}
+
 </style>
+<script src="/static/fjord_measure_circle.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
 <header>
@@ -689,6 +712,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   <button data-fjord-tool="rotate" title="Pivoter"><span>⟳</span><em>Pivoter</em></button>
   <button data-fjord-tool="duplicate" title="Multi / Dupliquer"><span>▢</span><em>Multi</em></button>
   <button data-fjord-tool="measure" title="Règle"><span>📏</span><em>Règle</em></button>
+<button type="button" id="fjordMeasureCircleQuick" title="Rayon et diamètre : 3 points du même contour circulaire"><span>◎</span><em>Rayon / Ø</em></button>
   <button data-fjord-tool="centerXY" title="Accroche et centrage"><span>⊕</span><em>Accroche et centrage</em></button>
   <button data-fjord-tool="cutZ" title="Vue de coupe"><span>⬡</span><em>Vue de coupe</em></button>
   <button data-fjord-tool="dropToBed" title="Niveau"><span>▱</span><em>Niveau</em></button>
@@ -814,7 +838,25 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="remove" data-i18n="remove">Supprimer</button><button id="undo" data-i18n="undo">↶ Annuler</button>
 <button id="redo" data-i18n="redo">↷ Rétablir</button>
 <button id="resetProject" data-i18n="resetProject">⟲ Réinitialiser</button>
-<button id="measure" class="tool-btn" data-i18n="measure">📏 Mesurer</button></div><p id="measureHint" class="tool-note" data-i18n="measureHint">Cliquez deux points sur la pièce pour mesurer la distance.</p><div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
+<button id="measure" class="tool-btn" data-i18n="measure">📏 Mesurer</button></div>
+<div id="fjordMeasureWorkspace" class="fjord-measure-workspace">
+<label for="fjordMeasureMode">Type de mesure</label>
+<select id="fjordMeasureMode" aria-label="Type de mesure 3D">
+<option value="distance">📏 Distance · 2 points</option>
+<option value="circle">◎ Rayon + diamètre · 3 points</option>
+</select>
+<p id="measureHint" class="tool-note" role="status" aria-live="polite">Sélectionne Mesurer, puis clique deux points sur la pièce.</p>
+<div id="fjordMeasureResults" class="fjord-measure-result" hidden aria-live="polite">
+<div id="fjordMeasureResultHeading" class="fjord-measure-result-heading">Résultat</div>
+<div id="fjordMeasureCircleValues" class="fjord-measure-values" hidden>
+<div><span>Rayon</span><strong id="fjordMeasureRadius">—</strong></div>
+<div><span>Diamètre</span><strong id="fjordMeasureDiameter">—</strong></div>
+</div>
+<p id="fjordMeasureDistanceValue" hidden></p>
+</div>
+<p class="fjord-measure-disclaimer">Rayon et diamètre <strong>estimés avec trois points du même contour circulaire</strong>. Les STL sont faits de facettes : vérifie les cotes critiques au pied à coulisse.</p>
+<button id="fjordMeasureClear" type="button" title="Effacer les repères de mesure">✕ Effacer la mesure</button>
+</div><div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
 </div></section>
 <section data-tool-panel="size"><h3 data-i18n="toolSize">Taille rapide</h3><div class="tools"><button id="half" data-i18n="half">½ Réduire</button><button id="double" data-i18n="double">×2 Agrandir</button>
 <button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
@@ -2054,7 +2096,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
    if(layFaceMode){
     if(tap.faceHit?.object===selected)layOnClickedFace(tap.faceHit);
     else {exitLayFaceMode();pick(null);}
-   }else if(measureMode && tap.point)measurePoint(tap.point);
+   }else if(measureMode && tap.point)measurePoint(tap.point,tap.mesh);
    else if(tap.mesh)pick(tap.mesh);
    else if(!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
    // A tap on the empty build plate must not cancel the active modelling tool.
@@ -2070,7 +2112,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
   return;
  }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
- const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point);else pick(hit.object)}
+ const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point,hit.object);else pick(hit.object)}
  else if(!cutPreviewActive&&!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
@@ -3135,38 +3177,123 @@ for(const axis of ['X','Y','Z']){
    say('sizeDone');
  }));
 }
-let measureMode=false,measureStart=null,measureLine=null;
-const measureMarkers=[];
+let measureMode=false,measureObject=null;
+const measureMarkers=[],measureOverlays=[],measurePickedPoints=[];
+const measureModeSelect=$('fjordMeasureMode'),measurePanel=$('fjordMeasureResults');
+const measureCircleValues=$('fjordMeasureCircleValues');
+function measureLocalized(fr,en){return currentLang()==='en'?en:fr;}
+function measureHint(message){$('measureHint').textContent=message;}
 function measureMarker(point,label){
  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
  const ctx=canvas.getContext('2d');
  ctx.beginPath();ctx.arc(64,64,48,0,Math.PI*2);
  ctx.fillStyle=label===1?'#ffae38':'#46ddf8';ctx.fill();
  ctx.lineWidth=8;ctx.strokeStyle='#ffffff';ctx.stroke();
- ctx.font='bold 62px Arial,sans-serif';ctx.fillStyle='#071625';
+ ctx.font='bold 58px Arial,sans-serif';ctx.fillStyle='#071625';
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(label),64,69);
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
- const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false,transparent:true}));
+ const material=new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false,transparent:true});
+ const sprite=new THREE.Sprite(material);
  sprite.position.copy(point);sprite.renderOrder=1000;sprite.userData.markerTexture=texture;
  scene.add(sprite);measureMarkers.push(sprite);
  return sprite;
 }
-function clearMeasureLine(){
- if(measureLine){scene.remove(measureLine);measureLine.geometry.dispose();measureLine.material.dispose();measureLine=null}
- for(const marker of measureMarkers){scene.remove(marker);marker.material.dispose();marker.userData.markerTexture.dispose()}
- measureMarkers.length=0;measureStart=null
+function measureOverlayLine(points,color){
+ const material=new THREE.LineBasicMaterial({color,depthTest:false,depthWrite:false});
+ const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),material);
+ line.renderOrder=999;scene.add(line);measureOverlays.push(line);
+ return line;
 }
-function measurePoint(point){
- if(!measureStart){
-  clearMeasureLine();measureStart=point.clone();measureMarker(point,1);say('measureActive');return
+function clearMeasureLine(){
+ for(const line of measureOverlays){
+  scene.remove(line);line.geometry.dispose();line.material.dispose();
  }
- const start=measureStart.clone(),distance=start.distanceTo(point);
- measureMarker(point,2);
- const material=new THREE.LineBasicMaterial({color:0xffad49,depthTest:false,depthWrite:false});
- measureLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([start,point.clone()]),material);
- measureLine.renderOrder=999;scene.add(measureLine);
- status.textContent=langText[currentLang()].measureValue.replace('{distance}',distance.toFixed(2));
- measureStart=null;
+ measureOverlays.length=0;
+ for(const marker of measureMarkers){
+  scene.remove(marker);marker.material.dispose();marker.userData.markerTexture.dispose();
+ }
+ measureMarkers.length=0;measurePickedPoints.length=0;measureObject=null;
+ measurePanel.hidden=true;
+ measureCircleValues.hidden=true;$('fjordMeasureDistanceValue').hidden=true;
+}
+function setMeasureHint(){
+ const circle=measureModeSelect.value==='circle';
+ if(!measureMode){
+  measureHint(measureLocalized(
+   'Clique sur « Mesurer » ou sur l’outil ◎ Rayon / Ø pour commencer.',
+   'Click Measure or ◎ Radius / Ø to begin.'));
+ }else if(circle){
+  measureHint(measureLocalized(
+   'Sélectionne 3 points espacés sur le même contour circulaire (trou ou cylindre). Clique droit pour tourner la pièce.',
+   'Select 3 spaced points on the same circular rim (hole or cylinder). Right-drag to rotate the view.'));
+ }else{
+  measureHint(measureLocalized('Clique 2 points sur la pièce pour mesurer leur distance.',
+                              'Click 2 points on the part to measure the distance.'));
+ }
+}
+function measurePoint(point,mesh=null){
+ if(!measureMode||!point)return;
+ const circle=measureModeSelect.value==='circle',needed=circle?3:2;
+ // After completing a measurement the next click starts a fresh one.
+ if(measurePickedPoints.length===needed)clearMeasureLine();
+ if(circle&&measureObject&&mesh&&measureObject!==mesh){
+  measureHint(measureLocalized('Choisis les 3 points sur la même pièce.',
+                              'Choose all 3 points on the same part.'));
+  return;
+ }
+ if(!measurePickedPoints.length)measureObject=mesh;
+ measurePickedPoints.push(point.clone());
+ measureMarker(point,measurePickedPoints.length);
+ const remaining=needed-measurePickedPoints.length;
+ if(remaining){
+  measureHint(measureLocalized(
+   'Point '+measurePickedPoints.length+' enregistré · encore '+remaining+' point(s).',
+   'Point '+measurePickedPoints.length+' saved · '+remaining+' more point(s).'));
+  return;
+ }
+ if(!circle){
+  const d=measurePickedPoints[0].distanceTo(measurePickedPoints[1]);
+  measureOverlayLine(measurePickedPoints,0xffae38);
+  $('fjordMeasureResultHeading').textContent=measureLocalized('Distance mesurée','Measured distance');
+  $('fjordMeasureDistanceValue').textContent=d.toFixed(2)+' mm';
+  $('fjordMeasureDistanceValue').hidden=false;
+  measurePanel.hidden=false;
+  status.textContent=langText[currentLang()].measureValue.replace('{distance}',d.toFixed(2));
+  setMeasureHint();return;
+ }
+ const args=measurePickedPoints.map(v=>[v.x,v.y,v.z]);
+ const result=window.fjordFitCircle3D?.(...args);
+ if(!result){
+  clearMeasureLine();
+  measureHint(measureLocalized(
+   'Impossible de calculer un cercle fiable : choisis trois points bien espacés sur le contour, pas presque alignés.',
+   'Cannot fit a reliable circle: choose three well-separated points on its rim, not nearly collinear.'));
+  return;
+ }
+ const center=new THREE.Vector3(...result.center);
+ const normal=new THREE.Vector3(...result.normal);
+ const r=result.radius;
+ const u=measurePickedPoints[0].clone().sub(center).normalize();
+ const v=new THREE.Vector3().crossVectors(normal,u).normalize();
+ // Draw the fitted 3D circumference in the plane of the selected points.
+ const circumference=[];
+ for(let k=0;k<=128;k++){
+  const angle=k/128*Math.PI*2;
+  circumference.push(center.clone()
+   .addScaledVector(u,Math.cos(angle)*r)
+   .addScaledVector(v,Math.sin(angle)*r));
+ }
+ measureOverlayLine(circumference,0x48dcfb);
+ measureOverlayLine([center,measurePickedPoints[0]],0xffae38);
+ measureOverlayLine([center.clone().addScaledVector(u,-r),center.clone().addScaledVector(u,r)],0x79ecb6);
+ measureMarker(center,'C');
+ $('fjordMeasureResultHeading').textContent=measureLocalized('Cercle estimé (3 points)','Fitted circle (3 points)');
+ $('fjordMeasureRadius').textContent='≈ '+r.toFixed(2)+' mm';
+ $('fjordMeasureDiameter').textContent='≈ '+result.diameter.toFixed(2)+' mm';
+ measureCircleValues.hidden=false;
+ measurePanel.hidden=false;
+ status.textContent='R ≈ '+r.toFixed(2)+' mm · Ø ≈ '+result.diameter.toFixed(2)+' mm';
+ setMeasureHint();
 }
 function updateMeasureMarkerSizes(){
  if(!measureMarkers.length)return;
@@ -3184,9 +3311,33 @@ $('measure').addEventListener('click',()=>{
  $('measure').classList.toggle('active',measureMode);
  $('measure').setAttribute('aria-pressed',String(measureMode));
  if(!measureMode)clearMeasureLine();
- else say('measureActive');
+ setMeasureHint();
 });
 $('measure').setAttribute('aria-pressed','false');
+measureModeSelect.addEventListener('change',()=>{
+ clearMeasureLine();
+ if(!measureMode)$('measure').click();
+ else setMeasureHint();
+});
+$('fjordMeasureClear').addEventListener('click',()=>{
+ clearMeasureLine();
+ setMeasureHint();
+});
+$('fjordMeasureCircleQuick').addEventListener('click',()=>{
+ measureModeSelect.value='circle';
+ clearMeasureLine();
+ if(!measureMode)$('measure').click();
+ else setMeasureHint();
+ document.querySelector('[data-fjord-panel="measure"]')?.click();
+});
+setMeasureHint();
+window.fjordMeasureDebug=()=>({
+ mode:measureModeSelect.value,active:measureMode,
+ points:measurePickedPoints.length,
+ resultVisible:!measurePanel.hidden,
+ radius:$('fjordMeasureRadius').textContent,
+ diameter:$('fjordMeasureDiameter').textContent
+});
 function setView(direction,center){
  // View presets must not turn off the current modelling tool.
  const target=center||new THREE.Vector3(0,0,15),distance=Math.max(120,camera.position.distanceTo(orbit.target));
