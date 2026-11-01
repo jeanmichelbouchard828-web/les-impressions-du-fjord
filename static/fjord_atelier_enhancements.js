@@ -6,6 +6,7 @@ export function installFjordEnhancements(api){
  const $=id=>document.getElementById(id);
  const notice=(text)=>{const el=$('fjordPaintStatus');if(el)el.textContent=text;};
  let fontPromise=null,paintOn=false,paintTool='brush',paintHex='#f04c55',brushSize=7,strokePointer=null;
+ let cameraNavigate=false,paintPreviousRightButton=null;
  const validHex=v=>typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v);
  function getFont(){
   if(!fontPromise)fontPromise=Promise.all([
@@ -203,8 +204,29 @@ export function installFjordEnhancements(api){
    b.setAttribute('aria-pressed',String(active));
   });
  }
+ function setCameraNavigate(next){
+  cameraNavigate=Boolean(next)&&paintOn;
+  if(cameraNavigate&&strokePointer!==null){
+   const pointerId=strokePointer;
+   strokePointer=null;api.orbit.enabled=true;
+   try{renderer.domElement.releasePointerCapture(pointerId);}catch{}
+  }
+  const button=$('fjordPaintOrbit');
+  if(button){button.setAttribute('aria-pressed',String(cameraNavigate));button.classList.toggle('active',cameraNavigate);}
+  renderer.domElement.style.cursor=cameraNavigate?'grab':paintOn?'crosshair':'';
+  if(paintOn)notice(cameraNavigate?
+   '🔄 Tourner la vue : glisse sur la pièce ou le plateau. Désactive ce bouton pour reprendre le pinceau.':
+   '🖌 Peinture : clic gauche pour peindre. Clic droit maintenu pour tourner la vue. Molette pour zoomer.');
+ }
  function close(){
   if(strokePointer!==null){strokePointer=null;api.orbit.enabled=true;}
+  cameraNavigate=false;
+  if(paintPreviousRightButton!==null){
+   api.orbit.mouseButtons.RIGHT=paintPreviousRightButton;
+   paintPreviousRightButton=null;
+  }
+  $('fjordPaintOrbit')?.setAttribute('aria-pressed','false');
+  $('fjordPaintOrbit')?.classList.remove('active');
   paintOn=false;$('fjordPaintPanel').hidden=true;
   $('fjordPaintToggle')?.setAttribute('aria-pressed','false');
   $('fjordPaintToggle')?.classList.remove('active');
@@ -217,6 +239,26 @@ export function installFjordEnhancements(api){
   if(!api.models().length){notice('Importe ou crée une pièce pour commencer.');}
   api.disableCurrentTools();
   paintOn=true;$('fjordPaintPanel').hidden=false;
+  // OrbitControls stays enabled except while a LEFT paint stroke is active.
+  // RIGHT-drag temporarily orbits around the selected model, rather than panning
+  // the whole build plate. Restore its original mapping on closing paint.
+  if(paintPreviousRightButton===null)paintPreviousRightButton=api.orbit.mouseButtons.RIGHT;
+  api.orbit.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
+  setCameraNavigate(false);
+  const active=api.selected();
+  if(active){
+   active.updateMatrixWorld(true);
+   const bounds=new THREE.Box3().setFromObject(active);
+   if(!bounds.isEmpty()){
+    const target=bounds.getCenter(new THREE.Vector3());
+    // Move the pivot to the model without changing relative camera distance.
+    const offset=target.clone().sub(api.orbit.target);
+    api.orbit.target.copy(target);
+    // Camera remains in the same direction with the selected part centered.
+    api.orbit.object.position.add(offset);
+    api.orbit.update();
+   }
+  }
   $('fjordPaintToggle')?.setAttribute('aria-pressed','true');
   $('fjordPaintToggle')?.classList.add('active');
   $('fjordPaintFast')?.setAttribute('aria-pressed','true');
@@ -225,11 +267,12 @@ export function installFjordEnhancements(api){
   renderer.domElement.style.cursor='crosshair';
   paintToolChoose(paintTool);
   syncText();
-  notice('Mode peinture actif : choisis un pinceau et une couleur AMS ou personnalisée, puis peins directement sur la pièce.');
+  notice('🖌 Clique gauche pour peindre · Clic droit maintenu pour tourner autour de la pièce · Molette pour zoomer. Sur mobile, utilise « Tourner la vue ».');
  }
  function toggle(){paintOn?close():open();}
  $('fjordPaintToggle')?.addEventListener('click',toggle);
  $('fjordPaintFast')?.addEventListener('click',toggle);
+ $('fjordPaintOrbit')?.addEventListener('click',()=>setCameraNavigate(!cameraNavigate));
  $('mobilePaintBtn')?.addEventListener('click',toggle);
  $('fjordPaintClose')?.addEventListener('click',close);
  document.querySelectorAll('[data-fjord-paint-tool]').forEach(btn=>btn.addEventListener('click',()=>paintToolChoose(btn.dataset.fjordPaintTool)));
@@ -310,6 +353,8 @@ export function installFjordEnhancements(api){
   event.preventDefault();event.stopImmediatePropagation();notice('Couleur de peinture choisie : '+paintHex);
  },true);
  function onPointerDown(e){
+  // In camera mode OrbitControls receives the gesture and never paints.
+  if(cameraNavigate)return false;
   if(!paintOn||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey)return false;
   const hit=hitPaint(e);
   if(!hit){close();api.clearSelectionOnBlank();e.preventDefault();e.stopImmediatePropagation();return true;}
@@ -323,11 +368,13 @@ export function installFjordEnhancements(api){
   return true;
  }
  function onPointerMove(e){
+  if(cameraNavigate)return false;
   if(strokePointer===null||strokePointer!==e.pointerId)return false;
   if(['brush','sphere','eraser'].includes(paintTool))drawHit(hitPaint(e));
   e.preventDefault();e.stopImmediatePropagation();return true;
  }
  function onPointerUp(e){
+  if(cameraNavigate)return false;
   if(strokePointer===null||strokePointer!==e.pointerId)return false;
   strokePointer=null;api.orbit.enabled=true;
   try{renderer.domElement.releasePointerCapture(e.pointerId);}catch{}
@@ -357,5 +404,5 @@ export function installFjordEnhancements(api){
  }
  // Expose only the actions the core studio must coordinate.
  return {toggle,open,close,onPointerDown,onPointerMove,onPointerUp,restoreMesh,serializeMesh,resetForWholeColor,
-  closeOnBlank:()=>{if(paintOn)close();},syncText,isActive:()=>paintOn};
+  closeOnBlank:()=>{if(paintOn&&!cameraNavigate)close();},syncText,isActive:()=>paintOn,isOrbiting:()=>paintOn&&cameraNavigate};
 }
