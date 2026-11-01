@@ -44,6 +44,8 @@ for_id = ("stock:machine:x2d04","stock:process:020","stock:filament:PETG"); \
 results = [original_preset(cat, key) for cat, key in zip(for_category, for_id)]; \
 assert "M620" in results[0]["machine_start_gcode"]; \
 print("Bambu original X2D machine/process/PETG ready")'
+# Verify a real official X2D/PETG slice on every image build; no network to printer.
+RUN python x2d_smoke.py
 COPY static ./static
 ENV PORT=8080
 CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 160 app:app
