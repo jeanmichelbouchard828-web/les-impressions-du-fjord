@@ -80,6 +80,17 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertNotIn('fjordAdminShortcut', raw)
         self.assertIn('Retour au tableau de bord administrateur', edited)
 
+    def test_public_atelier_has_admin_login_shortcut(self):
+        raw = ('<html><head></head><body><header><div class="top-preferences">'
+               '<select id="theme"></select></div></header>'
+               '<button id="export" data-i18n="export"></button></body></html>')
+        public = public_studio(raw)
+        self.assertIn('id="fjordAdminAccess" href="/admin/atelier-3d"', public)
+        self.assertNotIn('fjordPrivateSave', public)
+        self.assertNotIn('fjordAdminShortcut', public)
+        self.assertLess(public.index('fjordAdminAccess'), public.index('id="theme"'))
+        self.assertEqual(public.count('fjordAdminAccess'), 1)
+
     def test_library_page_links_to_atelier_for_3mf(self):
         class ModelConnection(DummyConnection):
             def fetchall(self):
