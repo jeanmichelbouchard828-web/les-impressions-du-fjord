@@ -1972,7 +1972,7 @@ body.light .fj-square-section>summary{background:#e1f2f8}
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
 <div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
 {% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester Square ↗</a>{% endif %}
-{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
+{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True,_scheme='https')}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
 <label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
 <label>État de fabrication
 <select form="fjord-save-global" name="production_status_{{q.id}}">
@@ -2029,7 +2029,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 <p class="fj-help">Lien privé de suivi :
 {% if q.live_expires %}expire le {{q.live_expires.strftime('%d-%m-%Y à %H:%M')}} (heure du serveur).{% endif %}</p>
 <input class="fj-live-copy" readonly aria-label="Lien client de la soumission FJ-{{'%05d'|format(q.id)}}" onclick="this.select()"
- value="{{url_for('fjord_live_view',token=q.live_token,_external=True)}}">
+ value="{{url_for('fjord_live_view',token=q.live_token,_external=True,_scheme='https')}}">
 <a class="fj-watch-link" href="{{url_for('fjord_live_view',token=q.live_token)}}" target="_blank" rel="noopener noreferrer">↗ Voir la page client</a>
 {% else %}
 <p class="fj-help">Diffusion inactive : aucun client ne peut voir la caméra depuis cette soumission.</p>
@@ -3074,9 +3074,9 @@ function fjordCopyAll(button){
         if not q:abort(404)
         display_number=q.get("public_number") or "FJ-{:05d}".format(q["id"])
         token=_quote_payment_token(db,q)
-        accept_url=url_for("fjord_accept_quote",token=token,_external=True) if token else None
+        accept_url=url_for("fjord_accept_quote",token=token,_external=True,_scheme="https") if token else None
         active_square_url=_active_square_url(q)
-        interac_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
+        interac_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if token and interac_setting and interac_setting["value"] else None
         payment_url=active_square_url or interac_url
         logo=None
         if setting:
