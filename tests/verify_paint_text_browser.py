@@ -117,8 +117,8 @@ try:
         page.wait_for_function("document.querySelector('#fjordPaintStatus').innerText.includes('facette(s)')",timeout=6000)
         # Paint mode must allow real camera orbiting, without repainting.
         camera_before=page.evaluate("window.fjordPaint.cameraState()")
-        assert page.locator("#fjordPaintOrbit").count()==1
-        assert page.locator("#fjordPaintOrbit").get_attribute("aria-pressed")=="false"
+        # Le bouton de rotation redondant a été supprimé : clic droit = rotation.
+        assert page.locator("#fjordPaintOrbit").count()==0
         cx=rect["x"]+rect["width"]*.50
         cy=rect["y"]+rect["height"]*.50
         # Right mouse rotates while the brush mode is still selected.
@@ -132,19 +132,8 @@ try:
         assert page.locator("#fjordPaintPanel").is_visible()
         assert page.locator("#contextMenu").is_hidden()
         assert camera_after_right["rightButton"]==0, "Paint mode should map right drag to OrbitControls ROTATE"
-        # Dedicated navigation toggle allows touch users to orbit using a single finger.
-        page.locator("#fjordPaintOrbit").evaluate("el=>el.click()")
-        assert page.locator("#fjordPaintOrbit").get_attribute("aria-pressed")=="true"
-        page.mouse.move(cx,cy)
-        page.mouse.down(button="left")
-        page.mouse.move(cx-80,cy+35,steps=10)
-        page.mouse.up(button="left")
-        page.wait_for_timeout(300)
-        camera_after_left=page.evaluate("window.fjordPaint.cameraState()")
-        assert any(abs(a-b)>1e-3 for a,b in zip(camera_after_right["position"],camera_after_left["position"])), (camera_after_right,camera_after_left)
+        # Le bouton supprimé ne bloque ni la peinture ni le déplacement de caméra.
         assert page.locator("#fjordPaintPanel").is_visible()
-        page.locator("#fjordPaintOrbit").evaluate("el=>el.click()")
-        assert page.locator("#fjordPaintOrbit").get_attribute("aria-pressed")=="false"
         with page.expect_download() as painted_dl:
             page.locator("#save").evaluate("el=>el.click()")
         painted=json.loads(pathlib.Path(painted_dl.value.path()).read_text(encoding="utf-8"))
