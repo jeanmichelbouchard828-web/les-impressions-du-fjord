@@ -356,7 +356,7 @@ if(fjordAutoButton){
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
  '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
  '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Bambu Studio)</button>'+
- '<button type="button" id="fjordReviewDiagnostic">🔎 Tester la connexion des fichiers X2D</button>'+
+ '<button type="button" id="fjordReviewDiagnostic">🔎 Diagnostiquer le transfert X2D (journal FTPS)</button>'+
  '<p id="fjordReviewDiagnosticResult" role="status" aria-live="polite" hidden></p>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
  '<section id="fjordStartAtelier" hidden aria-label="Imprimer directement depuis l’Atelier">'+
