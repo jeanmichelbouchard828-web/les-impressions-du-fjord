@@ -218,6 +218,13 @@ export function installFjordEnhancements(api){
   }
   const button=$('fjordPaintOrbit');
   if(button){button.setAttribute('aria-pressed',String(cameraNavigate));button.classList.toggle('active',cameraNavigate);}
+  const quick=$('fjordPaintQuickOrbit');
+  if(quick){
+   quick.setAttribute('aria-pressed',String(cameraNavigate));
+   quick.textContent=cameraNavigate?'🎨 Reprendre la peinture':'🔄 Tourner la vue';
+   quick.setAttribute('aria-label',cameraNavigate?'Reprendre la peinture au doigt':'Tourner la vue avec un doigt');
+  }
+  if(cameraNavigate&&window.matchMedia('(max-width:760px)').matches)foldMobilePaint(true);
   renderer.domElement.style.cursor=cameraNavigate?'grab':paintOn?'crosshair':'';
   if(paintOn)notice(cameraNavigate?
    '🔄 Tourner la vue : glisse sur la pièce ou le plateau. Désactive ce bouton pour reprendre le pinceau.':
@@ -243,6 +250,8 @@ export function installFjordEnhancements(api){
    api.orbit.mouseButtons.RIGHT=paintPreviousRightButton;
    paintPreviousRightButton=null;
   }
+  const floating=$('fjordPaintQuickOrbit');
+  if(floating){floating.hidden=true;floating.setAttribute('aria-pressed','false');}
   $('fjordPaintOrbit')?.setAttribute('aria-pressed','false');
   $('fjordPaintOrbit')?.classList.remove('active');
   paintOn=false;$('fjordPaintPanel').hidden=true;
@@ -257,7 +266,10 @@ export function installFjordEnhancements(api){
   if(!api.models().length){notice('Importe ou crée une pièce pour commencer.');}
   api.disableCurrentTools();
   paintOn=true;$('fjordPaintPanel').hidden=false;
-  foldMobilePaint(false);
+  const floating=$('fjordPaintQuickOrbit');
+  if(floating)floating.hidden=false;
+  // Preserve most of the phone's build plate; "Outils" expands the palette.
+  foldMobilePaint(window.matchMedia('(max-width:760px)').matches);
   // OrbitControls stays enabled except while a LEFT paint stroke is active.
   // RIGHT-drag temporarily orbits around the selected model, rather than panning
   // the whole build plate. Restore its original mapping on closing paint.
@@ -313,6 +325,7 @@ export function installFjordEnhancements(api){
   }
  });
  $('fjordPaintOrbit')?.addEventListener('click',()=>setCameraNavigate(!cameraNavigate));
+ $('fjordPaintQuickOrbit')?.addEventListener('click',()=>setCameraNavigate(!cameraNavigate));
  $('mobilePaintBtn')?.addEventListener('click',toggle);
  $('fjordPaintClose')?.addEventListener('click',close);
  document.querySelectorAll('[data-fjord-paint-tool]').forEach(btn=>btn.addEventListener('click',()=>paintToolChoose(btn.dataset.fjordPaintTool)));
