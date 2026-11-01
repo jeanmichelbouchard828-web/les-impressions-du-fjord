@@ -174,6 +174,12 @@ class ReviewTests(unittest.TestCase):
                                lambda *args,**kw:"ok",db=FakeDb)
         client=app.test_client()
         archive=native_archive()
+        def probe(path, **kwargs):
+            if path == "/status":
+                return {"Features":32,"JobStatus":{"State":"idle","CurrentPrint":{}}}
+            if path == "/files/list":
+                return {"Root":[]}
+            raise AssertionError("Read-only diagnostic may not issue printer commands.")
         safe_error=("Échec du transfert OctoEverywhere (752). Ton 3MF est tranché, "
                     "mais il n'est pas confirmé sur la X2D. "
                     "Le transfert signale un chemin inaccessible ou un refus d'écriture (FTP 550/553).")
@@ -184,7 +190,7 @@ class ReviewTests(unittest.TestCase):
             patch("bambu_auto.slice_x2d",return_value=archive),
             patch("fjord_printer._status",return_value={"can_start":True,"state":"idle","progress":0,"file":""}),
             patch("fjord_printer._upload",side_effect=PrinterError(safe_error)) as upload,
-            patch("fjord_printer._api",side_effect=fake_api) as printer_api,
+            patch("fjord_printer._api",side_effect=probe) as printer_api,
             patch("fjord_printer._plugin_log_hint",return_value=None),
         ):
             prepare=client.post("/admin/atelier-imprimer/preparer",data={
