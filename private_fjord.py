@@ -46,9 +46,16 @@ def _number(field, default=0, low=0, high=100000):
         abort(400, "Valeur hors limites : " + field)
     return n
 
+def _quote_military_discount(q):
+    """Rabais militaire facultatif de 5 % sur les articles, hors livraison et taxes."""
+    merchandise = round(float(q["unit_price"]) * int(q["quantity"]), 2)
+    return round(merchandise * 0.05, 2) if q.get("military_discount") else 0.0
+
+
 def _quote_amounts(q):
-    """Même calcul des taxes pour le PDF et la page de paiement."""
-    subtotal = round(float(q["unit_price"]) * int(q["quantity"]) + float(q["shipping"]), 2)
+    """Calcul unique du prix net, des taxes et du total partout sur le site."""
+    merchandise = round(float(q["unit_price"]) * int(q["quantity"]), 2)
+    subtotal = round(merchandise - _quote_military_discount(q) + float(q["shipping"]), 2)
     gst = round(subtotal * 0.05, 2) if q["apply_taxes"] else 0.0
     qst = round(subtotal * 0.09975, 2) if q["apply_taxes"] else 0.0
     return subtotal, gst, qst, round(subtotal + gst + qst, 2)
@@ -1213,6 +1220,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           title TEXT NOT NULL, description TEXT, material TEXT NOT NULL,
           quantity INTEGER NOT NULL, unit_price NUMERIC(12,2) NOT NULL,
           shipping NUMERIC(12,2) NOT NULL DEFAULT 0, apply_taxes BOOLEAN NOT NULL DEFAULT FALSE,
+          military_discount BOOLEAN NOT NULL DEFAULT FALSE,
           model_id BIGINT REFERENCES private_models(id) ON DELETE SET NULL,
           preview BYTEA, preview_mime TEXT,
           grams DOUBLE PRECISION, hours DOUBLE PRECISION, filament_kg DOUBLE PRECISION,
@@ -1221,6 +1229,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
           payment_status TEXT NOT NULL DEFAULT 'En attente',
           paid_at TIMESTAMPTZ,
           created TIMESTAMPTZ DEFAULT NOW())""")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS military_discount BOOLEAN NOT NULL DEFAULT FALSE")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_status TEXT NOT NULL DEFAULT 'À traiter'")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS production_progress INTEGER NOT NULL DEFAULT 0")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS public_number TEXT")
@@ -1591,7 +1600,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,model_id,customer,title,quantity,unit_price,shipping,
-                     apply_taxes,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
+                     apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      live_url,live_token,live_enabled,live_expires
@@ -1730,6 +1739,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <label>Prix de vente par unité ($ CA) — facultatif<input type="number" name="override_price" min="0" max="100000" step="0.01" placeholder="Calcul automatique"></label>
 <label>Livraison / frais fixes ($ CA)<input type="number" name="shipping" min="0" max="100000" step="0.01" value="0"></label>
 </div>
+<label class="fj-military-discount"><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="military_discount" value="yes">🎖️ Rabais militaire — 5 % sur les articles (avant les taxes, hors livraison)</label>
 <label><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="apply_taxes" value="yes">Appliquer TPS (5 %) et TVQ (9,975 %) — seulement si l'entreprise doit les percevoir</label>
 <div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
@@ -1772,7 +1782,8 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
 </div>
 <div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
-<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}</p><div>
+<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}{% if q.military_discount %} · 🎖️ Rabais militaire 5 % appliqué{% endif %}</p>
+<label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
 <label>État de fabrication
 <select form="fjord-save-global" name="production_status_{{q.id}}">
 <option value="À traiter" {% if q.production_status=='À traiter' %}selected{% endif %}>À traiter</option>
@@ -1928,10 +1939,15 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
   const generated=c*(1+n("markup")/100);
   const override=f.elements.namedItem("override_price");
   const unit=override.value.trim()===""?generated:Number(override.value);
-  const subtotal=unit*n("quantity")+n("shipping");
-  const tax=f.elements.namedItem("apply_taxes").checked ?subtotal*(.05+.09975):0;
-  o.textContent=currency(subtotal+tax);
-  d.textContent="Coût de base : "+currency(c)+" · Prix unitaire : "+currency(unit)+" · Sous-total : "+currency(subtotal)+" · Taxes : "+currency(tax);
+  const merchandise=Math.round(unit*n("quantity")*100)/100;
+  const discount=f.elements.namedItem("military_discount").checked?Math.round(merchandise*5)/100:0;
+  const subtotal=Math.round((merchandise-discount+n("shipping"))*100)/100;
+  const tax=f.elements.namedItem("apply_taxes").checked?
+    Math.round(subtotal*.05*100)/100+Math.round(subtotal*.09975*100)/100:0;
+  o.textContent=currency(Math.round((subtotal+tax)*100)/100);
+  d.textContent="Coût de base : "+currency(c)+" · Prix unitaire : "+currency(unit)+
+    (discount?" · Rabais militaire (5 %) : −"+currency(discount):"")+
+    " · Sous-total : "+currency(subtotal)+" · Taxes : "+currency(tax);
  }
  f.addEventListener("input",update);f.addEventListener("change",update);
  function message(text){status.textContent=text}
@@ -2169,7 +2185,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                     model=c.execute("SELECT filename,filedata FROM private_models WHERE id=%s",(q["model_id"],)).fetchone()
                     if model and model["filename"].lower().endswith((".stl",".3mf")):
                         preview=make_model_preview(model["filedata"],model["filename"],color=primary,secondary_color=secondary)
-                changes.append((q["id"],number,job,production,progress,payment,preview))
+                military_discount=request.form.get("military_discount"+suffix)=="yes"
+                changes.append((q["id"],number,job,production,progress,payment,preview,military_discount))
             numbers=[x[1] for x in changes]
             if len(numbers)!=len(set(numbers)):abort(409,"Numéros FJ en double.")
             for ident,number,*_ in changes:
@@ -2181,11 +2198,12 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
             # Two-phase numbering allows swapping two numbers without a unique-index collision.
             for ident,*_ in changes:
                 c.execute("UPDATE private_quotes SET public_number=NULL WHERE id=%s",(ident,))
-            for ident,number,job,production,progress,payment,preview in changes:
+            for ident,number,job,production,progress,payment,preview,military_discount in changes:
                 c.execute("""UPDATE private_quotes SET public_number=%s,printer_job_name=%s,
                   production_status=%s,production_progress=%s,payment_status=%s,
+                  military_discount=%s,
                   paid_at=CASE WHEN %s='Payée' THEN COALESCE(paid_at,NOW()) ELSE NULL END
-                  WHERE id=%s""",(number,job or None,production,progress,payment,payment,ident))
+                  WHERE id=%s""",(number,job or None,production,progress,payment,military_discount,payment,ident))
                 if preview:
                     c.execute("UPDATE private_quotes SET preview_mime=%s,preview=%s WHERE id=%s",
                               (preview[0],preview[1],ident))
@@ -2368,6 +2386,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         unit=round(_number("override_price",0,0,100000) if override else calculated,2)
         if unit>100000:abort(400)
         taxes=request.form.get("apply_taxes")=="yes"
+        military_discount=request.form.get("military_discount")=="yes"
         model_input=request.form.get("model_id","").strip()
         try:model_id=int(model_input) if model_input else None
         except ValueError:abort(400)
@@ -2402,11 +2421,11 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
             next_number="FJ-{:05d}".format(last+1)
             result=c.execute("""INSERT INTO private_quotes
                (customer,email,phone,title,description,material,quantity,unit_price,
-                shipping,apply_taxes,model_id,preview,preview_mime,grams,hours,filament_kg,
+                shipping,apply_taxes,military_discount,model_id,preview,preview_mime,grams,hours,filament_kg,
                 machine_hour,setup_cost,markup,payment_token,public_number)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
-               int(quantity),unit,shipping,taxes,model_id,
+               int(quantity),unit,shipping,taxes,military_discount,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
                grams,hours,filament_kg,machine_hour,setup_cost,markup,
                secrets.token_urlsafe(32),next_number)).fetchone()
@@ -2438,7 +2457,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
           ip_hash TEXT, user_agent TEXT)""")
 
     def quote_snapshot(q):
-        fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes")
+        fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes","military_discount")
         return json.dumps({k:str(q[k]) if q[k] is not None else None for k in fields},ensure_ascii=False,sort_keys=True)
 
     @app.get("/apercu-soumission/<token>/image")
@@ -2503,6 +2522,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
 <h1 style="font-size:clamp(1.5rem,4vw,2.5rem);overflow-wrap:anywhere">Acceptation de la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}</h1>
 <p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
 <p><strong>Matériau :</strong> {{q.material}} · <strong>Quantité :</strong> {{q.quantity}}</p>
+{% if q.military_discount %}<p><strong>🎖️ Rabais militaire de 5 % inclus</strong> (avant taxes, sur les articles).</p>{% endif %}
 <p><strong>Prix total :</strong> {{total}}</p>
 {% if q.model_id or q.preview %}
 <section class="card" style="margin:20px 0;padding:16px">
@@ -2573,7 +2593,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
             abort(404)
         with db() as c:
-            q=c.execute("""SELECT id,public_number,quantity,unit_price,shipping,apply_taxes
+            q=c.execute("""SELECT id,public_number,quantity,unit_price,shipping,apply_taxes,military_discount
                              FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q or not setting or not setting["value"]:
@@ -2741,7 +2761,7 @@ async function fjordCopy(id,button){
                 y-=178
             except Exception:pass
         y=min(y-14,285 if payment_url else 250)
-        rows=2+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
+        rows=2+(1 if q.get("military_discount") else 0)+(1 if float(q["shipping"]) else 0)+(2 if q["apply_taxes"] else 0)
         if y-rows*25<(172 if payment_url else 115):
             y=285
         subtotal,gst,qst,total=_quote_amounts(q)
@@ -2752,6 +2772,8 @@ async function fjordCopy(id,button){
             pdf.drawRightString(w-39,y,_money(amount).encode("cp1252","replace").decode("cp1252"))
             return y-25
         y=totalrow("Prix unitaire x "+str(q["quantity"]),float(q["unit_price"])*q["quantity"],y)
+        discount=_quote_military_discount(q)
+        if discount:y=totalrow("Rabais militaire (5 %)",-discount,y)
         if float(q["shipping"]):y=totalrow("Livraison / frais fixes",float(q["shipping"]),y)
         if q["apply_taxes"]:
             y=totalrow("TPS (5 %)",gst,y)
