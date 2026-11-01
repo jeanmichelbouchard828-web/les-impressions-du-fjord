@@ -311,6 +311,19 @@ if(fjordAutoButton){
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
  '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
+ '<section id="fjordStartAtelier" hidden aria-label="Imprimer directement depuis l’Atelier">'+
+ '<h3>🖨️ Mon 3MF est sur la X2D</h3><p id="fjordStartFile"></p>'+
+ '<div class="fjord-printer-state"><strong>État de ma X2D</strong><span id="fjordLiveState">Connexion…</span>'+
+ '<progress id="fjordLiveProgress" value="0" max="100" hidden></progress>'+
+ '<button type="button" id="fjordRefreshPrinter">↻ Actualiser l’état</button></div>'+
+ '<p>Vérifie les conditions avant de démarrer physiquement ta X2D.</p>'+
+ '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartAMS" checked> Utiliser l’AMS</label>'+
+ '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartVerified"> J’ai vérifié le matériau, les bobines AMS, la plaque et le tranchage.</label>'+
+ '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartCleared"> Le plateau est libre, la X2D est prête et je peux surveiller la première couche.</label>'+
+ '<button type="button" id="fjordStartNow" disabled>▶ Démarrer l’impression sur ma X2D</button>'+
+ '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
+ '<p class="fjord-review-note">Une commande acceptée ne prouve pas que la première couche a commencé. Vérifie la X2D.</p>'+
+ '<button type="button" id="fjordStartAnother">↺ Préparer une autre impression</button></section>'+
  '<p><a href="/admin/profils-bambu">⚙️ Vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Page d’impression classique</a></p>';
  document.body.append(panel);
  const state=panel.querySelector('#fjordAutoState');
@@ -319,7 +332,7 @@ if(fjordAutoButton){
  const remember=panel.querySelector('#fjordAutoRemember');
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
  const preferenceKey='fjord-x2d-profile-preferences-v1';
- let inventory=null,busy=false,opened=false,prepared=null;
+ let inventory=null,busy=false,opened=false,prepared=null,transferred=null,printerCanStart=false,printerPoll=null;
  const review=panel.querySelector('#fjordSliceReview');
  const transfer=panel.querySelector('#fjordReviewTransfer');
  const slider=panel.querySelector('#fjordReviewLayer');
@@ -447,8 +460,9 @@ if(fjordAutoButton){
     throw Error('Session administrateur expirée : reconnecte-toi.');
    const result=await response.json();
    if(!response.ok||!result.ok)throw Error(result.error||'Transfert impossible.');
-   if(typeof result.next!=='string'||!result.next.startsWith('/admin/atelier-imprimer?'))
-    throw Error('Adresse de confirmation invalide.');
+   if(typeof result.file!=='string'||!result.file.startsWith('gcode/')||
+      typeof result.nonce!=='string'||result.nonce.length<24)
+    throw Error('Confirmation de transfert incomplète : aucun démarrage possible.');
    if(remember.checked){
     try{
      const settings=savedProfiles();
@@ -457,8 +471,16 @@ if(fjordAutoButton){
     }catch(_){}
    }
    invalidatePreview();
-   state.textContent='✓ 3MF envoyé. Vérifie maintenant ta X2D avant le démarrage physique.';
-   location.assign(result.next);
+   transferred={file:result.file,nonce:result.nonce};
+   startScreen.hidden=false;
+   startScreen.classList.remove('fjord-start-sent');
+   panel.classList.add('fjord-print-ready');
+   panel.querySelector('#fjordStartFile').textContent=result.file;
+   safetyVerified.checked=false;safetyCleared.checked=false;
+   startMessage.textContent='Fichier transmis. Confirme les vérifications avant le démarrage.';
+   state.textContent='✓ 3MF envoyé. Tu peux poursuivre dans l’Atelier.';
+   beginPrinterPolling();
+   startScreen.scrollIntoView({block:'nearest',behavior:'smooth'});
   }catch(error){
    state.textContent='⚠ '+String(error.message||error).slice(0,240)+
     ' Aucune impression physique n’a été démarrée.';
@@ -587,6 +609,8 @@ if(fjordAutoButton){
   submit.disabled=true;
   inventory=null;
   invalidatePreview();
+  clearPrintScreen();
+  stopPrinterPolling();
   try{
    const response=await fetch('/api/admin/atelier/impression-profils',{
     credentials:'same-origin',cache:'no-store'
@@ -668,6 +692,18 @@ if(fjordAutoButton){
 #fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
 #fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
 #fjordAutoPrintDialog{max-height:90dvh}
+#fjordStartAtelier[hidden]{display:none!important}
+#fjordStartAtelier{border-top:1px solid #597e93;padding-top:14px;margin-top:12px;display:grid;gap:12px}
+#fjordStartAtelier h3{font-size:17px;margin:4px 0}
+#fjordStartAtelier>p{overflow-wrap:anywhere}
+#fjordStartAtelier .fjord-printer-state{display:grid;gap:8px;border:1px solid #456b83;border-radius:12px;padding:13px}
+#fjordLiveProgress{width:100%;height:12px;accent-color:#55cfaa}
+#fjordStartAtelier button{min-height:48px;border-radius:11px}
+#fjordStartNow{background:#17694e;color:#fff;font-weight:800;border:1px solid #6adaae}
+#fjordStartNow:disabled{opacity:.48}
+#fjordStartResult{font-weight:650;line-height:1.5}
+#fjordStartAtelier .fjord-auto-remember{padding:8px 0;align-items:flex-start!important}
+#fjordStartAtelier input[type=checkbox]{min-width:23px;min-height:23px}
 @media(max-width:760px){
  #fjordAutoPrintDialog{box-sizing:border-box;width:100vw;max-width:100vw;min-height:100dvh;max-height:100dvh;height:100dvh;margin:0;
   padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));
@@ -681,6 +717,8 @@ if(fjordAutoButton){
  #fjordAutoPrintDialog .fjord-review-layerbar button{min-width:48px;min-height:52px}
  #fjordAutoPrintDialog .fjord-review-zoom button{min-width:48px;min-height:48px}
  #fjordAutoPrintDialog.fjord-preview-active #fjordAutoForm{display:none}
+ #fjordAutoPrintDialog.fjord-print-ready #fjordAutoForm,#fjordAutoPrintDialog.fjord-print-ready #fjordSliceReview{display:none!important}
+ #fjordAutoPrintDialog.fjord-print-ready #fjordStartNow{min-height:58px;position:sticky;bottom:0;z-index:2}
  #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview{padding-top:5px}
  #fjordReviewTransfer{position:sticky;bottom:0;z-index:2;min-height:56px!important;
   margin:9px 0 3px;box-shadow:0 -7px 14px #112c40c9}
