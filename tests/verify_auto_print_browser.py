@@ -59,6 +59,7 @@ try:
   assert page.locator("#fjordAutoPrintLauncher").count()==1
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
   assert page.locator("#fjordAutoPrintDialog").is_visible()
+  page.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
   assert page.locator('[name="machine"]').input_value()=="1"
   assert page.locator('[name="process"]').input_value()=="2"
   assert page.locator('[name="filament"]').input_value()=="3"
