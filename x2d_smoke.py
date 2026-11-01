@@ -26,7 +26,16 @@ def test_cube_stl():
     payload = bytearray(b"Fjord X2D offline smoke test".ljust(80, b" "))
     payload += struct.pack("<I", len(faces))
     for a, b, c in faces:
-        payload += struct.pack("<12fH", 0, 0, 0, *p[a], *p[b], *p[c], 0)
+        ax, ay, az = p[a]
+        bx, by, bz = p[b]
+        cx, cy, cz = p[c]
+        ux, uy, uz = bx - ax, by - ay, bz - az
+        vx, vy, vz = cx - ax, cy - ay, cz - az
+        nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+        length = (nx * nx + ny * ny + nz * nz) ** .5
+        assert length > 0
+        payload += struct.pack("<12fH", nx / length, ny / length, nz / length,
+                               *p[a], *p[b], *p[c], 0)
     return bytes(payload)
 
 
