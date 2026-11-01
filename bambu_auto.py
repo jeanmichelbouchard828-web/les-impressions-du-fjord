@@ -20,6 +20,12 @@ LOG = logging.getLogger('fjord.bambu_slicer')
 MAX_STL = 8 * 1024 * 1024
 MAX_3MF = 30 * 1024 * 1024
 OUTPUT_NAME = 'x2d_tranche.gcode.3mf'
+# These labels are the exact Bambu Studio CLI build-plate values.
+# Never infer the user's actual plate or silently switch its material settings.
+BED_TYPES = frozenset((
+    'Textured PEI Plate', 'Smooth PEI Plate / High Temp Plate',
+    'Engineering Plate', 'Cool Plate SuperTack', 'Cool Plate',
+))
 _SLICING_SLOT = threading.BoundedSemaphore(1)
 
 
@@ -71,6 +77,27 @@ def full_preset(raw, category):
 
 
 
+def cli_preset(raw: dict, category: str) -> dict:
+    """Convert trusted, fully expanded presets to Bambu CLI metadata.
+
+    Stock BBL JSONs label their source "System", but CLI accepts only
+    lowercase "system" or "User"/"user". This changes metadata, never
+    temperatures, nozzle size, startup G-code or other machine settings.
+    """
+    preset = dict(full_preset(raw, category))
+    source = str(preset.get("from") or "User")
+    if source.lower() == "system":
+        source = "system"
+    elif source.lower() == "user":
+        source = "User"
+    else:
+        raise AutoSliceError("Origine du profil Bambu inconnue : impression bloquée.")
+    preset["from"] = source
+    preset["type"] = {"Imprimante": "machine", "Impression": "process",
+                      "Filament": "filament"}[category]
+    return preset
+
+
 def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> str:
     """Classify CLI failures without exposing raw output or secrets in the UI."""
     message = output.decode("utf-8", "replace")[-16000:].lower()
@@ -89,6 +116,8 @@ def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> 
         return "Bambu Studio a terminé sans produire le 3MF tranché attendu."
     if any(term in message for term in ("unknown option", "unrecognized option", "unrecognised option")):
         return "Bambu Studio a refusé un paramètre de commande."
+    if "does not support filament" in message or "not compatible with the plate type" in message:
+        return "Plateau et filament incompatibles : choisis le type de plaque réellement installé sur la X2D."
     if any(term in message for term in ("preset", "filament", "config", "machine settings", "process settings")):
         return "Bambu Studio a signalé un problème de compatibilité ou de contenu des profils choisis."
     if exit_code != 0:
@@ -113,11 +142,13 @@ def _log_failure(output: bytes, exit_code: int, output_exists: bool):
     LOG.warning("Bambu slicing failed: exit=%s, file_written=%s, diagnostics=%s",
                 exit_code, bool(output_exists), summary[:1300])
 
-def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
+def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured PEI Plate') -> bytes:
     """Return verified native sliced 3MF; fail closed before any network transfer.
 
     verifier validates the actual sliced Bambu archive used by manual uploads.
     """
+    if bed_type not in BED_TYPES:
+        raise AutoSliceError("Type de plateau X2D inconnu : tranchage bloqué.")
     if not isinstance(stl, bytes) or not 84 <= len(stl) <= MAX_STL:
         raise AutoSliceError("STL vide ou trop volumineux (maximum 8 Mo).")
     # Binary STL: 80-byte header + uint32 triangle count + 50 bytes per triangle.
@@ -134,9 +165,12 @@ def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
             raise AutoSliceError(
                 "Moteur Bambu Studio non installé sur Railway. Impression automatique désactivée."
             )
-        machine = full_preset(presets.get("Imprimante"), "Imprimante")
-        process = full_preset(presets.get("Impression"), "Impression")
-        filament = full_preset(presets.get("Filament"), "Filament")
+        machine = cli_preset(presets.get("Imprimante"), "Imprimante")
+        process = cli_preset(presets.get("Impression"), "Impression")
+        filament = cli_preset(presets.get("Filament"), "Filament")
+        # A bare STL has no plate metadata. Both the process config and the
+        # highest-priority CLI setting must use the explicitly selected plate.
+        process["curr_bed_type"] = bed_type
         with tempfile.TemporaryDirectory(prefix="fjord_x2d_") as work:
             root = Path(work)
             input_file = root / "atelier.stl"
@@ -155,6 +189,7 @@ def slice_x2d(stl: bytes, presets: dict, verifier) -> bytes:
                 files.append(target)
             args = [
                 cli, "--debug", "3", "--arrange", "1",
+                "--curr-bed-type", bed_type,
                 "--load-settings", "{};{}".format(files[0], files[1]),
                 "--load-filaments", str(files[2]),
                 "--slice", "0",
