@@ -116,6 +116,34 @@ class RemotePrintTests(unittest.TestCase):
             self.assertNotIn("model.stl",text)
             self.assertIn('name="nonce"',text)
 
+    def test_responsive_print_dashboard_sections_and_safety_forms(self):
+        with patch("fjord_printer._api",side_effect=fake_api):
+            response=self.client.get("/admin/atelier-imprimer")
+        self.assertEqual(response.status_code,200)
+        html=response.data.decode("utf-8")
+        for marker in ('id="fjordPrintPage"', 'id="fjordPrintTitle"',
+                       'class="fj-print-layout"', 'id="fjordPrintUpload"',
+                       'id="fjordPrintRemote"', 'id="fjordPrintPlate"',
+                       'id="fjordPrintFileName"', 'name="verified" value="yes" required',
+                       'name="cleared" value="yes" required',
+                       'onsubmit="return confirm(', '@media(max-width:540px)',
+                       'href="/admin/atelier-3d"', 'href="/admin/profils-bambu"'):
+            self.assertIn(marker,html,marker)
+        self.assertIn('action="/admin/atelier-imprimer/envoyer"',html)
+        self.assertIn('action="/admin/atelier-imprimer/demarrer"',html)
+        self.assertIn('gcode/X2D_test.3mf',html)
+        self.assertEqual(html.count('id="fjordPrintPage"'),1)
+        self.assertNotIn('data-slice-automatically',html)
+
+    def test_dashboard_offline_keeps_send_and_start_disabled(self):
+        with patch("fjord_printer._api",side_effect=PrinterError("Connexion absente")):
+            html=self.client.get("/admin/atelier-imprimer").data.decode("utf-8")
+        self.assertIn('id="fjordPrintPage"',html)
+        self.assertIn('Connexion absente',html)
+        self.assertIn('📤 Envoyer à la X2D</button>',html)
+        self.assertIn('disabled>📤 Envoyer à la X2D',html)
+        self.assertNotIn('action="/admin/atelier-imprimer/demarrer"',html)
+
     def test_explicit_checkboxes_required_and_nonce_one_time(self):
         with patch("fjord_printer._api",side_effect=fake_api) as call:
             self.client.get("/admin/atelier-imprimer")

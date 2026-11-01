@@ -211,53 +211,260 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page):
         token = secrets.token_urlsafe(24)
         session["fjord_print_nonce"] = token
         return page("Impression X2D", r"""
-<h1>🖨️ Imprimer depuis l'Atelier administrateur</h1>
-<p><a class="btn" href="/admin/atelier-3d">← Retour à mon Atelier 3D</a> ·
-<a href="/admin/profils-bambu">⚙️ Mes profils Bambu</a></p>
-<p>Pour imprimer sur ta X2D, <strong>tranche d'abord la pièce dans Bambu Studio</strong> avec les bons profils et exporte le <strong>3MF tranché</strong>. Le 3MF couleurs du Fjord et les STL seuls ne contiennent pas encore de tranchage compatible.</p>
-{% for notice in messages %}<p class="card" role="status">{{notice}}</p>{% endfor %}
-{% if error %}<p class="card" role="alert">Connexion : {{error}}</p>{% endif %}
-<section class="card">
-<h2>État de l'imprimante</h2>
-{% if status %}
-<p><strong>{{status.state}}</strong>{% if status.file %} · {{status.file}}{% endif %}{% if status.progress is number %} · {{status.progress}} %{% endif %}</p>
-<p>{% if status.can_start %}L'imprimante accepte la commande de démarrage.{% else %}Le démarrage est indisponible (imprimante occupée ou fonctionnalité non prise en charge).{% endif %}</p>
-{% else %}<p>La connexion doit être disponible pour envoyer et lancer une impression.</p>{% endif %}
-<p><a href="/admin/atelier-imprimer">↻ Actualiser l'état et les fichiers</a></p>
-</section>
-<section class="card">
-<h2>1. Envoyer un 3MF déjà tranché</h2>
-<form method="post" action="/admin/atelier-imprimer/envoyer" enctype="multipart/form-data">
-{{csrf_field|safe}}
-<label>Fichier exporté depuis Bambu Studio
-<input type="file" name="sliced_file" accept=".3mf" required></label>
-<button type="submit" {% if not status %}disabled{% endif %}>📤 Envoyer à l'imprimante (sans démarrer)</button>
-</form>
-<p class="muted small">Jusqu'à 30 Mo. Le transfert conserve le fichier sur l'imprimante et ne démarre aucune impression.</p>
-</section>
-<section class="card">
-<h2>2. Choisir un fichier de l'imprimante</h2>
-{% if files %}
-<form method="post" action="/admin/atelier-imprimer/demarrer"
-onsubmit="return confirm('Démarrer réellement l’impression sur la X2D ? Vérifie le plateau, la bonne bobine et la plaque tranchée.');">
-{{csrf_field|safe}}
-<input type="hidden" name="nonce" value="{{nonce}}">
-<label>Fichier sur l'imprimante<select name="path" required>
-{% for file in files %}
-<option value="{{file.path}}" {% if selected == file.path %}selected{% endif %}>{{file.name}}</option>
-{% endfor %}
-</select></label>
-<label>Plateau dans le fichier<select name="plate"><option value="1">Plaque 1</option></select></label>
-<label><input type="checkbox" name="ams" value="yes" checked> Utiliser le système AMS</label>
-<label><input type="checkbox" name="verified" value="yes" required>
-J'ai vérifié les matériaux, les bobines AMS, les températures et le tranchage dans Bambu Studio.</label>
-<label><input type="checkbox" name="cleared" value="yes" required>
-J'ai vérifié que le plateau est libre, que l'imprimante est prête et que je peux la surveiller.</label>
-<button class="primary" type="submit" {% if not status or not status.can_start %}disabled{% endif %}>🖨️ Confirmer et démarrer l'impression</button>
-</form>
-{% else %}<p>Aucun fichier 3MF disponible ou impossible de consulter les fichiers de l'imprimante.</p>{% endif %}
-<p class="muted small">OctoEverywhere doit confirmer la commande. Une réponse « acceptée » ne garantit pas que la première couche a commencé. Surveille la caméra et l'imprimante.</p>
-</section>
+<style>
+/* Scoped to the private printing console: no changes to public pages. */
+.fj-print{--p-border:#34566e;--p-panel:#122b3e;--p-panel-soft:#15364b;
+ --p-text:#f2f8fd;--p-sub:#afcddd;--p-accent:#60cee9;--p-green:#57dfa7;
+ color:var(--p-text);max-width:1220px;margin:0 auto 32px;min-width:0}
+.fj-print *{box-sizing:border-box}
+.fj-print a{color:var(--p-accent)}
+.fj-print-hero{border:1px solid #3e7e9f;border-radius:20px;padding:clamp(18px,3vw,30px);
+ background:linear-gradient(115deg,#14364c 0%,#0c2234 78%);margin-bottom:20px;
+ display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.fj-print-kicker{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:800;color:#8bdeee;margin:0 0 9px}
+.fj-print h1{font-size:clamp(24px,3vw,36px);line-height:1.16;margin:0 0 10px;color:#fff}
+.fj-print-hero p{font-size:14px;line-height:1.55;color:#d0e4ef;margin:0;max-width:620px}
+.fj-print-nav{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.fj-print-nav a{display:inline-flex;text-decoration:none;border:1px solid #50758c;border-radius:9px;
+ align-items:center;justify-content:center;padding:10px 13px;min-height:43px;background:#1c3d52;
+ color:#eaf8ff;font-size:13px;font-weight:750}
+.fj-print-nav a:hover,.fj-print-nav a:focus-visible{background:#275b78;outline:2px solid #8de1ff;outline-offset:2px}
+.fj-print-step-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 19px}
+.fj-print-step-bar>div{border:1px solid var(--p-border);border-radius:12px;background:#112c40;
+ padding:11px 13px;color:#bed7e3;font-size:13px;display:flex;align-items:center;gap:10px;min-width:0}
+.fj-print-step-bar strong,.fj-print-number{width:29px;height:29px;border-radius:50%;flex:0 0 29px;
+ display:grid;place-items:center;background:#235978;color:#d8f8ff;font-size:14px;font-weight:850}
+.fj-print-notice{border:1px solid #4b8caa;border-radius:10px;padding:12px 16px;margin-bottom:13px;
+ background:#163a4b;color:#e9f8ff;line-height:1.45;overflow-wrap:anywhere}
+.fj-print-notice.error{background:#422b2e;border-color:#b46d6d;color:#ffe9e9}
+.fj-print-card{border:1px solid var(--p-border);border-radius:16px;background:var(--p-panel);
+ padding:clamp(15px,2.2vw,24px);min-width:0;box-shadow:0 8px 24px #07152225}
+.fj-print-card h2{display:flex;gap:10px;align-items:center;font-size:clamp(17px,2vw,21px);
+ color:#f4fbff;margin:0 0 8px;line-height:1.3}
+.fj-print-card p{color:var(--p-sub);font-size:13px;line-height:1.55;margin:8px 0 0}
+.fj-print-card strong{color:#fff}
+.fj-print-layout{display:grid;grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr);gap:17px;align-items:start}
+.fj-print-col{display:grid;gap:17px;min-width:0}
+.fj-print-status{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center}
+.fj-print-status-summary{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.fj-print-indicator{height:12px;width:12px;border-radius:50%;background:#8899a9;
+ box-shadow:0 0 0 4px #8899a91f;flex:none}
+.fj-print-indicator.ready{background:var(--p-green);box-shadow:0 0 0 4px #57dfa72c}
+.fj-print-status-summary h2{margin:0}
+.fj-print-state{display:inline-flex;gap:7px;align-items:center;line-height:1.3;
+ background:#24455a;border:1px solid #4d7890;border-radius:50px;padding:6px 11px;
+ color:#d1e8f1;font-size:12px;font-weight:800;max-width:100%;overflow-wrap:anywhere}
+.fj-print-status .fj-print-refresh{background:#214d68;border:1px solid #5b92ae;
+ border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;
+ text-decoration:none;min-height:41px;font-weight:750;font-size:13px;color:#d6f4ff}
+.fj-print-job-name{word-break:break-word}
+.fj-print progress{width:100%;max-width:350px;height:11px;display:block;margin-top:10px;accent-color:#49b4e5}
+.fj-print-card .fj-print-intro{margin:0 0 16px}
+.fj-print-step-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.fj-print-step-title h2{margin:0}
+.fj-print-step-title .fj-print-number{background:#246285}
+.fj-print form{display:grid;gap:13px}
+.fj-print label{display:block;color:#d9eef6;font-size:13px;font-weight:750;line-height:1.45}
+.fj-print input[type=file],.fj-print select{width:100%;display:block;margin-top:7px;
+ border-radius:9px;border:1px solid #52788c;background:#0c2335;color:#eaf6ff;
+ padding:11px 12px;font-size:14px;min-height:46px;max-width:100%}
+.fj-print input[type=file]::file-selector-button{background:#265671;color:#e6f7ff;border:0;
+ padding:9px;border-radius:7px;margin-right:10px;font-weight:750}
+.fj-print input:focus-visible,.fj-print select:focus-visible,.fj-print button:focus-visible{
+ outline:2px solid #90e3ff;outline-offset:3px}
+.fj-print button{border-radius:10px;border:1px solid #469cbb;background:#195171;color:#fff;
+ min-height:47px;padding:11px 15px;font-weight:800;font-size:14px;cursor:pointer;
+ width:100%;white-space:normal;line-height:1.35}
+.fj-print button:hover:not(:disabled){background:#22749b}
+.fj-print button:disabled{opacity:.52;cursor:not-allowed}
+.fj-print button.fj-print-start{background:linear-gradient(105deg,#158060,#12674e);
+ border-color:#59d5a9;color:#f4fff9;font-size:15px;padding:13px}
+.fj-print button.fj-print-start:hover:not(:disabled){background:#169674}
+.fj-print-card .fj-print-hint{font-size:12px;color:#afcbd8;margin-top:12px}
+.fj-print-checks{border:1px solid #3f6177;border-radius:11px;padding:12px;
+ background:#0e293c;display:grid;gap:13px}
+.fj-print-check{display:flex!important;align-items:flex-start;gap:10px;font-weight:500!important;
+ cursor:pointer;line-height:1.45!important}
+.fj-print-check input[type=checkbox]{appearance:auto;width:18px;height:18px;min-width:18px;
+ margin:2px 0 0;accent-color:#49bda2;cursor:pointer}
+.fj-print-check>span{min-width:0;flex:1}
+.fj-print-field-pair{display:grid;grid-template-columns:minmax(0,1fr) 118px;gap:12px}
+.fj-print-empty{background:#0b2536;border:1px dashed #537b92;border-radius:11px;
+ padding:14px 16px;color:#d2e6f2;font-size:13px;line-height:1.5}
+.fj-print-guide{background:#142e40;border:1px solid #365c73;border-radius:13px;
+ padding:14px 17px;margin-top:17px}
+.fj-print-guide h3{margin:0 0 9px;color:#edfaff;font-size:14px}
+.fj-print-guide ol{padding-left:21px;margin:0;color:#bddeed;font-size:13px;line-height:1.7}
+.fj-print-guide li{padding:2px 0}
+.fj-print-chip{background:#26485d;color:#c9e9f6;border:1px solid #56809a;
+ border-radius:7px;padding:4px 7px;font-size:11px;font-weight:800;display:inline-flex}
+.fj-print-bottom{color:var(--p-sub);font-size:12px;line-height:1.55;margin:17px 1px 0}
+body.light .fj-print{--p-panel:#fff;--p-border:#c0d7e5;--p-sub:#3e5970;--p-text:#17344c}
+body.light .fj-print-card{background:#fff}
+body.light .fj-print-card h2,body.light .fj-print-card strong{color:#163750}
+body.light .fj-print-card p{color:#45657a}
+body.light .fj-print-step-bar>div{background:#e7f2f8;color:#244a64}
+body.light .fj-print-state{background:#eaf3f7;color:#174e64}
+body.light .fj-print label{color:#153750}
+body.light .fj-print input[type=file],body.light .fj-print select{background:#fff;color:#183c56;border-color:#9abbd0}
+body.light .fj-print-checks{background:#eaf3f8;border-color:#b4d1e1}
+body.light .fj-print-guide{background:#eef6fa}
+body.light .fj-print-guide h3{color:#18374c}
+body.light .fj-print-guide ol{color:#36576c}
+body.light .fj-print-empty{background:#f0f7fb;color:#2c536c}
+body.light .fj-print-hint{color:#496477!important}
+@media(max-width:820px){
+ .fj-print-layout{grid-template-columns:minmax(0,1fr)}
+ .fj-print-status{grid-column:auto}
+ .fj-print-step-bar{gap:6px}
+ .fj-print-step-bar>div{font-size:12px;padding:9px}
+}
+@media(max-width:540px){
+ .fj-print-hero{padding:18px 15px;border-radius:14px}
+ .fj-print-nav{width:100%}
+ .fj-print-nav a{flex:1 1 135px}
+ .fj-print-step-bar{grid-template-columns:1fr}
+ .fj-print-step-bar>div{min-height:40px}
+ .fj-print-status{grid-template-columns:1fr}
+ .fj-print-status .fj-print-refresh{width:100%}
+ .fj-print-field-pair{grid-template-columns:1fr}
+ .fj-print-card{border-radius:13px;padding:17px 14px}
+}
+</style>
+<div class="fj-print" id="fjordPrintPage">
+  <section class="fj-print-hero" aria-labelledby="fjordPrintTitle">
+    <div>
+      <div class="fj-print-kicker">Les Impressions du Fjord · Atelier privé</div>
+      <h1 id="fjordPrintTitle">🖨️ Imprimer sur ma X2D</h1>
+      <p>Une interface simple pour vérifier ton imprimante, transférer une pièce tranchée et lancer ton impression en toute connaissance de cause.</p>
+    </div>
+    <nav class="fj-print-nav" aria-label="Navigation Atelier 3D">
+      <a href="/admin/atelier-3d">← Retour à l’Atelier</a>
+      <a href="/admin/profils-bambu">⚙️ Mes profils Bambu</a>
+    </nav>
+  </section>
+
+  <div class="fj-print-step-bar" aria-label="Étapes d’impression">
+    <div><strong aria-hidden="true">1</strong><span>Vérifier la X2D</span></div>
+    <div><strong aria-hidden="true">2</strong><span>Envoyer le fichier 3MF</span></div>
+    <div><strong aria-hidden="true">3</strong><span>Vérifier et démarrer</span></div>
+  </div>
+
+  {% for notice in messages %}
+  <div class="fj-print-notice" role="status">{{notice}}</div>
+  {% endfor %}
+  {% if error %}
+  <div class="fj-print-notice error" role="alert"><strong>Connexion :</strong> {{error}}</div>
+  {% endif %}
+
+  <div class="fj-print-layout">
+    <section class="fj-print-card fj-print-status" aria-label="État actuel de l'imprimante">
+      <div>
+        <div class="fj-print-status-summary">
+          <span class="fj-print-indicator {% if status and status.can_start %}ready{% endif %}" aria-hidden="true"></span>
+          <h2>État de la X2D</h2>
+          <span class="fj-print-state">
+            {% if status %}{{status.state}}{% else %}Connexion indisponible{% endif %}
+          </span>
+        </div>
+        {% if status %}
+          {% if status.file %}<p class="fj-print-job-name"><strong>Fichier en cours :</strong> {{status.file}}</p>{% endif %}
+          {% if status.progress is number %}
+            <progress max="100" value="{{status.progress}}" aria-label="Progression de l’impression">{{status.progress}} %</progress>
+            <p>{{status.progress}} % terminé</p>
+          {% endif %}
+          <p>{% if status.can_start %}La commande de démarrage est disponible.{% else %}La commande de démarrage n’est pas disponible. L’imprimante est peut-être occupée ou la connexion ne prend pas en charge cette fonction.{% endif %}</p>
+        {% else %}
+          <p>La connexion doit être disponible pour transférer ou démarrer un fichier.</p>
+        {% endif %}
+      </div>
+      <a class="fj-print-refresh" href="/admin/atelier-imprimer">↻ Actualiser</a>
+    </section>
+
+    <div class="fj-print-col">
+      <section class="fj-print-card" aria-labelledby="fjordUploadTitle">
+        <div class="fj-print-step-title">
+          <span class="fj-print-number" aria-hidden="true">2</span>
+          <h2 id="fjordUploadTitle">Envoyer un fichier tranché</h2>
+        </div>
+        <p class="fj-print-intro">Choisis un <strong>3MF déjà tranché avec Bambu Studio</strong>. Un simple STL ou le 3MF de modélisation de l’Atelier n’est pas encore prêt pour l’impression.</p>
+        <form method="post" action="/admin/atelier-imprimer/envoyer" enctype="multipart/form-data">
+          {{csrf_field|safe}}
+          <label for="fjordPrintUpload">Mon fichier Bambu Studio (.3mf)
+            <input id="fjordPrintUpload" type="file" name="sliced_file" accept=".3mf" required>
+          </label>
+          <div id="fjordPrintFileName" class="fj-print-chip" role="status">Aucun fichier sélectionné</div>
+          <button type="submit" {% if not status %}disabled{% endif %}>📤 Envoyer à la X2D</button>
+        </form>
+        <p class="fj-print-hint">Maximum 30 Mo. L’envoi ne déclenche jamais automatiquement l’impression.</p>
+      </section>
+      <aside class="fj-print-guide" aria-labelledby="fjordPrintGuideTitle">
+        <h3 id="fjordPrintGuideTitle">Avant de lancer une impression</h3>
+        <ol>
+          <li>Ouvre la pièce dans Bambu Studio et choisis le bon profil X2D.</li>
+          <li>Vérifie matériau, buse, plateau et correspondance AMS.</li>
+          <li>Tranche la pièce, puis exporte le fichier 3MF tranché.</li>
+          <li>Envoie le fichier ici, vérifie le plateau et confirme le démarrage.</li>
+        </ol>
+      </aside>
+    </div>
+
+    <section class="fj-print-card" aria-labelledby="fjordStartTitle">
+      <div class="fj-print-step-title">
+        <span class="fj-print-number" aria-hidden="true">3</span>
+        <h2 id="fjordStartTitle">Vérifier et démarrer</h2>
+      </div>
+      <p class="fj-print-intro">Sélectionne le fichier présent sur la X2D, puis valide les contrôles avant l’impression.</p>
+      {% if files %}
+      <form method="post" action="/admin/atelier-imprimer/demarrer"
+        onsubmit="return confirm('Démarrer réellement l’impression sur la X2D ? Vérifie le plateau, la bonne bobine et la plaque tranchée.');">
+        {{csrf_field|safe}}
+        <input type="hidden" name="nonce" value="{{nonce}}">
+        <div class="fj-print-field-pair">
+          <label for="fjordPrintRemote">Fichier sur l’imprimante
+            <select id="fjordPrintRemote" name="path" required>
+              {% for file in files %}
+              <option value="{{file.path}}" {% if selected == file.path %}selected{% endif %}>{{file.name}}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label for="fjordPrintPlate">Plateau
+            <select id="fjordPrintPlate" name="plate"><option value="1">Plaque 1</option></select>
+          </label>
+        </div>
+        <div class="fj-print-checks" role="group" aria-label="Vérifications avant impression">
+          <label class="fj-print-check"><input type="checkbox" name="ams" value="yes" checked>
+            <span>Utiliser le système AMS</span></label>
+          <label class="fj-print-check"><input type="checkbox" name="verified" value="yes" required>
+            <span>J’ai vérifié les matériaux, les bobines AMS, les températures et le tranchage dans Bambu Studio.</span></label>
+          <label class="fj-print-check"><input type="checkbox" name="cleared" value="yes" required>
+            <span>Le plateau est libre, l’imprimante est prête et je peux surveiller le lancement.</span></label>
+        </div>
+        <button class="fj-print-start" type="submit"
+          {% if not status or not status.can_start %}disabled{% endif %}>
+          🖨️ Confirmer et démarrer l’impression
+        </button>
+      </form>
+      {% else %}
+      <div class="fj-print-empty">Aucun fichier 3MF trouvé sur l’imprimante, ou impossible de consulter sa bibliothèque. Envoie un fichier compatible, puis clique sur « Actualiser ».</div>
+      {% endif %}
+      <p class="fj-print-hint">OctoEverywhere doit accepter la commande. Une confirmation d’envoi ne garantit pas que la première couche a commencé.</p>
+    </section>
+  </div>
+  <p class="fj-print-bottom">Important : les profils sauvegardés dans l’Atelier ne sont pas encore un moteur de tranchage Bambu. L’impression directe d’un modèle créé dans l’Atelier nécessitera une intégration de tranchage compatible et vérifiée.</p>
+</div>
+<script>
+(function(){
+ const upload=document.getElementById('fjordPrintUpload');
+ const label=document.getElementById('fjordPrintFileName');
+ if(upload && label){
+   upload.addEventListener('change',()=>{
+     const file=upload.files && upload.files[0];
+     label.textContent=file ? file.name : 'Aucun fichier sélectionné';
+   });
+ }
+})();
+</script>
 """,csrf_field=csrfinput(),nonce=token,status=status,files=files,error=error,
            selected=request.args.get("selected",""),messages=get_flashed_messages())
 
