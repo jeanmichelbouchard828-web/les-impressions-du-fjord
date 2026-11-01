@@ -2883,7 +2883,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
             abort(404)
         with db() as c:
-            q=c.execute("""SELECT id,public_number,quantity,unit_price,shipping,apply_taxes,military_discount,
+            q=c.execute("""SELECT id,public_number,title,quantity,unit_price,shipping,apply_taxes,military_discount,
                                     square_link_url,square_link_amount_cents
                              FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
@@ -2893,85 +2893,128 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             abort(404)
         subtotal,gst,qst,total=_quote_amounts(q)
         reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
-        response=make_response(page("Paiement sécurisé" if square_url else "Paiement Interac",r"""
+        # Page de paiement inspirée d'une demande de fonds simple et lisible.
+        # Seuls les liens Square préalablement configurés lancent un vrai paiement.
+        # Un compte BMO personnel n'autorise pas le site à générer une demande Interac.
+        response=make_response(page("Régler ma soumission",r"""
 <style>
-.payment-wrap{max-width:660px;margin:25px auto}
-.payment-wrap *{box-sizing:border-box}
-.payment-steps{margin:12px 0 22px;padding-left:22px}
-.payment-steps li{padding:5px 0}
-.payment-primary{width:100%;min-height:52px;font-weight:800;margin:5px 0 12px}
-.payment-copy-all{min-height:48px}
-.payment-feedback{min-height:24px;font-weight:700}
-.payment-wrap .payment-detail{padding:10px 0;border-bottom:1px solid #496a7c}
-.payment-wrap .payment-detail>div{flex:1 1 220px;min-width:0}
-.payment-wrap .payment-detail button{min-height:44px}
-body.light .payment-wrap .payment-detail{border-color:#c1dbe8}
-.payment-wrap h1{font-size:clamp(28px,5vw,43px)}
-.payment-total{font-size:clamp(30px,6vw,46px);font-weight:900;color:#7ee7ff;margin:7px 0 18px}
-.payment-detail{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:15px 0}
-.payment-detail strong{font-size:17px;overflow-wrap:anywhere}
-.payment-detail button{font-size:14px;padding:9px 12px}
-.payment-wrap .notice{font-size:13px;color:#b6d1e3}
-.payment-square-button{display:block;padding:17px 20px;border-radius:12px;background:#0077ab;color:#fff!important;text-align:center;font-size:20px;font-weight:850;text-decoration:none;margin:17px 0 12px;min-height:56px}
-.payment-main-step{margin:18px 0;padding:18px;border:1px solid #56b8e0;border-radius:14px}
-.payment-main-step h2{font-size:21px;margin:0 0 9px}
-.payment-fallback{margin-top:16px;padding:12px;border:1px solid #426a82;border-radius:12px}
-.payment-fallback summary{cursor:pointer;font-weight:700;padding:5px 0}
-.payment-fallback[open]{padding-bottom:20px}
-body.light .payment-main-step{border-color:#328ab2}
-body.light .payment-fallback{border-color:#9bc9df}
-body.light .payment-total{color:#076d9d}
+.fj-checkout{--fj-dark:#172031;--fj-border:#e2e5e9;--fj-muted:#636d7c;box-sizing:border-box;
+  display:grid;grid-template-columns:minmax(0,44%) minmax(0,56%);max-width:1120px;
+  background:#fff;color:var(--fj-dark);margin:24px auto 38px;min-height:615px;
+  border-radius:14px;overflow:hidden;border:1px solid #e4e6e9;
+  box-shadow:0 20px 60px #0002;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.fj-checkout *{box-sizing:border-box}
+.fj-checkout-left{padding:clamp(24px,4.5vw,52px);background:#f8f9fb;display:flex;flex-direction:column;
+  border-right:1px solid var(--fj-border)}
+.fj-checkout-right{padding:clamp(24px,4.5vw,52px)}
+.fj-checkout-kicker{font-size:13px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;color:#273246}
+.fj-checkout-left h1{font-size:clamp(27px,3.7vw,35px);line-height:1.14;letter-spacing:-.03em;
+  margin:37px 0 9px;color:var(--fj-dark);overflow-wrap:anywhere}
+.fj-checkout-lead{font-size:17px;font-weight:650;margin:0 0 25px;color:#283344}
+.fj-checkout-note{border-top:1px solid var(--fj-border);padding-top:25px;font-size:16px;
+  font-style:italic;line-height:1.8;color:#4b5668}
+.fj-checkout-left-footer{margin-top:auto;padding-top:32px;font-size:13px;color:#657386}
+.fj-checkout-right h2{font-size:13px;letter-spacing:.10em;font-weight:850;margin:0 0 20px;text-transform:uppercase;color:#172031}
+.fj-checkout-bill{margin:0 0 29px}
+.fj-checkout-row{display:grid;grid-template-columns:minmax(115px,40%) minmax(0,60%);align-items:start;
+  border-bottom:1px solid var(--fj-border);padding:13px 0;gap:10px;font-size:15px}
+.fj-checkout-row dt{color:#697280;margin:0}
+.fj-checkout-row dd{margin:0;text-align:right;font-weight:800;color:var(--fj-dark);overflow-wrap:anywhere}
+.fj-checkout-row.fj-checkout-total dd{font-size:21px;white-space:nowrap}
+.fj-checkout-method{display:flex;align-items:center;gap:11px;color:#313e50;margin:3px 0 20px;font-size:16px}
+.fj-checkout-method-mark{display:grid;place-items:center;background:#ffcc32;color:#171717;font-size:15px;
+  font-weight:900;width:31px;height:31px;border-radius:7px;flex:0 0 auto}
+.fj-checkout-action{display:flex;justify-content:center;align-items:center;width:100%;min-height:58px;
+  background:#121212;border:1px solid #121212;border-radius:11px;color:#fff!important;font-size:18px;
+  font-weight:850;line-height:1.25;text-align:center;padding:14px 20px;text-decoration:none;cursor:pointer}
+.fj-checkout-action:hover,.fj-checkout-action:focus-visible{background:#303030;color:#fff!important}
+.fj-checkout-explain{color:#4d5867;font-size:13px;line-height:1.6;text-align:center;margin:12px 0 23px}
+.fj-checkout-alt{border:1px solid var(--fj-border);border-radius:11px;margin:18px 0 6px}
+.fj-checkout-alt summary{cursor:pointer;padding:14px 15px;font-weight:720;color:#263447}
+.fj-checkout-alt[open] summary{border-bottom:1px solid var(--fj-border)}
+.fj-checkout-alt-body{padding:12px 15px 18px;font-size:14px;line-height:1.65;color:#39475a}
+.fj-checkout-alt-body p{margin:8px 0 13px}
+.fj-checkout-alt-body ol{padding-left:22px}
+.fj-checkout-field{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:10px;
+  padding:10px 0;border-bottom:1px solid var(--fj-border)}
+.fj-checkout-field strong{overflow-wrap:anywhere;font-weight:750;display:block}
+.fj-checkout-field button,.fj-checkout-alt-body>button{min-height:42px;padding:10px 14px;font-size:14px}
+.fj-checkout-footnote{font-size:12px;color:#697584;line-height:1.6;margin-top:18px}
+.fj-checkout-footnote a{color:#235876}
+.fj-checkout-status{min-height:20px;display:block;font-size:13px;color:#245b40}
+.fj-checkout img{max-width:100%}
+@media(max-width:760px){
+ .fj-checkout{display:block;min-height:0;margin:12px auto 26px;max-width:560px}
+ .fj-checkout-left{border-right:0;border-bottom:1px solid var(--fj-border);padding:24px}
+ .fj-checkout-left h1{font-size:28px;margin:17px 0 7px}
+ .fj-checkout-lead{margin:0 0 14px}
+ .fj-checkout-note{padding-top:14px;font-size:14px;margin:0}
+ .fj-checkout-left-footer{padding-top:14px}
+ .fj-checkout-right{padding:24px}
+ .fj-checkout-row{font-size:14px}
+ .fj-checkout-row.fj-checkout-total dd{font-size:20px}
+ .fj-checkout-action{font-size:17px;min-height:55px}
+}
 </style>
-<div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
-<h1>{% if square_url %}💳 Paiement sécurisé Square{% else %}💸 Payer par virement Interac{% endif %}</h1>
-<p>Votre soumission <strong>{{reference}}</strong> est prête à payer. Aucun mot de passe bancaire n'est demandé ici.</p>
-<section class="card">
-<div>Montant exact à transférer (taxes comprises si applicables)</div>
-<div class="payment-total">{{amount}}</div>
-{% if square_url %}
-<a class="payment-square-button" href="{{square_url}}" target="_blank" rel="noopener noreferrer">💳 PAYER MAINTENANT AVEC SQUARE ↗</a>
-<p class="notice">Paiement sécurisé sur Square (carte, Apple Pay ou Google Pay selon votre appareil). Vérifiez le montant sur la page Square avant d'autoriser le paiement.</p>
-{% else %}
-<div class="payment-main-step">
-<h2>✅ Un paiement facile, sans rien recopier</h2>
-<p>Si vous avez reçu une <strong>demande de fonds Interac</strong> de Les Impressions du Fjord, ouvrez ce courriel officiel Interac et cliquez sur son bouton pour accéder à votre banque. Le destinataire et le montant seront déjà indiqués; vous n'avez qu'à vérifier puis autoriser le virement.</p>
-<p class="notice">La demande officielle est envoyée séparément par BMO. Le bouton de la soumission et son code QR ouvrent cette page d'aide : ils ne peuvent pas déclencher un virement bancaire.</p>
-</div>
-{% endif %}
-{% if recipient %}
-<details class="payment-fallback"><summary>{% if square_url %}Payer plutôt par virement Interac{% else %}Je n'ai pas reçu de demande Interac — autre façon de payer{% endif %}</summary>
-<p>Si aucune demande de fonds n'a été envoyée, vous pouvez faire un virement Interac dans votre application bancaire habituelle.</p>
-<button type="button" class="payment-primary" onclick="fjordCopy('payEmail',this)">📧 Copier l'adresse du destinataire</button>
-<ol class="payment-steps">
-<li>Ouvrez votre application bancaire ou son site officiel.</li>
-<li>Choisissez « Virement Interac → Envoyer », puis collez l'adresse.</li>
-<li>Entrez le montant et la référence de la soumission; vérifiez avant de confirmer.</li>
-</ol>
-<h2 style="font-size:20px;margin:20px 0 5px">Renseignements pour le virement</h2>
-<div class="payment-detail"><div>📧 Courriel du destinataire<br><strong id="payEmail">{{recipient}}</strong></div>
-<button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
-<div class="payment-detail"><div>🔖 Référence à inscrire dans le message<br><strong id="payRef">{{reference}}</strong></div>
-<button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
-<div class="payment-detail"><div>💰 Montant du virement<br><strong id="payAmount">{{amount}}</strong></div>
-<button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
-<button type="button" class="payment-copy-all" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
-<p class="payment-feedback" id="fjordPaymentFeedback" role="status" aria-live="polite"></p>
-</details>
-{% endif %}
-<p class="notice">Vérifiez toujours le destinataire dans votre banque et conservez la confirmation du virement. Ce site ne peut pas confirmer la réception des fonds automatiquement. Ne payez pas deux fois la même soumission.</p>
-</section>
-<p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
-</div>
+<main class="fj-checkout">
+  <section class="fj-checkout-left" aria-label="Entreprise émettrice">
+    <div class="fj-checkout-kicker">Demande de paiement</div>
+    <h1>Les Impressions du Fjord</h1>
+    <p class="fj-checkout-lead">vous invite à régler une soumission</p>
+    <div class="fj-checkout-note">« Merci de votre confiance! Voici les détails de votre création 3D personnalisée. Veuillez vérifier le montant et la référence avant de procéder au paiement. »</div>
+    <div class="fj-checkout-left-footer">Les Impressions du Fjord · Saguenay, Québec<br>
+    🔒 Vous n'avez jamais à entrer votre mot de passe bancaire sur ce site.</div>
+  </section>
+  <section class="fj-checkout-right" aria-label="Détails du paiement">
+    <h2>Détails de la soumission</h2>
+    <dl class="fj-checkout-bill">
+      <div class="fj-checkout-row"><dt>Soumission</dt><dd>{{reference}}</dd></div>
+      <div class="fj-checkout-row"><dt>Description</dt><dd>{{title}}</dd></div>
+      <div class="fj-checkout-row fj-checkout-total"><dt>Montant CAD</dt><dd>{{amount}}</dd></div>
+    </dl>
+    <h2>Méthode de paiement</h2>
+    {% if square_url %}
+      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — Square</div>
+      <a class="fj-checkout-action" href="{{square_url}}" target="_blank" rel="noopener noreferrer">Payer maintenant en ligne ↗</a>
+      <p class="fj-checkout-explain">Paiement sur la caisse officielle de Square. Vérifiez le montant avant de confirmer.</p>
+    {% else %}
+      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
+      <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Payer avec Interac — instructions</button>
+      <p class="fj-checkout-explain">Vous avez reçu une demande de fonds officielle Interac? Ouvrez le courriel reçu de votre banque pour autoriser le montant prérempli. Ce site ne peut pas générer cette demande automatiquement.</p>
+    {% endif %}
+    {% if recipient %}
+    <details id="fjInteracOptions" class="fj-checkout-alt">
+      <summary>{% if square_url %}Payer plutôt par virement Interac{% else %}Je n'ai pas reçu de demande Interac{% endif %}</summary>
+      <div class="fj-checkout-alt-body">
+        <p>Si aucune demande de fonds n'a été envoyée, vous pouvez effectuer un virement Interac depuis votre propre application bancaire. Les renseignements sont ci-dessous.</p>
+        <ol><li>Ouvrez votre application bancaire habituelle.</li>
+        <li>Choisissez « Virement Interac », puis « Envoyer ».</li>
+        <li>Vérifiez le destinataire, inscrivez le montant et la référence, puis autorisez le paiement.</li></ol>
+        <div class="fj-checkout-field"><span>Courriel du destinataire<strong id="payEmail">{{recipient}}</strong></span><button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
+        <div class="fj-checkout-field"><span>Montant<strong id="payAmount">{{amount}}</strong></span><button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
+        <div class="fj-checkout-field"><span>Référence<strong id="payRef">{{reference}}</strong></span><button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
+        <button type="button" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
+        <span id="fjordPaymentFeedback" class="fj-checkout-status" role="status" aria-live="polite"></span>
+      </div>
+    </details>
+    {% endif %}
+    <p class="fj-checkout-footnote">Ne payez pas deux fois la même soumission. Le paiement est confirmé après réception par l'entreprise, et non par un clic sur cette page. Besoin d'aide? Mentionnez la référence {{reference}}.</p>
+  </section>
+</main>
 <script>
+function fjordShowInterac(){
+ const options=document.getElementById('fjInteracOptions');
+ if(options){options.open=true;options.scrollIntoView({block:'nearest',behavior:'smooth'});}
+}
 async function fjordCopyText(text,button){
  const feedback=document.getElementById('fjordPaymentFeedback');
  try{
   await navigator.clipboard.writeText(text);
   if(feedback)feedback.textContent='✓ Copié. Ouvrez votre application bancaire pour poursuivre.';
-  const label=button.textContent;button.textContent='✓ Copié';
-  setTimeout(()=>button.textContent=label,2200);
+  const previous=button.textContent;button.textContent='✓ Copié';
+  setTimeout(()=>button.textContent=previous,2200);
  }catch(e){
-  if(feedback)feedback.textContent='Copie automatique indisponible. Sélectionnez le texte ci-dessous et copiez-le.';
+  if(feedback)feedback.textContent='Copie automatique indisponible. Sélectionnez le renseignement ci-dessus.';
  }
 }
 function fjordCopy(id,button){
@@ -2979,12 +3022,14 @@ function fjordCopy(id,button){
  if(el)fjordCopyText(el.textContent.trim(),button);
 }
 function fjordCopyAll(button){
- const email=document.getElementById('payEmail').textContent.trim();
- const amount=document.getElementById('payAmount').textContent.trim();
- const reference=document.getElementById('payRef').textContent.trim();
+ const email=document.getElementById('payEmail')?.textContent.trim()||'';
+ const amount=document.getElementById('payAmount')?.textContent.trim()||'';
+ const reference=document.getElementById('payRef')?.textContent.trim()||'';
  fjordCopyText('Les Impressions du Fjord\nCourriel Interac : '+email+'\nMontant : '+amount+'\nRéférence : '+reference,button);
 }
-</script>""",amount=_money(total),reference=reference,recipient=recipient,square_url=square_url))
+</script>""",amount=_money(total),reference=reference,
+    title=q.get("title") or "Impression 3D personnalisée",
+    recipient=recipient,square_url=square_url))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
