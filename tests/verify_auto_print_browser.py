@@ -59,7 +59,18 @@ try:
   assert page.locator("#fjordAutoPrintLauncher").count()==1
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
   assert page.locator("#fjordAutoPrintDialog").is_visible()
-  page.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
+  try:
+   page.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=8000)
+  except Exception:
+   print("X2D UI DEBUG",page.evaluate("""() => ({
+      ready:!!window.__fjordEditorStarted,
+      dialog:document.querySelector('#fjordAutoPrintDialog')?.open,
+      state:document.querySelector('#fjordAutoState')?.innerText,
+      machine:document.querySelector('#fjordAutoForm [name=machine]')?.value,
+      selects:[...document.querySelectorAll('#fjordAutoForm select')].map(el=>el.outerHTML.slice(0,350)),
+      preview:document.querySelector('#fjordSliceReview')?.outerHTML.slice(0,280)
+     })"""),"JS ERRORS",errors)
+   raise
   assert page.locator('[name="machine"]').input_value()=="1"
   assert page.locator('[name="process"]').input_value()=="2"
   assert page.locator('[name="filament"]').input_value()=="3"
