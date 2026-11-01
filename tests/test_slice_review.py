@@ -115,11 +115,62 @@ class ReviewTests(unittest.TestCase):
             self.assertTrue(success.json["next"].startswith("/admin/atelier-imprimer?"))
             self.assertEqual(upload.call_count,1)
             self.assertEqual(upload.call_args.args[1],archive)
+            self.assertTrue(len(success.json["nonce"])>=24)
+            self.assertEqual(client.get("/api/admin/atelier/impression-etat").status_code,200)
+            # Physical start must require explicit safety checks, a one-use
+            # nonce and a matching printer-side file, not a user path.
+            nonce=success.json["nonce"]
+            with patch("fjord_printer._api",side_effect=lambda path,**kwargs:
+                {"Root":[{"Type":"file","VirtualPath":success.json["file"]}]}
+                if path=="/files/list" else
+                {"VirtualPath":kwargs["payload"]["Path"]} if path=="/start"
+                else None) as printer_api:
+                started=client.post("/admin/atelier-imprimer/demarrer-atelier",
+                    data={"nonce":nonce,"verified":"yes","cleared":"yes","ams":"yes",
+                          "path":"gcode/evil.3mf"},headers={"Accept":"application/json"})
+                self.assertEqual(started.status_code,200,started.get_data(as_text=True))
+                calls=[x for x in printer_api.call_args_list if x.args[0]=="/start"]
+                self.assertEqual(len(calls),1)
+                self.assertEqual(calls[0].kwargs["payload"]["Path"],success.json["file"])
+                self.assertEqual(calls[0].kwargs["payload"]["Plate"],1)
+                again=client.post("/admin/atelier-imprimer/demarrer-atelier",
+                    data={"nonce":nonce,"verified":"yes","cleared":"yes"})
+                self.assertEqual(again.status_code,422)
+                self.assertEqual(len([x for x in printer_api.call_args_list if x.args[0]=="/start"]),1)
             second=client.post("/admin/atelier-imprimer/transmettre",
                   data={"stage":token},headers={"Accept":"application/json"})
             self.assertEqual(second.status_code,422)
             self.assertEqual(upload.call_count,1)
             self.assertFalse(list(Path(temp).glob("*.3mf")))
+
+
+    def test_atelier_start_guard_rejects_busy_unverified_expired_and_wrong_nonce(self):
+        import time
+        app=Flask("x2d-start-guards")
+        app.secret_key="secret-for-guard-tests"
+        app.config["TESTING"]=True
+        register_printer_admin(app,lambda fn:fn,lambda:None,lambda:"",
+                               lambda *args,**kw:"ok")
+        client=app.test_client()
+        with patch("fjord_printer._api") as printer_api:
+            for scenario in ("missing_check","wrong_nonce","expired","busy"):
+                with client.session_transaction() as sess:
+                    sess["fjord_atelier_start"]={
+                        "path":"gcode/fjord_auto_valid.3mf",
+                        "nonce":"known-one-time-nonce",
+                        "time":time.time()-(1900 if scenario=="expired" else 0)
+                    }
+                data={"nonce":"known-one-time-nonce","verified":"yes","cleared":"yes"}
+                if scenario=="missing_check":data.pop("verified")
+                if scenario=="wrong_nonce":data["nonce"]="wrong"
+                with patch("fjord_printer._status",return_value={"can_start":False}):
+                    response=client.post("/admin/atelier-imprimer/demarrer-atelier",
+                                         data=data,headers={"Accept":"application/json"})
+                self.assertEqual(response.status_code,422,scenario)
+                self.assertFalse(response.json["ok"])
+                self.assertEqual(client.post("/admin/atelier-imprimer/demarrer-atelier",
+                    data=data).status_code,422)
+            printer_api.assert_not_called()
 
 
 if __name__=="__main__": unittest.main()
