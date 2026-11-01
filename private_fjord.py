@@ -301,9 +301,11 @@ if(fjordAutoButton){
  '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
  '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
  '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
- '<canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue du dessus des couches tranchées"></canvas>'+
+ '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue du dessus du G-code réel. Glisse pour déplacer et pince pour zoomer."></canvas>'+
+ '<div class="fjord-review-zoom" role="group" aria-label="Zoom de l’aperçu"><button type="button" id="fjordReviewZoomOut" aria-label="Dézoomer">−</button><button type="button" id="fjordReviewFit" aria-label="Recentrer et ajuster le zoom">⌗</button><button type="button" id="fjordReviewZoomIn" aria-label="Agrandir">+</button></div></div>'+
+ '<p class="fjord-review-gesture">Glisse pour déplacer · pince à deux doigts pour zoomer · vue du dessus.</p>'+
  '<label for="fjordReviewLayer">Couche <strong id="fjordReviewLabel">—</strong></label>'+
- '<input id="fjordReviewLayer" type="range" min="0" max="0" value="0" step="1">'+
+ '<div class="fjord-review-layerbar"><button type="button" id="fjordReviewPrevious" aria-label="Couche précédente">◀</button><input id="fjordReviewLayer" type="range" min="0" max="0" value="0" step="1"><button type="button" id="fjordReviewNext" aria-label="Couche suivante">▶</button></div>'+
  '<label class="fjord-auto-remember"><input id="fjordReviewAccumulated" type="checkbox"> Afficher les couches précédentes</label>'+
  '<p id="fjordReviewSummary" role="status"></p>'+
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
@@ -321,10 +323,14 @@ if(fjordAutoButton){
  const review=panel.querySelector('#fjordSliceReview');
  const transfer=panel.querySelector('#fjordReviewTransfer');
  const slider=panel.querySelector('#fjordReviewLayer');
+ let reviewZoom=1,reviewPanX=0,reviewPanY=0;
+ const reviewTouches=new Map();
  function invalidatePreview(){
   prepared=null;
   review.hidden=true;
+  panel.classList.remove('fjord-preview-active');
   transfer.disabled=true;
+  reviewZoom=1;reviewPanX=reviewPanY=0;
  }
  function drawBambuReview(){
   if(!prepared)return;
@@ -334,7 +340,9 @@ if(fjordAutoButton){
   if(!ctx)return;
   ctx.fillStyle='#101c29';ctx.fillRect(0,0,canvas.width,canvas.height);
   const side=Math.min(canvas.width,canvas.height)-38;
-  const tx=x=>19+(x/256)*side,ty=y=>canvas.height-19-(y/256)*side;
+  // Transform about canvas centre; identical geometry for mouse and touch.
+  const tx=x=>canvas.width/2+(19+(x/256)*side-canvas.width/2)*reviewZoom+reviewPanX;
+  const ty=y=>canvas.height/2+(canvas.height-19-(y/256)*side-canvas.height/2)*reviewZoom+reviewPanY;
   ctx.strokeStyle='#365064';ctx.lineWidth=.7;
   for(let mm=0;mm<=256;mm+=32){
    ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
@@ -362,7 +370,61 @@ if(fjordAutoButton){
    (prepared.preview.sampled?' · tracé partiellement échantillonné':'');
  }
  slider.addEventListener('input',drawBambuReview);
+ for(const [id,direction] of [['fjordReviewPrevious',-1],['fjordReviewNext',1]]){
+  panel.querySelector('#'+id).addEventListener('click',()=>{
+   if(!prepared)return;
+   slider.value=String(Math.max(0,Math.min(Number(slider.max),Number(slider.value)+direction)));
+   drawBambuReview();
+  });
+ }
  panel.querySelector('#fjordReviewAccumulated').addEventListener('change',drawBambuReview);
+ function zoomReview(next){
+  reviewZoom=Math.min(6,Math.max(.75,next));
+  reviewPanX=Math.min(500,Math.max(-500,reviewPanX));
+  reviewPanY=Math.min(500,Math.max(-500,reviewPanY));
+  drawBambuReview();
+ }
+ panel.querySelector('#fjordReviewZoomOut').addEventListener('click',()=>zoomReview(reviewZoom/1.4));
+ panel.querySelector('#fjordReviewZoomIn').addEventListener('click',()=>zoomReview(reviewZoom*1.4));
+ panel.querySelector('#fjordReviewFit').addEventListener('click',()=>{
+  reviewZoom=1;reviewPanX=reviewPanY=0;drawBambuReview();
+ });
+ const canvas=panel.querySelector('#fjordReviewCanvas');
+ let lastTouch={x:0,y:0,d:0};
+ function touchState(){
+  const p=[...reviewTouches.values()];
+  const x=p.reduce((sum,a)=>sum+a.x,0)/p.length;
+  const y=p.reduce((sum,a)=>sum+a.y,0)/p.length;
+  const d=p.length>=2?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0;
+  return {x,y,d};
+ }
+ canvas.addEventListener('pointerdown',event=>{
+  if(!prepared)return;
+  reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  lastTouch=touchState();
+  try{canvas.setPointerCapture(event.pointerId);}catch(_){}
+ });
+ canvas.addEventListener('pointermove',event=>{
+  if(!prepared||!reviewTouches.has(event.pointerId))return;
+  reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  const now=touchState();
+  reviewPanX+=now.x-lastTouch.x;
+  reviewPanY+=now.y-lastTouch.y;
+  if(now.d&&lastTouch.d)reviewZoom=Math.min(6,Math.max(.75,reviewZoom*now.d/lastTouch.d));
+  lastTouch=now;
+  drawBambuReview();
+ });
+ function endReviewTouch(event){
+  reviewTouches.delete(event.pointerId);
+  if(reviewTouches.size)lastTouch=touchState();
+  try{canvas.releasePointerCapture(event.pointerId);}catch(_){}
+ }
+ canvas.addEventListener('pointerup',endReviewTouch);
+ canvas.addEventListener('pointercancel',endReviewTouch);
+ canvas.addEventListener('wheel',event=>{
+  if(!prepared)return;
+  event.preventDefault();zoomReview(reviewZoom*(event.deltaY>0?.85:1.15));
+ },{passive:false});
  panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
   invalidatePreview();
   state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
@@ -498,6 +560,8 @@ if(fjordAutoButton){
    prepared={stage:result.stage,preview:result.preview,chosen,config};
    const review=panel.querySelector('#fjordSliceReview');
    review.hidden=false;
+   panel.classList.add('fjord-preview-active');
+   reviewZoom=1;reviewPanX=reviewPanY=0;
    const slider=panel.querySelector('#fjordReviewLayer');
    slider.max=String(result.preview.layers.length-1);
    slider.value=slider.max;
@@ -589,12 +653,38 @@ if(fjordAutoButton){
 #fjordSliceReview[hidden]{display:none!important}
 #fjordSliceReview{border-top:1px solid #4c7388;margin-top:16px;padding-top:12px}
 #fjordSliceReview h3{font-size:15px;margin:4px 0}
-#fjordReviewCanvas{width:min(100%,420px);height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;margin:10px auto}
+.fjord-review-preview{position:relative;width:min(100%,420px);margin:10px auto}
+#fjordReviewCanvas{width:100%;height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;touch-action:none;user-select:none}
+.fjord-review-zoom{display:flex;position:absolute;right:8px;bottom:8px;gap:5px}
+.fjord-review-zoom button{min-width:45px;min-height:45px;color:#fff;background:#183c53ea;border:1px solid #8eb3c9;border-radius:9px;font-size:22px}
+.fjord-review-gesture{font-size:12px;text-align:center;margin:3px 0!important}
+.fjord-review-layerbar{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;align-items:center}
+.fjord-review-layerbar button{min-height:48px;border-radius:10px}
+#fjordReviewLayer{min-width:0}
+#fjordAutoPrintDialog .fjord-auto-remember{display:flex;align-items:center;gap:8px}
+#fjordAutoPrintDialog .fjord-auto-remember input[type=checkbox]{width:19px;height:19px;flex-shrink:0}
 #fjordReviewLayer{width:100%;min-height:38px;accent-color:#51d3fb}
 #fjordSliceReview .fjord-review-note{font-size:12px;color:#b9d6e6}
 #fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
 #fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
 #fjordAutoPrintDialog{max-height:90dvh}
+@media(max-width:760px){
+ #fjordAutoPrintDialog{box-sizing:border-box;width:100vw;max-width:100vw;min-height:100dvh;max-height:100dvh;height:100dvh;margin:0;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));
+  border-radius:0;border:none;overflow-y:auto;overscroll-behavior:contain}
+ #fjordAutoPrintDialog .fjord-dialog-head{position:sticky;top:calc(-12px - env(safe-area-inset-top,0px));
+  background:#112c40;z-index:3;padding:10px 0;border-bottom:1px solid #476e80}
+ #fjordAutoPrintDialog .fjord-dialog-head button{min-width:48px;min-height:48px}
+ #fjordAutoPrintDialog form{gap:10px}
+ #fjordAutoPrintDialog form select,#fjordAutoPrintDialog form button{min-height:50px;font-size:16px}
+ #fjordAutoPrintDialog #fjordReviewLayer{height:52px;touch-action:pan-y}
+ #fjordAutoPrintDialog .fjord-review-layerbar button{min-width:48px;min-height:52px}
+ #fjordAutoPrintDialog .fjord-review-zoom button{min-width:48px;min-height:48px}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordAutoForm{display:none}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview{padding-top:5px}
+ #fjordReviewTransfer{position:sticky;bottom:0;z-index:2;min-height:56px!important;
+  margin:9px 0 3px;box-shadow:0 -7px 14px #112c40c9}
+}
 #fjordModelChooser .fjord-dialog-head{display:flex;gap:12px;justify-content:space-between;align-items:center}
 #fjordModelChooser .fjord-dialog-head strong{font-size:19px}
 #fjordModelChooser input{width:100%;margin:10px 0 14px;min-height:44px}
