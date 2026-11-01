@@ -663,7 +663,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="mobile-menu-title"><strong id="mobileMenuTitle">Outils 3D</strong><button type="button" id="mobileMenuClose" aria-label="Fermer le menu">✕</button></div>
 <div id="mobileMenuContent"></div>
 </div>
-<div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
+
 <div class="shell" id="fjordWorkspace">
 <button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-expanded="false" aria-label="Ouvrir ou fermer le tiroir des outils" title="Ouvrir / fermer les outils">›</button>
 <button type="button" id="fjordDrawerRight" class="fjord-drawer-handle fjord-drawer-right" aria-label="Ouvrir ou fermer le tiroir droit" title="Ouvrir / fermer le tiroir droit">›</button>
@@ -3591,38 +3591,27 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  const shell=document.getElementById('fjordWorkspace');
  const desktop=window.matchMedia('(min-width:761px)');
  const redraw=()=>window.dispatchEvent(new Event('resize'));
- const controls=[['fjordToggleLeft','fjord-hide-left','outils'],['fjordToggleRight','fjord-hide-right','propriétés']];
- for(const [id,cls,label] of controls){
-  const button=document.getElementById(id);
-  if(!button)continue;
-  const update=()=>{
-   const open=!shell.classList.contains(cls);
-   button.setAttribute('aria-expanded',String(open));
-   button.textContent=(id==='fjordToggleLeft'?'☰ ':'☷ ')+(open?'Masquer ':'Afficher ')+label;
-  };
-  button.addEventListener('click',()=>{
-   if(!desktop.matches)return;
-   shell.classList.toggle(cls);
-   update();redraw();
-  });
-  desktop.addEventListener('change',()=>{
-   shell.classList.remove(cls);
-   update();redraw();
-  });
-  update();
- }
+ // Les deux gros boutons de masquage ont été retirés. Les petites flèches
+ // restent les contrôles uniques, sans dépendance à un bouton caché.
  const leftHandle=document.getElementById('fjordDrawerLeft');
  leftHandle?.addEventListener('click',()=>{if(desktop.matches)window.fjordToggleCategoryDrawer?.();});
- for(const [handleId,toggleId,cls] of [['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
-  const handle=document.getElementById(handleId);
-  const toggle=document.getElementById(toggleId);
-  if(!handle||!toggle)continue;
-  const refresh=()=>{handle.textContent=cls==='fjord-hide-left'?(shell.classList.contains(cls)?'›':'‹'):(shell.classList.contains(cls)?'‹':'›');};
-  handle.addEventListener('click',()=>{toggle.click();refresh();});
-  toggle.addEventListener('click',refresh);
-  desktop.addEventListener('change',refresh);
-  refresh();
- }
+ const rightHandle=document.getElementById('fjordDrawerRight');
+ const updateRight=()=>{
+  if(!rightHandle)return;
+  const open=!shell.classList.contains('fjord-hide-right');
+  rightHandle.textContent=open?'›':'‹';
+  rightHandle.setAttribute('aria-expanded',String(open));
+ };
+ rightHandle?.addEventListener('click',()=>{
+  if(!desktop.matches)return;
+  shell.classList.toggle('fjord-hide-right');
+  updateRight();redraw();
+ });
+ desktop.addEventListener('change',()=>{
+  shell.classList.remove('fjord-hide-right');
+  updateRight();redraw();
+ });
+ updateRight();
  const nav=document.querySelector('.fjord-workspace-nav');
  if(nav){
   const buttons=[...nav.querySelectorAll('[data-fjord-panel]')];
