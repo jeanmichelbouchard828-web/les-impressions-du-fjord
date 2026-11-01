@@ -282,93 +282,190 @@ if(savedModelId && /^[0-9]+$/.test(savedModelId)){
 // ou autre filament unique. Pas de conversion trompeuse des couleurs AMS en STL.
 const fjordAutoButton=document.getElementById('fjordAutoPrintLauncher');
 if(fjordAutoButton){
- // The green Print button opens the automatic workflow for a non-empty bed.
- // With an empty bed it still links to the beloved manual printing page.
- document.getElementById('fjordPrintShortcut')?.addEventListener('click',event=>{
-  if(!models.length)return;
-  event.preventDefault();
-  fjordAutoButton.click();
+ const green=document.getElementById('fjordPrintShortcut');
+ green?.addEventListener('click',event=>{
+  if(!models.length)return; // Empty bed: keep the beloved manual print page.
+  event.preventDefault();fjordAutoButton.click();
  });
  const panel=document.createElement('dialog');
  panel.id='fjordAutoPrintDialog';
- panel.setAttribute('aria-label','Tranchage officiel X2D depuis l’Atelier');
- panel.innerHTML='<div class="fjord-dialog-head"><strong>⚡ Préparer mon impression X2D</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
- '<p>Un seul matériau/couleur pour ce premier workflow. Le tranchage se fera avec Bambu Studio et les profils complets choisis. L’impression ne partira pas sans ta confirmation finale.</p>'+
- '<p id="fjordAutoState" role="status" aria-live="polite">Vérification du moteur et des profils…</p>'+
+ panel.setAttribute('aria-label','Préparer l’impression X2D depuis l’Atelier');
+ panel.innerHTML='<div class="fjord-dialog-head"><strong>🖨️ Ma X2D · Préparation automatique</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
+ '<p>Profils mémorisés par matériau et hauteur de couche. Après validation, un clic suffit pour trancher et envoyer. Le démarrage physique nécessitera toujours une confirmation distincte.</p>'+
+ '<p id="fjordAutoState" role="status" aria-live="polite">Vérification de la configuration…</p>'+
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
  '<label>Filament<select name="filament" required></select></label>'+
- '<button id="fjordAutoSubmit" type="submit" disabled>🧩 Trancher et envoyer à la X2D</button></form>'+
- '<p><a href="/admin/profils-bambu">⚙️ Importer / vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Ouvrir la page d’impression</a></p>';
+ '<label class="fjord-auto-remember"><input type="checkbox" id="fjordAutoRemember" checked> Mémoriser ces profils après une préparation réussie</label>'+
+ '<button id="fjordAutoSubmit" type="submit" disabled>🧩 Trancher et envoyer à ma X2D</button></form>'+
+ '<p><a href="/admin/profils-bambu">⚙️ Vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Page d’impression classique</a></p>';
  document.body.append(panel);
- const state=panel.querySelector('#fjordAutoState'),form=panel.querySelector('#fjordAutoForm'),submit=panel.querySelector('#fjordAutoSubmit');
+ const state=panel.querySelector('#fjordAutoState');
+ const form=panel.querySelector('#fjordAutoForm');
+ const submit=panel.querySelector('#fjordAutoSubmit');
+ const remember=panel.querySelector('#fjordAutoRemember');
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
- panel.querySelector('#fjordAutoClose').addEventListener('click',()=>panel.close());
- panel.addEventListener('click',e=>{if(e.target===panel)panel.close()});
- fjordAutoButton.addEventListener('click',async()=>{
-  state.textContent='Vérification du moteur et des profils X2D…';
-  submit.disabled=true;
-  panel.showModal();
+ const preferenceKey='fjord-x2d-profile-preferences-v1';
+ let inventory=null,busy=false,opened=false;
+ const material=()=>String(document.getElementById('sliceMaterial')?.value||'PLA').trim().toUpperCase();
+ const layer=()=>String(document.getElementById('sliceLayerHeight')?.value||'0.2');
+ const jobKey=()=>material()+'|'+layer();
+ function savedProfiles(){
   try{
-   const resp=await fetch('/api/admin/atelier/impression-profils',{credentials:'same-origin'});
-   if(!resp.ok)throw Error('Session administrateur expirée ou service indisponible.');
-   const data=await resp.json();
-   for(const [field,category] of Object.entries(names)){
-    const sel=form.elements.namedItem(field);
-    sel.replaceChildren(new Option('— Sélectionner —',''));
-    for(const item of data.profiles?.[category]||[])sel.add(new Option(item.name+' (#'+item.id+')',String(item.id)));
-   }
-   const canSlice=data.engine_ready&&Object.values(names).every(category=>data.profiles?.[category]?.length);
-   state.textContent=!data.engine_ready?
-    'Le moteur Bambu Studio n’est pas encore installé sur Railway. En attendant, la page d’impression accepte les vrais 3MF déjà tranchés.' :
-    !canSlice?'Il manque au moins un profil X2D complet (imprimante, impression ou filament). Importation seule ne suffit pas.':
-    'Moteur détecté. Sélectionne les trois profils correspondant à ta X2D, ta buse, ta plaque et ton matériau.';
-   const ready=()=>submit.disabled=!canSlice||!Object.keys(names).every(field=>form.elements.namedItem(field).value);
-   form.addEventListener('change',ready,{once:false});
-   ready();
-  }catch(error){state.textContent='⚠ '+String(error.message||error).slice(0,150)}
- });
- form.addEventListener('submit',async event=>{
-  event.preventDefault();
-  if(submit.disabled)return;
-  if(!models.length){state.textContent='⚠ Ajoute une pièce au plateau.';return;}
-  // A standard STL cannot carry per-face AMS painting or separate materials.
-  if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces)){
-   state.textContent='⚠ Pièce peinte ou multicolore : utilise Bambu Studio pour conserver les couleurs AMS.';return;
+   const value=JSON.parse(localStorage.getItem(preferenceKey)||'{}');
+   return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch(_){return {}}
+ }
+ function profilesSelected(){
+  return Object.fromEntries(Object.keys(names).map(field=>
+   [field,form.elements.namedItem(field).value]));
+ }
+ function eligible(field,item){
+  if(field==='machine')return /X2D/i.test(item.model||'')&&
+   String(item.nozzle||'').trim()==='0.4';
+  if(field==='filament')return String(item.material||'').trim().toUpperCase()===material();
+  if(field==='process'){
+   const n=parseFloat(item.layer), wanted=parseFloat(layer());
+   return Number.isFinite(n)&&Number.isFinite(wanted)&&Math.abs(n-wanted)<.005;
   }
-  const colorSet=new Set(models.map(m=>basePartColor(m)));
-  if(colorSet.size>1){
-   state.textContent='⚠ Plusieurs couleurs de pièce : le tranchage STL automatique est réservé à une seule couleur.';return;
+  return false;
+ }
+ function selectedValid(){
+  if(!inventory?.engine_ready)return false;
+  return Object.entries(names).every(([field,category])=>{
+   const id=form.elements.namedItem(field).value;
+   return (inventory.profiles?.[category]||[]).some(item=>
+    String(item.id)===id&&eligible(field,item));
+  });
+ }
+ function updateReady(){
+  submit.disabled=busy||!selectedValid();
+  if(inventory?.engine_ready&&Object.keys(names).every(field=>form.elements.namedItem(field).value)&&
+     !selectedValid()&&!busy){
+   state.textContent='⚠ Choisis une X2D avec buse 0,4 mm, un profil à la hauteur de couche demandée et un filament exactement du bon matériau.';
   }
+ }
+ panel.querySelector('#fjordAutoClose').addEventListener('click',()=>{if(!busy)panel.close()});
+ panel.addEventListener('click',event=>{if(event.target===panel&&!busy)panel.close()});
+ form.addEventListener('change',updateReady);
+ function ensureValidScene(){
+  if(!models.length)throw Error('Ajoute une pièce au plateau.');
+  if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces))
+   throw Error('Pièce peinte ou multicolore : conserve les couleurs AMS en tranchant dans Bambu Studio.');
+  const colors=new Set(models.map(m=>basePartColor(m)));
+  if(colors.size>1)throw Error('Plusieurs couleurs : le STL ne les conserverait pas.');
   const extents=models.reduce((b,m)=>b.union(modelWorldBounds(m)),new THREE.Box3());
   const size=extents.getSize(new THREE.Vector3());
-  if(size.x>256||size.y>256||size.z>260||size.x<=0||size.y<=0||size.z<=0){
-   state.textContent='⚠ La pièce ne rentre pas dans le volume X2D principal (256 × 256 × 260 mm).';return;
-  }
-  if(!confirm('Trancher la création actuelle avec ces profils X2D, puis envoyer le résultat sur l’imprimante SANS démarrer l’impression ?'))return;
-  submit.disabled=true;
-  state.textContent='Préparation et tranchage Bambu Studio…';
+  if([size.x,size.y,size.z].some(n=>!Number.isFinite(n)||n<=0)||
+     size.x>256||size.y>256||size.z>260)
+   throw Error('La création dépasse le volume X2D indiqué (256 × 256 × 260 mm).');
+  if(!['PLA','PETG','ASA','TPU'].includes(material()))
+   throw Error('Choisis un matériau PLA, PETG, ASA ou TPU dans le tranchage de l’Atelier.');
+ }
+ async function prepare(){
+  if(busy||!selectedValid())return;
+  try{ensureValidScene()}catch(e){state.textContent='⚠ '+e.message;return}
+  busy=true;submit.disabled=true;
+  panel.querySelector('#fjordAutoClose').disabled=true;
+  state.textContent='Étape 1/3 · Export des pièces du plateau…';
+  const chosen=profilesSelected(),config=jobKey();
   try{
    const group=new THREE.Group();
-   for(const m of models){const clone=m.clone();clone.geometry=m.geometry;clone.material=m.material;group.add(clone);}
+   for(const m of models){
+    const clone=m.clone();clone.geometry=m.geometry;clone.material=m.material;group.add(clone);
+   }
    const binary=new STLExporter().parse(group,{binary:true});
    const blob=new Blob([binary],{type:'application/octet-stream'});
-   if(blob.size>8*1024*1024)throw Error('STL trop volumineux (8 Mo maximum).');
-   const data=new FormData();
-   data.append('csrf',__FJORD_CSRF__);
-   data.append('stl',blob,'Creation-du-Fjord.stl');
-   for(const field of Object.keys(names))data.append(field,form.elements.namedItem(field).value);
+   if(blob.size>8*1024*1024)throw Error('STL trop volumineux (8 Mo).');
+   const requestBody=new FormData();
+   requestBody.append('csrf',__FJORD_CSRF__);
+   requestBody.append('stl',blob,'Creation-du-Fjord.stl');
+   requestBody.append('material',material());
+   for(const [field,id] of Object.entries(chosen))requestBody.append(field,id);
+   state.textContent='Étape 2/3 · Tranchage Bambu Studio, puis transfert si le fichier est validé…';
    const response=await fetch('/admin/atelier-imprimer/preparer',{
-    method:'POST',body:data,credentials:'same-origin',redirect:'follow'
+    method:'POST',body:requestBody,credentials:'same-origin',
+    headers:{'Accept':'application/json'},redirect:'follow'
    });
-   if(!response.ok)throw Error('Échec du serveur : HTTP '+response.status);
-   location.assign(response.url);
+   if(!(response.headers.get('content-type')||'').includes('application/json'))
+    throw Error('Le serveur n’a pas retourné de résultat. Vérifie ta session administrateur.');
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw Error(result.error||'Préparation impossible.');
+   // Remember ONLY after successful slicing and upload. Store IDs, no secrets.
+   if(remember.checked){
+    try{
+     const settings=savedProfiles();
+     settings[config]=chosen;
+     localStorage.setItem(preferenceKey,JSON.stringify(settings));
+    }catch(_){}
+   }
+   state.textContent='Étape 3/3 · 3MF transféré. Ouverture de la confirmation d’impression…';
+   if(typeof result.next!=='string'||!result.next.startsWith('/admin/atelier-imprimer?'))
+    throw Error('Adresse de confirmation invalide.');
+   location.assign(result.next);
   }catch(error){
-   state.textContent='⚠ '+String(error.message||error).slice(0,170);
-   submit.disabled=false;
+   state.textContent='⚠ '+String(error.message||error).slice(0,240)+
+    ' Aucune commande de démarrage n’a été envoyée.';
+  }finally{
+   busy=false;
+   panel.querySelector('#fjordAutoClose').disabled=false;
+   updateReady();
   }
+ }
+ form.addEventListener('submit',event=>{event.preventDefault();prepare()});
+ fjordAutoButton.addEventListener('click',async()=>{
+  if(busy)return;
+  const already=opened;opened=true;
+  if(!panel.open)panel.showModal();
+  state.textContent='Lecture des profils Bambu Studio X2D…';
+  submit.disabled=true;
+  inventory=null;
+  try{
+   const response=await fetch('/api/admin/atelier/impression-profils',{
+    credentials:'same-origin',cache:'no-store'
+   });
+   if(!response.ok)throw Error('Connexion à l’administration nécessaire.');
+   const data=await response.json();inventory=data;
+   const remembered=savedProfiles()[jobKey()]||{};
+   let rememberedAll=true;
+   for(const [field,category] of Object.entries(names)){
+    const select=form.elements.namedItem(field);
+    select.replaceChildren(new Option('— Sélectionner —',''));
+    const all=data.profiles?.[category]||[];
+    const compatible=all.filter(item=>eligible(field,item));
+    for(const item of compatible){
+     let detail='';
+     if(field==='machine')detail=' · buse '+item.nozzle+' mm';
+     if(field==='filament')detail=' · '+item.material;
+     if(field==='process')detail=' · '+item.layer+' mm';
+     select.add(new Option(item.name+detail,String(item.id)));
+    }
+    const saved=compatible.find(item=>String(item.id)===String(remembered[field]||''));
+    if(saved){select.value=String(saved.id);}
+    else{
+     rememberedAll=false;
+     // Auto-suggest only a single unambiguous compatible profile;
+     // never guess between two potentially different processes or spools.
+     if(compatible.length===1)select.value=String(compatible[0].id);
+    }
+   }
+   if(!data.engine_ready)state.textContent='⚠ Bambu Studio indisponible sur Railway.';
+   else if(!Object.keys(names).every(field=>form.elements.namedItem(field).options.length>1))
+    state.textContent='⚠ Il manque un profil complet correspondant : X2D 0,4 mm, '+material()+
+      ' et couche '+layer()+' mm. Vérifie les profils importés.';
+   else if(rememberedAll&&selectedValid()){
+    state.textContent='✓ Profils déjà validés pour '+material()+' et '+layer()+
+      ' mm. Préparation automatique…';
+   }else state.textContent='Choisis tes profils une seule fois : ils seront mémorisés après une préparation réussie.';
+   updateReady();
+   if(rememberedAll&&selectedValid()&&!already)await prepare();
+  }catch(error){
+   state.textContent='⚠ '+String(error.message||error).slice(0,180);
+  }
+  opened=false;
  });
 }
+
 """.replace("__FJORD_CSRF__", json.dumps(csrf_token))
     styles = """
 <style>
