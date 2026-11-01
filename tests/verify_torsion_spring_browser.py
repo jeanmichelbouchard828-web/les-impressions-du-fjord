@@ -84,7 +84,12 @@ try:
         assert page.locator("#generatorKind option").count()<=3
         search.press("Enter")
         assert page.locator("#generatorKind").input_value()=="torsion_spring"
+        search.fill("zzzz-no-such-generator")
+        assert page.locator("#generatorAdd").is_disabled()
+        assert "Aucun générateur" in page.locator("#fjordGeneratorSearchStatus").inner_text()
         search.fill("")
+        assert page.locator("#generatorAdd").is_enabled()
+        assert page.locator("#generatorKind").input_value()=="torsion_spring"
         assert page.locator('[data-generator-pick="spring"]').count()==1
         page.locator('[data-generator-pick="torsion_spring"]').evaluate("el=>el.click()")
         assert page.locator("#generatorKind").input_value()=="torsion_spring"
