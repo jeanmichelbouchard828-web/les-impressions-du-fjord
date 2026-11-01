@@ -132,7 +132,7 @@ try:
   assert page.locator("#fjordStartNow").is_disabled()
   assert page.locator("#fjordStartAtelier").is_visible()
   saved=page.evaluate("JSON.parse(localStorage.getItem('fjord-x2d-profile-preferences-v1'))")
-  assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3"},saved
+  assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3","bed_type":"Textured PEI Plate"},saved
   # Previously remembered settings auto-slice but still require preview approval.
   prepare_scene()
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
