@@ -7,7 +7,7 @@ import zipfile
 from unittest.mock import patch
 from flask import Flask, render_template_string
 from fjord_printer import (
-    _safe_virtual_path, _printer_files, _status, _connection, _api, _upload,
+    _categorize_plugin_log, _safe_virtual_path, _printer_files, _status, _connection, _api, _upload,
     verify_sliced_bambu_3mf, PrinterError, register_printer_admin,
 )
 
@@ -217,13 +217,29 @@ class RemotePrintTests(unittest.TestCase):
             self.assertEqual(req.get_method(), "PUT")
             self.assertIn("files/upload", req.full_url)
 
+    def test_plugin_log_classes_are_safe_and_never_echo_secrets(self):
+        message = "[ERROR] Bambu FTPS UploadFile failed: timeout on 10.0.0.16 token=SUPER-SECRET"
+        result = _categorize_plugin_log(message)
+        self.assertIn("canal de transfert", result)
+        self.assertNotIn("10.0.0.16", result)
+        self.assertNotIn("SUPER-SECRET", result)
+        self.assertIn("clé USB", _categorize_plugin_log(
+            "Bambu FTPS UploadFile error: no USB storage mounted"))
+        self.assertIn("plein", _categorize_plugin_log(
+            "Bambu FTPS UploadFile failed: disk full"))
+        self.assertIsNone(_categorize_plugin_log("MQTT status OK"))
+
     def test_diagnostic_is_read_only_and_reports_file_access(self):
-        with patch("fjord_printer._api", side_effect=fake_api) as commands:
+        with (
+            patch("fjord_printer._plugin_log_hint", return_value="Les journaux évoquent un stockage USB absent ou non monté."),
+            patch("fjord_printer._api", side_effect=fake_api) as commands,
+        ):
             res = self.client.get("/api/admin/atelier/impression-diagnostic")
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json["status_ok"])
         self.assertTrue(res.json["files_ok"])
         self.assertIn("consultation", res.json["diagnosis"])
+        self.assertIn("stockage USB", res.json["diagnosis"])
         self.assertEqual([x.args[0] for x in commands.call_args_list],
                          ["/status", "/files/list"])
         self.assertNotIn("X2D_test.3mf", str(res.json))
@@ -232,7 +248,10 @@ class RemotePrintTests(unittest.TestCase):
             if path == "/files/list":
                 raise PrinterError("OctoEverywhere ne permet pas cette opération (code 752).")
             return fake_api(path, **kw)
-        with patch("fjord_printer._api", side_effect=broken_file_access):
+        with (
+            patch("fjord_printer._api", side_effect=broken_file_access),
+            patch("fjord_printer._plugin_log_hint", return_value=None),
+        ):
             res = self.client.get("/api/admin/atelier/impression-diagnostic")
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json["status_ok"])
