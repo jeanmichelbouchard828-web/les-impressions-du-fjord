@@ -201,8 +201,10 @@ class RemotePrintTests(unittest.TestCase):
         self.assertIn("FTP", hint)
         self.assertNotIn("192.0.2.1", hint)
         self.assertNotIn("MY-SECRET", hint)
-        with patch("fjord_printer._connection", return_value="https://test.octoeverywhere.com"), \\
-             patch("fjord_printer.urllib.request.build_opener") as opener:
+        with (
+            patch("fjord_printer._connection", return_value="https://test.octoeverywhere.com"),
+            patch("fjord_printer.urllib.request.build_opener") as opener,
+        ):
             opener.return_value.open.return_value = io.BytesIO(
                 json.dumps({"Status":752,"Error":"FTPS transfer failed"}).encode()
             )
