@@ -547,8 +547,8 @@ body.light .fj-print-hint{color:#496477!important}
             if upload is None or not str(upload.filename or "").lower().endswith(".stl"):
                 raise AutoSliceError("Fichier STL invalide.")
             raw = upload.stream.read(MAX_STL + 1)
-            if db is None:
-                raise AutoSliceError("Bibliothèque de profils indisponible.")
+            # Stock presets are bundled with Bambu Studio and don't depend on
+            # a user's imported profile archive/database.
             from bambu_stock_profiles import STOCK_NAMES, original_preset
             choices = {}
             for category, field in (("Imprimante","machine"),("Impression","process"),
