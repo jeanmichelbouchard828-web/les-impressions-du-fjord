@@ -69,7 +69,11 @@ try:
    page.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
   prepare_scene()
   assert page.locator("#fjordAutoPrintLauncher").count()==1
-  page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
+  assert page.locator("#fjordPrintShortcut").count()==1
+  assert page.locator("header #fjordPrintShortcut").count()==0,"Print CTA should not crowd header"
+  page.locator("#sliceTop").evaluate("el=>el.click()")
+  assert page.locator("#sliceFloat #fjordPrintShortcut").is_visible(),"Print belongs in Trancher"
+  page.locator("#fjordPrintShortcut").click()
   assert page.locator("#fjordAutoPrintDialog").is_visible()
   try:
    page.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=8000)
@@ -150,7 +154,19 @@ try:
   mobile.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
   mobile.locator('[data-shape="cube"]').evaluate("el=>el.click()")
   mobile.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
-  mobile.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
+  mobile.wait_for_function("document.documentElement.scrollWidth <= window.innerWidth+2")
+  mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
+  assert mobile.locator("#sliceFloat").is_visible(),"Mobile slice drawer should open"
+  assert mobile.locator("#sliceFloat #fjordPrintShortcut").is_visible()
+  layout=mobile.evaluate("""() => {
+    const ids=['#fjordWorkspace .stage','#sliceFloat','#fjordPrintShortcut','#fjordAdminShortcut'];
+    return ids.map(id=>{
+      const box=document.querySelector(id)?.getBoundingClientRect();
+      return {id,left:box?.left,right:box?.right,width:box?.width};
+    });
+  }""")
+  assert all(q["left"]>=-2 and q["right"]<=392 for q in layout),layout
+  mobile.locator("#fjordPrintShortcut").click()
   mobile.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
   mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
   mobile.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=20000)
