@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 from flask import Flask, render_template_string
 
-from bambu_auto import full_preset, cli_location, slice_x2d, AutoSliceError
+from bambu_auto import full_preset, cli_location, slice_x2d, AutoSliceError, cli_preset
 from fjord_printer import register_printer_admin, verify_sliced_bambu_3mf
 
 
@@ -56,6 +56,18 @@ class AutoTests(unittest.TestCase):
                 with self.assertRaises(AutoSliceError):
                     slice_x2d(bad,PRESETS,verify_sliced_bambu_3mf)
 
+    def test_stock_source_metadata_is_normalized_without_changing_machine_gcode(self):
+        original = {**MACHINE, "from": "System", "type": "machine"}
+        fixed = cli_preset(original, "Imprimante")
+        self.assertEqual(fixed["from"], "system")
+        self.assertEqual(fixed["type"], "machine")
+        self.assertEqual(fixed["machine_start_gcode"], original["machine_start_gcode"])
+        self.assertEqual(original["from"], "System")
+        self.assertEqual(cli_preset({**PROCESS, "from": "System"}, "Impression")["type"], "process")
+        self.assertEqual(cli_preset({**FILAMENT, "from": "System"}, "Filament")["type"], "filament")
+        with self.assertRaisesRegex(AutoSliceError, "inconnue"):
+            cli_preset({**FILAMENT, "from": "Untrusted"}, "Filament")
+
     def test_cli_arguments_and_archive_verification(self):
         def run(args, **kwargs):
             self.assertIn("--load-settings",args)
@@ -63,6 +75,14 @@ class AutoTests(unittest.TestCase):
             self.assertEqual(args[args.index("--slice")+1],"0")
             self.assertTrue(args[-1].endswith(".stl"))
             self.assertEqual(args[args.index("--arrange")+1],"1")
+            self.assertIn("--curr-bed-type",args)
+            self.assertEqual(args[args.index("--curr-bed-type")+1],"Textured PEI Plate")
+            machine_path = Path(args[args.index("--load-settings")+1].split(";")[0])
+            process_path = Path(args[args.index("--load-settings")+1].split(";")[1])
+            filament_path = Path(args[args.index("--load-filaments")+1])
+            self.assertEqual(json.loads(machine_path.read_text())["type"],"machine")
+            self.assertEqual(json.loads(process_path.read_text())["curr_bed_type"],"Textured PEI Plate")
+            self.assertEqual(json.loads(filament_path.read_text())["type"],"filament")
             self.assertNotIn("--orient",args)  # Keep original oriented part
             self.assertIn("--outputdir",args)
             destination=Path(args[args.index("--outputdir")+1])
@@ -76,6 +96,12 @@ class AutoTests(unittest.TestCase):
             with patch("bambu_auto.subprocess.run",side_effect=run):
                 result=slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
                 self.assertEqual(verify_sliced_bambu_3mf(result),[1])
+
+    def test_unknown_bed_type_rejected_before_slicer_or_printer(self):
+        with patch("bambu_auto.subprocess.run") as called:
+            with self.assertRaisesRegex(AutoSliceError, "plateau X2D inconnu"):
+                slice_x2d(stl(), PRESETS, verify_sliced_bambu_3mf, bed_type="Unknown")
+            called.assert_not_called()
 
     def test_unverified_3mf_never_accepted(self):
         with patch("bambu_auto.cli_location",return_value="/opt/bambu-studio"):
@@ -167,7 +193,7 @@ class AutoTests(unittest.TestCase):
              patch("fjord_printer.slice_x2d",create=True) as slice_mock:
             response=app.test_client().post("/admin/atelier-imprimer/preparer",
                 data={"stl":(io.BytesIO(stl()),"creation.stl"),"machine":"11",
-                      "process":"12","filament":"13","material":"PLA"},
+                      "process":"12","filament":"13","material":"PLA","bed_type":"Textured PEI Plate"},
                 headers={"Accept":"application/json"},content_type="multipart/form-data")
             self.assertEqual(response.status_code,422,response.get_data(as_text=True))
             self.assertFalse(response.json["ok"])

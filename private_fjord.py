@@ -313,6 +313,14 @@ if(fjordAutoButton){
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
  '<label>Filament<select name="filament" required></select></label>'+
+ '<label>Type de plaque installé sur la X2D<select name="bed_type" required>'+
+ '<option value="">— Choisir la plaque réelle —</option>'+
+ '<option value="Textured PEI Plate">PEI texturé</option>'+
+ '<option value="Smooth PEI Plate / High Temp Plate">PEI lisse / haute température</option>'+
+ '<option value="Engineering Plate">Engineering Plate</option>'+
+ '<option value="Cool Plate SuperTack">Cool Plate SuperTack</option>'+
+ '<option value="Cool Plate">Cool Plate (certains filaments incompatibles)</option>'+
+ '</select></label>'+
  '<section id="fjordMonoApproval" class="fjord-mono-approval" hidden>'+
  '<strong>🎨 Plusieurs couleurs détectées sur ta création.</strong>'+
  '<p>Le STL ne conserve pas la peinture AMS. Pour vérifier le tranchage, tu peux envoyer seulement la géométrie en <b>une couleur PETG</b>. Ta création peinte restera inchangée dans l’Atelier.</p>'+
@@ -612,8 +620,9 @@ if(fjordAutoButton){
   }catch(_){return {}}
  }
  function profilesSelected(){
-  return Object.fromEntries(Object.keys(names).map(field=>
-   [field,form.elements.namedItem(field).value]));
+  return {...Object.fromEntries(Object.keys(names).map(field=>
+   [field,form.elements.namedItem(field).value])),
+   bed_type:form.elements.namedItem('bed_type').value};
  }
  function eligible(field,item){
   if(field==='machine')return /X2D/i.test(item.model||'')&&
@@ -626,7 +635,7 @@ if(fjordAutoButton){
   return false;
  }
  function selectedValid(){
-  if(!inventory?.engine_ready)return false;
+  if(!inventory?.engine_ready||!form.elements.namedItem('bed_type').value)return false;
   return Object.entries(names).every(([field,category])=>{
    const id=form.elements.namedItem(field).value;
    return (inventory.profiles?.[category]||[]).some(item=>
@@ -635,7 +644,9 @@ if(fjordAutoButton){
  }
  function updateReady(){
   submit.disabled=busy||!selectedValid();
-  if(inventory?.engine_ready&&Object.keys(names).every(field=>form.elements.namedItem(field).value)&&
+  if(inventory?.engine_ready&&!form.elements.namedItem('bed_type').value&&!busy){
+   state.textContent='⚠ Sélectionne le type de plaque réellement installé sur ta X2D avant de trancher.';
+  }else if(inventory?.engine_ready&&Object.keys(names).every(field=>form.elements.namedItem(field).value)&&
      !selectedValid()&&!busy){
    state.textContent='⚠ Choisis une X2D avec buse 0,4 mm, un profil à la hauteur de couche demandée et un filament exactement du bon matériau.';
   }
@@ -801,6 +812,10 @@ if(fjordAutoButton){
     if(selected)select.value=String(selected.id);
     if(!saved||String(selected?.id)!==String(saved.id))rememberedAll=false;
    }
+   const plate=form.elements.namedItem('bed_type');
+   plate.value=[...plate.options].some(option=>option.value===remembered.bed_type)
+    ?remembered.bed_type:'';
+   if(!plate.value)rememberedAll=false;
    if(!data.engine_ready)state.textContent='⚠ Bambu Studio indisponible sur Railway.';
    else if(!Object.keys(names).every(field=>form.elements.namedItem(field).options.length>1))
     state.textContent='⚠ Il manque un profil complet correspondant : X2D 0,4 mm, '+material()+

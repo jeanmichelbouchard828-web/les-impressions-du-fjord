@@ -84,7 +84,7 @@ class ReviewTests(unittest.TestCase):
              patch("fjord_printer._status",return_value={"can_start":True,"state":"idle","progress":0,"file":""}) as state:
             prepare=client.post("/admin/atelier-imprimer/preparer",data={
                 "stl":(io.BytesIO(b"x"*134),"cube.stl"),"machine":"1","process":"2",
-                "filament":"3","material":"PETG"},
+                "filament":"3","material":"PETG","bed_type":"Textured PEI Plate"},
                 headers={"Accept":"application/json"},content_type="multipart/form-data")
             self.assertEqual(prepare.status_code,200,prepare.get_data(as_text=True))
             self.assertEqual(prepare.json["preview"]["layer_count"],2)
