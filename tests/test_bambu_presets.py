@@ -38,6 +38,19 @@ class BambuPresetTests(unittest.TestCase):
         data=zip_bundle({"filament/a.json":{"name":"A","filament_type":["PLA"]},
                          "filament/b.json":{"name":"A","filament_type":["PLA"]}})
         self.assertEqual(len(parse_bambu_presets("profile.zip",data)[0]),1)
+    def test_large_library_bundle_is_accepted(self):
+        # Users may upload a combined archive of hundreds of X2D presets.
+        entries={
+            f"process/custom-{i}.json":{
+                "name":f"X2D process {i}",
+                "layer_height":[str(0.08+i/100000)],
+                "wall_loops":["3"]}
+            for i in range(620)
+        }
+        profiles,skipped=parse_bambu_presets("tous-mes-profils.zip",zip_bundle(entries))
+        self.assertEqual(len(profiles),620)
+        self.assertEqual(skipped,0)
+        self.assertTrue(all(p["category"]=="Impression" for p in profiles))
     def test_invalid_files_rejected(self):
         for name,payload in [
             ("bad.exe",b"script"),("bad.bbscfg",b"not zip"),("bad.json",b"{broken}"),
