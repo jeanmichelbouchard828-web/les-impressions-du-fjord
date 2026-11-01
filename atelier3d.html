@@ -557,7 +557,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
 <button id="import" data-i18n="import">📥 Importer STL / 3MF</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
-<button id="export" data-i18n="export">Exporter STL</button><button id="sliceTop" data-i18n="slicePreview">▥ Trancher</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
+<button id="export" data-i18n="export">Exporter STL</button><button id="exportColor3MF" title="Exporter un 3MF standard avec couleurs de surface (bêta)">🌈 3MF couleurs (bêta)</button><button id="sliceTop" data-i18n="slicePreview">▥ Trancher</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
 </div></div>
 <div class="top-preferences"><select id="language" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select>
 <select id="theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div>
@@ -947,6 +947,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {makeColored3MF} from '/static/fjord_color_3mf_export.js';
 import {installFjordEnhancements} from '/static/fjord_atelier_enhancements.js';
 import {extraGeneratorKinds,generateExtraGeometry} from '/static/fjord_generator_extensions.js';
 import {artGeneratorKinds,generateArtGeometry} from '/static/fjord_generator_art.js';
@@ -2199,6 +2200,19 @@ $('stlFile').addEventListener('change',async e=>{
 });
 function exportSTL(){if(!models.length){say('missing');return false}const group=new THREE.Group();models.forEach(m=>{const c=m.clone();c.geometry=m.geometry;c.material=m.material;group.add(c)});const data=new STLExporter().parse(group,{binary:true});download(new Blob([data],{type:'model/stl'}),'Creation-du-Fjord.stl');say('exported');return true}
 $('export').addEventListener('click',exportSTL);
+$('exportColor3MF').addEventListener('click',()=>{
+ const button=$('exportColor3MF');
+ if(!models.length){say('missing');return;}
+ button.disabled=true;
+ try{
+  const output=makeColored3MF(THREE,models);
+  download(output.blob,'Creation-du-Fjord-couleurs.3mf');
+  status.textContent='✓ 3MF standard exporté : '+output.colorCount+' couleur(s), '+
+   output.triangleCount+' triangle(s). Dans Bambu Studio : importer comme modèle 3D, vérifier les couleurs et assigner les bobines AMS avant tranchage.';
+ }catch(error){
+  alert('Export 3MF impossible : '+String(error?.message||error));
+ }finally{button.disabled=false;}
+});
 $('quote').addEventListener('click',()=>{if(exportSTL()){window.open('/soumission','_blank','noopener');say('quoteInfo')}});
 function resetWorkspace(){
  if(models.length&&!confirm(langText[currentLang()].reset))return;
