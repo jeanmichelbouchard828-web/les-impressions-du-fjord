@@ -137,6 +137,7 @@ def admin_studio(html, csrf_token):
                         "fjordPrivateSave", "sliceTop", "quote"))
         secondary = take(("open", "export", "exportColor3MF", "estimateToggle",
                           "/admin/modeles", "/admin/profils-bambu", "/"))
+        secondary += '<a id="fjordPublicAtelierShortcut" href="/atelier-3d" title="Ouvrir la version publique sans les outils privés">👁 Voir le mode public</a>'
         secondary += ''.join(by_id.values())
         compact = (
             '<div class="fjord-admin-core" role="group" aria-label="Actions principales">' +
@@ -172,6 +173,11 @@ def admin_studio(html, csrf_token):
         html = html.replace('<header>\n<div><div class="brand">🏔️ Atelier 3D du Fjord',
                             '<header class="fjord-admin-header">\n<div class="fjord-admin-brand">'
                             '<div class="brand">🏔️ Atelier 3D du Fjord', 1)
+        html = html.replace(
+            '<div class="brand">🏔️ Atelier 3D du Fjord</div>',
+            '<div class="brand">🏔️ Atelier 3D du Fjord</div>'
+            '<span id="fjordAdminModeBanner" role="status" class="fjord-admin-mode-badge" '
+            'aria-label="Mode administrateur actif">🔒 ADMINISTRATEUR</span>', 1)
         html = html.replace('</head>',
                             '<link rel="stylesheet" href="/static/atelier_admin_header.css">'
                             '</head>', 1)
