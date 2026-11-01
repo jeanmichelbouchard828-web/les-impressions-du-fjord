@@ -291,7 +291,7 @@ if(fjordAutoButton){
  panel.id='fjordAutoPrintDialog';
  panel.setAttribute('aria-label','Préparer l’impression X2D depuis l’Atelier');
  panel.innerHTML='<div class="fjord-dialog-head"><strong>🖨️ Ma X2D · Préparation automatique</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
- '<p>Profils mémorisés par matériau et hauteur de couche. Après validation, un clic suffit pour trancher et envoyer. Le démarrage physique nécessitera toujours une confirmation distincte.</p>'+
+ '<p>Profils mémorisés par matériau et hauteur de couche. Une fois tes profils choisis, un clic tranche et ouvre l’aperçu des couches. Tu décides ensuite d’envoyer le 3MF. Le démarrage physique demande une confirmation distincte.</p>'+
  '<p id="fjordAutoState" role="status" aria-live="polite">Vérification de la configuration…</p>'+
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
@@ -448,7 +448,7 @@ if(fjordAutoButton){
  }
  panel.querySelector('#fjordAutoClose').addEventListener('click',()=>{if(!busy)panel.close()});
  panel.addEventListener('click',event=>{if(event.target===panel&&!busy)panel.close()});
- form.addEventListener('change',()=>{invalidatePreview();updateReady();});
+ form.addEventListener('change',event=>{if(event.target?.tagName==='SELECT')invalidatePreview();updateReady();});
  function ensureValidScene(){
   if(!models.length)throw Error('Ajoute une pièce au plateau.');
   if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces))
