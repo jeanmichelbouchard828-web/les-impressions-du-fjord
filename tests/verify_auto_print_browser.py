@@ -281,6 +281,43 @@ try:
   assert mobile.locator("#mobileIconBar").is_visible()
   assert not mobile_errors,mobile_errors
   mobile.close()
+  # New X2D factory profiles must be selected first even if a previous
+  # CHATOU custom choice is remembered. Custom options are never deleted.
+  factory=browser.new_page(viewport={"width":400,"height":830},is_mobile=True,has_touch=True)
+  official={"engine_ready":True,"profiles":{
+    "Imprimante":[
+      {"id":"stock:machine:x2d04","name":"Bambu d'origine · X2D","official":True,
+       "model":"Bambu Lab X2D","nozzle":"0.4"},
+      {"id":1,"name":"CHATOU X2D","model":"Bambu Lab X2D","nozzle":"0.4"}],
+    "Impression":[
+      {"id":"stock:process:020","name":"Bambu d'origine · 0.20 mm","official":True,"layer":"0.2"},
+      {"id":2,"name":"CHATOU Quotidien","layer":"0.2"}],
+    "Filament":[
+      {"id":"stock:filament:PETG","name":"Bambu d'origine · Generic PETG",
+       "official":True,"material":"PETG"},
+      {"id":3,"name":"CHATOU PETG Frostbite","material":"PETG"}]
+  }}
+  factory.route("**/api/admin/atelier/impression-profils",lambda route:route.fulfill(
+    status=200,content_type="application/json",body=json.dumps(official)))
+  factory.route("**/api/atelier/filaments",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body='{"connected":false,"available":false,"sources":[]}'))
+  factory.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
+  factory.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
+  factory.evaluate("""() => localStorage.setItem(
+    'fjord-x2d-profile-preferences-v1',
+    JSON.stringify({'PETG|0.2':{'machine':'1','process':'2','filament':'3'}}))""")
+  factory.locator('[data-shape="cube"]').evaluate("el=>el.click()")
+  factory.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
+  factory.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
+  factory.wait_for_function(
+    "document.querySelector('#fjordAutoForm [name=machine]')?.value==='stock:machine:x2d04'",
+    timeout=15000)
+  assert factory.locator('[name=process]').input_value()=="stock:process:020"
+  assert factory.locator('[name=filament]').input_value()=="stock:filament:PETG"
+  assert factory.locator('[name=filament] option').count()==3, "The original and CHATOU must both remain"
+  assert factory.locator("#fjordAutoSubmit").is_enabled()
+  factory.close()
   browser.close()
  print("OK: verified toolpath review before explicit upload; remembered profiles still require approval")
 finally:

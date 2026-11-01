@@ -198,7 +198,8 @@ def _status():
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
     # Parsed user presets are intentionally not assumed to be machine-ready.
     def available_presets():
-        result = {"Imprimante": [], "Impression": [], "Filament": []}
+        from bambu_stock_profiles import available_original_presets
+        result = available_original_presets()
         if db is None:
             return result
         from bambu_auto import full_preset, AutoSliceError
@@ -546,28 +547,39 @@ body.light .fj-print-hint{color:#496477!important}
             if upload is None or not str(upload.filename or "").lower().endswith(".stl"):
                 raise AutoSliceError("Fichier STL invalide.")
             raw = upload.stream.read(MAX_STL + 1)
-            if db is None:
-                raise AutoSliceError("Bibliothèque de profils indisponible.")
-            selected_ids = {}
+            # Stock presets are bundled with Bambu Studio and don't depend on
+            # a user's imported profile archive/database.
+            from bambu_stock_profiles import STOCK_NAMES, original_preset
+            choices = {}
             for category, field in (("Imprimante","machine"),("Impression","process"),
                                     ("Filament","filament")):
                 value = request.form.get(field, "")
-                if not value.isdecimal() or not 0 < int(value) < 10000000:
-                    raise AutoSliceError("Choisis un profil complet pour chaque catégorie.")
-                selected_ids[category] = int(value)
-            with db() as conn:
-                rows = conn.execute(
-                    "SELECT id,name,category,settings FROM bambu_user_presets "
-                    "WHERE id = ANY(%s)", (list(selected_ids.values()),)
-                ).fetchall()
+                if value in STOCK_NAMES[category]:
+                    choices[category] = ("stock", value)
+                elif value.isdecimal() and 0 < int(value) < 10000000:
+                    choices[category] = ("user", int(value))
+                else:
+                    raise AutoSliceError("Choisis un profil d'origine Bambu ou un profil complet valide.")
             presets = {}
-            for row in rows:
-                cat = row["category"]
-                if cat in selected_ids and row["id"] == selected_ids[cat]:
-                    full_preset(row["settings"], cat)
-                    presets[cat] = row["settings"]
+            for category, (kind, selected) in choices.items():
+                if kind == "stock":
+                    presets[category] = original_preset(category, selected)
+            own_ids = [selected for kind, selected in choices.values() if kind == "user"]
+            if own_ids:
+                if db is None:
+                    raise AutoSliceError("Bibliothèque de profils personnalisés indisponible.")
+                with db() as conn:
+                    rows = conn.execute(
+                        "SELECT id,name,category,settings FROM bambu_user_presets "
+                        "WHERE id = ANY(%s)", (own_ids,)
+                    ).fetchall()
+                for row in rows:
+                    cat = row["category"]
+                    selection = choices.get(cat)
+                    if selection == ("user", row["id"]):
+                        presets[cat] = full_preset(row["settings"], cat)
             if len(presets) != 3:
-                raise AutoSliceError("Les profils choisis ne sont pas tous complets.")
+                raise AutoSliceError("Les trois profils choisis ne sont pas complets ou disponibles.")
             # Never silently swap PLA/PETG/ASA/TPU for a different material.
             expected_material = str(request.form.get("material", "")).strip().upper()
             if expected_material not in ("PLA", "PETG", "ASA", "TPU"):
