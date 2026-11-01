@@ -727,6 +727,10 @@ def atelier_3d_public():
 from private_fjord import register_private_fjord
 register_private_fjord(app,db,admin_required,verify,csrfinput,csrf,page)
 
+# Per-quote Stripe Checkout and verified payment notifications.
+from fjord_stripe import register_stripe_payments
+register_stripe_payments(app,db)
+
 # Secure, admin-only archive of the owner\'s Bambu Studio preset bundles.
 from bambu_presets import register_bambu_preset_library
 register_bambu_preset_library(app,db,admin_required,verify,csrfinput,page)
