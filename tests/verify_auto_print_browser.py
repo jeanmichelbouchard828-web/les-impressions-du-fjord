@@ -73,6 +73,17 @@ try:
   assert page.locator("header #fjordPrintShortcut").count()==0,"Print CTA should not crowd header"
   page.locator("#sliceTop").evaluate("el=>el.click()")
   assert page.locator("#sliceFloat #fjordPrintShortcut").is_visible(),"Print belongs in Trancher"
+  # Key estimated slice results must be above the profile/settings controls.
+  assert page.evaluate("""() => {
+    const slice=document.querySelector('#sliceFloat');
+    const result=slice.querySelector('.slice-results-top');
+    const settings=slice.querySelector('.slice-settings');
+    const details=slice.querySelector('.slice-more-details');
+    return result&&settings&&details&&
+      !!(result.compareDocumentPosition(settings)&Node.DOCUMENT_POSITION_FOLLOWING) &&
+      details.querySelector('#sliceDimensionsValue')!==null;
+  }"""),"Summary must precede settings, and detailed metrics remain accessible"
+  assert page.locator("#sliceFloat #slicePrice").is_visible()
   page.locator("#fjordPrintShortcut").click()
   assert page.locator("#fjordAutoPrintDialog").is_visible()
   try:
@@ -95,6 +106,10 @@ try:
   page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
   assert len(slices)==1 and len(transfers)==0,"Slice must never auto-upload"
   assert page.locator("#fjordReviewCanvas").is_visible()
+  assert page.evaluate("""() => {
+    const review=document.querySelector('#fjordSliceReview');
+    return review.previousElementSibling?.classList.contains('fjord-dialog-head');
+  }"""),"True Bambu preview must appear immediately under the dialog title"
   assert page.locator("#fjordReviewLayer").get_attribute("max")=="1"
   page.locator("#fjordReviewLayer").evaluate("""el=>{
     el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));}""")
@@ -158,6 +173,12 @@ try:
   mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
   assert mobile.locator("#sliceFloat").is_visible(),"Mobile slice drawer should open"
   assert mobile.locator("#sliceFloat #fjordPrintShortcut").is_visible()
+  assert mobile.locator("#sliceFloat .slice-results-top").is_visible()
+  assert mobile.evaluate("""() => {
+    const result=document.querySelector('#sliceFloat .slice-results-top');
+    const settings=document.querySelector('#sliceFloat .slice-settings');
+    return result.getBoundingClientRect().top < settings.getBoundingClientRect().top;
+  }"""),"Slice results should be the first information block on mobile"
   layout=mobile.evaluate("""() => {
     const ids=['#fjordWorkspace .stage','#sliceFloat','#fjordPrintShortcut','#fjordAdminShortcut'];
     return ids.map(id=>{
@@ -170,6 +191,16 @@ try:
   mobile.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
   mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
   mobile.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=20000)
+  mobile.wait_for_function("document.querySelector('#fjordAutoPrintDialog').scrollTop <= 2",timeout=5000)
+  assert mobile.evaluate("""() => {
+    const dlg=document.querySelector('#fjordAutoPrintDialog');
+    const review=dlg.querySelector('#fjordSliceReview');
+    const header=dlg.querySelector('.fjord-dialog-head');
+    const canvas=dlg.querySelector('#fjordReviewCanvas');
+    return review.previousElementSibling===header &&
+      getComputedStyle(dlg.querySelector('.fjord-auto-intro')).display==='none' &&
+      canvas.getBoundingClientRect().top < window.innerHeight*.65;
+  }"""),"Mobile Bambu result must be visible high in the dialog without scrolling"
   rect=mobile.locator("#fjordAutoPrintDialog").bounding_box()
   assert rect and rect["width"] >= 380,rect
   assert mobile.locator("#fjordReviewLayer").is_visible()
