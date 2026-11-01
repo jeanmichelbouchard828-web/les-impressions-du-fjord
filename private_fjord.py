@@ -1689,7 +1689,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_quotes():
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
-            quotes=c.execute("""SELECT id,model_id,customer,title,quantity,unit_price,shipping,
+            quotes=c.execute("""SELECT id,model_id,customer,email,title,quantity,unit_price,shipping,
                      apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
@@ -1705,6 +1705,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         stages={q["id"]:quote_stage(q) for q in quotes}
         counters={k:sum(stage==k for stage in stages.values()) for k in ("attente","acceptees","payees","production","terminees")}
         interac_email=payment_setting["value"] if payment_setting else ""
+        quote_totals={q["id"]:_quote_amounts(q)[3] for q in quotes}
         chosen=request.args.get("model_id","",type=str)
         atelier_model=next((m for m in models if str(m["id"])==chosen),None)
         from_atelier=bool(atelier_model and request.args.get("atelier")=="1")
@@ -1772,6 +1773,15 @@ body.light .fj-reset-button{color:#126185;border-color:#318cb7}
 body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{color:#fff}
 @media(max-width:540px){.fj-quote-actions button{width:100%}}
 .fj-payment-form{max-width:360px;margin:12px 0 6px}
+.fj-bmo-details{border:1px solid #5386a1;border-radius:12px;margin:12px 0;padding:12px;overflow-wrap:anywhere}
+.fj-bmo-details summary{cursor:pointer;font-weight:700;list-style-position:inside}
+.fj-bmo-details .fj-bmo-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0}
+.fj-bmo-details .fj-bmo-row strong{overflow-wrap:anywhere}
+.fj-bmo-details button{min-height:44px;padding:8px 14px}
+.fj-bmo-details .fj-bmo-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:15px 0}
+.fj-bmo-details .fj-bmo-actions a{display:inline-flex;align-items:center;min-height:44px}
+.fj-bmo-details [role=status]{min-height:22px}
+body.light .fj-bmo-details{border-color:#9bc9df}
 .fj-payment-form label{font-size:14px;margin:0}
 .fj-payment-form select{margin:6px 0;padding:10px}
 .fj-payment-date{font-size:13px;color:#b4d1e1;margin:4px 0}
@@ -1935,7 +1945,21 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 </div>{% endif %}
 
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
-{% if interac_email %}<a href="/admin/soumissions-pro/{{q.id}}/paiement">💸 Ouvrir le lien de paiement</a>{% endif %}</div>
+{% if interac_email %}
+<a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Ouvrir la page de paiement du client</a>
+<details class="fj-bmo-details">
+<summary>🏦 Préparer une demande de fonds BMO</summary>
+<p class="fj-help">Ces renseignements correspondent à la soumission PDF. Les demandes de fonds sont envoyées dans BMO, pas automatiquement par ce site.</p>
+<div class="fj-bmo-row"><div>Client<br><strong>{{q.customer}}</strong></div></div>
+<div class="fj-bmo-row"><div>Courriel du client<br><strong id="bmoEmail{{q.id}}">{{q.email or 'Non renseigné'}}</strong></div>{% if q.email %}<button type="button" data-copy-id="bmoEmail{{q.id}}">Copier</button>{% endif %}</div>
+<div class="fj-bmo-row"><div>Montant exact<br><strong id="bmoAmount{{q.id}}">{{money(quote_totals[q.id])}}</strong></div><button type="button" data-copy-id="bmoAmount{{q.id}}">Copier</button></div>
+<div class="fj-bmo-row"><div>Numéro de soumission<br><strong id="bmoRef{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}}</strong></div><button type="button" data-copy-id="bmoRef{{q.id}}">Copier</button></div>
+<div class="fj-bmo-actions"><button type="button" data-bmo-copy="{{q.id}}">📋 Copier les renseignements</button>
+<a href="https://www.bmo.com/" target="_blank" rel="noopener noreferrer">↗ Ouvrir BMO (site officiel)</a></div>
+<p role="status" aria-live="polite" data-bmo-status="{{q.id}}" class="fj-help"></p>
+<p class="fj-help">Dans BMO : Paiements et virements → Demande de fonds → client → montant → référence. Le client autorise ensuite la demande dans sa banque. Vérifie le dépôt avant de sélectionner « Payée ».</p>
+</details>
+{% endif %}</div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
 <script>
 (function(){
@@ -2230,12 +2254,33 @@ quoteSave?.addEventListener('submit',async event=>{
  setInterval(checkPrinter,30000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkPrinter()});
 })();
+document.querySelectorAll('[data-copy-id]').forEach(button=>button.addEventListener('click',async()=>{
+ const el=document.getElementById(button.dataset.copyId);
+ if(!el)return;
+ const card=button.closest('.fj-bmo-details');
+ const feedback=card?.querySelector('[role=status]');
+ try{await navigator.clipboard.writeText(el.textContent.trim());if(feedback)feedback.textContent='✓ Renseignement copié.';}
+ catch(e){if(feedback)feedback.textContent='Copie automatique impossible : sélectionne le renseignement et copie-le.';}
+}));
+document.querySelectorAll('[data-bmo-copy]').forEach(button=>button.addEventListener('click',async()=>{
+ const id=button.dataset.bmoCopy;
+ const card=button.closest('.fj-bmo-details');
+ const email=document.getElementById('bmoEmail'+id)?.textContent.trim()||'';
+ const amount=document.getElementById('bmoAmount'+id)?.textContent.trim()||'';
+ const reference=document.getElementById('bmoRef'+id)?.textContent.trim()||'';
+ const feedback=card?.querySelector('[role=status]');
+ const text=['Demande de fonds Interac — Les Impressions du Fjord',
+   'Client : '+(card?.querySelector('.fj-bmo-row strong')?.textContent.trim()||''),
+   'Courriel : '+email,'Montant : '+amount,'Référence : '+reference].join('\n');
+ try{await navigator.clipboard.writeText(text);if(feedback)feedback.textContent='✓ Informations copiées. Ouvre BMO et crée la demande de fonds.';}
+ catch(e){if(feedback)feedback.textContent='Copie automatique indisponible : utilise les boutons Copier de chaque champ.';}
+}));
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
  const selected=button.dataset.stage;
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  document.querySelectorAll('.fj-quote-card').forEach(card=>{card.hidden=selected!=='all' && card.dataset.stage!==selected});
 }));
-</script>""",models=models,quotes=quotes,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
+</script>""",models=models,quotes=quotes,quote_totals=quote_totals,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
           from_atelier=from_atelier,atelier_model=atelier_model,atelier_material=atelier_material,
           atelier_layer=atelier_layer,atelier_colors=atelier_colors)
@@ -2719,7 +2764,17 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
         response=make_response(page("Paiement Interac",r"""
 <style>
-.payment-wrap{max-width:660px;margin:30px auto}
+.payment-wrap{max-width:660px;margin:25px auto}
+.payment-wrap *{box-sizing:border-box}
+.payment-steps{margin:12px 0 22px;padding-left:22px}
+.payment-steps li{padding:5px 0}
+.payment-primary{width:100%;min-height:52px;font-weight:800;margin:5px 0 12px}
+.payment-copy-all{min-height:48px}
+.payment-feedback{min-height:24px;font-weight:700}
+.payment-wrap .payment-detail{padding:10px 0;border-bottom:1px solid #496a7c}
+.payment-wrap .payment-detail>div{flex:1 1 220px;min-width:0}
+.payment-wrap .payment-detail button{min-height:44px}
+body.light .payment-wrap .payment-detail{border-color:#c1dbe8}
 .payment-wrap h1{font-size:clamp(28px,5vw,43px)}
 .payment-total{font-size:clamp(30px,6vw,46px);font-weight:900;color:#7ee7ff;margin:7px 0 18px}
 .payment-detail{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:15px 0}
@@ -2730,27 +2785,51 @@ body.light .payment-total{color:#076d9d}
 </style>
 <div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
 <h1>💸 Payer par virement Interac</h1>
-<p>Voici les informations pour payer ta soumission. Le paiement s'effectue dans l'application ou le site de ta banque, et non sur cette page.</p>
+<p>Votre soumission <strong>{{reference}}</strong> est prête à payer. Aucun mot de passe bancaire n'est demandé ici.</p>
 <section class="card">
-<div>Montant total de la soumission, taxes comprises si applicables</div>
+<div>Montant exact à transférer (taxes comprises si applicables)</div>
 <div class="payment-total">{{amount}}</div>
-<p>Ajoute Les Impressions du Fjord comme destinataire Interac dans ton application bancaire, puis effectue ton virement avec les renseignements suivants :</p>
+<button type="button" class="payment-primary" onclick="fjordCopy('payEmail',this)">📧 Copier l’adresse Interac pour payer</button>
+<ol class="payment-steps">
+<li>Ouvrez votre application bancaire habituelle (ou son site officiel).</li>
+<li>Choisissez <strong>Virement Interac → Envoyer</strong> et collez l'adresse courriel copiée.</li>
+<li>Entrez le montant et la référence ci-dessous; vérifiez les détails avant de confirmer le virement.</li>
+</ol>
+<p class="notice">Si vous avez déjà reçu une demande officielle de fonds Interac pour cette soumission, acceptez cette demande dans votre banque <strong>au lieu d'envoyer un deuxième virement</strong>.</p>
+<h2 style="font-size:20px;margin:20px 0 5px">Renseignements à copier</h2>
 <div class="payment-detail"><div>📧 Courriel du destinataire<br><strong id="payEmail">{{recipient}}</strong></div>
 <button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
 <div class="payment-detail"><div>🔖 Référence à inscrire dans le message<br><strong id="payRef">{{reference}}</strong></div>
 <button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
 <div class="payment-detail"><div>💰 Montant du virement<br><strong id="payAmount">{{amount}}</strong></div>
 <button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
-<p class="notice">Vérifie le nom et le courriel du destinataire avant l'envoi. Une fois le virement envoyé, conserve ta confirmation bancaire. Ce site ne reçoit pas le paiement et ne peut pas confirmer automatiquement qu'il a été reçu.</p>
+<button type="button" class="payment-copy-all" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
+<p class="payment-feedback" id="fjordPaymentFeedback" role="status" aria-live="polite"></p>
+<p class="notice">Vérifiez le destinataire dans votre banque avant de confirmer. Conservez votre preuve de virement. Ce site ne débite pas votre compte et ne peut pas confirmer automatiquement la réception du paiement.</p>
 </section>
 <p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
 </div>
 <script>
-async function fjordCopy(id,button){
- const value=document.getElementById(id).textContent.trim();
- try{await navigator.clipboard.writeText(value);button.textContent="Copié ✓"}
- catch(e){button.textContent="Copie manuelle nécessaire"}
- setTimeout(()=>button.textContent="Copier",2200);
+async function fjordCopyText(text,button){
+ const feedback=document.getElementById('fjordPaymentFeedback');
+ try{
+  await navigator.clipboard.writeText(text);
+  if(feedback)feedback.textContent='✓ Copié. Ouvrez votre application bancaire pour poursuivre.';
+  const label=button.textContent;button.textContent='✓ Copié';
+  setTimeout(()=>button.textContent=label,2200);
+ }catch(e){
+  if(feedback)feedback.textContent='Copie automatique indisponible. Sélectionnez le texte ci-dessous et copiez-le.';
+ }
+}
+function fjordCopy(id,button){
+ const el=document.getElementById(id);
+ if(el)fjordCopyText(el.textContent.trim(),button);
+}
+function fjordCopyAll(button){
+ const email=document.getElementById('payEmail').textContent.trim();
+ const amount=document.getElementById('payAmount').textContent.trim();
+ const reference=document.getElementById('payRef').textContent.trim();
+ fjordCopyText('Les Impressions du Fjord\\nCourriel Interac : '+email+'\\nMontant : '+amount+'\\nRéférence : '+reference,button);
 }
 </script>""",amount=_money(total),reference=reference,recipient=recipient))
         response.headers["Cache-Control"]="no-store"
