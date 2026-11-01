@@ -20,11 +20,13 @@ LOG = logging.getLogger('fjord.bambu_slicer')
 MAX_STL = 8 * 1024 * 1024
 MAX_3MF = 30 * 1024 * 1024
 OUTPUT_NAME = 'x2d_tranche.gcode.3mf'
-# These labels are the exact Bambu Studio CLI build-plate values.
-# Never infer the user's actual plate or silently switch its material settings.
+# These are Bambu Studio *enum keys*, not the labels displayed by its GUI.
+# PrintConfig's BedType enum accepts "High Temp Plate" and "Supertack Plate",
+# NOT "Smooth PEI Plate / High Temp Plate" or "Cool Plate SuperTack".
+# The actual plate must be selected and confirmed by the operator.
 BED_TYPES = frozenset((
-    'Textured PEI Plate', 'Smooth PEI Plate / High Temp Plate',
-    'Engineering Plate', 'Cool Plate SuperTack', 'Cool Plate',
+    'Textured PEI Plate', 'High Temp Plate',
+    'Engineering Plate', 'Supertack Plate', 'Cool Plate',
 ))
 _SLICING_SLOT = threading.BoundedSemaphore(1)
 
@@ -114,8 +116,8 @@ def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> 
         return "Le moteur Bambu Studio s’est arrêté anormalement (signal {}).".format(-exit_code)
     if exit_code == 0 and not output_exists:
         return "Bambu Studio a terminé sans produire le 3MF tranché attendu."
-    if any(term in message for term in ("unknown option", "unrecognized option", "unrecognised option")):
-        return "Bambu Studio a refusé un paramètre de commande."
+    if "setup params error" in message or any(term in message for term in ("unknown option", "unrecognized option", "unrecognised option")):
+        return "Bambu Studio a refusé une option de tranchage (configuration CLI). Aucune impression lancée."
     if "does not support filament" in message or "not compatible with the plate type" in message:
         return "Plateau et filament incompatibles : choisis le type de plaque réellement installé sur la X2D."
     if any(term in message for term in ("preset", "filament", "config", "machine settings", "process settings")):
@@ -189,7 +191,7 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
                 files.append(target)
             args = [
                 cli, "--debug", "3", "--arrange", "1",
-                "--curr-bed-type", bed_type,
+                "--curr-bed-type=" + bed_type,
                 "--load-settings", "{};{}".format(files[0], files[1]),
                 "--load-filaments", str(files[2]),
                 "--slice", "0",
