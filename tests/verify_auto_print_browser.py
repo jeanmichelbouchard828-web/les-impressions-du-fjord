@@ -36,7 +36,7 @@ try:
     status=200,content_type="application/json",body=json.dumps(inventory)))
   page.route("**/api/atelier/filaments",lambda route:route.fulfill(
     status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
-  slices=[];transfers=[]
+  slices=[];transfers=[];starts=[]
   review={"source":"G-code réel du 3MF Bambu Studio","layer_count":2,"total_moves":4,
           "sampled":False,"layers":[
            {"z":0.2,"moves":2,"segments":[[100,100,120,100],[120,100,120,120]]},
@@ -49,10 +49,18 @@ try:
    transfers.append(route.request.post_data)
    route.fulfill(status=200,content_type="application/json",
      body=json.dumps({"ok":True,"file":"gcode/fjord_auto_test.3mf",
+       "nonce":"one-use-confirmation-token-0123456789",
        "next":"/admin/atelier-imprimer?selected=gcode/fjord_auto_test.3mf"}))
   page.route("**/admin/atelier-imprimer/transmettre",transfer)
-  page.route("**/admin/atelier-imprimer?selected=*",lambda route:route.fulfill(
-    status=200,content_type="text/html",body="<h1>Étape 3 : Confirmer et démarrer</h1>"))
+  page.route("**/api/admin/atelier/impression-etat",lambda route:route.fulfill(
+    status=200,content_type="application/json",
+    body=json.dumps({"ok":True,"state":"idle","progress":0,"file":"",
+                     "can_start":True})))
+  def start(route):
+   starts.append(route.request.post_data)
+   route.fulfill(status=200,content_type="application/json",
+       body=json.dumps({"ok":True,"message":"Commande de démarrage acceptée."}))
+  page.route("**/admin/atelier-imprimer/demarrer-atelier",start)
   page.on("dialog",lambda dialog:dialog.accept())
   def prepare_scene():
    page.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
@@ -90,18 +98,30 @@ try:
   assert "G-code" in page.locator("#fjordSliceReview").inner_text()
   assert page.evaluate("localStorage.getItem('fjord-x2d-profile-preferences-v1')") is None
   page.locator("#fjordReviewTransfer").evaluate("el=>el.click()")
-  page.wait_for_url("**/admin/atelier-imprimer?selected=**",wait_until="commit",timeout=12000)
-  assert len(transfers)==1 and len(slices)==1
+  page.wait_for_function("!document.querySelector('#fjordStartAtelier').hidden",timeout=12000)
+  assert "/atelier3d_auto_print_e2e.html" in page.url, "Must not leave Atelier"
+  assert len(transfers)==1 and len(slices)==1 and not starts
+  page.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Prête')")
+  assert page.locator("#fjordStartNow").is_disabled()
+  page.locator("#fjordStartVerified").evaluate("el=>el.click()")
+  page.locator("#fjordStartCleared").evaluate("el=>el.click()")
+  assert page.locator("#fjordStartNow").is_enabled()
+  page.locator("#fjordStartNow").evaluate("el=>el.click()")
+  page.wait_for_function("document.querySelector('#fjordStartResult').textContent.includes('acceptée')",timeout=12000)
+  assert len(starts)==1,starts
+  assert page.locator("#fjordStartNow").is_disabled()
+  assert page.locator("#fjordStartAtelier").is_visible()
   saved=page.evaluate("JSON.parse(localStorage.getItem('fjord-x2d-profile-preferences-v1'))")
   assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3"},saved
   # Previously remembered settings auto-slice but still require preview approval.
   prepare_scene()
   page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
   page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
-  assert len(slices)==2 and len(transfers)==1,"Even remembered profiles must wait for approval"
+  assert len(slices)==2 and len(transfers)==1 and len(starts)==1,"Remembered profiles must await review"
   page.locator("#fjordReviewTransfer").evaluate("el=>el.click()")
-  page.wait_for_url("**/admin/atelier-imprimer?selected=**",wait_until="commit",timeout=12000)
-  assert len(transfers)==2
+  page.wait_for_function("!document.querySelector('#fjordStartAtelier').hidden",timeout=12000)
+  assert len(transfers)==2 and len(starts)==1,"Transferring must not automatically start"
+  assert page.locator("#fjordStartNow").is_disabled()
   assert all(b'name="material"' in (chunk or b"") for chunk in slices)
   assert not errors,errors
 
