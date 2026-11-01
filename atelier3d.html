@@ -764,6 +764,14 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 
 
 
+/* Enlever le grand bouton Peinture de la ligne supérieure.
+   L'atelier Peinture demeure disponible via la catégorie et via l'icône mobile. */
+#fjordWorkspace .fjord-fast-row #fjordPaintFast{display:none!important}
+@media(max-width:760px){
+ #mobilePaintBtn{flex:0 0 44px!important;width:44px!important;min-width:44px!important;
+  padding:6px!important;font-size:21px!important;text-align:center}
+}
+
 /* Résultats prioritaires, visibles dès l'ouverture du tranchage. */
 .slice-results-top{margin:9px 0 12px;padding:8px 10px;
  background:color-mix(in srgb,var(--panel) 78%,var(--accent) 22%);
@@ -885,7 +893,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 </div>
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="text">🔠 Texte</button>
-<button type="button" id="mobilePaintBtn" aria-pressed="false">🎨 Peindre</button>
+<button type="button" id="mobilePaintBtn" aria-label="Ouvrir ou fermer la peinture" title="Peindre la pièce" aria-pressed="false">🎨</button>
 <button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
