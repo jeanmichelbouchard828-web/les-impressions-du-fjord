@@ -297,7 +297,18 @@ if(fjordAutoButton){
  '<label>Profil d’impression<select name="process" required></select></label>'+
  '<label>Filament<select name="filament" required></select></label>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordAutoRemember" checked> Mémoriser ces profils après une préparation réussie</label>'+
- '<button id="fjordAutoSubmit" type="submit" disabled>🧩 Trancher et envoyer à ma X2D</button></form>'+
+ '<button id="fjordAutoSubmit" type="submit" disabled>▥ Trancher et voir les couches</button></form>'+
+ '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
+ '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
+ '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
+ '<canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue du dessus des couches tranchées"></canvas>'+
+ '<label for="fjordReviewLayer">Couche <strong id="fjordReviewLabel">—</strong></label>'+
+ '<input id="fjordReviewLayer" type="range" min="0" max="0" value="0" step="1">'+
+ '<label class="fjord-auto-remember"><input id="fjordReviewAccumulated" type="checkbox"> Afficher les couches précédentes</label>'+
+ '<p id="fjordReviewSummary" role="status"></p>'+
+ '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
+ '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
+ '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
  '<p><a href="/admin/profils-bambu">⚙️ Vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Page d’impression classique</a></p>';
  document.body.append(panel);
  const state=panel.querySelector('#fjordAutoState');
@@ -306,7 +317,7 @@ if(fjordAutoButton){
  const remember=panel.querySelector('#fjordAutoRemember');
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
  const preferenceKey='fjord-x2d-profile-preferences-v1';
- let inventory=null,busy=false,opened=false;
+ let inventory=null,busy=false,opened=false,prepared=null;
  const material=()=>String(document.getElementById('sliceMaterial')?.value||'PLA').trim().toUpperCase();
  const layer=()=>String(document.getElementById('sliceLayerHeight')?.value||'0.2');
  const jobKey=()=>material()+'|'+layer();
@@ -347,7 +358,7 @@ if(fjordAutoButton){
  }
  panel.querySelector('#fjordAutoClose').addEventListener('click',()=>{if(!busy)panel.close()});
  panel.addEventListener('click',event=>{if(event.target===panel&&!busy)panel.close()});
- form.addEventListener('change',updateReady);
+ form.addEventListener('change',()=>{invalidatePreview();updateReady();});
  function ensureValidScene(){
   if(!models.length)throw Error('Ajoute une pièce au plateau.');
   if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces))
@@ -382,7 +393,8 @@ if(fjordAutoButton){
    requestBody.append('stl',blob,'Creation-du-Fjord.stl');
    requestBody.append('material',material());
    for(const [field,id] of Object.entries(chosen))requestBody.append(field,id);
-   state.textContent='Étape 2/3 · Tranchage Bambu Studio, puis transfert si le fichier est validé…';
+   invalidatePreview();
+   state.textContent='Étape 2/3 · Tranchage Bambu Studio, puis aperçu réel des couches…';
    const response=await fetch('/admin/atelier-imprimer/preparer',{
     method:'POST',body:requestBody,credentials:'same-origin',
     headers:{'Accept':'application/json'},redirect:'follow'
@@ -391,18 +403,18 @@ if(fjordAutoButton){
     throw Error('Le serveur n’a pas retourné de résultat. Vérifie ta session administrateur.');
    const result=await response.json();
    if(!response.ok||!result.ok)throw Error(result.error||'Préparation impossible.');
-   // Remember ONLY after successful slicing and upload. Store IDs, no secrets.
-   if(remember.checked){
-    try{
-     const settings=savedProfiles();
-     settings[config]=chosen;
-     localStorage.setItem(preferenceKey,JSON.stringify(settings));
-    }catch(_){}
-   }
-   state.textContent='Étape 3/3 · 3MF transféré. Ouverture de la confirmation d’impression…';
-   if(typeof result.next!=='string'||!result.next.startsWith('/admin/atelier-imprimer?'))
-    throw Error('Adresse de confirmation invalide.');
-   location.assign(result.next);
+   if(typeof result.stage!=='string'||!Array.isArray(result.preview?.layers)||!result.preview.layers.length)
+    throw Error('Aucun aperçu réel disponible : envoi désactivé.');
+   prepared={stage:result.stage,preview:result.preview,chosen,config};
+   const review=panel.querySelector('#fjordSliceReview');
+   review.hidden=false;
+   const slider=panel.querySelector('#fjordReviewLayer');
+   slider.max=String(result.preview.layers.length-1);
+   slider.value=slider.max;
+   panel.querySelector('#fjordReviewTransfer').disabled=false;
+   state.textContent='✓ Tranchage terminé. Inspecte le résultat avant d’envoyer.';
+   drawBambuReview();
+   review.scrollIntoView({block:'nearest',behavior:'smooth'});
   }catch(error){
    state.textContent='⚠ '+String(error.message||error).slice(0,240)+
     ' Aucune commande de démarrage n’a été envoyée.';
@@ -420,6 +432,7 @@ if(fjordAutoButton){
   state.textContent='Lecture des profils Bambu Studio X2D…';
   submit.disabled=true;
   inventory=null;
+  invalidatePreview();
   try{
    const response=await fetch('/api/admin/atelier/impression-profils',{
     credentials:'same-origin',cache:'no-store'
@@ -483,6 +496,15 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog button{min-height:42px}
 #fjordAutoPrintDialog button:disabled{opacity:.5;cursor:not-allowed}
 #fjordAutoPrintDialog a{color:#94e5fb}
+#fjordSliceReview[hidden]{display:none!important}
+#fjordSliceReview{border-top:1px solid #4c7388;margin-top:16px;padding-top:12px}
+#fjordSliceReview h3{font-size:15px;margin:4px 0}
+#fjordReviewCanvas{width:min(100%,420px);height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;margin:10px auto}
+#fjordReviewLayer{width:100%;min-height:38px;accent-color:#51d3fb}
+#fjordSliceReview .fjord-review-note{font-size:12px;color:#b9d6e6}
+#fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
+#fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
+#fjordAutoPrintDialog{max-height:90dvh}
 #fjordModelChooser .fjord-dialog-head{display:flex;gap:12px;justify-content:space-between;align-items:center}
 #fjordModelChooser .fjord-dialog-head strong{font-size:19px}
 #fjordModelChooser input{width:100%;margin:10px 0 14px;min-height:44px}
