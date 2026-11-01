@@ -1999,8 +1999,9 @@ body.light .fj-square-section>summary{background:#e1f2f8}
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select></div>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé {% if q.stripe_session_id %}automatiquement par Stripe{% else %}manuellement{% endif %} le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
-<details class="fj-card-section fj-square-section" {% if q.square_link_url and not square_active[q.id] %}open{% endif %}><summary>💳 {% if square_active[q.id] %}Paiement en ligne configuré ✓{% else %}Configurer le paiement par carte{% endif %}</summary><div class="fj-square-settings">
-<strong>💳 Paiement par carte en un clic (Stripe ou Square)</strong>
+<details class="fj-card-section fj-square-section"><summary>🔗 Optionnel : lien de paiement externe (Stripe / Square)</summary><div class="fj-square-settings">
+<strong>🔗 Lien de paiement externe (optionnel)</strong>
+<p class="fj-help">Stripe Checkout est déjà intégré automatiquement au site. Cette section sert uniquement si tu veux utiliser un lien de paiement externe Stripe ou Square.</p>
 <p class="fj-help">Montant à créer : <strong>{{money(quote_totals[q.id])}} CAD</strong>, livraison, rabais et taxes inclus. Crée un lien de paiement à montant fixe dans Stripe ou Square, sans rajouter de taxes, de frais ou de pourboire.</p>
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/square">{{csrf|safe}}
 <label for="fjordSquare{{q.id}}">Lien de paiement Stripe ou Square pour cette soumission</label>
