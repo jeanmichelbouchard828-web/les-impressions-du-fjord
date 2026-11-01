@@ -3026,6 +3026,7 @@ function sliceOpen(){
  if(measureMode)$('measure').click();
  deactivateGizmo();stopGeneratorPreview();
  sliceActive=true;sliceRealData=null;sliceMode='layers';$('sliceFloat').hidden=false;
+ $('sliceFloat').scrollTop=0; // Show the slice results first, even when reopened.
  $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
  $('mobileSliceBtn').setAttribute('aria-pressed','true');
