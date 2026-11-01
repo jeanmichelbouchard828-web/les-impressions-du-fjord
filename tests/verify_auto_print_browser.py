@@ -38,7 +38,7 @@ try:
   page.route("**/api/atelier/filaments",lambda route:route.fulfill(
     status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
   def upload(route):
-   posts.append({"body":route.request.post_data,"headers":route.request.headers})
+   posts.append({"body":route.request.post_data_buffer,"headers":route.request.headers})
    route.fulfill(status=200,content_type="application/json",
                  body=json.dumps({"ok":True,"file":"gcode/fjord_auto_test.3mf",
                                   "next":"/admin/atelier-imprimer?selected=gcode/fjord_auto_test.3mf"}))
@@ -70,7 +70,7 @@ try:
   page.wait_for_url("**/admin/atelier-imprimer?selected=*",timeout=30000)
   assert len(posts)==2,posts
   assert all("application/json" in p["headers"].get("accept","") for p in posts)
-  assert all('name="material"' in (p["body"] or "") for p in posts)
+  assert all(b'name="material"' in (p["body"] or b"") for p in posts)
   assert not errors,errors
   browser.close()
  print("OK: first-time profile choice and remembered one-click slice/upload (without print start)")
