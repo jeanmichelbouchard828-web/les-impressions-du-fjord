@@ -161,16 +161,20 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
                         data = upload.stream.read(MAX_UPLOAD + 1)
                         entries, skips = parse_bambu_presets(fname, data)
                         ignored += skips
+                        # Insert all profiles from one archive in a single parameterized
+                        # PostgreSQL statement. Bundles with 600+ profiles must stay
+                        # below the HTTP worker timeout, not do 600 DB round-trips.
+                        payload = json.dumps(entries, ensure_ascii=False)
                         with db() as c:
-                            for item in entries:
-                                row = c.execute("""INSERT INTO bambu_user_presets
-                                  (name, category, source_file, internal_path, settings, signature)
-                                  VALUES (%s,%s,%s,%s,%s,%s)
-                                  ON CONFLICT(signature) DO NOTHING RETURNING id""",
-                                  (item["name"],item["category"],item["source"],item["path"],
-                                   item["settings"],item["signature"])).fetchone()
-                                if row: accepted += 1
-                                else: duplicate += 1
+                            inserted = c.execute("""INSERT INTO bambu_user_presets
+                              (name, category, source_file, internal_path, settings, signature)
+                              SELECT x.name,x.category,x.source,x.path,x.settings,x.signature
+                              FROM jsonb_to_recordset(%s::jsonb)
+                              AS x(name TEXT, category TEXT, source TEXT, path TEXT, settings TEXT, signature TEXT)
+                              ON CONFLICT(signature) DO NOTHING
+                              RETURNING id""", (payload,)).fetchall()
+                        accepted += len(inserted)
+                        duplicate += len(entries)-len(inserted)
                     except PresetImportError as exc:
                         errors.append(fname + " : " + str(exc))
                 message = (f"{accepted} profil(s) importé(s), {duplicate} doublon(s) ignoré(s), "
