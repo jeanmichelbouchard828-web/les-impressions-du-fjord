@@ -74,6 +74,23 @@ try:
         assert page.locator("#fjordPaintPanel").is_visible()
         page.locator("#fjordPaintClose").evaluate("el=>el.click()")
         page.locator('[data-fjord-panel="generators"]').evaluate("el=>el.click()")
+        # Search should match French/English names and diacritics, and narrow the picker.
+        search=page.locator("#fjordGeneratorSearch")
+        assert search.count()==1
+        search.fill("TORSÍON")
+        assert page.locator('[data-generator-pick="torsion_spring"]').is_visible()
+        assert page.locator('[data-generator-pick="spring"]').is_hidden()
+        assert "correspondant" in page.locator("#fjordGeneratorSearchStatus").inner_text()
+        assert page.locator("#generatorKind option").count()<=3
+        search.press("Enter")
+        assert page.locator("#generatorKind").input_value()=="torsion_spring"
+        search.fill("zzzz-no-such-generator")
+        assert page.locator("#generatorAdd").is_disabled()
+        assert "Aucun générateur" in page.locator("#fjordGeneratorSearchStatus").inner_text()
+        search.fill("")
+        assert page.locator("#generatorAdd").is_enabled()
+        assert page.locator("#generatorKind").input_value()=="torsion_spring"
+        assert page.locator('[data-generator-pick="spring"]').count()==1
         page.locator('[data-generator-pick="torsion_spring"]').evaluate("el=>el.click()")
         assert page.locator("#generatorKind").input_value()=="torsion_spring"
         assert page.locator("#generator-arm1").input_value()=="35"

@@ -67,6 +67,8 @@ export function installFjordEnhancements(api){
  $('fjordTextUpdate')?.addEventListener('click',()=>editText(true));
  // Load form values from selected text on part selection.
  function syncText(){
+  const label=$('fjordPaintModelLabel');
+  if(label)label.textContent=api.selected()?.name||'Aucune pièce sélectionnée';
   const data=api.selected()?.userData?.fjordText;
   if(data&&document.activeElement?.id!=='fjordTextInput'){
    $('fjordTextInput').value=data.value;
@@ -189,6 +191,9 @@ export function installFjordEnhancements(api){
   paintHex=hex.toUpperCase();
   $('fjordPaintColor').value=hex;
   $('fjordPaintColorLabel').textContent=paintHex;
+  document.querySelectorAll('#fjordPaintPanel [data-fjord-color]').forEach(button=>{
+   button.setAttribute('aria-pressed',String(button.dataset.fjordColor?.toUpperCase()===paintHex));
+  });
  }
  function paintToolChoose(value){
   if(!['brush','sphere','triangle','fill','height','eraser'].includes(value))return;
@@ -203,6 +208,8 @@ export function installFjordEnhancements(api){
   paintOn=false;$('fjordPaintPanel').hidden=true;
   $('fjordPaintToggle')?.setAttribute('aria-pressed','false');
   $('fjordPaintToggle')?.classList.remove('active');
+  $('fjordPaintFast')?.setAttribute('aria-pressed','false');
+  $('fjordPaintFast')?.classList.remove('active');
   $('mobilePaintBtn')?.setAttribute('aria-pressed','false');
   renderer.domElement.style.cursor='';
  }
@@ -212,16 +219,62 @@ export function installFjordEnhancements(api){
   paintOn=true;$('fjordPaintPanel').hidden=false;
   $('fjordPaintToggle')?.setAttribute('aria-pressed','true');
   $('fjordPaintToggle')?.classList.add('active');
+  $('fjordPaintFast')?.setAttribute('aria-pressed','true');
+  $('fjordPaintFast')?.classList.add('active');
   $('mobilePaintBtn')?.setAttribute('aria-pressed','true');
   renderer.domElement.style.cursor='crosshair';
   paintToolChoose(paintTool);
-  notice('Sélectionne une couleur, puis clique ou glisse sur la surface. Cliquer dans le vide ferme Peinture.');
+  syncText();
+  notice('Mode peinture actif : choisis un pinceau et une couleur AMS ou personnalisée, puis peins directement sur la pièce.');
  }
  function toggle(){paintOn?close():open();}
  $('fjordPaintToggle')?.addEventListener('click',toggle);
+ $('fjordPaintFast')?.addEventListener('click',toggle);
  $('mobilePaintBtn')?.addEventListener('click',toggle);
  $('fjordPaintClose')?.addEventListener('click',close);
  document.querySelectorAll('[data-fjord-paint-tool]').forEach(btn=>btn.addEventListener('click',()=>paintToolChoose(btn.dataset.fjordPaintTool)));
+ // Display real detected AMS spools in the painting toolbar instead of asking
+ // users to navigate back to whole-part Properties. Empty/offline AMS is explicit.
+ const paintAms=$('fjordPaintAmsPalette'),amsSource=$('fjordAmsSlots');
+ function renderPaintAms(){
+  if(!paintAms||!amsSource)return;
+  const buttons=[...amsSource.querySelectorAll('button')].filter(button=>button.querySelector('.fjord-ams-swatch'));
+  paintAms.replaceChildren();
+  for(const source of buttons){
+   const swatch=source.querySelector('.fjord-ams-swatch');
+   const color=new THREE.Color(swatch.style.backgroundColor);
+   const hex='#'+color.getHexString().toUpperCase();
+   const button=document.createElement('button');
+   button.type='button';
+   button.className='fjord-paint-swatch';
+   button.style.setProperty('--swatch',hex);
+   button.dataset.fjordColor=hex;
+   button.setAttribute('aria-label','Peindre avec '+(source.getAttribute('aria-label')||hex));
+   button.title=source.title||hex;
+   const detail=document.createElement('small');
+   detail.textContent=(source.querySelector('strong')?.textContent||'AMS').slice(0,15);
+   button.append(detail);
+   button.addEventListener('click',()=>chooseColor(hex));
+   paintAms.append(button);
+  }
+  $('fjordPaintAmsMessage').textContent=paintAms.childElementCount
+   ?paintAms.childElementCount+' bobine(s) disponible(s). Une couleur choisie ici peint les faces, pas toute la pièce.'
+   :($('fjordAmsStatus')?.textContent||'Aucune couleur AMS disponible. Utilise la palette personnalisée.');
+  chooseColor(paintHex);
+ }
+ if(amsSource){
+  const observer=new MutationObserver(renderPaintAms);
+  observer.observe(amsSource,{childList:true});
+  renderPaintAms();
+ }
+ $('fjordPaintRefreshAms')?.addEventListener('click',()=>{
+  $('fjordAmsRefresh')?.click();
+  $('fjordPaintAmsMessage').textContent='Actualisation des bobines en cours…';
+ });
+ $('fjordPaintPresets')?.addEventListener('click',event=>{
+  const color=event.target.closest('[data-fjord-color]')?.dataset.fjordColor;
+  if(color)chooseColor(color);
+ });
  $('fjordPaintColor')?.addEventListener('input',event=>chooseColor(event.target.value));
  $('fjordPaintSize')?.addEventListener('input',event=>{
   brushSize=Number(event.target.value)||7;$('fjordPaintSizeLabel').textContent=brushSize+' mm';
