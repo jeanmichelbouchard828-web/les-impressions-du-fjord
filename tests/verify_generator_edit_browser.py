@@ -24,6 +24,7 @@ try:
   page=browser.new_page(viewport={"width":1400,"height":900},accept_downloads=True)
   errors=[]
   page.on("pageerror",lambda e:errors.append(str(e)))
+  page.on("dialog",lambda dialog:dialog.accept())
   page.route("**/api/atelier/filaments",lambda route:route.fulfill(status=200,
    content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
   page.goto(BASE+"/atelier3d.html",wait_until="domcontentloaded")
