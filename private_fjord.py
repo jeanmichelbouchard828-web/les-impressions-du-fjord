@@ -1836,12 +1836,49 @@ body.light .fj-bmo-details{border-color:#9bc9df}
 .fj-live-form .fj-live-off{background:transparent;color:#b5dcf1;border:1px solid #527c96}
 body.light .fj-live-form{border-color:#b0d5e8}
 body.light .fj-live-form .fj-live-off{color:#215676}
-@media(max-width:700px){.fj-two{grid-template-columns:1fr}}
+
+.fj-top-panel,.fj-card-section{border:1px solid #55839a;border-radius:13px;margin:14px 0;min-width:0}
+.fj-top-panel>summary,.fj-card-section>summary{padding:14px 16px;font-weight:800;cursor:pointer}
+.fj-top-panel summary small,.fj-card-section summary small{font-size:12px;font-weight:400;opacity:.8;margin-left:6px}
+.fj-top-panel>.fj-card{margin:0;border:0;border-top:1px solid #55839a;box-shadow:none;border-radius:0 0 13px 13px}
+.fj-quote-card{min-width:0;overflow-wrap:anywhere;padding:16px}
+.fj-quote-card h3{margin:7px 0}
+.fj-quote-summary{margin:7px 0 12px;overflow-wrap:anywhere}
+.fj-quote-total{display:flex;justify-content:space-between;align-items:center;gap:9px;margin:12px 0;padding:12px 0;border-block:1px solid #55839a}
+.fj-quote-total strong{font-size:26px;white-space:nowrap}
+.fj-quick-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:13px 0}
+.fj-quick-actions .btn{min-height:44px;display:inline-flex;align-items:center;text-decoration:none}
+.fj-quick-actions p{margin:0}
+.fj-quick-actions p a{display:inline-block;padding:10px 2px}
+.fj-square-section>summary{background:#184962;border-radius:12px}
+.fj-square-section[open]>summary{border-radius:12px 12px 0 0;border-bottom:1px solid #55839a}
+.fj-square-section .fj-square-settings{margin:0;padding:13px;border:0}
+.fj-advanced>summary{font-size:14px}
+.fj-advanced>div,.fj-advanced>section,.fj-advanced>form,.fj-advanced>p,.fj-advanced>.fj-bmo-details{margin:11px 13px!important}
+.fj-search-label{display:block;font-weight:700;margin:16px 0}
+.fj-search-label input{width:100%;max-width:600px;box-sizing:border-box;margin-top:8px;min-height:44px}
+#fj-quotes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:14px;align-items:start}
+.fj-status-board{display:flex;gap:8px;flex-wrap:wrap}
+.fj-status-btn{min-height:54px;flex:1 1 125px;text-align:center}
+.fj-status-btn strong{display:inline;margin-left:6px;font-size:19px}
+body.light .fj-top-panel,body.light .fj-card-section{border-color:#aed0df}
+body.light .fj-square-section>summary{background:#e1f2f8}
+@media(max-width:700px){
+.fj-two{grid-template-columns:1fr}
+.fj-status-board{flex-wrap:nowrap;overflow-x:auto;padding-bottom:9px;scroll-snap-type:x proximity}
+.fj-status-btn{flex:0 0 auto;scroll-snap-align:start}
+.fj-quick-actions{display:grid;grid-template-columns:1fr}
+.fj-quick-actions .btn{justify-content:center}
+.fj-quote-card{padding:13px}
+.fj-top-panel summary small,.fj-card-section summary small{display:block;margin:5px 0 0 22px}
+#fj-quotes-grid{grid-template-columns:1fr}
+}
+
 </style>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
 <div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
 <p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
-<div class="card fj-card"><h2>Nouvelle soumission</h2>
+<details class="fj-top-panel" {% if from_atelier or incoming %}open{% endif %}><summary>➕ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
 {% if from_atelier %}<p class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.{% if atelier_colors=='3mf' %} Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %} Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</p>{% endif %}
 <form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
 <input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
@@ -1893,9 +1930,9 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
 <p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
 <div class="fj-quote-actions"><button type="submit" id="fjSaveQuote">Créer la soumission</button>
-<button type="button" id="fjResetQuote" class="fj-reset-button">↺ Réinitialiser le formulaire</button></div></form></div>
+<button type="button" id="fjResetQuote" class="fj-reset-button">↺ Réinitialiser le formulaire</button></div></form></div></details>
 
-<div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
+<details class="fj-top-panel"><summary>⚙️ Paramètres généraux <small>Interac et logo PDF</small></summary><div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
 <p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
 <div class="fj-interac-settings">
 <label>Courriel pour recevoir les virements Interac
@@ -1907,8 +1944,8 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
-<button type="submit">Mettre à jour le logo PDF</button></form></div>
-<h2 id="soumissions-enregistrees">Tableau de suivi des soumissions</h2>
+<button type="submit">Mettre à jour le logo PDF</button></form></div></details>
+<h2 id="soumissions-enregistrees">Mes soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
 <div id="fjord-octo-association" class="card" style="display:none;margin:12px 0">
  <h3>🔗 Associer l'impression en cours</h3>
@@ -1929,9 +1966,13 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <button type="button" class="fj-status-btn" data-stage="payees">💳 Payées <strong>{{counters.payees}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
-</div>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div><h3>{{q.customer}}</h3><p>{{q.title}} · {{q.quantity}} exemplaire(s)</p>
-<p>Prix unitaire : {{money(q.unit_price|float)}} · Livraison : {{money(q.shipping|float)}}{% if q.military_discount %} · 🎖️ Rabais militaire 5 % appliqué{% endif %}</p>
+</div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
+<p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
+<div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+{% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester Square ↗</a>{% endif %}
+{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
 <label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
 <label>État de fabrication
 <select form="fjord-save-global" name="production_status_{{q.id}}">
@@ -1941,7 +1982,7 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 </select></label></div>
 <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span></div>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
-{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True)}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}
+
 <div class="fj-payment-form">
 <label for="fj-payment-{{q.id}}">Statut du paiement</label>
 <select id="fj-payment-{{q.id}}" form="fjord-save-global" name="payment_status_{{q.id}}" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
@@ -1949,6 +1990,23 @@ body.light .fj-live-form .fj-live-off{color:#215676}
 <option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select></div>
+{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
+<details class="fj-card-section fj-square-section" {% if q.square_link_url and not square_active[q.id] %}open{% endif %}><summary>💳 {% if square_active[q.id] %}Square configuré ✓{% else %}Configurer le paiement Square{% endif %}</summary><div class="fj-square-settings">
+<strong>💳 Paiement Square en un clic</strong>
+<p class="fj-help">Montant à créer dans Square : <strong>{{money(quote_totals[q.id])}} CAD</strong> (rabais, livraison et taxes déjà compris). Dans Square : Liens de paiement → Créer → Encaisser un paiement, montant fixe; désactive les taxes et pourboires supplémentaires pour éviter de facturer deux fois.</p>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/square">{{csrf|safe}}
+<label for="fjordSquare{{q.id}}">Lien de paiement Square pour cette soumission</label>
+<input id="fjordSquare{{q.id}}" type="url" name="square_link_url" maxlength="1200"
+ placeholder="https://square.link/u/…" value="{{q.square_link_url or ''}}">
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400"><input type="checkbox" name="square_amount_checked" value="yes" style="width:auto;margin:5px 0 0"><span>J'ai vérifié dans Square que le montant à payer est exactement <strong>{{money(quote_totals[q.id])}} CAD</strong>, sans taxes ou pourboires ajoutés.</span></label>
+<div class="fj-square-row"><button type="submit">💾 Enregistrer le lien Square</button><a href="https://squareup.com/dashboard" target="_blank" rel="noopener noreferrer">↗ Créer le lien sur Square</a></div>
+</form>
+{% if q.square_link_url %}
+<p class="fj-square-status">{% if square_active[q.id] %}✓ Lien Square actif : le PDF et son QR ouvriront directement la caisse Square.{% else %}⚠ Ce lien Square n'est plus valable pour le montant actuel. Crée un nouveau lien Square et enregistre-le avant d'envoyer le PDF.{% endif %}</p>
+{% endif %}
+</div>
+</details>
+<details class="fj-card-section fj-advanced"><summary>⚙️ Plus d’options <small>Caméra, couleurs, référence, Interac, suppression</small></summary><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div>
 <section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
 <h4>📹 Caméra en direct pour le client</h4>
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/diffusion">{{csrf|safe}}
@@ -1977,28 +2035,14 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 <p class="fj-help">Diffusion inactive : aucun client ne peut voir la caméra depuis cette soumission.</p>
 {% endif %}
 </section>
-{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
-<a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+
+
 {% if q.model_id %}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">
 <label>Corps<input form="fjord-save-global" type="color" name="preview_color_{{q.id}}" value="#ffcc00" aria-label="Couleur principale"></label>
 <label>Autres pièces<input form="fjord-save-global" type="color" name="preview_secondary_{{q.id}}" value="#111111" aria-label="Couleur secondaire"></label>
 </div>{% endif %}
 
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
-<div class="fj-square-settings">
-<strong>💳 Paiement Square en un clic</strong>
-<p class="fj-help">Montant à créer dans Square : <strong>{{money(quote_totals[q.id])}} CAD</strong> (rabais, livraison et taxes déjà compris). Dans Square : Liens de paiement → Créer → Encaisser un paiement, montant fixe; désactive les taxes et pourboires supplémentaires pour éviter de facturer deux fois.</p>
-<form method="post" action="/admin/soumissions-pro/{{q.id}}/square">{{csrf|safe}}
-<label for="fjordSquare{{q.id}}">Lien de paiement Square pour cette soumission</label>
-<input id="fjordSquare{{q.id}}" type="url" name="square_link_url" maxlength="1200"
- placeholder="https://square.link/u/…" value="{{q.square_link_url or ''}}">
-<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400"><input type="checkbox" name="square_amount_checked" value="yes" style="width:auto;margin:5px 0 0"><span>J'ai vérifié dans Square que le montant à payer est exactement <strong>{{money(quote_totals[q.id])}} CAD</strong>, sans taxes ou pourboires ajoutés.</span></label>
-<div class="fj-square-row"><button type="submit">💾 Enregistrer le lien Square</button><a href="https://squareup.com/dashboard" target="_blank" rel="noopener noreferrer">↗ Créer le lien sur Square</a></div>
-</form>
-{% if q.square_link_url %}
-<p class="fj-square-status">{% if square_active[q.id] %}✓ Lien Square actif : le PDF et son QR ouvriront directement la caisse Square.{% else %}⚠ Ce lien Square n'est plus valable pour le montant actuel. Crée un nouveau lien Square et enregistre-le avant d'envoyer le PDF.{% endif %}</p>
-{% endif %}
-</div>
 {% if interac_email or square_active[q.id] %}
 <a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Tester le paiement du client</a>
 {% endif %}
@@ -2015,7 +2059,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 <p role="status" aria-live="polite" data-bmo-status="{{q.id}}" class="fj-help"></p>
 <p class="fj-help">Dans BMO : Paiements et virements → Demande de fonds → client → montant → référence. Le client autorise ensuite la demande dans sa banque. Vérifie le dépôt avant de sélectionner « Payée ».</p>
 </details>
-{% endif %}</div>
+{% endif %}</details></div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
 <script>
 (function(){
@@ -2331,10 +2375,20 @@ document.querySelectorAll('[data-bmo-copy]').forEach(button=>button.addEventList
  try{await navigator.clipboard.writeText(text);if(feedback)feedback.textContent='✓ Informations copiées. Ouvre BMO et crée la demande de fonds.';}
  catch(e){if(feedback)feedback.textContent='Copie automatique indisponible : utilise les boutons Copier de chaque champ.';}
 }));
+const fjQuoteSearch=document.getElementById('fjQuoteSearch');
+let fjSelectedStage='all';
+function fjFilterQuoteCards(){
+ const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
+ for(const card of document.querySelectorAll('.fj-quote-card')){
+  const content=[card.querySelector('h3')?.textContent,card.querySelector('.fj-quote-summary')?.textContent,card.querySelector('.eyebrow')?.textContent].join(' ').toLocaleLowerCase('fr');
+  card.hidden=(fjSelectedStage!=='all' && card.dataset.stage!==fjSelectedStage) || Boolean(query && !content.includes(query));
+ }
+}
+fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
- const selected=button.dataset.stage;
+ fjSelectedStage=button.dataset.stage;
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
- document.querySelectorAll('.fj-quote-card').forEach(card=>{card.hidden=selected!=='all' && card.dataset.stage!==selected});
+ fjFilterQuoteCards();
 }));
 </script>""",models=models,quotes=quotes,quote_totals=quote_totals,square_active=square_active,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
