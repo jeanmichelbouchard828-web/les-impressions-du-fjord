@@ -18,6 +18,16 @@ export const extraGeneratorKinds=[
  G('nut','Écrou hexagonal','Hex nut',[F('diameter','Largeur sur plats','Across flats',17,6,75),F('bore','Trou central','Central bore',8,2,55),F('thickness','Épaisseur','Thickness',7,2,35)]),
  G('tap','Douille taraudée indicative','Threaded sleeve prototype',[F('diameter','Diamètre extérieur','Outside diameter',26,10,100),F('bore','Diamètre intérieur','Inner diameter',12,3,85),F('length','Longueur','Length',30,5,125),F('pitch','Pas nominal','Thread pitch',1.5,.6,5)]),
  G('washer','Rondelle','Washer',[F('diameter','Diamètre externe','Outside diameter',30,6,150),F('bore','Trou','Hole diameter',9,2,120),F('thickness','Épaisseur','Thickness',3,.8,20)]),
+ G('torsion_spring','Ressort à torsion (2 pattes)','Torsion spring (2 legs)',[
+  F('diameter','Diamètre moyen de l’enroulement','Mean coil diameter',30,8,115,.5),
+  F('thickness','Diamètre du fil','Wire diameter',2.5,.8,10,.1),
+  F('turns','Nombre de spires complètes','Full coil turns',5,2,12,1,''),
+  F('pitch','Pas axial des spires','Axial coil pitch',2.9,1,16,.1),
+  F('arm1','Longueur de la patte 1','First leg length',35,5,120,.5),
+  F('arm2','Longueur de la patte 2','Second leg length',35,5,120,.5),
+  F('opening','Angle entre les pattes (°)','Angle between legs (°)',90,0,180,5,'°'),
+  F('hand','Sens (0=droite, 1=gauche)','Handedness (0=right, 1=left)',0,0,1,1,'')
+ ]),
  G('spring','Ressort hélicoïdal','Coil spring',[F('diameter','Diamètre moyen','Mean diameter',28,8,90),F('thickness','Diamètre fil','Wire diameter',3,1,9),F('pitch','Espacement spires','Coil pitch',9,4,22),F('turns','Nombre de spires','Turns',6,2,15,1,'')]),
  G('turbine','Hélice / turbine','Propeller / turbine',[F('diameter','Diamètre hors tout','Outside diameter',100,30,220),F('bore','Alésage moyeu','Hub bore',8,3,35),F('thickness','Épaisseur pales','Blade thickness',4,2,12),F('teeth','Nombre de pales','Blade count',5,2,10,1,'')]),
  G('coupler','Raccord de tuyaux','Pipe coupling',[F('diameter','Diamètre extérieur','Outside diameter',45,10,135),F('bore','Alésage','Inside bore',33,6,120),F('length','Longueur','Length',48,10,140),F('thickness','Épaisseur collerette','Rim thickness',3,1,12)]),
@@ -230,6 +240,62 @@ export function generateExtraGeometry(T,kind,p){
  }
  case 'washer':
   return ring(T,r,p.bore/2,p.thickness);
+ case 'torsion_spring':{
+  // Geometry in mm. A single continuously swept and end-capped round wire,
+  // with two tangent arms. The fractional winding phase enforces the specified
+  // arm-to-arm angle; the integer count is the number of FULL spires.
+  const wire=p.thickness,r=p.diameter/2,hand=p.hand===1?-1:1;
+  if(r<=wire*1.1)throw Error('Le diamètre moyen doit dépasser 2,2 × le diamètre du fil.');
+  if(p.pitch<wire+.08)throw Error('Le pas des spires doit être supérieur au diamètre du fil (jeu minimal 0,08 mm).');
+  if(!Number.isInteger(p.turns)||!Number.isInteger(p.hand))
+   throw Error('Nombre de spires et sens d’enroulement invalides.');
+  const rotations=p.turns+(180-p.opening)/360;
+  const pts=[],center0=new T.Vector3(r,0,wire/2);
+  const extend0=new T.Vector3(0,-hand,0);
+  const legSteps=Math.max(6,Math.ceil(p.arm1/3));
+  for(let i=0;i<legSteps;i++){
+   const d=p.arm1*(1-i/legSteps);
+   pts.push(center0.clone().addScaledVector(extend0,d));
+  }
+  const coilSamples=Math.max(80,Math.ceil(rotations*36));
+  for(let i=0;i<=coilSamples;i++){
+   const u=i/coilSamples,angle=hand*2*pi*rotations*u;
+   pts.push(new T.Vector3(r*Math.cos(angle),r*Math.sin(angle),wire/2+p.pitch*rotations*u));
+  }
+  const endAngle=hand*2*pi*rotations;
+  const end=new T.Vector3(r*Math.cos(endAngle),r*Math.sin(endAngle),wire/2+p.pitch*rotations);
+  const extend1=new T.Vector3(-hand*Math.sin(endAngle),hand*Math.cos(endAngle),0);
+  const endSteps=Math.max(6,Math.ceil(p.arm2/3));
+  for(let i=1;i<=endSteps;i++)pts.push(end.clone().addScaledVector(extend1,p.arm2*i/endSteps));
+  const path=new T.CatmullRomCurve3(pts,false,'centripetal');
+  const axialSteps=Math.max(120,Math.min(650,Math.ceil(rotations*55+(p.arm1+p.arm2)/2)));
+  const sides=12;
+  const tube=new T.TubeGeometry(path,axialSteps,wire/2,sides,false);
+  const pos=tube.getAttribute('position'),indices=tube.getIndex();
+  const triangles=[];
+  for(let i=0;i<indices.count;i++){
+   const j=indices.getX(i);
+   triangles.push(pos.getX(j),pos.getY(j),pos.getZ(j));
+  }
+  const caps=(ring,center,outward)=>{
+   const vec=new T.Vector3(),a=new T.Vector3(),b=new T.Vector3();
+   for(let j=0;j<sides;j++){
+    a.fromBufferAttribute(pos,ring*(sides+1)+j);
+    b.fromBufferAttribute(pos,ring*(sides+1)+j+1);
+    const normal=vec.copy(a).sub(center).cross(new T.Vector3().copy(b).sub(center));
+    const v=normal.dot(outward)>=0?[a,b]:[b,a];
+    triangles.push(center.x,center.y,center.z,
+       v[0].x,v[0].y,v[0].z,v[1].x,v[1].y,v[1].z);
+   }
+  };
+  caps(0,path.getPointAt(0),path.getTangentAt(0).negate());
+  caps(axialSteps,path.getPointAt(1),path.getTangentAt(1));
+  tube.dispose();
+  const geometry=new T.BufferGeometry();
+  geometry.setAttribute('position',new T.Float32BufferAttribute(triangles,3));
+  geometry.computeVertexNormals();geometry.computeBoundingBox();
+  return geometry;
+ }
  case 'spring':{
   if(p.pitch<=p.thickness*1.05)throw Error('Espacement des spires trop petit.');
   const pts=[],turn=p.turns,segments=turn*25;
