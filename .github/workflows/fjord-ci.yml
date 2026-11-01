@@ -22,6 +22,7 @@ jobs:
       - run: python tests/verify_import_browser.py
       - run: python tests/verify_ams_colors_browser.py
       - run: python tests/verify_paint_text_browser.py
+      - run: python tests/verify_mobile_paint_zoom_browser.py
       - run: python tests/verify_generator_catalog_browser.py
       - run: python tests/verify_generator_edit_browser.py
       - run: python tests/verify_torsion_spring_browser.py
