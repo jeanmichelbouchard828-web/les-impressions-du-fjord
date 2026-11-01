@@ -656,7 +656,10 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 #fjordMeasureDistanceValue{font-size:17px;font-weight:800;color:#fff;margin:0}
 .fjord-measure-disclaimer{font-size:11px;line-height:1.5;color:var(--muted);margin:0}
 #fjordMeasureClear{min-height:38px;width:100%;font-size:12px}
-#fjordMeasureCircleQuick{border:1px solid #478ba8}
+.fjord-fast-row #fjordMeasureCircleQuick{border:1px solid transparent;background:transparent}
+.fjord-fast-row #fjordMeasureCircleQuick.active{border-color:var(--accent);background:#17638b;color:#fff}
+.fjord-fast-row #fjordMeasureCircleQuick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body.light .fjord-fast-row #fjordMeasureCircleQuick.active{background:#c9e8ff;color:#0b496e}
 body.light .fjord-measure-result{background:#e6f5fd;color:#124665}
 body.light .fjord-measure-result-heading{color:#26566f}
 body.light .fjord-measure-values>div{background:#d2e9f7}
@@ -712,7 +715,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
   <button data-fjord-tool="rotate" title="Pivoter"><span>⟳</span><em>Pivoter</em></button>
   <button data-fjord-tool="duplicate" title="Multi / Dupliquer"><span>▢</span><em>Multi</em></button>
   <button data-fjord-tool="measure" title="Règle"><span>📏</span><em>Règle</em></button>
-<button type="button" id="fjordMeasureCircleQuick" title="Rayon et diamètre : cliquer le contour circulaire (Bambu Studio)"><span>◎</span><em>Rayon / Ø</em></button>
+<button type="button" id="fjordMeasureCircleQuick" aria-pressed="false" title="Rayon et diamètre : cliquer le contour circulaire (Bambu Studio)"><span>◎</span><em>Rayon / Ø</em></button>
   <button data-fjord-tool="centerXY" title="Accroche et centrage"><span>⊕</span><em>Accroche et centrage</em></button>
   <button data-fjord-tool="cutZ" title="Vue de coupe"><span>⬡</span><em>Vue de coupe</em></button>
   <button data-fjord-tool="dropToBed" title="Niveau"><span>▱</span><em>Niveau</em></button>
@@ -3373,6 +3376,11 @@ $('fjordMeasureClear').addEventListener('click',()=>{
  setMeasureHint();
 });
 $('fjordMeasureCircleQuick').addEventListener('click',()=>{
+ // Unlike the previous launcher, this must be a true toggle.
+ if(measureMode&&measureModeSelect.value==='auto'){
+  $('measure').click(); // Remove active highlight and end measure mode.
+  return;
+ }
  measureModeSelect.value='auto';
  clearMeasureLine();
  if(!measureMode)$('measure').click();
