@@ -263,6 +263,8 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b"51,74", page_result.data)  # 45 $ + 5 % TPS + 9,975 % TVQ
         self.assertNotIn(b"Client de test", page_result.data)
         self.assertNotIn(b"Accepter officiellement ma soumission", page_result.data)
+        self.assertIn(b"Un paiement facile, sans rien recopier", page_result.data)
+        self.assertIn(b'<details class="payment-fallback">', page_result.data)
         self.assertIn(b"Copier tous les renseignements", page_result.data)
         self.assertIn(b"fjordPaymentFeedback", page_result.data)
         self.assertEqual(app.test_client().get("/payer/short").status_code,404)
@@ -298,9 +300,9 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn('option value="Payée" selected', html)
         self.assertIn('Paiement confirmé manuellement le 30-10-2026', html)
         self.assertIn('Paiement partiel', html)
-        self.assertIn('Préparer une demande de fonds BMO', html)
+        self.assertIn('Envoyer la demande Interac au client (BMO)', html)
         self.assertIn('bmoAmount8', html)
-        self.assertIn('Ouvrir BMO (site officiel)', html)
+        self.assertIn('Ouvrir BMO pour demander le paiement', html)
 
     def test_saved_quote_payment_status_is_validated_and_persisted(self):
         class PaymentStatusConnection(DummyConnection):
