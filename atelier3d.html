@@ -89,7 +89,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .editor-error[hidden]{display:none!important}
 .editor-error button{margin-top:10px;color:#fff;background:#7d394b;border:1px solid #ffbcc5;min-height:44px}
 @media(max-width:620px){
- .stage canvas{touch-action:none}
+ .stage canvas{touch-action:none;overscroll-behavior:contain}
  .touch-move{display:inline-flex;position:absolute;right:10px;bottom:10px;align-items:center;justify-content:center;z-index:22;min-height:44px;padding:8px 12px;font-size:13px;font-weight:700;box-shadow:0 4px 14px #0006}
  .touch-move[aria-pressed=true]{background:#145e85;border-color:#72deff;color:white}
  .stage .hint{bottom:65px;font-size:11px;max-width:calc(100% - 24px)}
@@ -142,6 +142,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .mobile-stage-info:not(:empty){display:block;position:absolute;left:10px;right:10px;top:10px;z-index:18;padding:7px 11px;border-radius:9px;pointer-events:none;font-size:12px;line-height:1.3;background:#102c44e6;color:#b7e9ff;max-width:max-content}
  .hint{bottom:68px!important;font-size:11px}
 }
+@media(min-width:621px) and (max-width:760px){.stage canvas{touch-action:none;overscroll-behavior:contain}}
 @media(max-width:380px){.mobile-iconbar button{font-size:13px;padding:8px 10px}.stage{min-height:290px;height:45dvh}.mobile-menu-drawer:not([hidden]){max-height:76dvh}}
 @media(orientation:landscape) and (max-width:950px) and (max-height:470px){.mobile-menu-drawer:not([hidden]){max-height:83dvh}}
 
@@ -623,9 +624,33 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-paint-field>label{margin-top:9px}
 .fjord-paint-grid button{background:#1d3850;border-color:#4b7999}
 .fjord-paint-grid button.active{background:#0b76a4;border-color:#81e1ff}
+#fjordPaintMobileFold{display:none}
+.fjord-paint-heading-actions{display:flex;align-items:center;gap:8px}
 @media(max-width:760px){
- .fjord-paint-panel{position:fixed!important;top:auto!important;bottom:66px!important;
-  max-height:68dvh!important;width:min(360px,calc(100vw - 18px))!important;z-index:500!important}
+ #fjordPaintMobileFold{display:inline-flex;min-height:44px;padding:6px 12px}
+ .fjord-paint-panel.mobile-collapsed{max-height:69px!important;overflow:hidden!important}
+ .fjord-paint-panel.mobile-collapsed > :not(.fjord-paint-heading){display:none!important}
+ .fjord-paint-panel{
+  position:fixed!important;top:auto!important;
+  bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;
+  left:8px!important;right:8px!important;
+  width:auto!important;max-width:none!important;
+  max-height:min(39dvh,335px)!important;
+  overflow-y:auto!important;overscroll-behavior:contain;
+  padding:12px!important;border-radius:14px!important;
+  z-index:500!important;box-shadow:0 9px 30px #000b;
+ }
+ .fjord-paint-heading{position:sticky;top:-12px;z-index:2;background:var(--panel);
+  padding:8px 0;margin:-8px 0 7px}
+ .fjord-paint-heading button{min-width:44px;min-height:44px}
+ .fjord-paint-panel .fjord-paint-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .fjord-paint-panel .fjord-paint-grid button{min-height:45px;touch-action:manipulation}
+ .fjord-paint-panel .fjord-paint-swatch{min-width:44px;min-height:44px;touch-action:manipulation}
+ .fjord-paint-panel input[type=range]{min-height:36px}
+ .fjord-paint-panel .fjord-paint-help{font-size:12px;margin:6px 0}
+}
+@media(max-height:510px) and (max-width:950px){
+ .fjord-paint-panel{max-height:49dvh!important}
 }
 
 
@@ -910,11 +935,11 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></section></aside>
 <div class="stage" id="stage">
 <section class="fjord-paint-panel" id="fjordPaintPanel" hidden aria-label="Panneau de peinture 3D">
-<div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div>
+<div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><div class="fjord-paint-heading-actions"><button type="button" id="fjordPaintMobileFold" aria-expanded="true" aria-controls="fjordPaintPanel" title="Masquer ou afficher les options de peinture">▾ Réduire</button><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div></div>
 <div class="fjord-paint-mode-note">Pièce : <strong id="fjordPaintModelLabel">Aucune pièce sélectionnée</strong></div>
 <p class="fjord-paint-help">🖌 Clic gauche : peindre. 🖱️ Clic droit maintenu : tourner autour de la pièce. Molette : zoomer.</p>
 <button type="button" id="fjordPaintOrbit" class="fjord-paint-view-button" aria-pressed="false" title="Tourner la vue sans peindre, utile sur mobile">🔄 Tourner la vue 3D (sans peindre)</button>
-<p class="fjord-paint-help">Sur téléphone : active « Tourner la vue », glisse pour regarder l’autre côté puis désactive pour continuer à peindre.</p>
+<p class="fjord-paint-help" id="fjordPaintTouchGuide">Sur téléphone : 1 doigt pour peindre, 2 doigts pour zoomer et déplacer la vue. « Tourner la vue » permet de faire pivoter avec 1 doigt sans peindre.</p>
 <div class="fjord-paint-grid" role="toolbar" aria-label="Outils de peinture">
 <button type="button" data-fjord-paint-tool="brush" class="active" aria-pressed="true">🖌 Pinceau</button>
 <button type="button" data-fjord-paint-tool="sphere" aria-pressed="false">◉ Sphère</button>
@@ -1915,9 +1940,9 @@ function findHit(e){
 // is off-model, zoom toward the selected part. Keep camera offset unchanged
 // while switching pivot, so focusing doesn't jump before the wheel zoom.
 // La molette ne zoome que si le pointeur survole réellement une pièce.
-// Désactiver le zoom natif d'OrbitControls pour éviter le double zoom
-// et les changements de pivot quand le curseur est sur le plateau vide.
-orbit.enableZoom=false;
+// La molette est déjà gérée ci-dessous en capture (sans double zoom).
+// Garder le zoom natif d'OrbitControls pour le pincement à deux doigts.
+orbit.enableZoom=true;
 renderer.domElement.addEventListener('wheel',e=>{
  if(!orbit.enabled || directDrag)return;
  const hit=models.length?findHit(e):null;
@@ -2015,6 +2040,10 @@ renderer.domElement.addEventListener('pointerdown',e=>{
    }
  }
  if(layFaceMode||sliceActive)return; // These modes are for previews/taps, never direct object drag.
+ if(e.pointerType==='touch'&&window.fjordPaint?.isActive?.()){
+   // The paint handler owns one-finger touches. OrbitControls receives two-finger navigation.
+   return;
+ }
  if(e.pointerType==='touch'&&!touchMoveEnabled){
    // Capture selection immediately; OrbitControls may move the camera before pointerup.
    if(touchTap && !measureMode && touchTap.mesh && !cutPreviewActive)pick(touchTap.mesh);
@@ -2077,6 +2106,11 @@ function finishDrag(e){
 }
 renderer.domElement.addEventListener('pointerup',e=>{
  if(window.fjordPaint?.onPointerUp?.(e))return;
+ if(e.pointerType==='touch'&&window.fjordPaint?.isActive?.()){
+  activeTouchIds.delete(e.pointerId);touchTap=null;
+  // Keep OrbitControls' pointerup so its internal pinch state resets.
+  return;
+ }
  if(window.fjordPaint?.isOrbiting?.())return;
  if(e.button===2&&e.pointerType==='mouse'){
    const gesture=rightPanStart;
@@ -2132,6 +2166,9 @@ renderer.domElement.addEventListener('pointerup',e=>{
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
  if(window.fjordPaint?.onPointerUp?.(e))return;
+ if(e.pointerType==='touch'&&window.fjordPaint?.isActive?.()){
+  activeTouchIds.delete(e.pointerId);touchTap=null;return;
+ }
  if(multiSelectionPointer===e.pointerId)multiSelectionPointer=null;
  if(rightPanStart&&rightPanStart.pointerId===e.pointerId){rightPanStart=null;hideContext()}
  if(e.pointerType==='touch'){activeTouchIds.delete(e.pointerId);touchTap=null}
