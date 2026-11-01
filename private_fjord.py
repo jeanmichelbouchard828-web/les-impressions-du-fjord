@@ -307,7 +307,8 @@ if(fjordAutoButton){
  panel.id='fjordAutoPrintDialog';
  panel.setAttribute('aria-label','Préparer l’impression X2D depuis l’Atelier');
  panel.innerHTML='<div class="fjord-dialog-head"><strong>🖨️ Ma X2D · Préparation automatique</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
- '<p class="fjord-auto-intro">Profils mémorisés par matériau et hauteur de couche. Une fois tes profils choisis, un clic tranche et ouvre l’aperçu des couches. Tu décides ensuite d’envoyer le 3MF. Le démarrage physique demande une confirmation distincte.</p>'+
+ '<p class="fjord-auto-intro">Pour ce premier essai, utilise les profils d’origine Bambu Studio. Tes profils CHATOU personnalisés restent disponibles dans les listes.</p>'+
+ '<p class="fjord-auto-stock-note">✓ X2D 0,4 mm · 0,20 mm Standard · Generic PETG (ou autre matériau sélectionné). Confirme ta plaque et ta bobine avant d’imprimer.</p>'+
  '<p id="fjordAutoState" role="status" aria-live="polite">Vérification de la configuration…</p>'+
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
@@ -739,14 +740,14 @@ if(fjordAutoButton){
      if(field==='process')detail=' · '+item.layer+' mm';
      select.add(new Option(item.name+detail,String(item.id)));
     }
+    // Prefer the genuine bundled Bambu preset for a diagnostic first print.
+    // Never erase existing CHATOU choices or the user's saved preferences.
     const saved=compatible.find(item=>String(item.id)===String(remembered[field]||''));
-    if(saved){select.value=String(saved.id);}
-    else{
-     rememberedAll=false;
-     // Auto-suggest only a single unambiguous compatible profile;
-     // never guess between two potentially different processes or spools.
-     if(compatible.length===1)select.value=String(compatible[0].id);
-    }
+    const official=compatible.find(item=>item.official===true);
+    const selected=(saved?.official?saved:null)||official||saved||
+      (compatible.length===1?compatible[0]:null);
+    if(selected)select.value=String(selected.id);
+    if(!saved||String(selected?.id)!==String(saved.id))rememberedAll=false;
    }
    if(!data.engine_ready)state.textContent='⚠ Bambu Studio indisponible sur Railway.';
    else if(!Object.keys(names).every(field=>form.elements.namedItem(field).options.length>1))
@@ -755,7 +756,9 @@ if(fjordAutoButton){
    else if(rememberedAll&&selectedValid()){
     state.textContent='✓ Profils déjà validés pour '+material()+' et '+layer()+
       ' mm. Préparation automatique…';
-   }else state.textContent='Choisis tes profils une seule fois : ils seront mémorisés après une préparation réussie.';
+   }else if(Object.keys(names).every(field=>form.elements.namedItem(field).selectedOptions[0]?.textContent.includes("Bambu d'origine")))
+    state.textContent='✓ Profils Bambu d’origine présélectionnés. Lance le tranchage du cube PETG pour les vérifier.';
+   else state.textContent='Choisis tes profils une seule fois : ils seront mémorisés après une préparation réussie.';
    updateReady();
    if(rememberedAll&&selectedValid()&&!already)await prepare();
   }catch(error){
@@ -800,6 +803,12 @@ if(fjordAutoButton){
 #fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
 #fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
 #fjordAutoPrintDialog{max-height:90dvh}
+#fjordAutoPrintDialog .fjord-auto-stock-note{
+ margin:6px 0 10px;border-left:3px solid #55cba6;
+ padding:8px 10px;background:#153b43;border-radius:7px;
+ color:#d9f4e9;font-size:12px;line-height:1.45
+}
+#fjordAutoPrintDialog.fjord-preview-active .fjord-auto-stock-note{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active .fjord-auto-intro{display:none!important}
 #fjordAutoPrintDialog.fjord-preview-active #fjordAutoState{margin:6px 0!important;font-size:12px}
 #fjordAutoPrintDialog.fjord-print-ready #fjordAutoForm,#fjordAutoPrintDialog.fjord-print-ready #fjordSliceReview{display:none!important}
