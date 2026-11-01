@@ -61,6 +61,7 @@ def preview_toolpath(sliced: bytes) -> dict:
     relative_xyz = False
     total_segments = 0
     scanned_lines = 0
+    sampled_segments = 0
     with zipfile.ZipFile(io.BytesIO(sliced)) as archive:
         info = archive.getinfo("Metadata/plate_1.gcode")
         if not 100 <= info.file_size <= MAX_GCODE:
@@ -122,8 +123,8 @@ def preview_toolpath(sliced: bytes) -> dict:
                         total_segments += 1
                         # Bounded deterministic sampling. Preserve first 800
                         # moves per layer to avoid fabricated motion.
-                        if len(layer["segments"]) < MAX_SEGMENTS_PER_LAYER and sum(
-                            len(v["segments"]) for v in layers.values()) < MAX_SEGMENTS_TOTAL:
+                        if len(layer["segments"]) < MAX_SEGMENTS_PER_LAYER and sampled_segments < MAX_SEGMENTS_TOTAL:
+                            sampled_segments += 1
                             layer["segments"].append([round(x,2),round(y,2),round(nx,2),round(ny,2)])
                 x,y,z,e = nx,ny,nz,ne
     if total_segments == 0:
@@ -131,7 +132,7 @@ def preview_toolpath(sliced: bytes) -> dict:
     ordered = [layers[k] for k in sorted(layers)]
     return {"source":"G-code réel du 3MF Bambu Studio","layers":ordered,
             "layer_count":len(ordered),"total_moves":total_segments,
-            "sampled":sum(len(layer["segments"]) for layer in ordered)<total_segments,
+            "sampled":sampled_segments<total_segments,
             "plate":1}
 
 
