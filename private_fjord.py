@@ -9,6 +9,7 @@ import json
 import math
 import re
 import secrets
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask import abort, flash, make_response, redirect, render_template_string, request, send_file, url_for
 from werkzeug.utils import secure_filename
@@ -49,7 +50,11 @@ def _number(field, default=0, low=0, high=100000):
 def _quote_military_discount(q):
     """Rabais militaire facultatif de 5 % sur les articles, hors livraison et taxes."""
     merchandise = round(float(q["unit_price"]) * int(q["quantity"]), 2)
-    return round(merchandise * 0.05, 2) if q.get("military_discount") else 0.0
+    if not q.get("military_discount"):
+        return 0.0
+    amount = (Decimal(str(merchandise)) * Decimal("0.05")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return float(amount)
 
 
 def _quote_amounts(q):
@@ -2457,8 +2462,12 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
           ip_hash TEXT, user_agent TEXT)""")
 
     def quote_snapshot(q):
-        fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes","military_discount")
-        return json.dumps({k:str(q[k]) if q[k] is not None else None for k in fields},ensure_ascii=False,sort_keys=True)
+        fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes")
+        snapshot={k:str(q[k]) if q[k] is not None else None for k in fields}
+        # Ne pas invalider les acceptations historiques sans rabais.
+        if q.get("military_discount"):
+            snapshot["military_discount"]="True"
+        return json.dumps(snapshot,ensure_ascii=False,sort_keys=True)
 
     @app.get("/apercu-soumission/<token>/image")
     def fjord_client_quote_image(token):
