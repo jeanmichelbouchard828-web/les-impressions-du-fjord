@@ -712,7 +712,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
   <button data-fjord-tool="rotate" title="Pivoter"><span>⟳</span><em>Pivoter</em></button>
   <button data-fjord-tool="duplicate" title="Multi / Dupliquer"><span>▢</span><em>Multi</em></button>
   <button data-fjord-tool="measure" title="Règle"><span>📏</span><em>Règle</em></button>
-<button type="button" id="fjordMeasureCircleQuick" title="Rayon et diamètre : 3 points du même contour circulaire"><span>◎</span><em>Rayon / Ø</em></button>
+<button type="button" id="fjordMeasureCircleQuick" title="Rayon et diamètre : cliquer le contour circulaire (Bambu Studio)"><span>◎</span><em>Rayon / Ø</em></button>
   <button data-fjord-tool="centerXY" title="Accroche et centrage"><span>⊕</span><em>Accroche et centrage</em></button>
   <button data-fjord-tool="cutZ" title="Vue de coupe"><span>⬡</span><em>Vue de coupe</em></button>
   <button data-fjord-tool="dropToBed" title="Niveau"><span>▱</span><em>Niveau</em></button>
@@ -843,7 +843,8 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 <label for="fjordMeasureMode">Type de mesure</label>
 <select id="fjordMeasureMode" aria-label="Type de mesure 3D">
 <option value="distance">📏 Distance · 2 points</option>
-<option value="circle">◎ Rayon + diamètre · 3 points</option>
+<option value="auto">◎ Rayon + diamètre · contour (1 clic)</option>
+<option value="circle">◎ Rayon + diamètre · 3 points (manuel)</option>
 </select>
 <p id="measureHint" class="tool-note" role="status" aria-live="polite">Sélectionne Mesurer, puis clique deux points sur la pièce.</p>
 <div id="fjordMeasureResults" class="fjord-measure-result" hidden aria-live="polite">
@@ -854,7 +855,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 </div>
 <p id="fjordMeasureDistanceValue" hidden></p>
 </div>
-<p class="fjord-measure-disclaimer">Rayon et diamètre <strong>estimés avec trois points du même contour circulaire</strong>. Les STL sont faits de facettes : vérifie les cotes critiques au pied à coulisse.</p>
+<p class="fjord-measure-disclaimer">Contour plan détecté en un clic, comme dans Bambu Studio. Si nécessaire, utilise le mode manuel à 3 points. Les mesures de STL restent approximatives : vérifie les cotes critiques au pied à coulisse.</p>
 <button id="fjordMeasureClear" type="button" title="Effacer les repères de mesure">✕ Effacer la mesure</button>
 </div><div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
 </div></section>
@@ -2096,9 +2097,9 @@ renderer.domElement.addEventListener('pointerup',e=>{
    if(layFaceMode){
     if(tap.faceHit?.object===selected)layOnClickedFace(tap.faceHit);
     else {exitLayFaceMode();pick(null);}
-   }else if(measureMode && tap.point)measurePoint(tap.point,tap.mesh);
+   }else if(measureMode && tap.point)measurePoint(tap.point,tap.mesh,tap.faceHit);
    else if(tap.mesh)pick(tap.mesh);
-   else if(!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
+   else if(!touchMoveEnabled){if(measureMode)setMeasureHint();else{window.fjordPaint?.closeOnBlank?.();pick(null);}}
    // A tap on the empty build plate must not cancel the active modelling tool.
   }
   return;
@@ -2112,8 +2113,8 @@ renderer.domElement.addEventListener('pointerup',e=>{
   return;
  }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
- const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point,hit.object);else pick(hit.object)}
- else if(!cutPreviewActive&&!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
+ const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point,hit.object,hit);else pick(hit.object)}
+ else if(!cutPreviewActive&&!touchMoveEnabled){if(measureMode)setMeasureHint();else{window.fjordPaint?.closeOnBlank?.();pick(null);}}
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
  if(window.fjordPaint?.onPointerUp?.(e))return;
@@ -3217,11 +3218,19 @@ function clearMeasureLine(){
  measureCircleValues.hidden=true;$('fjordMeasureDistanceValue').hidden=true;
 }
 function setMeasureHint(){
- const circle=measureModeSelect.value==='circle';
+ const selectedMode=measureModeSelect.value;
+ const circle=selectedMode==='circle';
+ const quick=$('fjordMeasureCircleQuick');
+ quick?.classList.toggle('active',measureMode&&selectedMode==='auto');
+ quick?.setAttribute('aria-pressed',String(measureMode&&selectedMode==='auto'));
  if(!measureMode){
   measureHint(measureLocalized(
    'Clique sur « Mesurer » ou sur l’outil ◎ Rayon / Ø pour commencer.',
    'Click Measure or ◎ Radius / Ø to begin.'));
+ }else if(selectedMode==='auto'){
+  measureHint(measureLocalized(
+   'Clique sur le bord du cercle ou du trou (surface plane). Un seul clic suffit. Sinon, choisis « 3 points (manuel) ». Clic droit pour tourner la vue.',
+   'Click the circle or hole rim (flat face). One click is enough. Otherwise use manual 3 points. Right-drag to orbit.'));
  }else if(circle){
   measureHint(measureLocalized(
    'Sélectionne 3 points espacés sur le même contour circulaire (trou ou cylindre). Clique droit pour tourner la pièce.',
@@ -3231,9 +3240,47 @@ function setMeasureHint(){
                               'Click 2 points on the part to measure the distance.'));
  }
 }
-function measurePoint(point,mesh=null){
+function measurePoint(point,mesh=null,hit=null){
  if(!measureMode||!point)return;
- const circle=measureModeSelect.value==='circle',needed=circle?3:2;
+ const mode=measureModeSelect.value,automatic=mode==='auto';
+ const circle=mode==='circle'||automatic,needed=automatic?1:circle?3:2;
+ let autoResult=null,autoCenter=null,autoNormal=null;
+ if(automatic){
+  // An actual planar circular rim is required; never guess the radius from
+  // an arbitrary face, or claim an ellipse is still a circle after scaling.
+  clearMeasureLine();
+  if(!mesh||!Number.isInteger(hit?.faceIndex)){
+   measureHint(measureLocalized('Clique sur le contour de la pièce.','Click a rim on the part.'));return;
+  }
+  mesh.updateMatrixWorld(true);
+  const localHit=mesh.worldToLocal(point.clone());
+  const found=window.fjordDetectCircularEdge?.(mesh.geometry,hit.faceIndex,localHit);
+  if(!found){
+   measureHint(measureLocalized(
+     'Aucun contour circulaire plan reconnu ici. Clique plus près du bord ou choisis « 3 points (manuel) ».',
+     'No flat circular rim detected. Click closer to the edge or choose manual 3 points.'));
+   return;
+  }
+  const localCenter=new THREE.Vector3(...found.center);
+  const localNormal=new THREE.Vector3(...found.normal);
+  const u=new THREE.Vector3(...found.point).sub(localCenter).normalize();
+  const v=new THREE.Vector3().crossVectors(localNormal,u).normalize();
+  const center=localCenter.clone().applyMatrix4(mesh.matrixWorld);
+  const worldU=localCenter.clone().addScaledVector(u,found.radius).applyMatrix4(mesh.matrixWorld);
+  const worldV=localCenter.clone().addScaledVector(v,found.radius).applyMatrix4(mesh.matrixWorld);
+  const ra=center.distanceTo(worldU),rb=center.distanceTo(worldV);
+  if(!Number.isFinite(ra)||!Number.isFinite(rb)||Math.min(ra,rb)<.01||
+     Math.abs(ra-rb)/Math.max(ra,rb)>.025){
+   measureHint(measureLocalized(
+    'Le contour est étiré en ellipse. Vérifie l’échelle ou utilise le mode manuel.',
+    'The rim is stretched into an ellipse. Check the scale or use manual mode.'));
+   return;
+  }
+  autoResult={radius:(ra+rb)/2,diameter:ra+rb};
+  autoCenter=center;
+  autoNormal=new THREE.Vector3().crossVectors(worldU.clone().sub(center),worldV.clone().sub(center)).normalize();
+  point=worldU;
+ }
  // After completing a measurement the next click starts a fresh one.
  if(measurePickedPoints.length===needed)clearMeasureLine();
  if(circle&&measureObject&&mesh&&measureObject!==mesh){
@@ -3262,7 +3309,7 @@ function measurePoint(point,mesh=null){
   setMeasureHint();return;
  }
  const args=measurePickedPoints.map(v=>[v.x,v.y,v.z]);
- const result=window.fjordFitCircle3D?.(...args);
+ const result=autoResult||window.fjordFitCircle3D?.(...args);
  if(!result){
   clearMeasureLine();
   measureHint(measureLocalized(
@@ -3270,8 +3317,8 @@ function measurePoint(point,mesh=null){
    'Cannot fit a reliable circle: choose three well-separated points on its rim, not nearly collinear.'));
   return;
  }
- const center=new THREE.Vector3(...result.center);
- const normal=new THREE.Vector3(...result.normal);
+ const center=autoCenter||new THREE.Vector3(...result.center);
+ const normal=autoNormal||new THREE.Vector3(...result.normal);
  const r=result.radius;
  const u=measurePickedPoints[0].clone().sub(center).normalize();
  const v=new THREE.Vector3().crossVectors(normal,u).normalize();
@@ -3287,7 +3334,9 @@ function measurePoint(point,mesh=null){
  measureOverlayLine([center,measurePickedPoints[0]],0xffae38);
  measureOverlayLine([center.clone().addScaledVector(u,-r),center.clone().addScaledVector(u,r)],0x79ecb6);
  measureMarker(center,'C');
- $('fjordMeasureResultHeading').textContent=measureLocalized('Cercle estimé (3 points)','Fitted circle (3 points)');
+ $('fjordMeasureResultHeading').textContent=automatic
+   ?measureLocalized('Contour circulaire détecté (1 clic)','Circular rim detected (one click)')
+   :measureLocalized('Cercle estimé (3 points)','Fitted circle (3 points)');
  $('fjordMeasureRadius').textContent='≈ '+r.toFixed(2)+' mm';
  $('fjordMeasureDiameter').textContent='≈ '+result.diameter.toFixed(2)+' mm';
  measureCircleValues.hidden=false;
@@ -3324,7 +3373,7 @@ $('fjordMeasureClear').addEventListener('click',()=>{
  setMeasureHint();
 });
 $('fjordMeasureCircleQuick').addEventListener('click',()=>{
- measureModeSelect.value='circle';
+ measureModeSelect.value='auto';
  clearMeasureLine();
  if(!measureMode)$('measure').click();
  else setMeasureHint();
