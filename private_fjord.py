@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import re
 import secrets
 from urllib.parse import urlsplit
@@ -2897,7 +2898,8 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         square_url=_active_square_url(q) if q else None
         payment_provider=_payment_link_provider(square_url)
         recipient=setting["value"] if setting and setting["value"] else ""
-        if not q or not (square_url or recipient):
+        stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"))
+        if not q or not (square_url or recipient or stripe_ready):
             abort(404)
         subtotal,gst,qst,total=_quote_amounts(q)
         reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
@@ -2981,7 +2983,11 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
       <div class="fj-checkout-row fj-checkout-total"><dt>Montant CAD</dt><dd>{{amount}}</dd></div>
     </dl>
     <h2>Méthode de paiement</h2>
-    {% if square_url %}
+    {% if stripe_ready %}
+      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Paiement sécurisé Stripe</div>
+      <a class="fj-checkout-action" href="{{url_for('fjord_stripe_checkout',token=token)}}">Payer maintenant par carte ↗</a>
+      <p class="fj-checkout-explain">Le montant exact de cette soumission est calculé automatiquement. Le statut Payée est confirmé par Stripe.</p>
+    {% elif square_url %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — {{payment_provider}}</div>
       <a class="fj-checkout-action" href="{{square_url}}" target="_blank" rel="noopener noreferrer">Payer maintenant en ligne ↗</a>
       <p class="fj-checkout-explain">Paiement sur la caisse officielle de {{payment_provider}}. Vérifiez le montant avant de confirmer.</p>
@@ -3037,7 +3043,7 @@ function fjordCopyAll(button){
 }
 </script>""",amount=_money(total),reference=reference,
     quote_description=q.get("title") or "Impression 3D personnalisée",
-    recipient=recipient,square_url=square_url,payment_provider=payment_provider))
+    recipient=recipient,square_url=square_url,payment_provider=payment_provider,stripe_ready=stripe_ready,token=token))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
@@ -3085,7 +3091,9 @@ function fjordCopyAll(button){
         accept_url=url_for("fjord_accept_quote",token=token,_external=True,_scheme="https") if token else None
         active_square_url=_active_square_url(q)
         interac_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if token and interac_setting and interac_setting["value"] else None
-        payment_url=active_square_url or interac_url
+        stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"))
+        stripe_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if stripe_ready and token else None
+        payment_url=stripe_url or active_square_url or interac_url
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
