@@ -75,7 +75,7 @@ def _square_checkout_url(value):
     try:
         parts=urlsplit(value)
         if (parts.scheme!="https" or parts.hostname not in
-                ("square.link","checkout.square.site","squareup.com","www.squareup.com")
+                ("square.link","checkout.square.site")
                 or not parts.path.strip('/') or parts.username or parts.password or
                 parts.port not in (None,443) or parts.fragment):
             return None
