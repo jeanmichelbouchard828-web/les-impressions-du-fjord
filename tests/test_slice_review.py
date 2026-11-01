@@ -97,14 +97,18 @@ class ReviewTests(unittest.TestCase):
             self.assertEqual(denied.status_code,422)
             upload.assert_not_called()
             with client.session_transaction() as s:
-                s["fjord_slice_review"]["at"]-=fjord_slice_review.TTL_SECONDS+1
+                stage=dict(s["fjord_slice_review"])
+                stage["at"]-=fjord_slice_review.TTL_SECONDS+1
+                s["fjord_slice_review"]=stage
             expired=client.post("/admin/atelier-imprimer/transmettre",
                   data={"stage":token},headers={"Accept":"application/json"})
             self.assertEqual(expired.status_code,422)
             upload.assert_not_called()
             with client.session_transaction() as s:
                 import time
-                s["fjord_slice_review"]["at"]=time.time()
+                stage=dict(s["fjord_slice_review"])
+                stage["at"]=time.time()
+                s["fjord_slice_review"]=stage
             success=client.post("/admin/atelier-imprimer/transmettre",
                   data={"stage":token},headers={"Accept":"application/json"})
             self.assertEqual(success.status_code,200,success.get_data(as_text=True))
