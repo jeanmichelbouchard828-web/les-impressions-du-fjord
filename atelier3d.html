@@ -553,6 +553,31 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  border-radius:9px!important;font-weight:750!important;box-shadow:0 0 0 1px #43c8f33b}
 .fjord-paint-entry:hover,.fjord-paint-entry.active{background:#07577e!important}
 .fjord-paint-launch{width:100%;min-height:43px;margin:8px 0;font-size:15px;font-weight:700}
+
+/* Menu clic droit du plateau : inspiré du format compact des trancheurs 3D. */
+.context-menu{min-width:255px;max-width:min(310px,92vw);padding:8px 9px;border-radius:7px;
+ background:#292929!important;border:1px solid #484848!important;color:#f4f4f4!important;
+ box-shadow:0 12px 32px #000a;scrollbar-width:thin}
+.context-menu button{font-size:14px;line-height:1.35;min-height:33px;padding:7px 12px;
+ background:transparent!important;color:#f4f4f4!important;border:0!important;border-radius:4px}
+.context-menu button:hover:not(:disabled),.context-menu button:focus-visible{
+ background:#393c42!important;outline:0!important}
+.context-menu button:disabled{color:#797979!important;cursor:default;opacity:1}
+.context-menu .context-heading{font-size:11px;color:#adb9c4;padding:7px 12px 6px;
+ border-bottom:1px solid #424242}
+.context-menu .fjord-menu-separator{height:1px;background:#474747;margin:8px 5px}
+.context-menu .fjord-primitive-submenu{position:relative;color:#f4f4f4}
+.context-menu .fjord-primitive-submenu summary{display:flex;align-items:center;gap:9px;
+ cursor:pointer;padding:7px 12px;min-height:34px;border-radius:4px;list-style:none;font-size:14px}
+.context-menu .fjord-primitive-submenu summary::-webkit-details-marker{display:none}
+.context-menu .fjord-primitive-submenu summary:hover,
+.context-menu .fjord-primitive-submenu[open]>summary{background:#393c42}
+.context-menu .fjord-menu-add-icon{display:inline-flex;position:relative;font-size:19px;line-height:1;color:#d8e4e7}
+.context-menu .fjord-menu-add-icon b{position:absolute;right:-6px;top:-4px;color:#31dd8c;font-size:14px}
+.context-menu .fjord-menu-subarrow{margin-left:auto;font-size:23px;line-height:15px}
+.context-menu .fjord-primitive-list{background:#22252b;border-left:2px solid #41a9c6;margin:3px 4px 4px 13px;padding:2px 3px}
+.context-menu .fjord-primitive-list button{padding-left:14px}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -900,10 +925,30 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="common-action" role="menuitem" data-context-action="import">⬆ Importer STL / 3MF</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="sliceTop">▥ Trancher</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="estimateToggle">💰 Estimateur</button>
-<div class="context-heading blank-action" data-i18n="contextCreate">Créer une pièce</div>
-<button type="button" class="blank-action" role="menuitem" data-context-action="shape-cube" data-i18n="cube">Cube</button>
-<button type="button" class="blank-action" role="menuitem" data-context-action="shape-cylinder" data-i18n="cylinder">Cylindre</button>
-<button type="button" class="blank-action" role="menuitem" data-context-action="shape-sphere" data-i18n="sphere">Sphère</button>
+<div class="fjord-plate-context plate-action" role="group" aria-label="Actions du plateau">
+<button type="button" role="menuitem" data-context-action="selectAll">Tout sélectionner</button>
+<button type="button" role="menuitem" data-context-action="deleteAll">Tout supprimer</button>
+<button type="button" role="menuitem" data-context-action="arrangeAll">Arranger</button>
+<button type="button" role="menuitem" disabled title="Orientation automatique : sera disponible ultérieurement">Rotation automatique</button>
+<button type="button" role="menuitem" data-context-action="expandAll">Tout développer</button>
+<button type="button" role="menuitem" data-context-action="collapseAll">Tout réduire</button>
+<div class="fjord-menu-separator" role="separator"></div>
+<button type="button" role="menuitem" data-context-action="deletePlate">Supprimer le plateau</button>
+<button type="button" role="menuitem" disabled title="Le déplacement entre plateaux n'est pas encore disponible">Déplacer le plateau</button>
+<div class="fjord-menu-separator" role="separator"></div>
+<details class="fjord-primitive-submenu">
+<summary role="menuitem" aria-label="Ajouter une forme primitive"><span class="fjord-menu-add-icon">▢<b>+</b></span> Ajouter une forme <span class="fjord-menu-subarrow">›</span></summary>
+<div class="fjord-primitive-list" aria-label="Formes primitives">
+<button type="button" role="menuitem" data-context-action="shape-cube">Cube</button>
+<button type="button" role="menuitem" data-context-action="shape-cylinder">Cylindre</button>
+<button type="button" role="menuitem" data-context-action="shape-sphere">Sphère</button>
+<button type="button" role="menuitem" data-context-action="shape-cone">Cône</button>
+<button type="button" role="menuitem" data-context-action="shape-torus">Tore</button>
+</div></details>
+<button type="button" role="menuitem" disabled title="Verrouillage du plateau en développement">Verrouiller</button>
+<button type="button" role="menuitem" data-context-action="renamePlate">Renommer le plateau</button>
+<button type="button" role="menuitem" disabled title="Les étiquettes par couche seront disponibles avec le visualiseur de tranchage">Afficher les étiquettes par couche</button>
+</div>
 </div></div>
 <aside class="sidebar right" id="propertiesPanel"><div data-tool-panel="properties"><h2 data-i18n="properties">Propriétés de la pièce</h2>
 <div class="field"><label for="name" data-i18n="name">Nom de la pièce</label><input id="name" placeholder="Aucune pièce sélectionnée"></div>
@@ -1529,8 +1574,7 @@ fjordBedTabs?.addEventListener('contextmenu',event=>{
  fjordBedContext.style.left=Math.min(event.clientX,window.innerWidth-205)+'px';
  fjordBedContext.style.top=Math.min(event.clientY,window.innerHeight-65)+'px';
 });
-fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>{
- const index=fjordContextBed;fjordHideBedContext();
+function fjordDeleteBed(index){
  if(index<0||index>=fjordBeds.length)return;
  if(fjordBeds.length===1){alert('Il faut conserver au moins un plateau.');return}
  const label='Plateau '+(index+1);
@@ -1545,6 +1589,9 @@ fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>
  const next=index===fjordActiveBed?Math.min(index,fjordBeds.length-1):(fjordActiveBed>index?fjordActiveBed-1:fjordActiveBed);
  fjordActiveBed=-1;
  fjordSelectBed(next);
+}
+fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>{
+ const index=fjordContextBed;fjordHideBedContext();fjordDeleteBed(index);
 });
 document.addEventListener('pointerdown',event=>{if(!fjordBedContext.hidden&&!fjordBedContext.contains(event.target))fjordHideBedContext()});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')fjordHideBedContext()});
@@ -1756,8 +1803,15 @@ function showContextMenu(e){
  if(mergeAction)mergeAction.disabled=selectedSet.size<2;
  const splitAction=contextMenu.querySelector('[data-context-action="splitMerged"]');
  if(splitAction)splitAction.hidden=!selected?.userData.mergedParts;
- contextMenu.querySelectorAll('.blank-action').forEach(el=>el.hidden=!!hit);
- contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
+ contextMenu.querySelectorAll('.blank-action,.plate-action').forEach(el=>el.hidden=!!hit);
+ contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=!hit);
+ const deletePlate=contextMenu.querySelector('[data-context-action="deletePlate"]');
+ if(deletePlate)deletePlate.disabled=fjordBeds.length<=1;
+ const all=contextMenu.querySelector('[data-context-action="selectAll"]');
+ if(all)all.disabled=!models.length;
+ const clear=contextMenu.querySelector('[data-context-action="deleteAll"]');
+ if(clear)clear.disabled=!models.length;
+ contextMenu.querySelector('.fjord-primitive-submenu')?.removeAttribute('open');
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
  // Offset the pop-up from the cursor so clicking the same point dismisses it.
@@ -1935,6 +1989,29 @@ renderer.domElement.addEventListener('pointercancel',e=>{
 },true);
 contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventListener('click',()=>{
  const action=btn.dataset.contextAction;hideContext();
+ if(action==='selectAll'){
+  if(!models.length)return;
+  for(const m of selectedSet)removeSelectionTint(m);
+  selectedSet=new Set(models);selected=models[models.length-1];
+  for(const m of selectedSet)addSelectionTint(m);
+  deactivateGizmo();sync();return;
+ }
+ if(action==='deleteAll'){
+  if(!models.length)return;
+  if(!confirm('Supprimer toutes les pièces du plateau ? Cette opération peut être annulée avec Annuler.'))return;
+  remember();restore({version:1,objects:[]});return;
+ }
+ if(action==='expandAll'||action==='collapseAll'){
+  fjordSubpartsExpanded=action==='expandAll';renderSceneList();return;
+ }
+ if(action==='renamePlate'){
+  const tab=fjordBedTabs?.querySelector('[data-bed-index="'+fjordActiveBed+'"]');
+  if(!tab)return;
+  const name=prompt('Nom du plateau :',tab.textContent.replace(/^⬡\s*/,''));if(name===null)return;
+  const cleaned=name.trim().slice(0,60);if(cleaned)tab.textContent='⬡ '+cleaned;
+  return;
+ }
+ if(action==='deletePlate'){fjordDeleteBed(fjordActiveBed);return;}
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
  if(action==='paint'){$('fjordPaintToggle').click();return;}
@@ -2709,6 +2786,7 @@ function snapPartToBed(m){
  m.updateMatrixWorld(true);
  return true;
 }
+let fjordSubpartsExpanded=true;
 function renderSceneList(){
  const list=$('sceneList');if(!list)return;
  list.replaceChildren();
@@ -2738,7 +2816,8 @@ function renderSceneList(){
   });
   wrap.append(checkbox,b);
   if(m.userData.mergedParts){
-   const sub=document.createElement('div');
+   const sub=document.createElement('div');sub.className='fjord-model-subparts';
+   sub.hidden=!fjordSubpartsExpanded;
    sub.style.cssText='width:100%;margin-left:26px;font-size:12px;opacity:.85';
    for(const p of m.userData.mergedParts){
     const part=document.createElement('div');part.textContent='↳ '+p.name;
