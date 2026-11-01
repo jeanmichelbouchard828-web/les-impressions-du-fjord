@@ -85,6 +85,7 @@ def run():
                                                              "layer_height": 0.2})),
             )
             page.goto("https://fjord.test/admin/soumissions-pro", wait_until="load")
+            page.locator(".fj-top-panel").first.locator("summary").click()
             assert page.locator("#fjPickLibrary").is_visible()
             assert page.locator("#fjLibraryDialog").is_hidden()
             page.locator("#fjPickLibrary").click()
