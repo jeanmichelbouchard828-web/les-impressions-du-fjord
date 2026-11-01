@@ -331,15 +331,31 @@ if(fjordAutoButton){
  '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
  '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
  '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
- '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue du dessus du G-code réel. Glisse pour déplacer et pince pour zoomer."></canvas>'+
+ '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue pivotable en 3D du G-code tranché, un doigt pour tourner et deux doigts pour zoomer ou déplacer."></canvas>'+
+ '<button type="button" class="fjord-review-mode" id="fjordReview3DToggle" aria-pressed="true">◈ 3D</button>'+
  '<div class="fjord-review-zoom" role="group" aria-label="Zoom de l’aperçu"><button type="button" id="fjordReviewZoomOut" aria-label="Dézoomer">−</button><button type="button" id="fjordReviewFit" aria-label="Recentrer et ajuster le zoom">⌗</button><button type="button" id="fjordReviewZoomIn" aria-label="Agrandir">+</button></div></div>'+
- '<p class="fjord-review-gesture">Glisse pour déplacer · pince à deux doigts pour zoomer · vue du dessus.</p>'+
+ '<p class="fjord-review-gesture" id="fjordReviewGesture">Un doigt : pivoter · deux doigts : zoomer et déplacer · bouton 3D/2D.</p>'+
  '<label for="fjordReviewLayer">Couche <strong id="fjordReviewLabel">—</strong></label>'+
  '<div class="fjord-review-layerbar"><button type="button" id="fjordReviewPrevious" aria-label="Couche précédente">◀</button><input id="fjordReviewLayer" type="range" min="0" max="0" value="0" step="1"><button type="button" id="fjordReviewNext" aria-label="Couche suivante">▶</button></div>'+
  '<label class="fjord-auto-remember"><input id="fjordReviewAccumulated" type="checkbox"> Afficher les couches précédentes</label>'+
  '<p id="fjordReviewSummary" role="status"></p>'+
+ '<div class="fjord-review-facts" aria-label="Résultats réels du tranchage">'+
+ '<div><span>Durée Bambu</span><strong id="fjordReviewTime">—</strong></div>'+
+ '<div><span>Filament Bambu</span><strong id="fjordReviewWeight">—</strong></div>'+
+ '<div><span>Nombre de couches</span><strong id="fjordReviewCount">—</strong></div>'+
+ '</div>'+
+ '<div class="fjord-review-price"><span>Prix estimé avant taxes <small>(CAD)</small></span><strong id="fjordReviewPrice">—</strong>'+
+ '<p id="fjordReviewPriceNote">Calcul à partir des valeurs du véritable 3MF Bambu Studio et des tarifs configurés.</p></div>'+
+ '<details class="fjord-review-pricing"><summary>⚙️ Ajuster le calcul du prix</summary>'+
+ '<div class="fjord-review-rategrid">'+
+ '<label>Filament ($/kg)<input type="number" id="fjordReviewKgRate" min="0" max="1000" step=".5" value="32"></label>'+
+ '<label>Machine ($/h)<input type="number" id="fjordReviewHourRate" min="0" max="1000" step=".5" value="3"></label>'+
+ '<label>Préparation ($)<input type="number" id="fjordReviewSetupRate" min="0" max="10000" step=".5" value="8"></label>'+
+ '<label>Majoration (%)<input type="number" id="fjordReviewMarkup" min="0" max="500" step="1" value="25"></label>'+
+ '</div><p id="fjordReviewBreakdown" aria-live="polite"></p></details>'+
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
  '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
+ '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Bambu Studio)</button>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
  '<section id="fjordStartAtelier" hidden aria-label="Imprimer directement depuis l’Atelier">'+
  '<h3>🖨️ Mon 3MF est sur la X2D</h3><p id="fjordStartFile"></p>'+
