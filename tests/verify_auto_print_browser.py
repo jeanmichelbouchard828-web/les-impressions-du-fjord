@@ -317,6 +317,51 @@ try:
   assert factory.locator('[name=filament]').input_value()=="stock:filament:PETG"
   assert factory.locator('[name=filament] option').count()==3, "The original and CHATOU must both remain"
   assert factory.locator("#fjordAutoSubmit").is_enabled()
+  # Regression for a simple piece that merely entered Paint mode: the mode
+  # creates vertexColors + an empty face map, which is NOT a multicolor piece.
+  sent_mono=[]
+  def simulated_failure(route):
+   sent_mono.append(route.request.post_data_buffer)
+   route.fulfill(status=422,content_type="application/json",
+     body=json.dumps({"ok":False,"error":"Erreur simulée, aucun envoi"}))
+  factory.route("**/admin/atelier-imprimer/preparer",simulated_failure)
+  factory.locator("#fjordAutoClose").evaluate("el=>el.click()")
+  project={"version":1,"objects":[{
+    "type":"cube","name":"Cube PETG essai","position":[0,0,12.5],
+    "rotation":[0,0,0],"scale":[1,1,1],"color":0x5bc6eb,
+    "paintBase":0x5bc6eb,"paintFaces":{}
+  }]}
+  def import_project(doc):
+   factory.locator("#projectFile").set_input_files([])
+   factory.locator("#projectFile").set_input_files({
+     "name":"fjord_color_test.json","mimeType":"application/json",
+     "buffer":json.dumps(doc).encode("utf-8")})
+   factory.wait_for_function("document.querySelector('#name').value==='Cube PETG essai'")
+  import_project(project)
+  factory.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
+  factory.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='stock:machine:x2d04'")
+  assert factory.locator("#fjordMonoApproval").is_hidden(), \
+    "An untouched paint buffer must not block a monochrome cube"
+  factory.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  factory.wait_for_function("document.querySelector('#fjordAutoState').textContent.includes('Erreur simulée')",timeout=15000)
+  assert len(sent_mono)==1,"Untouched paint mode must allow slicing"
+
+  # Actually colored face cannot be silently stripped. Make the explicit
+  # single-color consent visible, then allow a *staged*, not physical, attempt.
+  factory.locator("#fjordAutoClose").evaluate("el=>el.click()")
+  project["objects"][0]["paintFaces"]={"0":"#E73B3B"}
+  import_project(project)
+  factory.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
+  factory.wait_for_function("document.querySelector('#fjordMonoApproval')?.hidden===false")
+  assert factory.locator("#fjordMonoConsent").is_visible()
+  assert not factory.locator("#fjordMonoConsent").is_checked()
+  factory.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  assert len(sent_mono)==1,"A multicolor model cannot auto-strip AMS colors"
+  assert "coche" in factory.locator("#fjordAutoState").inner_text()
+  factory.locator("#fjordMonoConsent").evaluate("el=>el.click()")
+  factory.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
+  factory.wait_for_function("document.querySelector('#fjordAutoState').textContent.includes('Erreur simulée')",timeout=15000)
+  assert len(sent_mono)==2,"Consent should authorize a single-color slicing attempt only"
   factory.close()
   browser.close()
  print("OK: verified toolpath review before explicit upload; remembered profiles still require approval")
