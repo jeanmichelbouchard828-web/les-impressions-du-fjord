@@ -63,6 +63,23 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn("importModelFile", edited)
         self.assertNotIn("Importer de ma bibliothèque", raw)
 
+    def test_admin_shortcut_is_visible_only_in_private_atelier(self):
+        # The admin-only transformer injects a permanent link outside the
+        # collapsible project menu, visible on both desktop and mobile.
+        raw = ('<html><head></head><body><header><div class="top-preferences">'
+               '<select id="language"></select></div></header>'
+               '<div class="top-actions"><button id="export" data-i18n="export">'
+               '</button></div>'
+               '<script type="module">/* End parametric generators */</script>'
+               '</body></html>')
+        edited = admin_studio(raw, "token")
+        self.assertEqual(edited.count('id="fjordAdminShortcut"'), 1)
+        self.assertIn('id="fjordAdminShortcut" href="/admin"', edited)
+        self.assertLess(edited.index('id="fjordAdminShortcut"'),
+                        edited.index('id="language"'))
+        self.assertNotIn('fjordAdminShortcut', raw)
+        self.assertIn('Retour au tableau de bord administrateur', edited)
+
     def test_library_page_links_to_atelier_for_3mf(self):
         class ModelConnection(DummyConnection):
             def fetchall(self):
