@@ -3195,8 +3195,14 @@ function fjordCopyAll(button){
         if q["apply_taxes"]:
             y=totalrow("TPS (5 %)",gst,y)
             y=totalrow("TVQ (9,975 %)",qst,y)
-        pdf.setStrokeColor(cyan);pdf.line(38,y+12,w-39,y+12)
-        y=totalrow("TOTAL CAD",total,y-8,True)
+        pdf.setStrokeColor(cyan);pdf.setLineWidth(1.5);pdf.line(38,y+12,w-39,y+12)
+        pdf.setFillColor(colors.HexColor("#E6F6FF"))
+        pdf.roundRect(38,y-36,w-77,51,10,stroke=0,fill=1)
+        pdf.setFillColor(navy);pdf.setFont("Helvetica-Bold",12)
+        pdf.drawString(52,y-15,"TOTAL CAD")
+        pdf.setFillColor(colors.HexColor("#056AAB"));pdf.setFont("Helvetica-Bold",20)
+        pdf.drawRightString(w-52,y-18,_money(total).encode("cp1252","replace").decode("cp1252"))
+        y-=60
         if payment_url:
             # Lien web vérifiable : aucune demande Interac n'est envoyée par le site.
             if y<200:
