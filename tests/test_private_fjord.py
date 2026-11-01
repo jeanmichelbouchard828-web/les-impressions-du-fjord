@@ -262,6 +262,7 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b"FJ-00042", page_result.data)
         self.assertIn(b"51,74", page_result.data)  # 45 $ + 5 % TPS + 9,975 % TVQ
         self.assertNotIn(b"Client de test", page_result.data)
+        self.assertNotIn(b"Accepter officiellement ma soumission", page_result.data)
         self.assertEqual(app.test_client().get("/payer/short").status_code,404)
 
     def test_public_payment_link_disabled_without_interac_address(self):
@@ -335,6 +336,38 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.mimetype, "application/pdf")
         self.assertTrue(r.data.startswith(b"%PDF"))
+
+    def test_interac_pdf_link_is_not_a_3d_viewer_link(self):
+        """Client PDF: image on the quote, distinct links for payment and acceptance."""
+        preview_io = io.BytesIO()
+        Image.new("RGB", (100, 80), (80, 160, 220)).save(preview_io, "PNG")
+        preview = preview_io.getvalue()
+        class QuoteWithInterac(DummyConnection):
+            def fetchone(self):
+                if "SELECT * FROM private_quotes" in self.query:
+                    return {"id": 9, "created": datetime.datetime(2026, 11, 1),
+                            "customer": "Client test", "email": "", "phone": "",
+                            "title": "Pièce de démonstration", "description": "",
+                            "material": "PETG", "quantity": 1, "unit_price": 20.,
+                            "shipping": 0., "apply_taxes": False,
+                            "model_id": 4, "payment_token": "a" * 43,
+                            "preview": preview, "atelier_preview": True}
+                if "fjord_interac_email" in self.query:
+                    return {"value": "virements@example.ca"}
+                return None
+        app = Flask(__name__)
+        app.secret_key = "pdf-payment-test"
+        register_private_fjord(app, QuoteWithInterac, lambda f:f, lambda:None,
+                               lambda:'<input name="csrf" value="test">',
+                               lambda:"test",
+                               lambda title,body,**kwargs:render_template_string(body,**kwargs))
+        pdf = app.test_client().get("/admin/soumissions-pro/9/pdf")
+        self.assertEqual(pdf.status_code, 200)
+        self.assertIn(b"/payer/", pdf.data)
+        self.assertIn(b"/accepter-soumission/", pdf.data)
+        self.assertNotIn(b"#fjordQuote3D", pdf.data)
+        # The model's image must stay directly embedded inside the PDF.
+        self.assertIn(b"/Subtype /Image", pdf.data)
 
     def test_models_missing_returns_404(self):
         r = self.client.get("/admin/modeles/fichier/999")
