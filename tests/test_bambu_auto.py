@@ -75,8 +75,9 @@ class AutoTests(unittest.TestCase):
             self.assertEqual(args[args.index("--slice")+1],"0")
             self.assertTrue(args[-1].endswith(".stl"))
             self.assertEqual(args[args.index("--arrange")+1],"1")
-            self.assertIn("--curr-bed-type",args)
-            self.assertEqual(args[args.index("--curr-bed-type")+1],"Textured PEI Plate")
+            self.assertIn("--curr-bed-type=Textured PEI Plate",args)
+            self.assertNotIn("--curr-bed-type",args)
+            self.assertNotIn("Textured PEI Plate",args)
             machine_path = Path(args[args.index("--load-settings")+1].split(";")[0])
             process_path = Path(args[args.index("--load-settings")+1].split(";")[1])
             filament_path = Path(args[args.index("--load-filaments")+1])
@@ -98,6 +99,11 @@ class AutoTests(unittest.TestCase):
                 self.assertEqual(verify_sliced_bambu_3mf(result),[1])
 
     def test_unknown_bed_type_rejected_before_slicer_or_printer(self):
+        from bambu_auto import BED_TYPES
+        self.assertIn("Supertack Plate", BED_TYPES)
+        self.assertIn("High Temp Plate", BED_TYPES)
+        self.assertNotIn("Cool Plate SuperTack", BED_TYPES)
+        self.assertNotIn("Smooth PEI Plate / High Temp Plate", BED_TYPES)
         with patch("bambu_auto.subprocess.run") as called:
             with self.assertRaisesRegex(AutoSliceError, "plateau X2D inconnu"):
                 slice_x2d(stl(), PRESETS, verify_sliced_bambu_3mf, bed_type="Unknown")
