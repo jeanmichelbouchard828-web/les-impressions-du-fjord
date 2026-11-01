@@ -623,7 +623,7 @@ def public_production():
 def fjord_support():
  # Lien Stripe Payment Link configuré séparément des paiements de soumission.
  link=os.environ.get("STRIPE_DONATION_URL","").strip()
- valid=bool(re.fullmatch(r"https://(?:buy|donate)\\.stripe\\.com/[A-Za-z0-9_/?=&-]+",link))
+ valid=bool(re.fullmatch(r"https://(?:buy|donate)\.stripe\.com/[A-Za-z0-9_/?=&-]+",link))
  body="""<section class="fjord-support-panel"><div class="eyebrow">Un petit geste, un grand merci</div><h1>❤️ Soutenir Les Impressions du Fjord</h1><p>Vous aimez nos créations et souhaitez encourager notre atelier d'impression 3D? Votre soutien volontaire nous aide à développer de nouveaux projets.</p>
  {% if valid %}<a class="fjord-donation-link" href="{{link}}" target="_blank" rel="noopener noreferrer">❤️ Faire un don sécurisé avec Stripe ↗</a><p class="small">Paiement traité par Stripe. Les dons sont indépendants des commandes et ne constituent pas des reçus officiels de dons de bienfaisance.</p>
  {% else %}<p class="alert">Les dons en ligne seront disponibles prochainement. Merci pour votre soutien! 💙</p>{% endif %}
