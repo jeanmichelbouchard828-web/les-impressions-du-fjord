@@ -5,7 +5,7 @@ from PIL import Image
 import unittest
 
 from flask import Flask, render_template_string
-from private_fjord import admin_studio, public_studio, register_private_fjord
+from private_fjord import admin_studio, public_studio, register_private_fjord, _square_checkout_url, _active_square_url
 
 
 class DummyConnection:
@@ -268,6 +268,47 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn(b"Copier tous les renseignements", page_result.data)
         self.assertIn(b"fjordPaymentFeedback", page_result.data)
         self.assertEqual(app.test_client().get("/payer/short").status_code,404)
+
+    def test_square_payment_link_validation_and_stale_amount_guard(self):
+        self.assertEqual(_square_checkout_url("https://square.link/u/abc"),"https://square.link/u/abc")
+        self.assertEqual(_square_checkout_url("https://checkout.square.site/abc"),"https://checkout.square.site/abc")
+        for bad in ("http://square.link/u/abc", "https://square.link.evil.example/u/abc",
+                    "https://square.link@evil.example/u/abc", "javascript:alert(1)",
+                    "https://square.link/", "https://square.link/u/abc#fragment"):
+            self.assertIsNone(_square_checkout_url(bad), bad)
+        q={"unit_price":20.0, "quantity":2, "shipping":5.0,
+           "apply_taxes":False, "military_discount":False,
+           "square_link_url":"https://square.link/u/abc", "square_link_amount_cents":4500}
+        self.assertEqual(_active_square_url(q),"https://square.link/u/abc")
+        q["shipping"]=6.0
+        self.assertIsNone(_active_square_url(q))
+        q["shipping"]=5.0
+        q["military_discount"]=True
+        self.assertIsNone(_active_square_url(q))
+
+    def test_square_checkout_is_primary_without_interac_recipient(self):
+        class SquareConnection(DummyConnection):
+            def fetchone(self):
+                if "WHERE payment_token=%s" in self.query:
+                    return {"id":42, "public_number":"FJ-00042", "quantity":1,
+                            "unit_price":20.0, "shipping":0.0, "apply_taxes":False,
+                            "military_discount":False,
+                            "square_link_url":"https://square.link/u/checkout42",
+                            "square_link_amount_cents":2000}
+                return None
+        app=Flask(__name__)
+        app.secret_key="square-only-tests"
+        register_private_fjord(app, SquareConnection, lambda f:f, lambda:None,
+                               lambda:'<input name="csrf" value="test">',
+                               lambda:"test",
+                               lambda title,body,**kwargs:render_template_string(body,**kwargs))
+        page=app.test_client().get("/payer/"+"a"*43)
+        self.assertEqual(page.status_code,200)
+        self.assertIn(b"https://square.link/u/checkout42",page.data)
+        self.assertIn("Paiement sécurisé Square".encode("utf-8"),page.data)
+        self.assertIn(b"20,00",page.data)
+        self.assertNotIn(b'id="payEmail"',page.data)
+        self.assertEqual(page.headers["Cache-Control"],"no-store")
 
     def test_public_payment_link_disabled_without_interac_address(self):
         self.assertEqual(self.client.get("/payer/" + "a" * 43).status_code, 404)
