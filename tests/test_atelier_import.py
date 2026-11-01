@@ -45,9 +45,10 @@ class AtelierImportTests(unittest.TestCase):
             self.assertIn(element, self.html)
 
     def test_scale_is_not_camera_zoom_and_merge_preserves_parts(self):
-        self.assertIn('data-context-action="growSelected"',self.html)
+        self.assertNotIn('data-context-action="growSelected"',self.html)
+        self.assertIn('function rescaleSelected(',self.html)
         self.assertIn('rescaleSelected(1.1)',self.html)
-        self.assertIn('data-context-action="scaleCustom"',self.html)
+        self.assertNotIn('data-context-action="scaleCustom"',self.html)
         self.assertNotIn('data-context-action="zoomSelected"',self.html)
         self.assertIn('Ctrl + clic',self.html)
         self.assertIn('multiSelectionPointer',self.html)

@@ -548,6 +548,36 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .fjord-text-tools .tool-row{display:flex;flex-direction:column}
 .fjord-text-tools .tool-row button{width:100%;min-height:42px}
 @media(max-width:620px){.fjord-paint-panel{position:fixed;top:auto;bottom:78px;right:9px;width:min(360px,calc(100% - 18px));max-height:55dvh;z-index:410}}
+.fjord-paint-entry{white-space:nowrap!important;min-width:94px!important;padding:5px 11px!important;
+ background:#087eb5!important;color:#fff!important;border:1px solid #79d8ff!important;
+ border-radius:9px!important;font-weight:750!important;box-shadow:0 0 0 1px #43c8f33b}
+.fjord-paint-entry:hover,.fjord-paint-entry.active{background:#07577e!important}
+.fjord-paint-launch{width:100%;min-height:43px;margin:8px 0;font-size:15px;font-weight:700}
+
+/* Menu clic droit du plateau : inspiré du format compact des trancheurs 3D. */
+.context-menu{min-width:255px;max-width:min(310px,92vw);padding:8px 9px;border-radius:7px;
+ background:#292929!important;border:1px solid #484848!important;color:#f4f4f4!important;
+ box-shadow:0 12px 32px #000a;scrollbar-width:thin}
+.context-menu button{font-size:14px;line-height:1.35;min-height:33px;padding:7px 12px;
+ background:transparent!important;color:#f4f4f4!important;border:0!important;border-radius:4px}
+.context-menu button:hover:not(:disabled),.context-menu button:focus-visible{
+ background:#393c42!important;outline:0!important}
+.context-menu button:disabled{color:#797979!important;cursor:default;opacity:1}
+.context-menu .context-heading{font-size:11px;color:#adb9c4;padding:7px 12px 6px;
+ border-bottom:1px solid #424242}
+.context-menu .fjord-menu-separator{height:1px;background:#474747;margin:8px 5px}
+.context-menu .fjord-primitive-submenu{position:relative;color:#f4f4f4}
+.context-menu .fjord-primitive-submenu summary{display:flex;align-items:center;gap:9px;
+ cursor:pointer;padding:7px 12px;min-height:34px;border-radius:4px;list-style:none;font-size:14px}
+.context-menu .fjord-primitive-submenu summary::-webkit-details-marker{display:none}
+.context-menu .fjord-primitive-submenu summary:hover,
+.context-menu .fjord-primitive-submenu[open]>summary{background:#393c42}
+.context-menu .fjord-menu-add-icon{display:inline-flex;position:relative;font-size:19px;line-height:1;color:#d8e4e7}
+.context-menu .fjord-menu-add-icon b{position:absolute;right:-6px;top:-4px;color:#31dd8c;font-size:14px}
+.context-menu .fjord-menu-subarrow{margin-left:auto;font-size:23px;line-height:15px}
+.context-menu .fjord-primitive-list{background:#22252b;border-left:2px solid #41a9c6;margin:3px 4px 4px 13px;padding:2px 3px}
+.context-menu .fjord-primitive-list button{padding-left:14px}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -628,7 +658,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="quick-button" data-quick-action="centerXY" data-tooltip="centerXY">⊕</button>
 <button type="button" class="quick-button" data-quick-action="dropToBed" data-tooltip="dropToBed">⇩</button>
 <button type="button" class="quick-button" data-quick-action="layFace" data-tooltip="layFace" aria-pressed="false">▱</button>
-<button type="button" class="quick-button" id="fjordPaintToggle" aria-pressed="false" title="Peinture 3D (couleurs AMS)">🎨</button>
+<button type="button" class="quick-button fjord-paint-entry" id="fjordPaintToggle" aria-pressed="false" title="Peindre les surfaces avec les filaments AMS">🎨 Peindre</button>
 <button type="button" class="quick-button" id="fjordArrangeQuick" title="Arranger automatiquement les pièces sur le plateau">▦</button>
 <button type="button" class="quick-button" id="fjordMergeQuick" title="Merge : regrouper les pièces sélectionnées">⧉</button>
 <button type="button" class="quick-button" id="fjordSplitQuick" title="Séparer un groupe Merge">↳</button>
@@ -641,7 +671,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="text">🔠 Texte</button>
-<button type="button" id="mobilePaintBtn" aria-pressed="false">🎨 Peinture</button>
+<button type="button" id="mobilePaintBtn" aria-pressed="false">🎨 Peindre</button>
 <button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
@@ -658,7 +688,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="mobile-menu-title"><strong id="mobileMenuTitle">Outils 3D</strong><button type="button" id="mobileMenuClose" aria-label="Fermer le menu">✕</button></div>
 <div id="mobileMenuContent"></div>
 </div>
-<div class="fjord-panel-controls" aria-label="Affichage des panneaux"><button type="button" class="fjord-panel-toggle" id="fjordToggleLeft" aria-expanded="true" title="Afficher ou masquer les outils">☰ Masquer outils</button><button type="button" class="fjord-panel-toggle" id="fjordToggleRight" aria-expanded="true" title="Afficher ou masquer les propriétés">☷ Masquer propriétés</button></div>
+
 <div class="shell" id="fjordWorkspace">
 <button type="button" id="fjordDrawerLeft" class="fjord-drawer-handle fjord-drawer-left" aria-expanded="false" aria-label="Ouvrir ou fermer le tiroir des outils" title="Ouvrir / fermer les outils">›</button>
 <button type="button" id="fjordDrawerRight" class="fjord-drawer-handle fjord-drawer-right" aria-label="Ouvrir ou fermer le tiroir droit" title="Ouvrir / fermer le tiroir droit">›</button>
@@ -671,6 +701,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button data-fjord-panel="generators" aria-label="Générateurs"><span class="fjord-nav-icon">✧</span><span>Générateurs</span></button>
 <button data-fjord-panel="freehand" aria-label="Main levée"><span class="fjord-nav-icon">✎</span><span>Main levée</span></button>
 <button data-fjord-panel="text" aria-label="Texte"><span class="fjord-nav-icon">T</span><span>Texte</span></button>
+<button data-fjord-panel="paint" aria-label="Peinture 3D"><span class="fjord-nav-icon">🎨</span><span>Peinture</span></button>
 <div class="fjord-nav-divider" role="separator"></div>
 <button data-fjord-panel="edit" aria-label="Modifier"><span class="fjord-nav-icon">✥</span><span>Modifier</span></button>
 <button data-fjord-panel="cut" aria-label="Découpe"><span class="fjord-nav-icon">✂</span><span>Découpe</span></button>
@@ -686,6 +717,12 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="field"><label for="fjordTextDepth">Épaisseur (mm)</label><input type="number" id="fjordTextDepth" value="2" min=".6" max="30" step=".2"></div>
 <div class="tool-row"><button type="button" class="primary" id="fjordTextCreate">✚ Créer le texte 3D</button><button type="button" id="fjordTextUpdate">↻ Modifier le texte sélectionné</button></div>
 <p class="tool-note" id="fjordTextStatus" role="status">Le texte est construit en vrai relief 3D imprimable.</p>
+</section>
+<section data-tool-panel="paint">
+<h2>🎨 Peinture 3D</h2>
+<p class="tool-note">1. Sélectionne une pièce sur le plateau. 2. Clique sur « Peindre ». 3. Choisis le pinceau, la couleur et peins directement sur la pièce.</p>
+<button type="button" class="primary fjord-paint-launch" id="fjordPaintLaunch">🖌 Ouvrir les outils de peinture</button>
+<p class="tool-note">Les couleurs des bobines AMS sont dans le panneau Propriétés. Enregistre ton projet JSON pour conserver les zones peintes.</p>
 </section>
 <section data-tool-panel="shapes"><h2 data-i18n="shapes">Catalogue de formes</h2><div class="fjord-catalog"><details class="fjord-catalog-group"><summary>Formes de base<span>9</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="cube">Cube</button><button type="button" data-fjord-shape="cylinder">Cylindre</button><button type="button" data-fjord-shape="sphere">Sphère</button><button type="button" data-fjord-shape="cone">Cône</button><button type="button" data-fjord-shape="torus">Tore</button><button type="button" data-fjord-shape="tube">Tube</button><button type="button" data-fjord-shape="capsule">Capsule</button><button type="button" data-fjord-shape="hemisphere">Hémisphère</button><button type="button" data-fjord-shape="ellipsoid">Ellipsoïde</button></div></details><details class="fjord-catalog-group"><summary>Prismes et pyramides<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="prism3">Prisme triangulaire</button><button type="button" data-fjord-shape="prism6">Prisme hexagonal</button><button type="button" data-fjord-shape="prism8">Prisme octogonal</button><button type="button" data-fjord-shape="pyramid4">Pyramide carrée</button><button type="button" data-fjord-shape="pyramid3">Pyramide triangulaire</button></div></details><details class="fjord-catalog-group"><summary>Formes plates<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="rectangle">Rectangle</button><button type="button" data-fjord-shape="disc">Disque</button><button type="button" data-fjord-shape="ring">Anneau</button><button type="button" data-fjord-shape="triangle">Triangle</button><button type="button" data-fjord-shape="hexagon">Hexagone</button></div></details><details class="fjord-catalog-group"><summary>Révolution<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="torus">Tore</button><button type="button" data-fjord-shape="tube">Tube</button><button type="button" data-fjord-shape="cylinder">Cylindre</button><button type="button" data-fjord-shape="cone">Cône</button></div></details><details class="fjord-catalog-group"><summary>Polyèdres et ovoïdes<span>5</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-shape="sphere">Sphère</button><button type="button" data-fjord-shape="ellipsoid">Ellipsoïde</button><button type="button" data-fjord-shape="icosahedron">Icosaèdre</button><button type="button" data-fjord-shape="dodecahedron">Dodécaèdre</button><button type="button" data-fjord-shape="egg">Œuf</button></div></details><details class="fjord-catalog-group"><summary>Rampes<span>2</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="ramp">Rampe droite</button><button type="button" data-fjord-generator="curved_ramp">Rampe courbe</button></div></details><details class="fjord-catalog-group"><summary>Charnières<span>3</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="hinge_pin">Charnière à axe</button><button type="button" data-fjord-generator="hinge_leaf">Charnière à feuilles</button><button type="button" data-fjord-generator="hinge_articulated">Charnière articulée</button></div></details><details class="fjord-catalog-group"><summary>Roulements et pivots<span>3</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="sleeve">Bague / douille</button><button type="button" data-fjord-generator="bearing">Roulement à billes (maquette)</button><button type="button" data-fjord-generator="pivot">Pivot cylindrique</button></div></details><details class="fjord-catalog-group"><summary>Connecteurs<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-fjord-generator="adapter">Adaptateur ventilation</button><button type="button" data-fjord-generator="elbow">Coude de conduit</button><button type="button" data-fjord-generator="pipe">Tuyau droit</button><button type="button" data-fjord-generator="tee">Connecteur en T</button></div></details></div><div class="fjord-shape-native" hidden><div class="tools">
 <button data-shape="cube" data-i18n="cube">⬜ Cube</button><button data-shape="cylinder" data-i18n="cylinder">◯ Cylindre</button>
@@ -720,7 +757,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="layFace" class="tool-btn" data-i18n="layFace" aria-pressed="false">▱ Poser sur une face</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
 <button id="mirrorY" data-i18n="mirrorY">Miroir Y</button><button id="mirrorZ" data-i18n="mirrorZ">Miroir Z</button></div></section>
 <section id="generatorSection" data-tool-panel="generators"><h3 data-i18n="generatorTitle">⚙️ Générateurs 3D</h3>
-<div class="fjord-catalog" aria-label="Catalogue des générateurs"><details class="fjord-catalog-group"><summary>Créations artistiques<span>8</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="lithophane">Lithophanie</button><button type="button" data-generator-pick="sculpture">Sculpture</button><button type="button" data-generator-pick="image_relief">Image → forme</button><button type="button" data-generator-pick="braille">Braille</button><button type="button" data-generator-pick="waveform">Onde vocale</button><button type="button" data-generator-pick="organic">Sculptures organiques</button><button type="button" data-generator-pick="voronoi">Voronoï ajouré</button><button type="button" data-generator-pick="portrait_relief">Portrait en relief (webcam bêta)</button></div></details><details class="fjord-catalog-group"><summary>Mécanique<span>9</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="pulley">Poulie personnalisée</button><button type="button" data-generator-pick="screw">Vis</button><button type="button" data-generator-pick="nut">Écrou</button><button type="button" data-generator-pick="tap">Douille taraudée (prototype)</button><button type="button" data-generator-pick="washer">Rondelle</button><button type="button" data-generator-pick="gear">Engrenages</button><button type="button" data-generator-pick="spring">Ressorts</button><button type="button" data-generator-pick="turbine">Hélices et turbines</button><button type="button" data-generator-pick="bearing">Roulements et pivots</button></div></details><details class="fjord-catalog-group"><summary>Ventilation et tuyauterie<span>6</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="adapter">Adaptateur ventilation</button><button type="button" data-generator-pick="pipe">Tuyau droit</button><button type="button" data-generator-pick="elbow">Coude de conduit</button><button type="button" data-generator-pick="coupler">Raccords de tuyaux</button><button type="button" data-generator-pick="funnel">Entonnoirs</button><button type="button" data-generator-pick="grommet">Passe-câbles</button></div></details><details class="fjord-catalog-group"><summary>Objets et accessoires<span>12</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="spoon">Cuillère doseuse</button><button type="button" data-generator-pick="keychain">Porte-clés</button><button type="button" data-generator-pick="stamp">Tampon & emporte-pièce</button><button type="button" data-generator-pick="clamp">Brides</button><button type="button" data-generator-pick="grill">Grilles et résilles</button><button type="button" data-generator-pick="roller">Rouleau en relief</button><button type="button" data-generator-pick="pawn">Pions de jeux</button><button type="button" data-generator-pick="clock">Horloge personnalisée</button><button type="button" data-generator-pick="stand">Support universel</button><button type="button" data-generator-pick="box">Boîte avec couvercle</button><button type="button" data-generator-pick="mold">Moule ouvert (prototype)</button><button type="button" data-generator-pick="qrcode">QR code</button></div></details><details class="fjord-catalog-group"><summary>Architecture et atelier<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="corrugated">Surface ondulée</button><button type="button" data-generator-pick="tower">Tour (atelier)</button><button type="button" data-generator-pick="city">Quartier 3D (bêta)</button><button type="button" data-generator-pick="sleeve">Bague / douille</button></div></details></div><div class="generator-block">
+<div class="fjord-catalog" aria-label="Catalogue des générateurs"><details class="fjord-catalog-group"><summary>Créations artistiques<span>8</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="lithophane">Lithophanie</button><button type="button" data-generator-pick="sculpture">Sculpture</button><button type="button" data-generator-pick="image_relief">Image → forme</button><button type="button" data-generator-pick="braille">Braille</button><button type="button" data-generator-pick="waveform">Onde vocale</button><button type="button" data-generator-pick="organic">Sculptures organiques</button><button type="button" data-generator-pick="voronoi">Voronoï ajouré</button><button type="button" data-generator-pick="portrait_relief">Portrait en relief (webcam bêta)</button></div></details><details class="fjord-catalog-group"><summary>Mécanique<span>10</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="pulley">Poulie personnalisée</button><button type="button" data-generator-pick="screw">Vis</button><button type="button" data-generator-pick="nut">Écrou</button><button type="button" data-generator-pick="tap">Douille taraudée (prototype)</button><button type="button" data-generator-pick="washer">Rondelle</button><button type="button" data-generator-pick="gear">Engrenages</button><button type="button" data-generator-pick="spring">Ressort hélicoïdal</button><button type="button" data-generator-pick="torsion_spring">🌀 Ressort à torsion</button><button type="button" data-generator-pick="turbine">Hélices et turbines</button><button type="button" data-generator-pick="bearing">Roulements et pivots</button></div></details><details class="fjord-catalog-group"><summary>Ventilation et tuyauterie<span>6</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="adapter">Adaptateur ventilation</button><button type="button" data-generator-pick="pipe">Tuyau droit</button><button type="button" data-generator-pick="elbow">Coude de conduit</button><button type="button" data-generator-pick="coupler">Raccords de tuyaux</button><button type="button" data-generator-pick="funnel">Entonnoirs</button><button type="button" data-generator-pick="grommet">Passe-câbles</button></div></details><details class="fjord-catalog-group"><summary>Objets et accessoires<span>12</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="spoon">Cuillère doseuse</button><button type="button" data-generator-pick="keychain">Porte-clés</button><button type="button" data-generator-pick="stamp">Tampon & emporte-pièce</button><button type="button" data-generator-pick="clamp">Brides</button><button type="button" data-generator-pick="grill">Grilles et résilles</button><button type="button" data-generator-pick="roller">Rouleau en relief</button><button type="button" data-generator-pick="pawn">Pions de jeux</button><button type="button" data-generator-pick="clock">Horloge personnalisée</button><button type="button" data-generator-pick="stand">Support universel</button><button type="button" data-generator-pick="box">Boîte avec couvercle</button><button type="button" data-generator-pick="mold">Moule ouvert (prototype)</button><button type="button" data-generator-pick="qrcode">QR code</button></div></details><details class="fjord-catalog-group"><summary>Architecture et atelier<span>4</span></summary><div class="fjord-catalog-items"><button type="button" data-generator-pick="corrugated">Surface ondulée</button><button type="button" data-generator-pick="tower">Tour (atelier)</button><button type="button" data-generator-pick="city">Quartier 3D (bêta)</button><button type="button" data-generator-pick="sleeve">Bague / douille</button></div></details></div><div class="generator-block">
 <label for="generatorKind" data-i18n="generatorChoose">Type de pièce</label>
 <select id="generatorKind" aria-label="Générateur de pièce 3D"></select>
 <div id="generatorFields" class="generator-fields"></div>
@@ -859,6 +896,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 </div>
 <div id="contextMenu" class="context-menu" role="menu" hidden>
 <div class="context-heading part-action" data-i18n="contextHeading">Outils de la pièce</div>
+<button type="button" class="part-action" role="menuitem" data-context-action="remove" data-i18n="remove">Supprimer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="move" data-i18n="move">Déplacer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="rotate" data-i18n="rotate">Tourner</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="scale" data-i18n="scale">Échelle</button>
@@ -869,24 +907,16 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="common-action" role="menuitem" data-context-action="textTool">🔠 Inscription 3D</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="arrangeAll">▦ Arranger sur le plateau</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="centerXY">⌖ Centrer la pièce sur le plateau</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="growSelected">⤢ Agrandir la pièce (+10 %)</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="scaleCustom">⤢ Agrandir / réduire (%)…</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mergeAll">⧉ Merge — regrouper les pièces sélectionnées</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="splitMerged">↳ Séparer les pièces du groupe</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="dropToBed" data-i18n="dropToBed">Poser au sol</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="layFace" data-i18n="layFace">▱ Poser sur une face</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorX" data-i18n="mirrorX">Miroir X</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="remove" data-i18n="remove">Supprimer</button>
 <div class="context-heading part-action">Autres outils</div>
 <button type="button" class="part-action" role="menuitem" data-context-action="undo">↶ Annuler</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="redo">↷ Rétablir</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="rotX90">↻ Rotation X 90°</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="rotY90">↻ Rotation Y 90°</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="rotZ90">↻ Rotation Z 90°</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorY">Miroir Y</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="mirrorZ">Miroir Z</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="half">½ Réduire</button>
-<button type="button" class="part-action" role="menuitem" data-context-action="double">×2 Agrandir</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="fitBed">Adapter au plateau</button>
 <div class="context-heading common-action">Vue et projet</div>
 <button type="button" class="common-action" role="menuitem" data-context-action="viewIso">◈ Vue 3D</button>
@@ -895,10 +925,30 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" class="common-action" role="menuitem" data-context-action="import">⬆ Importer STL / 3MF</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="sliceTop">▥ Trancher</button>
 <button type="button" class="common-action" role="menuitem" data-context-action="estimateToggle">💰 Estimateur</button>
-<div class="context-heading blank-action" data-i18n="contextCreate">Créer une pièce</div>
-<button type="button" class="blank-action" role="menuitem" data-context-action="shape-cube" data-i18n="cube">Cube</button>
-<button type="button" class="blank-action" role="menuitem" data-context-action="shape-cylinder" data-i18n="cylinder">Cylindre</button>
-<button type="button" class="blank-action" role="menuitem" data-context-action="shape-sphere" data-i18n="sphere">Sphère</button>
+<div class="fjord-plate-context plate-action" role="group" aria-label="Actions du plateau">
+<button type="button" role="menuitem" data-context-action="selectAll">Tout sélectionner</button>
+<button type="button" role="menuitem" data-context-action="deleteAll">Tout supprimer</button>
+<button type="button" role="menuitem" data-context-action="arrangeAll">Arranger</button>
+<button type="button" role="menuitem" disabled title="Orientation automatique : sera disponible ultérieurement">Rotation automatique</button>
+<button type="button" role="menuitem" data-context-action="expandAll">Tout développer</button>
+<button type="button" role="menuitem" data-context-action="collapseAll">Tout réduire</button>
+<div class="fjord-menu-separator" role="separator"></div>
+<button type="button" role="menuitem" data-context-action="deletePlate">Supprimer le plateau</button>
+<button type="button" role="menuitem" disabled title="Le déplacement entre plateaux n'est pas encore disponible">Déplacer le plateau</button>
+<div class="fjord-menu-separator" role="separator"></div>
+<details class="fjord-primitive-submenu">
+<summary role="menuitem" aria-label="Ajouter une forme primitive"><span class="fjord-menu-add-icon">▢<b>+</b></span> Ajouter une forme <span class="fjord-menu-subarrow">›</span></summary>
+<div class="fjord-primitive-list" aria-label="Formes primitives">
+<button type="button" role="menuitem" data-context-action="shape-cube">Cube</button>
+<button type="button" role="menuitem" data-context-action="shape-cylinder">Cylindre</button>
+<button type="button" role="menuitem" data-context-action="shape-sphere">Sphère</button>
+<button type="button" role="menuitem" data-context-action="shape-cone">Cône</button>
+<button type="button" role="menuitem" data-context-action="shape-torus">Tore</button>
+</div></details>
+<button type="button" role="menuitem" disabled title="Verrouillage du plateau en développement">Verrouiller</button>
+<button type="button" role="menuitem" data-context-action="renamePlate">Renommer le plateau</button>
+<button type="button" role="menuitem" disabled title="Les étiquettes par couche seront disponibles avec le visualiseur de tranchage">Afficher les étiquettes par couche</button>
+</div>
 </div></div>
 <aside class="sidebar right" id="propertiesPanel"><div data-tool-panel="properties"><h2 data-i18n="properties">Propriétés de la pièce</h2>
 <div class="field"><label for="name" data-i18n="name">Nom de la pièce</label><input id="name" placeholder="Aucune pièce sélectionnée"></div>
@@ -908,6 +958,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div id="info" role="status" aria-live="polite"></div>
 <section id="fjordAmsColors" class="fjord-ams-colors" aria-label="Couleurs de filaments disponibles">
  <div class="fjord-ams-head"><h3>🎨 Couleurs AMS</h3><button type="button" id="fjordAmsRefresh" title="Actualiser les couleurs de l'imprimante" aria-label="Actualiser les couleurs AMS">↻</button></div>
+ <button type="button" class="primary fjord-paint-launch" id="fjordPaintOpenAms">🎨 Peindre directement sur la pièce</button>
  <p class="tool-note" id="fjordAmsStatus" role="status" aria-live="polite">Connexion aux bobines AMS…</p>
  <div id="fjordAmsSlots" class="fjord-ams-slots"></div>
  <label for="fjordManualColor">Ou choisir une couleur manuellement</label>
@@ -1523,8 +1574,7 @@ fjordBedTabs?.addEventListener('contextmenu',event=>{
  fjordBedContext.style.left=Math.min(event.clientX,window.innerWidth-205)+'px';
  fjordBedContext.style.top=Math.min(event.clientY,window.innerHeight-65)+'px';
 });
-fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>{
- const index=fjordContextBed;fjordHideBedContext();
+function fjordDeleteBed(index){
  if(index<0||index>=fjordBeds.length)return;
  if(fjordBeds.length===1){alert('Il faut conserver au moins un plateau.');return}
  const label='Plateau '+(index+1);
@@ -1539,6 +1589,9 @@ fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>
  const next=index===fjordActiveBed?Math.min(index,fjordBeds.length-1):(fjordActiveBed>index?fjordActiveBed-1:fjordActiveBed);
  fjordActiveBed=-1;
  fjordSelectBed(next);
+}
+fjordBedContext.querySelector('[data-delete-bed]').addEventListener('click',()=>{
+ const index=fjordContextBed;fjordHideBedContext();fjordDeleteBed(index);
 });
 document.addEventListener('pointerdown',event=>{if(!fjordBedContext.hidden&&!fjordBedContext.contains(event.target))fjordHideBedContext()});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')fjordHideBedContext()});
@@ -1750,8 +1803,15 @@ function showContextMenu(e){
  if(mergeAction)mergeAction.disabled=selectedSet.size<2;
  const splitAction=contextMenu.querySelector('[data-context-action="splitMerged"]');
  if(splitAction)splitAction.hidden=!selected?.userData.mergedParts;
- contextMenu.querySelectorAll('.blank-action').forEach(el=>el.hidden=!!hit);
- contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=false);
+ contextMenu.querySelectorAll('.blank-action,.plate-action').forEach(el=>el.hidden=!!hit);
+ contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=!hit);
+ const deletePlate=contextMenu.querySelector('[data-context-action="deletePlate"]');
+ if(deletePlate)deletePlate.disabled=fjordBeds.length<=1;
+ const all=contextMenu.querySelector('[data-context-action="selectAll"]');
+ if(all)all.disabled=!models.length;
+ const clear=contextMenu.querySelector('[data-context-action="deleteAll"]');
+ if(clear)clear.disabled=!models.length;
+ contextMenu.querySelector('.fjord-primitive-submenu')?.removeAttribute('open');
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
  // Offset the pop-up from the cursor so clicking the same point dismisses it.
@@ -1929,6 +1989,29 @@ renderer.domElement.addEventListener('pointercancel',e=>{
 },true);
 contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventListener('click',()=>{
  const action=btn.dataset.contextAction;hideContext();
+ if(action==='selectAll'){
+  if(!models.length)return;
+  for(const m of selectedSet)removeSelectionTint(m);
+  selectedSet=new Set(models);selected=models[models.length-1];
+  for(const m of selectedSet)addSelectionTint(m);
+  deactivateGizmo();sync();return;
+ }
+ if(action==='deleteAll'){
+  if(!models.length)return;
+  if(!confirm('Supprimer toutes les pièces du plateau ? Cette opération peut être annulée avec Annuler.'))return;
+  remember();restore({version:1,objects:[]});return;
+ }
+ if(action==='expandAll'||action==='collapseAll'){
+  fjordSubpartsExpanded=action==='expandAll';renderSceneList();return;
+ }
+ if(action==='renamePlate'){
+  const tab=fjordBedTabs?.querySelector('[data-bed-index="'+fjordActiveBed+'"]');
+  if(!tab)return;
+  const name=prompt('Nom du plateau :',tab.textContent.replace(/^⬡\s*/,''));if(name===null)return;
+  const cleaned=name.trim().slice(0,60);if(cleaned)tab.textContent='⬡ '+cleaned;
+  return;
+ }
+ if(action==='deletePlate'){fjordDeleteBed(fjordActiveBed);return;}
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
  if(action==='mergeAll'){fjordMergeAll();return;}
  if(action==='paint'){$('fjordPaintToggle').click();return;}
@@ -2703,6 +2786,7 @@ function snapPartToBed(m){
  m.updateMatrixWorld(true);
  return true;
 }
+let fjordSubpartsExpanded=true;
 function renderSceneList(){
  const list=$('sceneList');if(!list)return;
  list.replaceChildren();
@@ -2732,7 +2816,8 @@ function renderSceneList(){
   });
   wrap.append(checkbox,b);
   if(m.userData.mergedParts){
-   const sub=document.createElement('div');
+   const sub=document.createElement('div');sub.className='fjord-model-subparts';
+   sub.hidden=!fjordSubpartsExpanded;
    sub.style.cssText='width:100%;margin-left:26px;font-size:12px;opacity:.85';
    for(const p of m.userData.mergedParts){
     const part=document.createElement('div');part.textContent='↳ '+p.name;
@@ -3578,38 +3663,27 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  const shell=document.getElementById('fjordWorkspace');
  const desktop=window.matchMedia('(min-width:761px)');
  const redraw=()=>window.dispatchEvent(new Event('resize'));
- const controls=[['fjordToggleLeft','fjord-hide-left','outils'],['fjordToggleRight','fjord-hide-right','propriétés']];
- for(const [id,cls,label] of controls){
-  const button=document.getElementById(id);
-  if(!button)continue;
-  const update=()=>{
-   const open=!shell.classList.contains(cls);
-   button.setAttribute('aria-expanded',String(open));
-   button.textContent=(id==='fjordToggleLeft'?'☰ ':'☷ ')+(open?'Masquer ':'Afficher ')+label;
-  };
-  button.addEventListener('click',()=>{
-   if(!desktop.matches)return;
-   shell.classList.toggle(cls);
-   update();redraw();
-  });
-  desktop.addEventListener('change',()=>{
-   shell.classList.remove(cls);
-   update();redraw();
-  });
-  update();
- }
+ // Les deux gros boutons de masquage ont été retirés. Les petites flèches
+ // restent les contrôles uniques, sans dépendance à un bouton caché.
  const leftHandle=document.getElementById('fjordDrawerLeft');
  leftHandle?.addEventListener('click',()=>{if(desktop.matches)window.fjordToggleCategoryDrawer?.();});
- for(const [handleId,toggleId,cls] of [['fjordDrawerRight','fjordToggleRight','fjord-hide-right']]){
-  const handle=document.getElementById(handleId);
-  const toggle=document.getElementById(toggleId);
-  if(!handle||!toggle)continue;
-  const refresh=()=>{handle.textContent=cls==='fjord-hide-left'?(shell.classList.contains(cls)?'›':'‹'):(shell.classList.contains(cls)?'‹':'›');};
-  handle.addEventListener('click',()=>{toggle.click();refresh();});
-  toggle.addEventListener('click',refresh);
-  desktop.addEventListener('change',refresh);
-  refresh();
- }
+ const rightHandle=document.getElementById('fjordDrawerRight');
+ const updateRight=()=>{
+  if(!rightHandle)return;
+  const open=!shell.classList.contains('fjord-hide-right');
+  rightHandle.textContent=open?'›':'‹';
+  rightHandle.setAttribute('aria-expanded',String(open));
+ };
+ rightHandle?.addEventListener('click',()=>{
+  if(!desktop.matches)return;
+  shell.classList.toggle('fjord-hide-right');
+  updateRight();redraw();
+ });
+ desktop.addEventListener('change',()=>{
+  shell.classList.remove('fjord-hide-right');
+  updateRight();redraw();
+ });
+ updateRight();
  const nav=document.querySelector('.fjord-workspace-nav');
  if(nav){
   const buttons=[...nav.querySelectorAll('[data-fjord-panel]')];
@@ -3759,4 +3833,12 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
   }
  });
 })();
-</script></body></html>
+</script></body><script>
+(()=>{
+ const launch=()=>window.fjordPaint?.open?.();
+ document.getElementById('fjordPaintLaunch')?.addEventListener('click',launch);
+ document.getElementById('fjordPaintOpenAms')?.addEventListener('click',launch);
+ document.querySelector('[data-fjord-panel="paint"]')?.addEventListener('click',launch);
+})();
+</script>
+</html>
