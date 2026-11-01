@@ -685,6 +685,40 @@ if(fjordAutoButton){
   invalidatePreview();
   state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
  });
+ const download3mf=panel.querySelector('#fjordReviewDownload');
+ download3mf.addEventListener('click',async()=>{
+  if(!prepared||busy)return;
+  const original=download3mf.textContent;
+  download3mf.disabled=true;
+  download3mf.textContent='⬇ Récupération du 3MF tranché…';
+  try{
+   const body=new FormData();
+   body.append('csrf',__FJORD_CSRF__);
+   body.append('stage',prepared.stage);
+   const response=await fetch('/admin/atelier-imprimer/telecharger-3mf',{
+    method:'POST',body,credentials:'same-origin',cache:'no-store'
+   });
+   if(!response.ok){
+    let message='Téléchargement impossible.';
+    try{const data=await response.json();message=data.error||message;}catch(_){}
+    throw Error(message);
+   }
+   if(!(response.headers.get('content-type')||'').includes('3mf'))
+    throw Error('Fichier inattendu : téléchargement bloqué.');
+   const blob=await response.blob();
+   if(blob.size<100||blob.size>30*1024*1024)throw Error('3MF incomplet.');
+   const url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=url;link.download='Creation-du-Fjord-X2D-tranche.3mf';
+   document.body.appendChild(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),60000);
+   state.textContent='✓ Fichier 3MF tranché téléchargé. Ouvre-le dans Bambu Studio si l’envoi distant échoue.';
+  }catch(error){
+   state.textContent='⚠ '+String(error.message||error).slice(0,180);
+  }finally{
+   download3mf.disabled=false;download3mf.textContent=original;
+  }
+ });
  transfer.addEventListener('click',async()=>{
   if(busy||!prepared)return;
   const approved=prepared;
