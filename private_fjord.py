@@ -2997,7 +2997,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
       <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Payer avec Interac — instructions</button>
       <p class="fj-checkout-explain">Vous avez reçu une demande de fonds officielle Interac? Ouvrez le courriel reçu de votre banque pour autoriser le montant prérempli. Ce site ne peut pas générer cette demande automatiquement.</p>
     {% endif %}
-    {% if recipient and not stripe_url and not square_url %}
+    {% if recipient and not stripe_ready and not square_url %}
     <details id="fjInteracOptions" class="fj-checkout-alt">
       <summary>{% if square_url %}Payer plutôt par virement Interac{% else %}Je n'ai pas reçu de demande Interac{% endif %}</summary>
       <div class="fj-checkout-alt-body">
