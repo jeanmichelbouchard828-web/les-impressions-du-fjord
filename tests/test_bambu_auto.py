@@ -64,7 +64,13 @@ class AutoTests(unittest.TestCase):
             self.assertTrue(args[-1].endswith(".stl"))
             self.assertEqual(args[args.index("--arrange")+1],"1")
             self.assertNotIn("--orient",args)  # Keep original oriented part
-            Path(args[args.index("--export-3mf")+1]).write_bytes(sliced_3mf())
+            self.assertIn("--outputdir",args)
+            destination=Path(args[args.index("--outputdir")+1])
+            self.assertTrue(destination.is_dir())
+            filename=args[args.index("--export-3mf")+1]
+            self.assertEqual(filename,"x2d_tranche.gcode.3mf")
+            self.assertNotIn("/",filename)  # Bambu expects a relative output name.
+            (destination/filename).write_bytes(sliced_3mf())
             return subprocess.CompletedProcess(args,0,b"success")
         with patch("bambu_auto.cli_location",return_value="/opt/bambu-studio"):
             with patch("bambu_auto.subprocess.run",side_effect=run):
@@ -78,6 +84,20 @@ class AutoTests(unittest.TestCase):
                 return subprocess.CompletedProcess(args,0,b"fake success")
             with patch("bambu_auto.subprocess.run",side_effect=run):
                 with self.assertRaises(ValueError):
+                    slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
+
+    def test_failure_diagnostics_distinguish_missing_output_and_bad_profiles(self):
+        with patch("bambu_auto.cli_location",return_value="/opt/bambu-studio"):
+            with patch("bambu_auto.subprocess.run",return_value=subprocess.CompletedProcess([],0,b"finished")):
+                with self.assertRaisesRegex(AutoSliceError,"sans produire le 3MF"):
+                    slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
+            failed=subprocess.CompletedProcess([],3,b"Error loading filament preset: /tmp/secret path")
+            with patch("bambu_auto.subprocess.run",return_value=failed):
+                with self.assertRaisesRegex(AutoSliceError,"profils choisis"):
+                    slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
+            crashed=subprocess.CompletedProcess([],-11,b"segmentation fault")
+            with patch("bambu_auto.subprocess.run",return_value=crashed):
+                with self.assertRaisesRegex(AutoSliceError,"signal 11"):
                     slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
 
     def test_profile_summary_avoids_leaking_slicer_machine_gcode(self):
