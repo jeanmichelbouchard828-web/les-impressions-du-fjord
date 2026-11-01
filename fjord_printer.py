@@ -536,7 +536,7 @@ body.light .fj-print-hint{color:#496477!important}
     @admin_required
     def fjord_print_auto_prepare():
         """Slice official Bambu 3MF and stage for owner review; never upload here."""
-        from bambu_auto import cli_location, full_preset, slice_x2d, AutoSliceError, MAX_STL
+        from bambu_auto import cli_location, full_preset, slice_x2d, AutoSliceError, MAX_STL, BED_TYPES
         from fjord_slice_review import stage_slice, SliceReviewError
         request.max_content_length = MAX_STL + 2 * 1024 * 1024
         verify()
@@ -547,6 +547,9 @@ body.light .fj-print-hint{color:#496477!important}
             if upload is None or not str(upload.filename or "").lower().endswith(".stl"):
                 raise AutoSliceError("Fichier STL invalide.")
             raw = upload.stream.read(MAX_STL + 1)
+            bed_type = request.form.get("bed_type", "")
+            if bed_type not in BED_TYPES:
+                raise AutoSliceError("Choisis le type de plaque réellement installé sur ta X2D.")
             # Stock presets are bundled with Bambu Studio and don't depend on
             # a user's imported profile archive/database.
             from bambu_stock_profiles import STOCK_NAMES, original_preset
@@ -590,7 +593,7 @@ body.light .fj-print-hint{color:#496477!important}
             if str(actual).strip().upper() != expected_material:
                 raise AutoSliceError("Profil filament incompatible avec le matériau de l'Atelier : aucun transfert.")
             # Stage only: do not contact OctoEverywhere until explicit review.
-            sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf)
+            sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf, bed_type=bed_type)
             token, preview = stage_slice(sliced, verify_sliced_bambu_3mf)
             success = "Tranchage Bambu terminé. Examine les couches avant d’envoyer à la X2D."
             if request.accept_mimetypes.best == "application/json":
