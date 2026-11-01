@@ -223,7 +223,7 @@ class RemotePrintTests(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json["status_ok"])
         self.assertTrue(res.json["files_ok"])
-        self.assertIn("lecture", res.json["diagnosis"])
+        self.assertIn("consultation", res.json["diagnosis"])
         self.assertEqual([x.args[0] for x in commands.call_args_list],
                          ["/status", "/files/list"])
         self.assertNotIn("X2D_test.3mf", str(res.json))
