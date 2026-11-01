@@ -81,7 +81,7 @@ class ReviewTests(unittest.TestCase):
              patch("bambu_auto.cli_location",return_value="/usr/local/bin/bambu-studio"), \
              patch("bambu_auto.slice_x2d",return_value=archive) as slicer, \
              patch("fjord_printer._upload") as upload, \
-             patch("fjord_printer._status",return_value={"can_start":True}) as state:
+             patch("fjord_printer._status",return_value={"can_start":True,"state":"idle","progress":0,"file":""}) as state:
             prepare=client.post("/admin/atelier-imprimer/preparer",data={
                 "stl":(io.BytesIO(b"x"*134),"cube.stl"),"machine":"1","process":"2",
                 "filament":"3","material":"PETG"},
