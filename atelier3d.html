@@ -2096,7 +2096,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
    if(layFaceMode){
     if(tap.faceHit?.object===selected)layOnClickedFace(tap.faceHit);
     else {exitLayFaceMode();pick(null);}
-   }else if(measureMode && tap.point)measurePoint(tap.point);
+   }else if(measureMode && tap.point)measurePoint(tap.point,tap.mesh);
    else if(tap.mesh)pick(tap.mesh);
    else if(!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
    // A tap on the empty build plate must not cancel the active modelling tool.
@@ -2112,7 +2112,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
   return;
  }
  if(e.button!==0||Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)>5||!orbit.enabled)return;
- const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point);else pick(hit.object)}
+ const hit=findHit(e);if(hit){if(measureMode)measurePoint(hit.point,hit.object);else pick(hit.object)}
  else if(!cutPreviewActive&&!touchMoveEnabled){if(measureMode)$('measure').click();window.fjordPaint?.closeOnBlank?.();pick(null);}
 },true);
 renderer.domElement.addEventListener('pointercancel',e=>{
@@ -3177,38 +3177,124 @@ for(const axis of ['X','Y','Z']){
    say('sizeDone');
  }));
 }
-let measureMode=false,measureStart=null,measureLine=null;
-const measureMarkers=[];
+let measureMode=false,measureLine=null,measureObject=null;
+const measureMarkers=[],measureOverlays=[],measurePickedPoints=[];
+const measureModeSelect=$('fjordMeasureMode'),measurePanel=$('fjordMeasureResults');
+const measureCircleValues=$('fjordMeasureCircleValues');
+function measureLocalized(fr,en){return currentLang()==='en'?en:fr;}
+function measureHint(message){$('measureHint').textContent=message;}
 function measureMarker(point,label){
  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
  const ctx=canvas.getContext('2d');
  ctx.beginPath();ctx.arc(64,64,48,0,Math.PI*2);
  ctx.fillStyle=label===1?'#ffae38':'#46ddf8';ctx.fill();
  ctx.lineWidth=8;ctx.strokeStyle='#ffffff';ctx.stroke();
- ctx.font='bold 62px Arial,sans-serif';ctx.fillStyle='#071625';
+ ctx.font='bold 58px Arial,sans-serif';ctx.fillStyle='#071625';
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(label),64,69);
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
- const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false,transparent:true}));
+ const material=new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false,transparent:true});
+ const sprite=new THREE.Sprite(material);
  sprite.position.copy(point);sprite.renderOrder=1000;sprite.userData.markerTexture=texture;
  scene.add(sprite);measureMarkers.push(sprite);
  return sprite;
 }
+function measureOverlayLine(points,color){
+ const material=new THREE.LineBasicMaterial({color,depthTest:false,depthWrite:false});
+ const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),material);
+ line.renderOrder=999;scene.add(line);measureOverlays.push(line);
+ return line;
+}
 function clearMeasureLine(){
  if(measureLine){scene.remove(measureLine);measureLine.geometry.dispose();measureLine.material.dispose();measureLine=null}
- for(const marker of measureMarkers){scene.remove(marker);marker.material.dispose();marker.userData.markerTexture.dispose()}
- measureMarkers.length=0;measureStart=null
-}
-function measurePoint(point){
- if(!measureStart){
-  clearMeasureLine();measureStart=point.clone();measureMarker(point,1);say('measureActive');return
+ for(const line of measureOverlays){
+  scene.remove(line);line.geometry.dispose();line.material.dispose();
  }
- const start=measureStart.clone(),distance=start.distanceTo(point);
- measureMarker(point,2);
- const material=new THREE.LineBasicMaterial({color:0xffad49,depthTest:false,depthWrite:false});
- measureLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([start,point.clone()]),material);
- measureLine.renderOrder=999;scene.add(measureLine);
- status.textContent=langText[currentLang()].measureValue.replace('{distance}',distance.toFixed(2));
- measureStart=null;
+ measureOverlays.length=0;
+ for(const marker of measureMarkers){
+  scene.remove(marker);marker.material.dispose();marker.userData.markerTexture.dispose();
+ }
+ measureMarkers.length=0;measurePickedPoints.length=0;measureObject=null;
+ measurePanel.hidden=true;
+ measureCircleValues.hidden=true;$('fjordMeasureDistanceValue').hidden=true;
+}
+function setMeasureHint(){
+ const circle=measureModeSelect.value==='circle';
+ if(!measureMode){
+  measureHint(measureLocalized(
+   'Clique sur « Mesurer » ou sur l’outil ◎ Rayon / Ø pour commencer.',
+   'Click Measure or ◎ Radius / Ø to begin.'));
+ }else if(circle){
+  measureHint(measureLocalized(
+   'Sélectionne 3 points espacés sur le même contour circulaire (trou ou cylindre). Clique droit pour tourner la pièce.',
+   'Select 3 spaced points on the same circular rim (hole or cylinder). Right-drag to rotate the view.'));
+ }else{
+  measureHint(measureLocalized('Clique 2 points sur la pièce pour mesurer leur distance.',
+                              'Click 2 points on the part to measure the distance.'));
+ }
+}
+function measurePoint(point,mesh=null){
+ if(!measureMode||!point)return;
+ const circle=measureModeSelect.value==='circle',needed=circle?3:2;
+ // After completing a measurement the next click starts a fresh one.
+ if(measurePickedPoints.length===needed)clearMeasureLine();
+ if(circle&&measureObject&&mesh&&measureObject!==mesh){
+  measureHint(measureLocalized('Choisis les 3 points sur la même pièce.',
+                              'Choose all 3 points on the same part.'));
+  return;
+ }
+ if(!measurePickedPoints.length)measureObject=mesh;
+ measurePickedPoints.push(point.clone());
+ measureMarker(point,measurePickedPoints.length);
+ const remaining=needed-measurePickedPoints.length;
+ if(remaining){
+  measureHint(measureLocalized(
+   'Point '+measurePickedPoints.length+' enregistré · encore '+remaining+' point(s).',
+   'Point '+measurePickedPoints.length+' saved · '+remaining+' more point(s).'));
+  return;
+ }
+ if(!circle){
+  const d=measurePickedPoints[0].distanceTo(measurePickedPoints[1]);
+  measureLine=measureOverlayLine(measurePickedPoints,0xffae38);
+  $('fjordMeasureResultHeading').textContent=measureLocalized('Distance mesurée','Measured distance');
+  $('fjordMeasureDistanceValue').textContent=d.toFixed(2)+' mm';
+  $('fjordMeasureDistanceValue').hidden=false;
+  measurePanel.hidden=false;
+  status.textContent=langText[currentLang()].measureValue.replace('{distance}',d.toFixed(2));
+  setMeasureHint();return;
+ }
+ const args=measurePickedPoints.map(v=>[v.x,v.y,v.z]);
+ const result=window.fjordFitCircle3D?.(...args);
+ if(!result){
+  clearMeasureLine();
+  measureHint(measureLocalized(
+   'Impossible de calculer un cercle fiable : choisis trois points bien espacés sur le contour, pas presque alignés.',
+   'Cannot fit a reliable circle: choose three well-separated points on its rim, not nearly collinear.'));
+  return;
+ }
+ const center=new THREE.Vector3(...result.center);
+ const normal=new THREE.Vector3(...result.normal);
+ const r=result.radius;
+ const u=measurePickedPoints[0].clone().sub(center).normalize();
+ const v=new THREE.Vector3().crossVectors(normal,u).normalize();
+ // Draw the fitted 3D circumference in the plane of the selected points.
+ const circumference=[];
+ for(let k=0;k<=128;k++){
+  const angle=k/128*Math.PI*2;
+  circumference.push(center.clone()
+   .addScaledVector(u,Math.cos(angle)*r)
+   .addScaledVector(v,Math.sin(angle)*r));
+ }
+ measureOverlayLine(circumference,0x48dcfb);
+ measureOverlayLine([center,measurePickedPoints[0]],0xffae38);
+ measureOverlayLine([center.clone().addScaledVector(u,-r),center.clone().addScaledVector(u,r)],0x79ecb6);
+ measureMarker(center,'C');
+ $('fjordMeasureResultHeading').textContent=measureLocalized('Cercle estimé (3 points)','Fitted circle (3 points)');
+ $('fjordMeasureRadius').textContent='≈ '+r.toFixed(2)+' mm';
+ $('fjordMeasureDiameter').textContent='≈ '+result.diameter.toFixed(2)+' mm';
+ measureCircleValues.hidden=false;
+ measurePanel.hidden=false;
+ status.textContent='R ≈ '+r.toFixed(2)+' mm · Ø ≈ '+result.diameter.toFixed(2)+' mm';
+ setMeasureHint();
 }
 function updateMeasureMarkerSizes(){
  if(!measureMarkers.length)return;
@@ -3226,9 +3312,33 @@ $('measure').addEventListener('click',()=>{
  $('measure').classList.toggle('active',measureMode);
  $('measure').setAttribute('aria-pressed',String(measureMode));
  if(!measureMode)clearMeasureLine();
- else say('measureActive');
+ setMeasureHint();
 });
 $('measure').setAttribute('aria-pressed','false');
+measureModeSelect.addEventListener('change',()=>{
+ clearMeasureLine();
+ if(!measureMode)$('measure').click();
+ else setMeasureHint();
+});
+$('fjordMeasureClear').addEventListener('click',()=>{
+ clearMeasureLine();
+ setMeasureHint();
+});
+$('fjordMeasureCircleQuick').addEventListener('click',()=>{
+ measureModeSelect.value='circle';
+ clearMeasureLine();
+ if(!measureMode)$('measure').click();
+ else setMeasureHint();
+ document.querySelector('[data-fjord-panel="measure"]')?.click();
+});
+setMeasureHint();
+window.fjordMeasureDebug=()=>({
+ mode:measureModeSelect.value,active:measureMode,
+ points:measurePickedPoints.length,
+ resultVisible:!measurePanel.hidden,
+ radius:$('fjordMeasureRadius').textContent,
+ diameter:$('fjordMeasureDiameter').textContent
+});
 function setView(direction,center){
  // View presets must not turn off the current modelling tool.
  const target=center||new THREE.Vector3(0,0,15),distance=Math.max(120,camera.position.distanceTo(orbit.target));
