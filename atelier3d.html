@@ -1035,15 +1035,16 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div class="field"><label data-i18n="position">Position (mm) — X, Y, Z</label><div class="triple"><input id="px" type="number" step="0.1" aria-label="Position X"><input id="py" type="number" step="0.1" aria-label="Position Y"><input id="pz" type="number" step="0.1" aria-label="Position Z"></div></div>
 <div class="field"><label data-i18n="rotation">Rotation (°) — X, Y, Z</label><div class="triple"><input id="rx" type="number" step="1" aria-label="Rotation X"><input id="ry" type="number" step="1" aria-label="Rotation Y"><input id="rz" type="number" step="1" aria-label="Rotation Z"></div></div>
 <div id="info" role="status" aria-live="polite"></div>
-<section id="fjordAmsColors" class="fjord-ams-colors" aria-label="Couleurs de filaments disponibles">
- <div class="fjord-ams-head"><h3>🎨 Couleurs AMS</h3><button type="button" id="fjordAmsRefresh" title="Actualiser les couleurs de l'imprimante" aria-label="Actualiser les couleurs AMS">↻</button></div>
- <button type="button" class="primary fjord-paint-launch" id="fjordPaintOpenAms">🖌 Ouvrir les pinceaux de peinture 3D</button>
- <p class="tool-note" id="fjordAmsStatus" role="status" aria-live="polite">Connexion aux bobines AMS…</p>
- <div id="fjordAmsSlots" class="fjord-ams-slots"></div>
- <label for="fjordManualColor">Ou choisir une couleur manuellement</label>
- <div class="fjord-ams-manual"><input type="color" id="fjordManualColor" value="#5bc6eb" aria-label="Couleur personnalisée"><button type="button" id="fjordApplyColor">Appliquer à la pièce</button></div>
- <p class="tool-note">La couleur est enregistrée dans le projet Fjord. Le STL conserve uniquement la géométrie; le choix du filament dans Bambu Studio reste nécessaire pour l'impression multicolore.</p>
-</section>
+<!-- Ancienne palette AMS non affichée : les données alimentent désormais
+     uniquement la palette de l'outil 🎨 Peinture 3D. Les IDs sont conservés
+     pour la synchronisation OctoEverywhere et la compatibilité des projets. -->
+<div id="fjordAmsColors" hidden aria-hidden="true" style="display:none!important">
+ <button type="button" id="fjordAmsRefresh" tabindex="-1" aria-hidden="true">↻</button>
+ <p id="fjordAmsStatus" role="status" aria-live="off">Connexion aux bobines AMS…</p>
+ <div id="fjordAmsSlots"></div>
+ <input type="color" id="fjordManualColor" value="#5bc6eb" tabindex="-1" aria-hidden="true">
+ <button type="button" id="fjordApplyColor" tabindex="-1" aria-hidden="true">Appliquer</button>
+</div>
 <section id="estimatePanel" class="estimate-panel" hidden>
 <h3 data-i18n="estimateTitle">💰 Estimer le prix d'impression</h3>
 <p class="estimate-help" data-i18n="estimateHelp">Aucun logiciel requis : l’atelier estime automatiquement le poids et la durée à partir de vos formes 3D ou de votre fichier STL.</p>
