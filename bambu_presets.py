@@ -33,7 +33,7 @@ def _category(data, path):
     keys = set(data)
     if keys.intersection({"filament_settings_id", "filament_type", "filament_flow_ratio", "filament_diameter", "nozzle_temperature", "filament_max_volumetric_speed"}):
         return "Filament"
-    if keys.intersection({"print_settings_id", "layer_height", "sparse_infill_density", "wall_loops", "initial_layer_print_height", "line_width"}):
+    if keys.intersection({"print_settings_id", "layer_height", "sparse_infill_density", "wall_loops", "initial_layer_print_height", "line_width", "outer_wall_acceleration", "support_tree_branch_diameter", "support_top_z_distance"}):
         return "Impression"
     if keys.intersection({"printer_settings_id", "printer_model", "nozzle_diameter", "machine_max_acceleration_x", "machine_start_gcode"}):
         return "Imprimante"
@@ -50,7 +50,7 @@ def _entry(data, path, source):
     category = _category(data, path)
     if not category:
         return None
-    name = _text(data.get("name") or data.get("filament_settings_id") or
+    name = _text(data.get("name") or data.get("profile_name") or data.get("filament_settings_id") or
                  data.get("print_settings_id") or data.get("printer_settings_id") or
                  PurePosixPath(path).stem)
     if not name:
