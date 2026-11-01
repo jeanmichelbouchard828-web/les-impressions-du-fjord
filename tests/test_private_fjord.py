@@ -297,7 +297,8 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn('Paiement partiel', html)
         self.assertIn('Préparer une demande de fonds BMO', html)
         self.assertIn('bmoAmount8', html)
-        self.assertIn('25,00 
+        self.assertIn('25,00', html)
+        self.assertIn('Ouvrir BMO (site officiel)', html)
 
     def test_saved_quote_payment_status_is_validated_and_persisted(self):
         class PaymentStatusConnection(DummyConnection):
