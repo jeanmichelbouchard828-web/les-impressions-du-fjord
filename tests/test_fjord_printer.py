@@ -134,6 +134,8 @@ class RemotePrintTests(unittest.TestCase):
         self.assertIn('gcode/X2D_test.3mf',html)
         self.assertEqual(html.count('id="fjordPrintPage"'),1)
         self.assertNotIn('data-slice-automatically',html)
+        self.assertIn('id="fjordAutoSliceCard"',html)
+        self.assertIn('Moteur Bambu Studio absent',html)
 
     def test_dashboard_offline_keeps_send_and_start_disabled(self):
         with patch("fjord_printer._api",side_effect=PrinterError("Connexion absente")):
