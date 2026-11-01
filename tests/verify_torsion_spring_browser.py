@@ -70,7 +70,7 @@ try:
         page.locator("#fjordPaintLaunch").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
         page.locator("#fjordPaintClose").evaluate("el=>el.click()")
-        page.locator("#fjordPaintOpenAms").evaluate("el=>el.click()")
+        page.locator("#fjordPaintFast").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
         page.locator("#fjordPaintClose").evaluate("el=>el.click()")
         page.locator('[data-fjord-panel="generators"]').evaluate("el=>el.click()")
