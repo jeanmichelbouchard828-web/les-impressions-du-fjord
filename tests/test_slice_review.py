@@ -116,6 +116,14 @@ class ReviewTests(unittest.TestCase):
                 stage=dict(s["fjord_slice_review"])
                 stage["at"]=time.time()
                 s["fjord_slice_review"]=stage
+            # Download retrieves the verified 3MF without uploading or starting it.
+            preview_download=client.post("/admin/atelier-imprimer/telecharger-3mf",
+                 data={"stage":token},headers={"Accept":"application/octet-stream"})
+            self.assertEqual(preview_download.status_code,200)
+            self.assertEqual(preview_download.data,archive)
+            self.assertIn("attachment",preview_download.headers.get("Content-Disposition",""))
+            upload.assert_not_called()
+            state.assert_not_called()
             success=client.post("/admin/atelier-imprimer/transmettre",
                   data={"stage":token},headers={"Accept":"application/json"})
             self.assertEqual(success.status_code,200,success.get_data(as_text=True))
