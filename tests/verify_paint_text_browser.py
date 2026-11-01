@@ -48,6 +48,10 @@ try:
         edited=json.loads(pathlib.Path(dl2.value.path()).read_text(encoding="utf-8"))
         assert edited["objects"][0]["textSpec"]["value"]=="FJORD",edited["objects"][0]["textSpec"]
         # Paint opens, selects tools and palette; clicking blank plate exits paint mode.
+        # Legacy AMS colors are no longer a visible Properties panel.
+        assert page.locator("#fjordAmsColors").is_hidden()
+        assert page.locator("#fjordPaintOpenAms").count()==0
+        assert page.locator("#fjordAmsSlots").is_hidden()
         assert page.locator("#fjordPaintFast").count()==1
         page.locator("#fjordPaintFast").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
