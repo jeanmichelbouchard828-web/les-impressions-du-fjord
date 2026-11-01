@@ -126,7 +126,30 @@ body.light .fjord-side-deco{color:#154568}
 @media(max-width:1100px){.fjord-side-nav{top:0;position:relative;width:100%;height:auto;padding:8px 12px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid #2584b6}.fjord-side-menu{flex-direction:row;gap:4px;width:max-content}.fjord-side-menu a{font-size:13px;padding:8px 11px;white-space:nowrap}.fjord-side-menu hr,.fjord-side-label,.fjord-side-deco{display:none}body>main{margin-left:0;width:100%}body>footer{margin-left:0}header nav{display:none}}
 @media(max-width:600px){.fjord-side-menu a{padding:8px 10px}.fjord-side-nav{padding:6px 8px}body>main{padding:16px 12px}}
 </style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+"""<style>
+FJORD_FINISHING="""<style>
+/* Finition globale : mêmes contrastes, contrôles et panneaux partout */
+:root{--fjord-accent:#21c4ff;--fjord-accent-soft:#8be8ff;--fjord-card:#0a2139;--fjord-line:#2782bb}
+body:not(.light) main{color:#e8f5ff}
+body:not(.light) main :is(section,article,fieldset){border-color:#2a729f}
+body:not(.light) main :is(input,textarea,select){background-color:#071a2d;color:#f2fbff;border:1px solid #31739e}
+body:not(.light) main :is(input,textarea,select):focus{outline:2px solid #38c9ff;outline-offset:1px}
+body:not(.light) main :is(table){border-collapse:separate;border-spacing:0;width:100%;border:1px solid #267eb4;border-radius:12px;overflow:hidden}
+body:not(.light) main th{background:#0c3d64;color:#dcf7ff}
+body:not(.light) main td{border-bottom:1px solid #244f70}
+body:not(.light) main tr:last-child td{border-bottom:0}
+body:not(.light) main :is(details){border-color:#2d7dad;border-radius:12px}
+body:not(.light) main summary{cursor:pointer}
+body:not(.light) main :is(a.btn,button.btn,input[type=submit]){background:linear-gradient(115deg,#0765a5,#08a4e5);border:1px solid #50cfff;color:#fff;box-shadow:0 4px 15px #078fd444}
+body:not(.light) main :is(a.btn,button.btn,input[type=submit]):hover{filter:brightness(1.12)}
+body:not(.light) main :is(.muted,.small){color:#b2d1e6}
+body:not(.light) main :is(h1,h2,h3){text-shadow:0 2px 14px #0006}
+.fjord-side-menu a:focus-visible{outline:2px solid #54d7ff;outline-offset:1px}
+body.light main :is(input,textarea,select){border-color:#8dbdd7}
+body.light main th{background:#d8efff;color:#103a56}
+@media(prefers-reduced-motion:reduce){.fjord-side-menu a,.card,.gallery-tile,.btn{transition:none!important}}
+@media(max-width:650px){main table{display:block;overflow-x:auto}main :is(input,select,textarea){max-width:100%;box-sizing:border-box}}
+</style>"""
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+FJORD_FINISHING+"""<style>
 @media(max-width:650px){
  header nav{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
  header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
