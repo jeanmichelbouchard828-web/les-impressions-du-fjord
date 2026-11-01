@@ -231,12 +231,39 @@ async function fjordSaveStudioModel(forQuote,button){
    blob=new Blob([new STLExporter().parse(group,{binary:true})],{type:"model/stl"});
   }
   if(!blob.size||blob.size>8*1024*1024)throw Error("Fichier trop volumineux (maximum 8 Mo).");
-  const oldGrid=grid.visible,oldBorder=border.visible,oldHelper=transform.getHelper().visible;
-  grid.visible=false;border.visible=false;transform.getHelper().visible=false;
+  // Image professionnelle : seulement les pieces et les lumieres.
+  // Le plateau, le logo sous la piece, les guides et la selection sont caches.
+  const hidden=[];
+  for(const item of scene.children){
+   if(models.includes(item)||item.isLight||!item.visible)continue;
+   hidden.push(item);item.visible=false;
+  }
+  const selectedGlow=[...selectedSet].filter(m=>m.userData.selectionOriginalColor!==undefined);
+  selectedGlow.forEach(removeSelectionTint);
+  const oldCamera=camera.position.clone(),oldTarget=orbit.target.clone();
+  const oldBackground=scene.background.clone();
   let imageData;
-  try{renderer.render(scene,camera);imageData=renderer.domElement.toDataURL("image/png")}
-  catch(error){console.warn("Apercu indisponible",error)}
-  finally{grid.visible=oldGrid;border.visible=oldBorder;transform.getHelper().visible=oldHelper;renderer.render(scene,camera)}
+  try{
+   const bounds=new THREE.Box3();
+   models.forEach(model=>bounds.expandByObject(model));
+   const center=bounds.getCenter(new THREE.Vector3());
+   const span=bounds.getSize(new THREE.Vector3()).length();
+   const direction=oldCamera.clone().sub(oldTarget).normalize();
+   if(Number.isFinite(span)&&span>0&&direction.lengthSq()>.001){
+    camera.position.copy(center).addScaledVector(direction,Math.max(70,span*1.8));
+    orbit.target.copy(center);camera.lookAt(center);
+   }
+   scene.background.set(0x172333);
+   renderer.render(scene,camera);
+   imageData=renderer.domElement.toDataURL("image/png");
+  }catch(error){console.warn("Photo du modele 3D indisponible",error)}
+  finally{
+   camera.position.copy(oldCamera);orbit.target.copy(oldTarget);
+   camera.lookAt(oldTarget);scene.background.copy(oldBackground);
+   hidden.forEach(item=>item.visible=true);
+   selectedGlow.forEach(addSelectionTint);
+   renderer.render(scene,camera);
+  }
   const form=new FormData();
   form.append("csrf",__FJORD_CSRF__);form.append("name",name);
   form.append("model",blob,filename);
