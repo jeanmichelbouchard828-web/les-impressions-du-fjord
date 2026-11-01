@@ -815,6 +815,14 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 }
 
 
+/* Fenetres scrollables a la molette des que la souris les survole,
+   sans devoir les activer au clic et sans zoomer le plateau 3D. */
+#sliceFloat,#fjordSliceContents,#cutFloat,#fjordPaintPanel,
+#fjordAutoPrintDialog,#fjordModelChooser,#mobileMenuContent,
+#toolsPanel [data-tool-panel],.sidebar.right,.scene-list{
+ overscroll-behavior-y:contain;scrollbar-width:thin;
+}
+
 /* Mobile Fjord 3D: keep a large plate in normal editing; when slicing,
    use a dedicated viewport with a live build-stage and non-clipped controls. */
 .fjord-slice-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
@@ -3239,6 +3247,44 @@ $('slicePreview').addEventListener('click',sliceOpen);
 $('sliceTop').addEventListener('click',()=>$('slicePreview').click());
 $('mobileSliceBtn').addEventListener('click',()=>{$('slicePreview').click()});
 $('sliceClose').addEventListener('click',sliceClose);
+// Fermer l'apercu sur un clic EXTERIEUR; garder intact le tranchage interne,
+// les mouvements de camera et les boutons qui servent a l'ouvrir/fermer.
+document.addEventListener('click',event=>{
+ if(!sliceActive)return;
+ const target=event.target;
+ if(!(target instanceof Element))return;
+ if(target.closest('#sliceFloat,dialog[open]'))return;
+ if(target.closest('#slicePreview,#sliceTop,#mobileSliceBtn,'+
+  '[data-quick-action="slicePreview"],[data-fjord-tool="slicePreview"],'+
+  '[data-fjord-target="sliceTop"],[data-context-action="sliceTop"],'+
+  '#fjordPrintShortcut,#fjordAutoPrintLauncher'))return;
+ sliceClose();
+},true);
+// Une molette au-dessus d'une fenetre fait defiler CETTE fenetre, meme sans clic.
+// En dehors des fenetres, le plateau conserve son propre zoom.
+document.addEventListener('wheel',event=>{
+ if(event.ctrlKey||event.metaKey||!event.deltaY)return;
+ const target=event.target;
+ if(!(target instanceof Element)||target.closest('select'))return;
+ const panel=target.closest(
+  '#sliceFloat,#cutFloat,#fjordPaintPanel,#fjordAutoPrintDialog,'+
+  '#fjordModelChooser,#mobileMenuContent,#toolsPanel [data-tool-panel],'+
+  '.sidebar.right,.scene-list');
+ if(!panel||panel.closest('[hidden]'))return;
+ let node=target;
+ while(node&&panel.contains(node)){
+  const style=getComputedStyle(node);
+  if((style.overflowY==='auto'||style.overflowY==='scroll')&&
+     node.scrollHeight>node.clientHeight+2){
+   const scale=event.deltaMode===1?16:event.deltaMode===2?node.clientHeight:1;
+   node.scrollTop+=event.deltaY*scale;
+   event.preventDefault();
+   return;
+  }
+  if(node===panel)break;
+  node=node.parentElement;
+ }
+},{passive:false,capture:true});
 $('sliceViewSize').addEventListener('click',()=>{
  const focus=document.body.classList.toggle('fjord-slice-model-focus');
  $('sliceViewSize').setAttribute('aria-pressed',String(focus));
