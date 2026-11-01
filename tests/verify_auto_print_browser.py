@@ -32,6 +32,10 @@ try:
      "Imprimante":[{"id":1,"name":"X2D 0.4","model":"Bambu Lab X2D","nozzle":"0.4"}],
      "Impression":[{"id":2,"name":"0.20 standard","layer":"0.2"}],
      "Filament":[{"id":3,"name":"PETG bleu","material":"PETG"}]}}
+  page.route("**/api/admin/atelier/impression-profils",lambda route:route.fulfill(
+    status=200,content_type="application/json",body=json.dumps(inventory)))
+  page.route("**/api/atelier/filaments",lambda route:route.fulfill(
+    status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
   slices=[];transfers=[]
   review={"source":"G-code réel du 3MF Bambu Studio","layer_count":2,"total_moves":4,
           "sampled":False,"layers":[
