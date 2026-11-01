@@ -102,6 +102,7 @@ try:
   assert page.locator('[name="process"]').input_value()=="2"
   assert page.locator('[name="filament"]').input_value()=="3"
   assert len(slices)==0 and len(transfers)==0,"No automatic transmission at initial selection"
+  page.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   page.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
   page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
   assert len(slices)==1 and len(transfers)==0,"Slice must never auto-upload"
@@ -227,6 +228,7 @@ try:
   assert all(q["left"]>=-2 and q["right"]<=392 for q in layout),layout
   mobile.locator("#fjordPrintShortcut").click()
   mobile.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
+  mobile.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
   mobile.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=20000)
   mobile.wait_for_function("document.querySelector('#fjordAutoPrintDialog').scrollTop <= 2",timeout=5000)
@@ -316,6 +318,8 @@ try:
   assert factory.locator('[name=process]').input_value()=="stock:process:020"
   assert factory.locator('[name=filament]').input_value()=="stock:filament:PETG"
   assert factory.locator('[name=filament] option').count()==3, "The original and CHATOU must both remain"
+  assert factory.locator("#fjordAutoSubmit").is_disabled(), "Plate must be selected explicitly"
+  factory.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   assert factory.locator("#fjordAutoSubmit").is_enabled()
   # Regression for a simple piece that merely entered Paint mode: the mode
   # creates vertexColors + an empty face map, which is NOT a multicolor piece.
@@ -340,6 +344,7 @@ try:
   import_project(project)
   factory.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
   factory.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='stock:machine:x2d04'")
+  factory.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   assert factory.locator("#fjordMonoApproval").is_hidden(), \
     "An untouched paint buffer must not block a monochrome cube"
   factory.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
@@ -353,6 +358,7 @@ try:
   import_project(project)
   factory.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
   factory.wait_for_function("document.querySelector('#fjordMonoApproval')?.hidden===false")
+  factory.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   assert factory.locator("#fjordMonoConsent").is_visible()
   assert not factory.locator("#fjordMonoConsent").is_checked()
   factory.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
