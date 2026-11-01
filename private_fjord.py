@@ -336,6 +336,92 @@ if(fjordAutoButton){
  const review=panel.querySelector('#fjordSliceReview');
  const transfer=panel.querySelector('#fjordReviewTransfer');
  const slider=panel.querySelector('#fjordReviewLayer');
+ const startScreen=panel.querySelector('#fjordStartAtelier');
+ const startNow=panel.querySelector('#fjordStartNow');
+ const startMessage=panel.querySelector('#fjordStartResult');
+ const liveState=panel.querySelector('#fjordLiveState');
+ const liveProgress=panel.querySelector('#fjordLiveProgress');
+ const safetyVerified=panel.querySelector('#fjordStartVerified');
+ const safetyCleared=panel.querySelector('#fjordStartCleared');
+ function refreshStartButton(){
+  startNow.disabled=busy||!transferred||!printerCanStart||
+    !safetyVerified.checked||!safetyCleared.checked;
+ }
+ [safetyVerified,safetyCleared].forEach(item=>item.addEventListener('change',refreshStartButton));
+ function clearPrintScreen(){
+  transferred=null;printerCanStart=false;startScreen.hidden=true;
+  panel.classList.remove('fjord-print-ready');
+  safetyVerified.checked=false;safetyCleared.checked=false;
+  startMessage.textContent='';startNow.disabled=true;
+ }
+ async function refreshPrinter(){
+  // Continue reporting printer state after /start, without re-enabling start.
+  if(!transferred&&!startScreen.classList.contains('fjord-start-sent'))return;
+  try{
+   const response=await fetch('/api/admin/atelier/impression-etat',{
+    credentials:'same-origin',cache:'no-store'
+   });
+   if(!response.ok)throw Error('La X2D ne répond pas.');
+   const data=await response.json();
+   if(!data.ok)throw Error(data.error||'Statut indisponible.');
+   printerCanStart=data.can_start===true;
+   const states={idle:'Prête',printing:'Impression en cours',paused:'En pause',
+     complete:'Terminée',cancelled:'Annulée'};
+   liveState.textContent=(states[data.state]||data.state||'Inconnu')+
+       (data.file?' · '+data.file:'');
+   const progress=Number(data.progress);
+   liveProgress.hidden=!(Number.isFinite(progress)&&data.progress!==null);
+   if(!liveProgress.hidden)liveProgress.value=Math.max(0,Math.min(100,progress));
+  }catch(error){
+   printerCanStart=false;liveState.textContent='⚠ '+String(error.message||error).slice(0,140);
+   liveProgress.hidden=true;
+  }
+  refreshStartButton();
+ }
+ panel.querySelector('#fjordRefreshPrinter').addEventListener('click',refreshPrinter);
+ function stopPrinterPolling(){
+  if(printerPoll!==null){clearInterval(printerPoll);printerPoll=null;}
+ }
+ function beginPrinterPolling(){
+  stopPrinterPolling();refreshPrinter();
+  printerPoll=setInterval(()=>{if(panel.open)refreshPrinter();},10000);
+ }
+ panel.querySelector('#fjordStartAnother').addEventListener('click',()=>{
+  stopPrinterPolling();clearPrintScreen();invalidatePreview();
+  state.textContent='Ajoute une nouvelle pièce ou retranche celle-ci.';
+ });
+ startNow.addEventListener('click',async()=>{
+  if(busy||!transferred||!printerCanStart||!safetyVerified.checked||!safetyCleared.checked)return;
+  if(!confirm('DÉMARRER réellement ce 3MF sur ma X2D ? Vérifie le plateau, la bonne bobine et la première couche.'))return;
+  const chosen=transferred;busy=true;refreshStartButton();
+  startMessage.textContent='Commande de démarrage envoyée à la X2D…';
+  try{
+   const body=new FormData();
+   body.append('csrf',__FJORD_CSRF__);
+   body.append('nonce',chosen.nonce);
+   body.append('verified','yes');
+   body.append('cleared','yes');
+   body.append('ams',panel.querySelector('#fjordStartAMS').checked?'yes':'no');
+   const response=await fetch('/admin/atelier-imprimer/demarrer-atelier',{
+    method:'POST',body,credentials:'same-origin',headers:{Accept:'application/json'}
+   });
+   if(!(response.headers.get('content-type')||'').includes('application/json'))
+    throw Error('Ta session administrateur a expiré.');
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw Error(result.error||'La X2D a refusé le démarrage.');
+   transferred=null;printerCanStart=false;
+   startScreen.classList.add('fjord-start-sent');
+   startMessage.textContent='✓ '+result.message;
+   stopPrinterPolling();beginPrinterPolling();
+  }catch(error){
+   // The one-use server nonce is consumed regardless of the result.
+   transferred=null;printerCanStart=false;stopPrinterPolling();
+   startMessage.textContent='⚠ '+String(error.message||error)+
+     ' · Vérifie l’imprimante avant de retenter; un nouvel envoi sera nécessaire.';
+  }finally{busy=false;refreshStartButton();}
+ });
+ panel.addEventListener('close',stopPrinterPolling);
+
  let reviewZoom=1,reviewPanX=0,reviewPanY=0;
  const reviewTouches=new Map();
  function invalidatePreview(){
