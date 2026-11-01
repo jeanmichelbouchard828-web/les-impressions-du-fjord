@@ -925,6 +925,44 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  body.fjord-mobile-slicing.fjord-slice-model-focus #fjordWorkspace .stage{width:65vw!important}
 }
 
+
+/* Atelier 3D : une seule hauteur d'ecran, sans defilement de la page.
+   Les panneaux internes conservent leur propre roulette/scroll tactile. */
+html{height:100%;height:100dvh;overflow:hidden!important}
+body{
+ display:flex!important;flex-direction:column!important;
+ height:100vh;height:100dvh;min-height:0!important;
+ max-height:100dvh;overflow:hidden!important;overscroll-behavior:none
+}
+body>header,body>.fjord-menubar,body>.fjord-bed-tabs,
+body>.quickbar,body>#mobileIconBar{flex:0 0 auto!important}
+#fjordWorkspace.shell{
+ flex:1 1 0%!important;height:auto!important;min-height:0!important;
+ max-height:none!important;min-width:0!important
+}
+#fjordWorkspace.shell>.sidebar{
+ min-height:0!important;max-height:100%!important
+}
+#fjordWorkspace .stage{min-height:0!important}
+#toolsPanel .fjord-workspace-nav,
+#toolsPanel [data-tool-panel],#propertiesPanel,
+#mobileMenuContent,#fjordSliceContents{overscroll-behavior:contain}
+@media(max-width:760px){
+ #fjordWorkspace.shell{
+  display:flex!important;flex-direction:column!important;
+  flex:1 1 0%!important;height:auto!important;
+  min-height:0!important;overflow:hidden!important
+ }
+ #fjordWorkspace .stage{
+  flex:1 1 0%!important;height:auto!important;
+  min-height:0!important;max-height:100%!important;overflow:hidden!important
+ }
+ /* L'aperçu mobile plein ecran garde ses commandes et son tranchage. */
+ body.fjord-mobile-slicing #fjordWorkspace.shell{
+  position:fixed!important;flex:none!important;height:100dvh!important
+ }
+}
+
 </style>
 <script src="/static/fjord_measure_circle.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
