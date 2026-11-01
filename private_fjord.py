@@ -778,6 +778,7 @@ if(fjordAutoButton){
 #fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
 #fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
 #fjordAutoPrintDialog{max-height:90dvh}
+#fjordAutoPrintDialog.fjord-print-ready #fjordAutoForm,#fjordAutoPrintDialog.fjord-print-ready #fjordSliceReview{display:none!important}
 #fjordStartAtelier[hidden]{display:none!important}
 #fjordStartAtelier{border-top:1px solid #597e93;padding-top:14px;margin-top:12px;display:grid;gap:12px}
 #fjordStartAtelier h3{font-size:17px;margin:4px 0}
