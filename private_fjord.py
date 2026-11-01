@@ -136,7 +136,7 @@ def admin_studio(html, csrf_token):
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
-                            print_shortcut + admin_shortcut +
+                            print_shortcut + '<button type="button" id="fjordAutoPrintLauncher" title="Trancher la création avec les profils Bambu X2D et transférer sur l imprimante">⚡ Préparer ma création</button>' + admin_shortcut +
                             '</div><div class="top-preferences">', 1)
         html = html.replace('<header>\n<div><div class="brand">🏔️ Atelier 3D du Fjord',
                             '<header class="fjord-admin-header">\n<div class="fjord-admin-brand">'
@@ -276,11 +276,109 @@ if(savedModelId && /^[0-9]+$/.test(savedModelId)){
  })();
 }
 """
+
+    auto_print_launcher = r"""
+// Impression privée de la création visible du plateau, uniquement en PLA/PETG
+// ou autre filament unique. Pas de conversion trompeuse des couleurs AMS en STL.
+const fjordAutoButton=document.getElementById('fjordAutoPrintLauncher');
+if(fjordAutoButton){
+ const panel=document.createElement('dialog');
+ panel.id='fjordAutoPrintDialog';
+ panel.setAttribute('aria-label','Tranchage officiel X2D depuis l’Atelier');
+ panel.innerHTML='<div class="fjord-dialog-head"><strong>⚡ Préparer mon impression X2D</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
+ '<p>Un seul matériau/couleur pour ce premier workflow. Le tranchage se fera avec Bambu Studio et les profils complets choisis. L’impression ne partira pas sans ta confirmation finale.</p>'+
+ '<p id="fjordAutoState" role="status" aria-live="polite">Vérification du moteur et des profils…</p>'+
+ '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
+ '<label>Profil d’impression<select name="process" required></select></label>'+
+ '<label>Filament<select name="filament" required></select></label>'+
+ '<button id="fjordAutoSubmit" type="submit" disabled>🧩 Trancher et envoyer à la X2D</button></form>'+
+ '<p><a href="/admin/profils-bambu">⚙️ Importer / vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Ouvrir la page d’impression</a></p>';
+ document.body.append(panel);
+ const state=panel.querySelector('#fjordAutoState'),form=panel.querySelector('#fjordAutoForm'),submit=panel.querySelector('#fjordAutoSubmit');
+ const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
+ panel.querySelector('#fjordAutoClose').addEventListener('click',()=>panel.close());
+ panel.addEventListener('click',e=>{if(e.target===panel)panel.close()});
+ fjordAutoButton.addEventListener('click',async()=>{
+  state.textContent='Vérification du moteur et des profils X2D…';
+  submit.disabled=true;
+  panel.showModal();
+  try{
+   const resp=await fetch('/api/admin/atelier/impression-profils',{credentials:'same-origin'});
+   if(!resp.ok)throw Error('Session administrateur expirée ou service indisponible.');
+   const data=await resp.json();
+   for(const [field,category] of Object.entries(names)){
+    const sel=form.elements.namedItem(field);
+    sel.replaceChildren(new Option('— Sélectionner —',''));
+    for(const item of data.profiles?.[category]||[])sel.add(new Option(item.name+' (#'+item.id+')',String(item.id)));
+   }
+   const canSlice=data.engine_ready&&Object.values(names).every(category=>data.profiles?.[category]?.length);
+   state.textContent=!data.engine_ready?
+    'Le moteur Bambu Studio n’est pas encore installé sur Railway. En attendant, la page d’impression accepte les vrais 3MF déjà tranchés.' :
+    !canSlice?'Il manque au moins un profil X2D complet (imprimante, impression ou filament). Importation seule ne suffit pas.':
+    'Moteur détecté. Sélectionne les trois profils correspondant à ta X2D, ta buse, ta plaque et ton matériau.';
+   const ready=()=>submit.disabled=!canSlice||!Object.keys(names).every(field=>form.elements.namedItem(field).value);
+   form.addEventListener('change',ready,{once:false});
+   ready();
+  }catch(error){state.textContent='⚠ '+String(error.message||error).slice(0,150)}
+ });
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(submit.disabled)return;
+  if(!models.length){state.textContent='⚠ Ajoute une pièce au plateau.';return;}
+  // A standard STL cannot carry per-face AMS painting or separate materials.
+  if(models.some(m=>m.material.vertexColors||m.userData.fjordPaintFaces)){
+   state.textContent='⚠ Pièce peinte ou multicolore : utilise Bambu Studio pour conserver les couleurs AMS.';return;
+  }
+  const colorSet=new Set(models.map(m=>basePartColor(m)));
+  if(colorSet.size>1){
+   state.textContent='⚠ Plusieurs couleurs de pièce : le tranchage STL automatique est réservé à une seule couleur.';return;
+  }
+  const extents=models.reduce((b,m)=>b.union(modelWorldBounds(m)),new THREE.Box3());
+  const size=extents.getSize(new THREE.Vector3());
+  if(size.x>256||size.y>256||size.z>260||size.x<=0||size.y<=0||size.z<=0){
+   state.textContent='⚠ La pièce ne rentre pas dans le volume X2D principal (256 × 256 × 260 mm).';return;
+  }
+  if(!confirm('Trancher la création actuelle avec ces profils X2D, puis envoyer le résultat sur l’imprimante SANS démarrer l’impression ?'))return;
+  submit.disabled=true;
+  state.textContent='Préparation et tranchage Bambu Studio…';
+  try{
+   const group=new THREE.Group();
+   for(const m of models){const clone=m.clone();clone.geometry=m.geometry;clone.material=m.material;group.add(clone);}
+   const binary=new STLExporter().parse(group,{binary:true});
+   const blob=new Blob([binary],{type:'application/octet-stream'});
+   if(blob.size>8*1024*1024)throw Error('STL trop volumineux (8 Mo maximum).');
+   const data=new FormData();
+   data.append('csrf',__FJORD_CSRF__);
+   data.append('stl',blob,'Creation-du-Fjord.stl');
+   for(const field of Object.keys(names))data.append(field,form.elements.namedItem(field).value);
+   const response=await fetch('/admin/atelier-imprimer/preparer',{
+    method:'POST',body:data,credentials:'same-origin',redirect:'follow'
+   });
+   if(!response.ok)throw Error('Échec du serveur : HTTP '+response.status);
+   location.assign(response.url);
+  }catch(error){
+   state.textContent='⚠ '+String(error.message||error).slice(0,170);
+   submit.disabled=false;
+  }
+ });
+}
+""".replace("__FJORD_CSRF__", json.dumps(csrf_token))
     styles = """
 <style>
 #fjordModelChooser{max-width:min(680px,94vw);width:94vw;max-height:85dvh;overflow:auto;
  background:#10283b;color:#eef9ff;border:1px solid #51bfe5;border-radius:16px;padding:18px;box-shadow:0 25px 75px #0009}
 #fjordModelChooser::backdrop{background:#000b}
+#fjordAutoPrintLauncher{min-height:40px;padding:8px 12px;background:#166174;border:1px solid #67c7e4;border-radius:9px;color:#fff;font-weight:750;cursor:pointer}
+#fjordAutoPrintDialog{width:min(580px,95vw);max-height:84dvh;overflow:auto;padding:18px;border:1px solid #58b9de;background:#112c40;color:#f0f8fd;border-radius:15px}
+#fjordAutoPrintDialog::backdrop{background:#000b}
+#fjordAutoPrintDialog .fjord-dialog-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
+#fjordAutoPrintDialog p{line-height:1.5;color:#d2e5ee}
+#fjordAutoPrintDialog form{display:grid;gap:12px;margin:18px 0}
+#fjordAutoPrintDialog label{display:grid;gap:4px}
+#fjordAutoPrintDialog select{min-height:44px;width:100%;background:#203f54;color:white;border:1px solid #7195ab}
+#fjordAutoPrintDialog button{min-height:42px}
+#fjordAutoPrintDialog button:disabled{opacity:.5;cursor:not-allowed}
+#fjordAutoPrintDialog a{color:#94e5fb}
 #fjordModelChooser .fjord-dialog-head{display:flex;gap:12px;justify-content:space-between;align-items:center}
 #fjordModelChooser .fjord-dialog-head strong{font-size:19px}
 #fjordModelChooser input{width:100%;margin:10px 0 14px;min-height:44px}
@@ -300,7 +398,7 @@ if(savedModelId && /^[0-9]+$/.test(savedModelId)){
 </style>
 """
     html = html.replace("</head>", styles + "</head>", 1)
-    return html.replace("/* End parametric generators */", injection + "\n" + open_model + "\n/* End parametric generators */", 1)
+    return html.replace("/* End parametric generators */", injection + "\n" + open_model + "\n" + auto_print_launcher + "\n/* End parametric generators */", 1)
 
 
 def public_studio(html):
