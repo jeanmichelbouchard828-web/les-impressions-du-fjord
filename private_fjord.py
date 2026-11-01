@@ -68,20 +68,27 @@ def _quote_amounts(q):
 
 
 def _square_checkout_url(value):
-    """Only official Square-hosted HTTPS checkout links may be offered to clients."""
+    """Only official Square or Stripe-hosted HTTPS payment links are accepted."""
     value=(value or "").strip()
     if not value or len(value)>1200 or any(ord(x)<33 or ord(x)>126 for x in value):
         return None
     try:
         parts=urlsplit(value)
         if (parts.scheme!="https" or parts.hostname not in
-                ("square.link","checkout.square.site")
+                ("square.link","checkout.square.site","buy.stripe.com")
                 or not parts.path.strip('/') or parts.username or parts.password or
                 parts.port not in (None,443) or parts.fragment):
             return None
     except ValueError:
         return None
     return value
+
+
+def _payment_link_provider(value):
+    """Provider name from a previously validated hosted checkout URL."""
+    if not _square_checkout_url(value):
+        return None
+    return "Stripe" if urlsplit(value).hostname=="buy.stripe.com" else "Square"
 
 
 def _active_square_url(q):
@@ -1971,7 +1978,7 @@ body.light .fj-square-section>summary{background:#e1f2f8}
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
 <div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
-{% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester Square ↗</a>{% endif %}
+{% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester le paiement ↗</a>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True,_scheme='https')}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
 <label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
 <label>État de fabrication
@@ -1991,18 +1998,18 @@ body.light .fj-square-section>summary{background:#e1f2f8}
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select></div>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
-<details class="fj-card-section fj-square-section" {% if q.square_link_url and not square_active[q.id] %}open{% endif %}><summary>💳 {% if square_active[q.id] %}Square configuré ✓{% else %}Configurer le paiement Square{% endif %}</summary><div class="fj-square-settings">
-<strong>💳 Paiement Square en un clic</strong>
-<p class="fj-help">Montant à créer dans Square : <strong>{{money(quote_totals[q.id])}} CAD</strong> (rabais, livraison et taxes déjà compris). Dans Square : Liens de paiement → Créer → Encaisser un paiement, montant fixe; désactive les taxes et pourboires supplémentaires pour éviter de facturer deux fois.</p>
+<details class="fj-card-section fj-square-section" {% if q.square_link_url and not square_active[q.id] %}open{% endif %}><summary>💳 {% if square_active[q.id] %}Paiement en ligne configuré ✓{% else %}Configurer le paiement par carte{% endif %}</summary><div class="fj-square-settings">
+<strong>💳 Paiement par carte en un clic (Stripe ou Square)</strong>
+<p class="fj-help">Montant à créer : <strong>{{money(quote_totals[q.id])}} CAD</strong>, livraison, rabais et taxes inclus. Crée un lien de paiement à montant fixe dans Stripe ou Square, sans rajouter de taxes, de frais ou de pourboire.</p>
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/square">{{csrf|safe}}
-<label for="fjordSquare{{q.id}}">Lien de paiement Square pour cette soumission</label>
+<label for="fjordSquare{{q.id}}">Lien de paiement Stripe ou Square pour cette soumission</label>
 <input id="fjordSquare{{q.id}}" type="url" name="square_link_url" maxlength="1200"
- placeholder="https://square.link/u/…" value="{{q.square_link_url or ''}}">
-<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400"><input type="checkbox" name="square_amount_checked" value="yes" style="width:auto;margin:5px 0 0"><span>J'ai vérifié dans Square que le montant à payer est exactement <strong>{{money(quote_totals[q.id])}} CAD</strong>, sans taxes ou pourboires ajoutés.</span></label>
-<div class="fj-square-row"><button type="submit">💾 Enregistrer le lien Square</button><a href="https://squareup.com/dashboard" target="_blank" rel="noopener noreferrer">↗ Créer le lien sur Square</a></div>
+ placeholder="https://buy.stripe.com/… ou https://square.link/u/…" value="{{q.square_link_url or ''}}">
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400"><input type="checkbox" name="square_amount_checked" value="yes" style="width:auto;margin:5px 0 0"><span>J'ai vérifié dans le service de paiement que le montant à payer est exactement <strong>{{money(quote_totals[q.id])}} CAD</strong>, sans taxes ou pourboires ajoutés.</span></label>
+<div class="fj-square-row"><button type="submit">💾 Enregistrer le lien de paiement</button><a href="https://dashboard.stripe.com/payment_links" target="_blank" rel="noopener noreferrer">↗ Créer sur Stripe</a><a href="https://squareup.com/dashboard" target="_blank" rel="noopener noreferrer">↗ Créer sur Square</a></div>
 </form>
 {% if q.square_link_url %}
-<p class="fj-square-status">{% if square_active[q.id] %}✓ Lien Square actif : le PDF et son QR ouvriront directement la caisse Square.{% else %}⚠ Ce lien Square n'est plus valable pour le montant actuel. Crée un nouveau lien Square et enregistre-le avant d'envoyer le PDF.{% endif %}</p>
+<p class="fj-square-status">{% if square_active[q.id] %}✓ Lien de paiement actif : le PDF et son QR ouvriront directement la page de paiement sécurisée.{% else %}⚠ Le lien actuel n'est plus valable pour ce montant. Crée un nouveau lien puis enregistre-le avant d'envoyer le PDF.{% endif %}</p>
 {% endif %}
 </div>
 </details>
@@ -2705,9 +2712,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         verify()
         supplied=request.form.get("square_link_url","").strip()
         if supplied and not _square_checkout_url(supplied):
-            abort(400,"Utilise un lien HTTPS officiel Square (square.link ou checkout.square.site).")
+            abort(400,"Utilise un lien HTTPS officiel Stripe (buy.stripe.com) ou Square (square.link).")
         if supplied and request.form.get("square_amount_checked")!="yes":
-            abort(400,"Confirme le montant exact dans Square avant d'activer le lien.")
+            abort(400,"Confirme le montant exact sur la page de paiement avant d'activer le lien.")
         with db() as c:
             c.execute("SELECT pg_advisory_xact_lock(7342026, 4)")
             q=c.execute("SELECT * FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
@@ -2715,7 +2722,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
             cents=int((Decimal(str(_quote_amounts(q)[3]))*100).quantize(Decimal("1"))) if supplied else None
             c.execute("""UPDATE private_quotes SET square_link_url=%s,square_link_amount_cents=%s
                          WHERE id=%s""",(supplied or None,cents,quote_id))
-        flash("Lien Square enregistré pour le montant actuel." if supplied else "Lien Square désactivé.")
+        flash("Lien de paiement enregistré pour le montant actuel." if supplied else "Lien de paiement désactivé.")
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.get("/admin/soumissions-pro/<int:quote_id>/paiement")
@@ -2888,6 +2895,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
                              FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         square_url=_active_square_url(q) if q else None
+        payment_provider=_payment_link_provider(square_url)
         recipient=setting["value"] if setting and setting["value"] else ""
         if not q or not (square_url or recipient):
             abort(404)
@@ -2974,9 +2982,9 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     </dl>
     <h2>Méthode de paiement</h2>
     {% if square_url %}
-      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — Square</div>
+      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — {{payment_provider}}</div>
       <a class="fj-checkout-action" href="{{square_url}}" target="_blank" rel="noopener noreferrer">Payer maintenant en ligne ↗</a>
-      <p class="fj-checkout-explain">Paiement sur la caisse officielle de Square. Vérifiez le montant avant de confirmer.</p>
+      <p class="fj-checkout-explain">Paiement sur la caisse officielle de {{payment_provider}}. Vérifiez le montant avant de confirmer.</p>
     {% else %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
       <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Payer avec Interac — instructions</button>
@@ -3029,7 +3037,7 @@ function fjordCopyAll(button){
 }
 </script>""",amount=_money(total),reference=reference,
     quote_description=q.get("title") or "Impression 3D personnalisée",
-    recipient=recipient,square_url=square_url))
+    recipient=recipient,square_url=square_url,payment_provider=payment_provider))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
@@ -3185,7 +3193,7 @@ function fjordCopyAll(button){
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"PAYER EN LIGNE AVEC SQUARE" if active_square_url else "MODALITÉS DE PAIEMENT INTERAC")
+            pdf.drawString(52,top-24,"PAYER EN LIGNE PAR CARTE" if active_square_url else "MODALITÉS DE PAIEMENT INTERAC")
             pdf.setFont("Helvetica",10)
             pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
             pdf.drawString(52,top-58,"Référence : {}".format(display_number))
@@ -3193,7 +3201,7 @@ function fjordCopyAll(button){
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"PAYER PAR CARTE - SQUARE" if active_square_url else "VOIR LES OPTIONS DE PAIEMENT")
+            pdf.drawCentredString(222,bottom+18,"PAYER MAINTENANT PAR CARTE" if active_square_url else "VOIR LES OPTIONS DE PAIEMENT")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
