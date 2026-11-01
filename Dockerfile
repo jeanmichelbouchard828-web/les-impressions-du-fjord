@@ -44,6 +44,10 @@ for_id = ("stock:machine:x2d04","stock:process:020","stock:filament:PETG"); \
 results = [original_preset(cat, key) for cat, key in zip(for_category, for_id)]; \
 assert "M620" in results[0]["machine_start_gcode"]; \
 print("Bambu original X2D machine/process/PETG ready")'
+# Fail the build if Bambu's *real* CLI cannot slice a PETG cube using
+# the original X2D machine/process/filament profiles and compatible PEI plate.
+# This test is entirely offline: it never contacts the physical printer.
+RUN python /app/bambu_smoke.py
 COPY static ./static
 ENV PORT=8080
 CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 160 app:app
