@@ -97,6 +97,70 @@ def _api(path, *, method="GET", payload=None, timeout=9):
         raise PrinterError("Réponse de l'imprimante incomplète.")
     return result
 
+def _categorize_plugin_log(log_text):
+    """Turn potentially sensitive OctoEverywhere logs into one fixed, safe hint.
+
+    Never return even a substring of raw logs to a user, including hostnames,
+    printer serial numbers, paths, LAN IPs, usernames or authentication data.
+    """
+    if not isinstance(log_text, str) or not log_text:
+        return None
+    relevant = []
+    for line in log_text.splitlines()[-180:]:
+        lower = line.lower()
+        if any(word in lower for word in ("ftps", "ftp ", "ftp:", "file upload",
+                                         "uploadfile", "storbinary", "stor ", "files/upload")):
+            if any(word in lower for word in ("fail", "error", "except", "timeout",
+                                             "denied", "abort", "reset", "550", "530",
+                                             "425", "426", "storage", "disconnect",
+                                             "no space", "not found", "shutdown")):
+                relevant.append(lower)
+    if not relevant:
+        return None
+    # The most recent error takes precedence, not an arbitrary older line.
+    context = relevant[-1]
+    if any(word in context for word in ("no usb", "no sd card", "not mounted", "no storage", "storage missing")):
+        return "Les journaux évoquent un stockage USB absent ou non monté. Vérifie la clé USB sur la X2D."
+    if any(word in context for word in ("no space", "disk full", "storage full", "out of space", "quota")):
+        return "Les journaux évoquent un stockage plein. Vérifie l’espace libre de la clé USB."
+    if any(word in context for word in ("permission denied", "read-only", "write protected",
+                                       "file or directory was not found", " 550 ")):
+        return "Les journaux évoquent un refus d’écriture ou un chemin inaccessible sur le stockage de la X2D."
+    if any(word in context for word in ("authentication failed", " 530 ", "login failed",
+                                       "incorrect password", "bad credentials")):
+        return "Les journaux évoquent une authentification FTPS refusée. Vérifie le code d’accès stocké dans OctoEverywhere."
+    if any(word in context for word in (" 425 ", " 426 ", "passive", "data channel",
+                                       "data connection", "ssl", "tls", "timed out",
+                                       "timeout", "connection reset", "broken pipe")):
+        return "Les journaux évoquent un problème de canal de transfert FTPS (TLS, réseau ou délai). Vérifie le réseau local du conteneur."
+    return "Le journal signale une erreur FTPS d’écriture, sans raison assez précise pour la corriger automatiquement."
+
+
+def _plugin_log_hint():
+    """Read-only remote log-tail check; send only a generic category to admin."""
+    base = _connection()
+    url = base + "/octoeverywhere-command-api/get-plugin-logs?tailLines=140"
+    headers = {"Accept": "text/plain", "User-Agent": "Fjord-Atelier-Diagnostic/1"}
+    bearer = os.getenv("OCTOEVERYWHERE_AUTH_BEARER_TOKEN", "").strip()
+    username = os.getenv("OCTOEVERYWHERE_AUTH_BASIC_USER", "").strip()
+    password = os.getenv("OCTOEVERYWHERE_AUTH_BASIC_PASSWORD", "")
+    if bearer:
+        headers["Authorization"] = "Bearer " + bearer
+    elif username and password:
+        headers["Authorization"] = "Basic " + base64.b64encode(
+            (username + ":" + password).encode("utf-8")).decode("ascii")
+    try:
+        request_log = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.build_opener(_NoRedirect).open(request_log, timeout=8) as response:
+            # The remote plugin may have no log or more than our strict cap.
+            content = response.read(256 * 1024 + 1)
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
+        return None
+    if len(content) > 256 * 1024 or not content:
+        return None
+    return _categorize_plugin_log(content.decode("utf-8", "replace"))
+
+
 def _upload_error_hint(envelope):
     """Map known OctoEverywhere transfer diagnostics without exposing raw
     exception text, LAN addresses, printer IDs, or authentication secrets."""
@@ -726,11 +790,16 @@ body.light .fj-print-hint{color:#496477!important}
             except PrinterError as exc:
                 details.append(("État" if key == "status" else "Fichiers")
                                + " : " + str(exc)[:150])
+        # Inspect only a tail of remote plugin logs; never send raw log text.
+        log_hint = _plugin_log_hint()
         if checks["status"] and checks["files"]:
             diagnosis = (
                 "La connexion d'état et la consultation des fichiers répondent. "
-                "Le problème 752 concerne probablement l'écriture du 3MF vers la X2D, "
-                "mais la cause exacte nécessite les journaux du plugin OctoEverywhere."
+                "Le code 752 concerne le transfert FTPS du 3MF et non le tranchage. "
+                + (log_hint or
+                   "Aucun détail exploitable dans les dernières lignes du journal. "
+                   "Sur la X2D, vérifie d'abord la présence d'une clé USB lisible "
+                   "et son espace libre, puis les journaux du conteneur.")
             )
         elif checks["status"]:
             diagnosis = (
