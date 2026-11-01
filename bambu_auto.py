@@ -76,6 +76,8 @@ def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> 
     message = output.decode("utf-8", "replace")[-16000:].lower()
     if exit_code < 0:
         return "Le moteur Bambu Studio s’est arrêté anormalement (signal {}).".format(-exit_code)
+    if exit_code == 0 and not output_exists:
+        return "Bambu Studio a terminé sans produire le 3MF tranché attendu."
     if any(term in message for term in ("unknown option", "unrecognized option", "unrecognised option")):
         return "Bambu Studio a refusé un paramètre de commande."
     if any(term in message for term in ("preset", "filament", "config", "machine settings", "process settings")):
