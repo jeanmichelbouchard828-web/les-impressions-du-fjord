@@ -22,6 +22,12 @@ RUN mkdir -p /opt/bambu && \
     rm -f /tmp/BambuStudio.AppImage && \
     printf '#!/bin/sh\nexec xvfb-run -a /opt/bambu/squashfs-root/AppRun "$@"\n' >/usr/local/bin/bambu-studio && \
     chmod 755 /usr/local/bin/bambu-studio
+# Locate the exact X2D stock presets bundled in this pinned Bambu AppImage.
+# The main X2D JSON references essential separate machine_start_gcode templates.
+RUN machine="$(find /opt/bambu/squashfs-root -type f \
+    -path '*/profiles/BBL/machine/Bambu Lab X2D 0.4 nozzle.json' -print -quit)" && \
+    test -n "$machine" && \
+    dirname "$(dirname "$machine")" > /opt/bambu/bbl-stock-profiles-path
 ENV BAMBU_STUDIO_CLI=/usr/local/bin/bambu-studio
 # Fail deployment rather than falsely report an unusable Bambu slicer.
 RUN ( timeout 30 /usr/local/bin/bambu-studio --help >/tmp/bambu-help.log 2>&1 && \
@@ -30,6 +36,14 @@ RUN ( timeout 30 /usr/local/bin/bambu-studio --help >/tmp/bambu-help.log 2>&1 &&
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py atelier3d.html ./
+# Fail the build if the X2D machine G-code or PETG factory profile cannot be
+# expanded. An inherited generic start script is unsafe for a real X2D/AMS.
+RUN python -c 'from bambu_stock_profiles import original_preset; \
+for_category = ("Imprimante","Impression","Filament"); \
+for_id = ("stock:machine:x2d04","stock:process:020","stock:filament:PETG"); \
+results = [original_preset(cat, key) for cat, key in zip(for_category, for_id)]; \
+assert "M620" in results[0]["machine_start_gcode"]; \
+print("Bambu original X2D machine/process/PETG ready")'
 COPY static ./static
 ENV PORT=8080
 CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 160 app:app
