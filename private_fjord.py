@@ -331,15 +331,31 @@ if(fjordAutoButton){
  '<section id="fjordSliceReview" hidden aria-label="Aperçu des couches réellement tranchées">'+
  '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
  '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
- '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue du dessus du G-code réel. Glisse pour déplacer et pince pour zoomer."></canvas>'+
+ '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue pivotable en 3D du G-code tranché, un doigt pour tourner et deux doigts pour zoomer ou déplacer."></canvas>'+
+ '<button type="button" class="fjord-review-mode" id="fjordReview3DToggle" aria-pressed="true">◈ 3D</button>'+
  '<div class="fjord-review-zoom" role="group" aria-label="Zoom de l’aperçu"><button type="button" id="fjordReviewZoomOut" aria-label="Dézoomer">−</button><button type="button" id="fjordReviewFit" aria-label="Recentrer et ajuster le zoom">⌗</button><button type="button" id="fjordReviewZoomIn" aria-label="Agrandir">+</button></div></div>'+
- '<p class="fjord-review-gesture">Glisse pour déplacer · pince à deux doigts pour zoomer · vue du dessus.</p>'+
+ '<p class="fjord-review-gesture" id="fjordReviewGesture">Un doigt : pivoter · deux doigts : zoomer et déplacer · bouton 3D/2D.</p>'+
  '<label for="fjordReviewLayer">Couche <strong id="fjordReviewLabel">—</strong></label>'+
  '<div class="fjord-review-layerbar"><button type="button" id="fjordReviewPrevious" aria-label="Couche précédente">◀</button><input id="fjordReviewLayer" type="range" min="0" max="0" value="0" step="1"><button type="button" id="fjordReviewNext" aria-label="Couche suivante">▶</button></div>'+
  '<label class="fjord-auto-remember"><input id="fjordReviewAccumulated" type="checkbox"> Afficher les couches précédentes</label>'+
  '<p id="fjordReviewSummary" role="status"></p>'+
+ '<div class="fjord-review-facts" aria-label="Résultats réels du tranchage">'+
+ '<div><span>Durée Bambu</span><strong id="fjordReviewTime">—</strong></div>'+
+ '<div><span>Filament Bambu</span><strong id="fjordReviewWeight">—</strong></div>'+
+ '<div><span>Nombre de couches</span><strong id="fjordReviewCount">—</strong></div>'+
+ '</div>'+
+ '<div class="fjord-review-price"><span>Prix estimé avant taxes <small>(CAD)</small></span><strong id="fjordReviewPrice">—</strong>'+
+ '<p id="fjordReviewPriceNote">Calcul à partir des valeurs du véritable 3MF Bambu Studio et des tarifs configurés.</p></div>'+
+ '<details class="fjord-review-pricing"><summary>⚙️ Ajuster le calcul du prix</summary>'+
+ '<div class="fjord-review-rategrid">'+
+ '<label>Filament ($/kg)<input type="number" id="fjordReviewKgRate" min="0" max="1000" step=".5" value="32"></label>'+
+ '<label>Machine ($/h)<input type="number" id="fjordReviewHourRate" min="0" max="1000" step=".5" value="3"></label>'+
+ '<label>Préparation ($)<input type="number" id="fjordReviewSetupRate" min="0" max="10000" step=".5" value="8"></label>'+
+ '<label>Majoration (%)<input type="number" id="fjordReviewMarkup" min="0" max="500" step="1" value="25"></label>'+
+ '</div><p id="fjordReviewBreakdown" aria-live="polite"></p></details>'+
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
  '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
+ '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Bambu Studio)</button>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
  '<section id="fjordStartAtelier" hidden aria-label="Imprimer directement depuis l’Atelier">'+
  '<h3>🖨️ Mon 3MF est sur la X2D</h3><p id="fjordStartFile"></p>'+
@@ -455,7 +471,10 @@ if(fjordAutoButton){
  panel.addEventListener('close',stopPrinterPolling);
 
  let reviewZoom=1,reviewPanX=0,reviewPanY=0;
+ let review3D=true,reviewYaw=-.6,reviewPitch=.7;
  const reviewTouches=new Map();
+ const reviewCanvas=panel.querySelector('#fjordReviewCanvas');
+ const moneyReview=new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD'});
  function invalidatePreview(){
   prepared=null;
   review.hidden=true;
@@ -463,34 +482,118 @@ if(fjordAutoButton){
   transfer.disabled=true;
   reviewZoom=1;reviewPanX=reviewPanY=0;
  }
+ function refreshReviewPrice(){
+  if(!prepared)return;
+  const p=prepared.preview;
+  const secs=Number(p.estimated_seconds),grams=Number(p.filament_grams);
+  const validTime=Number.isFinite(secs)&&secs>0;
+  const validWeight=Number.isFinite(grams)&&grams>0;
+  const duration=validTime?Math.floor(secs/3600)+' h '+Math.round((secs%3600)/60)+' min':'—';
+  panel.querySelector('#fjordReviewTime').textContent=duration;
+  panel.querySelector('#fjordReviewWeight').textContent=validWeight?grams.toLocaleString('fr-CA',{maximumFractionDigits:1})+' g':'—';
+  panel.querySelector('#fjordReviewCount').textContent=String(p.layer_count||p.layers.length);
+  const price=panel.querySelector('#fjordReviewPrice');
+  const note=panel.querySelector('#fjordReviewPriceNote');
+  const breakdown=panel.querySelector('#fjordReviewBreakdown');
+  if(!validTime||!validWeight){
+   price.textContent='—';
+   note.textContent='Durée ou poids non disponible dans le 3MF Bambu. Prix non calculé, pour éviter une estimation trompeuse.';
+   breakdown.textContent='Vérifie les informations du 3MF dans Bambu Studio.';
+   return;
+  }
+  const rates=['fjordReviewKgRate','fjordReviewHourRate','fjordReviewSetupRate','fjordReviewMarkup']
+     .map(id=>Number(panel.querySelector('#'+id).value));
+  if(rates.some(v=>!Number.isFinite(v)||v<0)||rates[3]>500||rates[0]>1000||rates[1]>1000||rates[2]>10000){
+   price.textContent='—';note.textContent='Vérifie les tarifs saisis.';breakdown.textContent='';return;
+  }
+  const materialCost=grams/1000*rates[0]*1.10;
+  const machineCost=secs/3600*rates[1];
+  const subtotal=materialCost+machineCost+rates[2];
+  const total=subtotal*(1+rates[3]/100);
+  price.textContent=moneyReview.format(total);
+  note.textContent='Avant taxes · indicatif · temps et poids du vrai 3MF Bambu Studio · perte de filament +10 %.';
+  breakdown.textContent='Filament et perte : '+moneyReview.format(materialCost)+' · Machine : '+
+   moneyReview.format(machineCost)+' · Préparation : '+moneyReview.format(rates[2])+
+   ' · Majoration : '+rates[3].toLocaleString('fr-CA')+' %.';
+ }
+ for(const id of ['fjordReviewKgRate','fjordReviewHourRate','fjordReviewSetupRate','fjordReviewMarkup']){
+  panel.querySelector('#'+id).addEventListener('input',refreshReviewPrice);
+ }
  function drawBambuReview(){
   if(!prepared)return;
   const layers=prepared.preview.layers;
   const index=Math.min(layers.length-1,Math.max(0,Number(slider.value)||0));
-  const canvas=panel.querySelector('#fjordReviewCanvas'),ctx=canvas.getContext('2d');
+  const canvas=reviewCanvas,ctx=canvas.getContext('2d');
   if(!ctx)return;
   ctx.fillStyle='#101c29';ctx.fillRect(0,0,canvas.width,canvas.height);
-  const side=Math.min(canvas.width,canvas.height)-38;
-  // Transform about canvas centre; identical geometry for mouse and touch.
-  const tx=x=>canvas.width/2+(19+(x/256)*side-canvas.width/2)*reviewZoom+reviewPanX;
-  const ty=y=>canvas.height/2+(canvas.height-19-(y/256)*side-canvas.height/2)*reviewZoom+reviewPanY;
-  ctx.strokeStyle='#365064';ctx.lineWidth=.7;
-  for(let mm=0;mm<=256;mm+=32){
-   ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
-   ctx.beginPath();ctx.moveTo(tx(0),ty(mm));ctx.lineTo(tx(256),ty(mm));ctx.stroke();
-  }
   const accumulated=panel.querySelector('#fjordReviewAccumulated').checked;
   const shown=accumulated?layers.slice(0,index+1):[layers[index]];
-  for(let i=0;i<shown.length;i++){
-   const layer=shown[i];
-   ctx.strokeStyle=i===shown.length-1?'#ffa857':'#47738d';
-   ctx.lineWidth=i===shown.length-1?1.3:.7;
-   ctx.beginPath();
-   for(const segment of layer.segments||[]){
-    ctx.moveTo(tx(segment[0]),ty(segment[1]));
-    ctx.lineTo(tx(segment[2]),ty(segment[3]));
+  if(review3D){
+   // Project the real XYZ G-code extrusion paths. This is a 3D toolpath
+   // visualization, not a fabricated watertight shaded model.
+   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+   for(const layer of shown)for(const seg of layer.segments||[]){
+    minX=Math.min(minX,seg[0],seg[2]);maxX=Math.max(maxX,seg[0],seg[2]);
+    minY=Math.min(minY,seg[1],seg[3]);maxY=Math.max(maxY,seg[1],seg[3]);
    }
-   ctx.stroke();
+   if(!Number.isFinite(minX)){minX=105;maxX=120;minY=105;maxY=120;}
+   const minZ=Number(shown[0].z)||0,maxZ=Number(shown[shown.length-1].z)||0;
+   const centreX=(minX+maxX)/2,centreY=(minY+maxY)/2,centreZ=(minZ+maxZ)/2;
+   const span=Math.max(10,maxX-minX,maxY-minY,(maxZ-minZ)*1.4);
+   const scale=canvas.width*.59/span*reviewZoom;
+   const cy=Math.cos(reviewYaw),sy=Math.sin(reviewYaw);
+   const cp=Math.cos(reviewPitch),sp=Math.sin(reviewPitch);
+   const project=(x,y,z)=>{
+    const dx=x-centreX,dy=y-centreY,dz=z-centreZ;
+    const xx=dx*cy-dy*sy,yy=dx*sy+dy*cy;
+    return [canvas.width/2+xx*scale+reviewPanX,
+      canvas.height/2+(-yy*cp-dz*sp)*scale+reviewPanY];
+   };
+   const pad=Math.max(3,span*.15);
+   ctx.strokeStyle='#38546a';ctx.lineWidth=.65;
+   for(let i=0;i<=6;i++){
+    const x=minX-pad+(maxX-minX+2*pad)*i/6;
+    const y=minY-pad+(maxY-minY+2*pad)*i/6;
+    let a=project(x,minY-pad,0),b=project(x,maxY+pad,0);
+    ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+    a=project(minX-pad,y,0);b=project(maxX+pad,y,0);
+    ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+   }
+   for(let i=0;i<shown.length;i++){
+    const layer=shown[i],segments=layer.segments||[];
+    ctx.strokeStyle=i===shown.length-1?'#ffa857':'#568caa';
+    ctx.globalAlpha=i===shown.length-1?1:.65;
+    ctx.lineWidth=i===shown.length-1?1.4:1;
+    ctx.beginPath();
+    const step=Math.max(1,Math.ceil(segments.length/1200));
+    for(let j=0;j<segments.length;j+=step){
+     const seg=segments[j],a=project(seg[0],seg[1],Number(layer.z)||0),
+       b=project(seg[2],seg[3],Number(layer.z)||0);
+     ctx.moveTo(...a);ctx.lineTo(...b);
+    }
+    ctx.stroke();
+   }
+   ctx.globalAlpha=1;
+  }else{
+   const side=Math.min(canvas.width,canvas.height)-38;
+   const tx=x=>canvas.width/2+(19+(x/256)*side-canvas.width/2)*reviewZoom+reviewPanX;
+   const ty=y=>canvas.height/2+(canvas.height-19-(y/256)*side-canvas.height/2)*reviewZoom+reviewPanY;
+   ctx.strokeStyle='#365064';ctx.lineWidth=.7;
+   for(let mm=0;mm<=256;mm+=32){
+    ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(tx(0),ty(mm));ctx.lineTo(tx(256),ty(mm));ctx.stroke();
+   }
+   for(let i=0;i<shown.length;i++){
+    const layer=shown[i];
+    ctx.strokeStyle=i===shown.length-1?'#ffa857':'#47738d';
+    ctx.lineWidth=i===shown.length-1?1.3:.7;
+    ctx.beginPath();
+    for(const segment of layer.segments||[]){
+     ctx.moveTo(tx(segment[0]),ty(segment[1]));
+     ctx.lineTo(tx(segment[2]),ty(segment[3]));
+    }
+    ctx.stroke();
+   }
   }
   const active=layers[index];
   panel.querySelector('#fjordReviewLabel').textContent=
@@ -499,6 +602,7 @@ if(fjordAutoButton){
    active.moves.toLocaleString('fr-CA')+' mouvements extrudés sur cette couche · '+
    prepared.preview.total_moves.toLocaleString('fr-CA')+' au total'+
    (prepared.preview.sampled?' · tracé partiellement échantillonné':'');
+  refreshReviewPrice();
  }
  slider.addEventListener('input',drawBambuReview);
  for(const [id,direction] of [['fjordReviewPrevious',-1],['fjordReviewNext',1]]){
@@ -510,7 +614,7 @@ if(fjordAutoButton){
  }
  panel.querySelector('#fjordReviewAccumulated').addEventListener('change',drawBambuReview);
  function zoomReview(next){
-  reviewZoom=Math.min(6,Math.max(.75,next));
+  reviewZoom=Math.min(6,Math.max(.5,next));
   reviewPanX=Math.min(500,Math.max(-500,reviewPanX));
   reviewPanY=Math.min(500,Math.max(-500,reviewPanY));
   drawBambuReview();
@@ -518,47 +622,102 @@ if(fjordAutoButton){
  panel.querySelector('#fjordReviewZoomOut').addEventListener('click',()=>zoomReview(reviewZoom/1.4));
  panel.querySelector('#fjordReviewZoomIn').addEventListener('click',()=>zoomReview(reviewZoom*1.4));
  panel.querySelector('#fjordReviewFit').addEventListener('click',()=>{
-  reviewZoom=1;reviewPanX=reviewPanY=0;drawBambuReview();
+  reviewZoom=1;reviewPanX=reviewPanY=0;
+  reviewYaw=-.6;reviewPitch=.7;drawBambuReview();
  });
- const canvas=panel.querySelector('#fjordReviewCanvas');
- let lastTouch={x:0,y:0,d:0};
+ const modeSwitch=panel.querySelector('#fjordReview3DToggle');
+ modeSwitch.addEventListener('click',()=>{
+  review3D=!review3D;
+  modeSwitch.textContent=review3D?'◈ 3D':'▤ 2D';
+  modeSwitch.setAttribute('aria-pressed',String(review3D));
+  panel.querySelector('#fjordReviewGesture').textContent=review3D
+   ?'Un doigt : pivoter · deux doigts : zoomer et déplacer · bouton 3D/2D.'
+   :'Glisse pour déplacer · pince à deux doigts pour zoomer · vue du dessus.';
+  drawBambuReview();
+ });
+ let lastTouch={x:0,y:0,d:0},rightDrag=false;
  function touchState(){
   const p=[...reviewTouches.values()];
+  if(!p.length)return {x:0,y:0,d:0};
   const x=p.reduce((sum,a)=>sum+a.x,0)/p.length;
   const y=p.reduce((sum,a)=>sum+a.y,0)/p.length;
   const d=p.length>=2?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0;
   return {x,y,d};
  }
- canvas.addEventListener('pointerdown',event=>{
+ reviewCanvas.addEventListener('contextmenu',event=>event.preventDefault());
+ reviewCanvas.addEventListener('pointerdown',event=>{
   if(!prepared)return;
+  event.preventDefault();
   reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  rightDrag=event.button===2;
   lastTouch=touchState();
-  try{canvas.setPointerCapture(event.pointerId);}catch(_){}
+  try{reviewCanvas.setPointerCapture(event.pointerId);}catch(_){}
  });
- canvas.addEventListener('pointermove',event=>{
+ reviewCanvas.addEventListener('pointermove',event=>{
   if(!prepared||!reviewTouches.has(event.pointerId))return;
+  event.preventDefault();
   reviewTouches.set(event.pointerId,{x:event.clientX,y:event.clientY});
   const now=touchState();
-  reviewPanX+=now.x-lastTouch.x;
-  reviewPanY+=now.y-lastTouch.y;
-  if(now.d&&lastTouch.d)reviewZoom=Math.min(6,Math.max(.75,reviewZoom*now.d/lastTouch.d));
+  const dx=now.x-lastTouch.x,dy=now.y-lastTouch.y;
+  if(reviewTouches.size>=2){
+   reviewPanX+=dx;reviewPanY+=dy;
+   if(now.d&&lastTouch.d)reviewZoom=Math.min(6,Math.max(.5,reviewZoom*now.d/lastTouch.d));
+  }else if(review3D&&!rightDrag){
+   reviewYaw+=dx*.012;
+   reviewPitch=Math.min(1.48,Math.max(-1.48,reviewPitch+dy*.009));
+  }else{reviewPanX+=dx;reviewPanY+=dy;}
   lastTouch=now;
   drawBambuReview();
  });
  function endReviewTouch(event){
   reviewTouches.delete(event.pointerId);
-  if(reviewTouches.size)lastTouch=touchState();
-  try{canvas.releasePointerCapture(event.pointerId);}catch(_){}
+  rightDrag=false;
+  lastTouch=touchState();
+  try{reviewCanvas.releasePointerCapture(event.pointerId);}catch(_){}
  }
- canvas.addEventListener('pointerup',endReviewTouch);
- canvas.addEventListener('pointercancel',endReviewTouch);
- canvas.addEventListener('wheel',event=>{
+ reviewCanvas.addEventListener('pointerup',endReviewTouch);
+ reviewCanvas.addEventListener('pointercancel',endReviewTouch);
+ reviewCanvas.addEventListener('wheel',event=>{
   if(!prepared)return;
   event.preventDefault();zoomReview(reviewZoom*(event.deltaY>0?.85:1.15));
  },{passive:false});
- panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
+  panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
   invalidatePreview();
   state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
+ });
+ const download3mf=panel.querySelector('#fjordReviewDownload');
+ download3mf.addEventListener('click',async()=>{
+  if(!prepared||busy)return;
+  const original=download3mf.textContent;
+  download3mf.disabled=true;
+  download3mf.textContent='⬇ Récupération du 3MF tranché…';
+  try{
+   const body=new FormData();
+   body.append('csrf',__FJORD_CSRF__);
+   body.append('stage',prepared.stage);
+   const response=await fetch('/admin/atelier-imprimer/telecharger-3mf',{
+    method:'POST',body,credentials:'same-origin',cache:'no-store'
+   });
+   if(!response.ok){
+    let message='Téléchargement impossible.';
+    try{const data=await response.json();message=data.error||message;}catch(_){}
+    throw Error(message);
+   }
+   if(!(response.headers.get('content-type')||'').includes('3mf'))
+    throw Error('Fichier inattendu : téléchargement bloqué.');
+   const blob=await response.blob();
+   if(blob.size<100||blob.size>30*1024*1024)throw Error('3MF incomplet.');
+   const url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=url;link.download='Creation-du-Fjord-X2D-tranche.3mf';
+   document.body.appendChild(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),60000);
+   state.textContent='✓ Fichier 3MF tranché téléchargé. Ouvre-le dans Bambu Studio si l’envoi distant échoue.';
+  }catch(error){
+   state.textContent='⚠ '+String(error.message||error).slice(0,180);
+  }finally{
+   download3mf.disabled=false;download3mf.textContent=original;
+  }
  });
  transfer.addEventListener('click',async()=>{
   if(busy||!prepared)return;
@@ -752,6 +911,16 @@ if(fjordAutoButton){
    if(review.previousElementSibling!==heading)heading.insertAdjacentElement('afterend',review);
    panel.classList.add('fjord-preview-active');
    reviewZoom=1;reviewPanX=reviewPanY=0;
+   review3D=true;reviewYaw=-.6;reviewPitch=.7;
+   modeSwitch.textContent='◈ 3D';
+   modeSwitch.setAttribute('aria-pressed','true');
+   panel.querySelector('#fjordReviewAccumulated').checked=true;
+   for(const [from,to] of [['estimateKg','fjordReviewKgRate'],
+    ['estimateHourRate','fjordReviewHourRate'],['estimateSetup','fjordReviewSetupRate'],
+    ['estimateMargin','fjordReviewMarkup']]){
+    const source=document.getElementById(from),target=panel.querySelector('#'+to);
+    if(source&&source.value!==''&&Number.isFinite(Number(source.value)))target.value=source.value;
+   }
    const slider=panel.querySelector('#fjordReviewLayer');
    slider.max=String(result.preview.layers.length-1);
    slider.value=slider.max;
@@ -856,6 +1025,26 @@ if(fjordAutoButton){
 #fjordSliceReview{border-top:1px solid #4c7388;margin-top:9px;padding-top:8px}
 #fjordSliceReview h3{font-size:15px;margin:4px 0}
 .fjord-review-preview{position:relative;width:min(100%,420px);margin:10px auto}
+.fjord-review-mode{position:absolute;top:8px;left:8px;min-height:42px;min-width:56px;
+ background:#183c53eb;color:#fff;border:1px solid #9cbdd0;border-radius:9px;font-weight:800}
+.fjord-review-mode[aria-pressed=true]{border-color:#4de0bd;color:#bcffed}
+.fjord-review-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+.fjord-review-facts>div{background:#183c53;border:1px solid #43687b;padding:9px 7px;border-radius:10px}
+.fjord-review-facts span{display:block;font-size:11px;color:#b8d3e1}
+.fjord-review-facts strong{display:block;font-size:14px;color:#fff;overflow-wrap:anywhere;margin-top:4px}
+.fjord-review-price{border:1px solid #49ad96;border-radius:11px;padding:12px;background:#173d40;margin:9px 0}
+.fjord-review-price span{display:block;font-weight:700}
+.fjord-review-price>strong{display:block;font-size:27px;color:#b8ffe7;margin:4px 0}
+.fjord-review-price p{font-size:12px;color:#d0e5dc;margin:5px 0}
+.fjord-review-pricing{margin:8px 0;border:1px solid #48677d;padding:9px;border-radius:10px}
+.fjord-review-pricing summary{font-weight:700;cursor:pointer}
+.fjord-review-rategrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:9px 0}
+.fjord-review-rategrid label{font-size:12px;min-width:0}
+.fjord-review-rategrid input{width:100%;min-width:0;min-height:43px;padding:6px}
+#fjordReviewBreakdown{font-size:12px;color:#c6e3ed}
+#fjordReviewDownload{display:block;width:100%;min-height:48px;border:1px solid #6792af;
+ border-radius:10px;background:#17344b;color:#e2f5ff;margin:8px 0;padding:9px;font-weight:700}
+@media(max-width:390px){.fjord-review-facts strong{font-size:12px}}
 #fjordReviewCanvas{width:100%;height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;touch-action:none;user-select:none}
 .fjord-review-zoom{display:flex;position:absolute;right:8px;bottom:8px;gap:5px}
 .fjord-review-zoom button{min-width:45px;min-height:45px;color:#fff;background:#183c53ea;border:1px solid #8eb3c9;border-radius:9px;font-size:22px}

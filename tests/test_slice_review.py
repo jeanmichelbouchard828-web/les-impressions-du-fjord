@@ -32,6 +32,10 @@ G1 X105 Y110 E0.5
     with zipfile.ZipFile(mem,"w",zipfile.ZIP_DEFLATED) as z:
         z.writestr("3D/3dmodel.model","<model>test</model>")
         z.writestr("Metadata/plate_1.gcode",gcode)
+        z.writestr("Metadata/slice_info.config",
+           '<config><plate><metadata key="index" value="1"/>'
+           '<metadata key="prediction" value="3600"/>'
+           '<metadata key="weight" value="20.5"/></plate></config>')
     return mem.getvalue()
 
 
@@ -60,6 +64,9 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(data["total_moves"],8)
         self.assertEqual(data["source"],"G-code réel du 3MF Bambu Studio")
         self.assertEqual(data["layers"][0]["segments"][0],[105,110,115,110])
+        self.assertEqual(data["estimated_seconds"],3600)
+        self.assertEqual(data["filament_grams"],20.5)
+        self.assertEqual(data["stats_source"],"Bambu Studio (3MF)")
 
     def test_invalid_toolpaths_are_rejected(self):
         mem=io.BytesIO()
@@ -109,12 +116,26 @@ class ReviewTests(unittest.TestCase):
                 stage=dict(s["fjord_slice_review"])
                 stage["at"]=time.time()
                 s["fjord_slice_review"]=stage
+            # Download retrieves the verified 3MF without uploading or starting it.
+            preview_download=client.post("/admin/atelier-imprimer/telecharger-3mf",
+                 data={"stage":token},headers={"Accept":"application/octet-stream"})
+            self.assertEqual(preview_download.status_code,200)
+            self.assertEqual(preview_download.data,archive)
+            self.assertIn("attachment",preview_download.headers.get("Content-Disposition",""))
+            upload.assert_not_called()
+            state.assert_not_called()
             success=client.post("/admin/atelier-imprimer/transmettre",
                   data={"stage":token},headers={"Accept":"application/json"})
             self.assertEqual(success.status_code,200,success.get_data(as_text=True))
             self.assertTrue(success.json["next"].startswith("/admin/atelier-imprimer?"))
             self.assertEqual(upload.call_count,1)
             self.assertEqual(upload.call_args.args[1],archive)
+            download=client.post("/admin/atelier-imprimer/telecharger-3mf",
+                data={"stage":token},headers={"Accept":"application/octet-stream"})
+            # A completed upload consumed this stage, blocking reuse.
+            self.assertEqual(download.status_code,422)
+            self.assertEqual(upload.call_count,1)
+
             self.assertTrue(len(success.json["nonce"])>=24)
             self.assertEqual(client.get("/api/admin/atelier/impression-etat").status_code,200)
             # Physical start must require explicit safety checks, a one-use

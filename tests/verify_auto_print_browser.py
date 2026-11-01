@@ -38,6 +38,7 @@ try:
     status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
   slices=[];transfers=[];starts=[]
   review={"source":"G-code réel du 3MF Bambu Studio","layer_count":2,"total_moves":4,
+          "estimated_seconds":3600,"filament_grams":20.5,"stats_source":"Bambu Studio (3MF)",
           "sampled":False,"layers":[
            {"z":0.2,"moves":2,"segments":[[100,100,120,100],[120,100,120,120]]},
            {"z":0.4,"moves":2,"segments":[[100,100,125,100],[125,100,125,125]]}]}
@@ -107,6 +108,17 @@ try:
   page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
   assert len(slices)==1 and len(transfers)==0,"Slice must never auto-upload"
   assert page.locator("#fjordReviewCanvas").is_visible()
+  assert page.locator("#fjordReview3DToggle").get_attribute("aria-pressed")=="true"
+  assert "20,5 g" in page.locator("#fjordReviewWeight").inner_text()
+  assert "1 h" in page.locator("#fjordReviewTime").inner_text()
+  assert "$" in page.locator("#fjordReviewPrice").inner_text()
+  page.locator(".fjord-review-pricing summary").evaluate("el=>el.click()")
+  page.locator("#fjordReviewKgRate").fill("50")
+  assert "$" in page.locator("#fjordReviewPrice").inner_text()
+  assert page.locator("#fjordReviewDownload").is_enabled()
+  page.locator("#fjordReview3DToggle").evaluate("el=>el.click()")
+  assert page.locator("#fjordReview3DToggle").get_attribute("aria-pressed")=="false"
+  page.locator("#fjordReview3DToggle").evaluate("el=>el.click()")
   assert page.evaluate("""() => {
     const review=document.querySelector('#fjordSliceReview');
     return review.previousElementSibling?.classList.contains('fjord-dialog-head');
@@ -248,6 +260,10 @@ try:
   assert not mobile.locator("#fjordAutoForm").is_visible(),"Profiles should yield room to layer preview on mobile"
   canvas=mobile.locator("#fjordReviewCanvas")
   original=canvas.evaluate("el=>el.toDataURL()")
+  mobile.locator("#fjordReview3DToggle").evaluate("el=>el.click()")
+  top_image=canvas.evaluate("el=>el.toDataURL()")
+  assert original!=top_image,"2D/3D toggle must change the preview"
+  mobile.locator("#fjordReview3DToggle").evaluate("el=>el.click()")
   mobile.locator("#fjordReviewZoomIn").evaluate("el=>el.click()")
   zoomed=canvas.evaluate("el=>el.toDataURL()")
   assert original!=zoomed,"Mobile preview zoom should visually alter the toolpath canvas"

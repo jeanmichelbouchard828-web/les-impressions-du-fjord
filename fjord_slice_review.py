@@ -13,6 +13,7 @@ import secrets
 import tempfile
 import time
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from flask import session
@@ -49,6 +50,43 @@ def _cleanup_stale():
             pass
 
 
+def _native_slice_stats(archive) -> dict:
+    """Read genuine Bambu slice_info.config, plate 1, without inventing data.
+
+    Bambu's prediction is seconds and weight is grams. These figures are
+    produced by the real slicer and can include supports and purge.
+    """
+    name = "Metadata/slice_info.config"
+    try:
+        info = archive.getinfo(name)
+    except KeyError:
+        return {}
+    if not 0 < info.file_size <= 512 * 1024:
+        return {}
+    try:
+        root = ET.fromstring(archive.read(name))
+    except (ET.ParseError, ValueError, UnicodeError):
+        return {}
+    for plate in root.iter("plate"):
+        values = {node.get("key"): node.get("value") for node in plate.iter("metadata")}
+        if values.get("index", "1") != "1":
+            continue
+        result = {}
+        for source, target, maximum in (
+            ("prediction", "estimated_seconds", 30 * 24 * 3600),
+            ("weight", "filament_grams", 100000),
+        ):
+            try:
+                value = float(values.get(source, ""))
+                if math.isfinite(value) and 0 < value <= maximum:
+                    result[target] = round(value, 2)
+            except (ValueError, TypeError):
+                pass
+        if result:
+            return {"stats_source": "Bambu Studio (3MF)", **result}
+    return {}
+
+
 def preview_toolpath(sliced: bytes) -> dict:
     """Real G1 extrusion segments sampled from Metadata/plate_1.gcode.
 
@@ -63,6 +101,7 @@ def preview_toolpath(sliced: bytes) -> dict:
     scanned_lines = 0
     sampled_segments = 0
     with zipfile.ZipFile(io.BytesIO(sliced)) as archive:
+        native_stats = _native_slice_stats(archive)
         info = archive.getinfo("Metadata/plate_1.gcode")
         if not 100 <= info.file_size <= MAX_GCODE:
             raise SliceReviewError("Le G-code est trop volumineux pour l’aperçu. Aucun envoi effectué.")
@@ -133,7 +172,7 @@ def preview_toolpath(sliced: bytes) -> dict:
     return {"source":"G-code réel du 3MF Bambu Studio","layers":ordered,
             "layer_count":len(ordered),"total_moves":total_segments,
             "sampled":sampled_segments<total_segments,
-            "plate":1}
+            "plate":1, **native_stats}
 
 
 def stage_slice(sliced: bytes, verifier) -> tuple[str, dict]:
