@@ -3430,15 +3430,21 @@ function updateGeneratorSearch(){
   generatorKinds.length+' générateurs disponibles.'
  ):'Aucun générateur trouvé. Essaie un autre mot.';
  const selector=$('generatorKind'),current=selector.value;
+ // Selecting a search term also activates its first result, so "Create" never
+ // accidentally builds an unrelated generator hidden by the search.
+ const next=matchedIds.has(current)?current:(matched.length?matched[0].id:current);
  const options=matched.map(k=>new Option(currentLang()==='en'?k.en:k.fr,k.id));
- if(query&&!matchedIds.has(current)&&matched.length)options.unshift(new Option(
-  '— '+(currentLang()==='en'?'Current selection':'Choix actuel')+' —',current
- ));
- if(!matched.length)options.push(new Option('Aucun résultat',''));
+ if(!matched.length){
+  options.push(new Option('Aucun résultat',''));
+  if(current)options.push(new Option('— Choix actuel —',current));
+ }
  selector.replaceChildren(...options);
- if(matchedIds.has(current)||!matched.length||query)selector.value=matchedIds.has(current)?current:(
-  matched.length?current:'' );
- else selector.value=matched[0].id;
+ selector.value=next||'';
+ if(matched.length&&next!==current){
+  generatorRebuildFields();
+  if(generatorPreviewEnabled)queueGeneratorPreview();
+ }
+
  $('generatorShow').disabled=!matched.length;
  $('generatorAdd').disabled=!matched.length;
 }
