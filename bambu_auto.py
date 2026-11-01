@@ -74,6 +74,15 @@ def full_preset(raw, category):
 def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> str:
     """Classify CLI failures without exposing raw output or secrets in the UI."""
     message = output.decode("utf-8", "replace")[-16000:].lower()
+    # Missing ELF shared libraries return 127. Diagnose the dependency,
+    # not incorrectly the user's filament or slicing process profiles.
+    missing_lib = re.search(
+        r"error while loading shared libraries:\s*([\w.+-]+\.so(?:\.\d+)*)",
+        message, re.I
+    )
+    if missing_lib:
+        return ("Bambu Studio ne peut pas démarrer sur Railway : bibliothèque Linux "
+                "manquante ({}). Les profils ne sont pas en cause.".format(missing_lib.group(1)[:90]))
     if exit_code < 0:
         return "Le moteur Bambu Studio s’est arrêté anormalement (signal {}).".format(-exit_code)
     if exit_code == 0 and not output_exists:
