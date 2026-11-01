@@ -7,6 +7,10 @@ export function installFjordEnhancements(api){
  const notice=(text)=>{const el=$('fjordPaintStatus');if(el)el.textContent=text;};
  let fontPromise=null,paintOn=false,paintTool='brush',paintHex='#f04c55',brushSize=7,strokePointer=null;
  let cameraNavigate=false,paintPreviousRightButton=null;
+ // Touch painting waits for a tap or a clear one-finger drag. This prevents
+ // a second finger arriving for pinch zoom from painting an accidental face.
+ const touchPointers=new Map();
+ let touchPaintMultiGesture=false,touchStrokeStart=null;
  const validHex=v=>typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v);
  function getFont(){
   if(!fontPromise)fontPromise=Promise.all([
@@ -206,6 +210,7 @@ export function installFjordEnhancements(api){
  }
  function setCameraNavigate(next){
   cameraNavigate=Boolean(next)&&paintOn;
+  touchPointers.clear();touchPaintMultiGesture=false;touchStrokeStart=null;
   if(cameraNavigate&&strokePointer!==null){
    const pointerId=strokePointer;
    strokePointer=null;api.orbit.enabled=true;
@@ -219,6 +224,7 @@ export function installFjordEnhancements(api){
    '🖌 Peinture : clic gauche pour peindre. Clic droit maintenu pour tourner la vue. Molette pour zoomer.');
  }
  function close(){
+  touchPointers.clear();touchPaintMultiGesture=false;touchStrokeStart=null;
   if(strokePointer!==null){strokePointer=null;api.orbit.enabled=true;}
   cameraNavigate=false;
   if(paintPreviousRightButton!==null){
@@ -374,9 +380,21 @@ export function installFjordEnhancements(api){
   event.preventDefault();event.stopImmediatePropagation();notice('Couleur de peinture choisie : '+paintHex);
  },true);
  function onPointerDown(e){
-  // In camera mode OrbitControls receives the gesture and never paints.
-  if(cameraNavigate)return false;
-  if(!paintOn||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey)return false;
+  if(!paintOn||cameraNavigate)return false; // Orbit handles rotate / pinch.
+  if(e.pointerType==='touch'){
+   touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+   if(touchPointers.size>=2){
+    touchPaintMultiGesture=true;
+    // A second touch always returns control to native OrbitControls.
+    if(strokePointer!==null){
+     strokePointer=null;api.orbit.enabled=true;
+    }
+   }else{
+    touchStrokeStart={id:e.pointerId,x:e.clientX,y:e.clientY};
+   }
+   return false; // OrbitControls records both touch IDs for pinch zoom.
+  }
+  if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey)return false;
   const hit=hitPaint(e);
   if(!hit){close();api.clearSelectionOnBlank();e.preventDefault();e.stopImmediatePropagation();return true;}
   if(hit.object!==api.selected())api.pick(hit.object);
@@ -389,12 +407,61 @@ export function installFjordEnhancements(api){
   return true;
  }
  function onPointerMove(e){
-  if(cameraNavigate)return false;
+  if(!paintOn||cameraNavigate)return false;
+  if(e.pointerType==='touch'){
+   if(!touchPointers.has(e.pointerId))return false;
+   touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+   if(touchPointers.size>1||touchPaintMultiGesture)return false;
+   // Prevent a one-finger paint stroke from rotating the model.
+   if(touchStrokeStart?.id===e.pointerId&&strokePointer===null){
+    const d=Math.hypot(e.clientX-touchStrokeStart.x,e.clientY-touchStrokeStart.y);
+    if(d>=7){
+     const hit=hitPaint(e);
+     if(hit){
+      if(hit.object!==api.selected())api.pick(hit.object);
+      api.remember();
+      if(drawHit(hit)){
+       strokePointer=e.pointerId;
+       api.orbit.enabled=false;
+      }
+     }
+    }
+   }else if(strokePointer===e.pointerId&&['brush','sphere','eraser'].includes(paintTool)){
+    drawHit(hitPaint(e));
+   }
+   e.preventDefault();e.stopImmediatePropagation();
+   return true;
+  }
   if(strokePointer===null||strokePointer!==e.pointerId)return false;
   if(['brush','sphere','eraser'].includes(paintTool))drawHit(hitPaint(e));
   e.preventDefault();e.stopImmediatePropagation();return true;
  }
  function onPointerUp(e){
+  if(e.pointerType==='touch'&&touchPointers.has(e.pointerId)){
+   touchPointers.delete(e.pointerId);
+   const endedMulti=touchPaintMultiGesture;
+   // Keep the native OrbitControls pointerup; it must release both fingers.
+   if(!touchPointers.size){
+    touchPaintMultiGesture=false;
+    touchStrokeStart=null;
+   }
+   if(strokePointer===e.pointerId){
+    strokePointer=null;api.orbit.enabled=true;
+   }else if(!endedMulti && e.type==='pointerup' && touchStrokeStart?.id===e.pointerId
+       &&paintOn&&!cameraNavigate){
+    const d=Math.hypot(e.clientX-touchStrokeStart.x,e.clientY-touchStrokeStart.y);
+    // Single finger tap paints once, rather than painting during pointerdown.
+    if(d<=18){
+     const hit=hitPaint(e);
+     if(hit){
+      if(hit.object!==api.selected())api.pick(hit.object);
+      api.remember();drawHit(hit);
+     }
+    }
+   }
+   touchStrokeStart=null;
+   return false;
+  }
   if(cameraNavigate)return false;
   if(strokePointer===null||strokePointer!==e.pointerId)return false;
   strokePointer=null;api.orbit.enabled=true;
