@@ -2698,7 +2698,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                (customer,email,phone,title,description,material,quantity,unit_price,
                 shipping,apply_taxes,military_discount,atelier_preview,model_id,preview,preview_mime,grams,hours,filament_kg,
                 machine_hour,setup_cost,markup,payment_token,public_number)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                RETURNING id""",(customer,email,phone,title,description,material,
                int(quantity),unit,shipping,taxes,military_discount,atelier_preview,model_id,
                preview[1] if preview else None,preview[0] if preview else None,
