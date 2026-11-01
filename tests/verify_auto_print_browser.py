@@ -31,7 +31,7 @@ try:
   inventory={"engine_ready":True,"profiles":{
      "Imprimante":[{"id":1,"name":"X2D 0.4","model":"Bambu Lab X2D","nozzle":"0.4"}],
      "Impression":[{"id":2,"name":"0.20 standard","layer":"0.2"}],
-     "Filament":[{"id":3,"name":"PLA blanc","material":"PLA"}]}}
+     "Filament":[{"id":3,"name":"PETG bleu","material":"PETG"}]}}
   posts=[]
   page.route("**/api/admin/atelier/impression-profils",lambda route:route.fulfill(
     status=200,content_type="application/json",body=json.dumps(inventory)))
@@ -62,7 +62,7 @@ try:
   page.wait_for_url("**/admin/atelier-imprimer?selected=*",timeout=30000)
   assert len(posts)==1,len(posts)
   saved=page.evaluate("JSON.parse(localStorage.getItem('fjord-x2d-profile-preferences-v1'))")
-  assert saved["PLA|0.2"]=={"machine":"1","process":"2","filament":"3"},saved
+  assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3"},saved
   # Next creation with the same material/layer: single green button click
   # automatically slices/uploads, but does NOT issue a print-start command.
   prepare_scene()
