@@ -223,7 +223,19 @@ export function installFjordEnhancements(api){
    '🔄 Tourner la vue : glisse sur la pièce ou le plateau. Désactive ce bouton pour reprendre le pinceau.':
    '🖌 Peinture : clic gauche pour peindre. Clic droit maintenu pour tourner la vue. Molette pour zoomer.');
  }
+ function foldMobilePaint(collapse){
+  const panel=$('fjordPaintPanel'),button=$('fjordPaintMobileFold');
+  if(!panel||!button)return;
+  const folded=collapse&&window.matchMedia('(max-width:760px)').matches;
+  panel.classList.toggle('mobile-collapsed',folded);
+  button.setAttribute('aria-expanded',String(!folded));
+  button.textContent=folded?'▴ Outils':'▾ Réduire';
+ }
+ $('fjordPaintMobileFold')?.addEventListener('click',()=>{
+  foldMobilePaint(!$('fjordPaintPanel').classList.contains('mobile-collapsed'));
+ });
  function close(){
+  foldMobilePaint(false);
   touchPointers.clear();touchPaintMultiGesture=false;touchStrokeStart=null;
   if(strokePointer!==null){strokePointer=null;api.orbit.enabled=true;}
   cameraNavigate=false;
@@ -245,6 +257,7 @@ export function installFjordEnhancements(api){
   if(!api.models().length){notice('Importe ou crée une pièce pour commencer.');}
   api.disableCurrentTools();
   paintOn=true;$('fjordPaintPanel').hidden=false;
+  foldMobilePaint(false);
   // OrbitControls stays enabled except while a LEFT paint stroke is active.
   // RIGHT-drag temporarily orbits around the selected model, rather than panning
   // the whole build plate. Restore its original mapping on closing paint.
