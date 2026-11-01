@@ -1,5 +1,6 @@
 """Automatic private model thumbnails used by Soumissions PRO."""
 import io
+import re
 import struct
 import unittest
 import zipfile
@@ -84,6 +85,7 @@ class PreviewQuoteIntegrationTests(unittest.TestCase):
         class Storage:
             item = None
             quote_parameters = None
+            quote_fields = None
 
             def __enter__(self):
                 return self
@@ -103,6 +105,10 @@ class PreviewQuoteIntegrationTests(unittest.TestCase):
                     }
                 if "INSERT INTO private_quotes" in statement:
                     Storage.quote_parameters = parameters
+                    columns = re.search(r"INSERT INTO private_quotes\s*\((.*?)\)\s*VALUES",
+                                        statement, re.DOTALL)
+                    self_fields = columns.group(1).split(",") if columns else []
+                    Storage.quote_fields = [x.strip() for x in self_fields]
                 return self
 
             def fetchone(self):
@@ -144,8 +150,10 @@ class PreviewQuoteIntegrationTests(unittest.TestCase):
         }
         created = client.post("/admin/soumissions-pro/creer", data=quote_form)
         self.assertEqual(created.status_code, 302)
-        self.assertEqual(Storage.quote_parameters[11], Storage.item["preview"])
-        self.assertEqual(Storage.quote_parameters[12], "image/png")
+        self.assertEqual(Storage.quote_parameters[Storage.quote_fields.index("preview")],
+                         Storage.item["preview"])
+        self.assertEqual(Storage.quote_parameters[Storage.quote_fields.index("preview_mime")],
+                         "image/png")
 
 
 if __name__ == "__main__":
