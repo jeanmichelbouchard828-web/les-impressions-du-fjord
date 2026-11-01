@@ -336,7 +336,7 @@ try:
    factory.locator("#projectFile").set_input_files({
      "name":"fjord_color_test.json","mimeType":"application/json",
      "buffer":json.dumps(doc).encode("utf-8")})
-   factory.wait_for_function("document.querySelector('#name').value==='Cube PETG essai'")
+   factory.wait_for_function("document.querySelector('#sceneList')?.textContent.includes('Cube PETG essai')")
   import_project(project)
   factory.locator("#fjordAutoPrintLauncher").evaluate("el=>el.click()")
   factory.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='stock:machine:x2d04'")
