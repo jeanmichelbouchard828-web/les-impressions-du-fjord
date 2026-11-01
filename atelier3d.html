@@ -763,6 +763,40 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 }
 
 
+
+/* Enlever le grand bouton Peinture de la ligne supérieure.
+   L'atelier Peinture demeure disponible via la catégorie et via l'icône mobile. */
+#fjordWorkspace .fjord-fast-row #fjordPaintFast{display:none!important}
+@media(max-width:760px){
+ #mobilePaintBtn{flex:0 0 44px!important;width:44px!important;min-width:44px!important;
+  padding:6px!important;font-size:21px!important;text-align:center}
+}
+
+/* Résultats prioritaires, visibles dès l'ouverture du tranchage. */
+.slice-results-top{margin:9px 0 12px;padding:8px 10px;
+ background:color-mix(in srgb,var(--panel) 78%,var(--accent) 22%);
+ border:1px solid var(--border);border-radius:12px}
+.slice-results-top .slice-price-row{margin:0;padding:3px 0 9px}
+.slice-result-highlights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.slice-result-stat{display:flex;flex-direction:column;gap:4px;min-width:0;
+ border-top:1px solid var(--border);padding-top:7px}
+.slice-result-stat span{font-size:10px;color:var(--muted);line-height:1.3}
+.slice-result-stat b{font-size:13px;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
+.slice-more-details{margin:9px 0}
+.slice-more-details summary{list-style:revert;cursor:pointer;font-size:12px;
+ padding:9px 8px;border:1px solid var(--border);border-radius:9px;
+ background:var(--panel);font-weight:650}
+.slice-more-details[open] summary{border-radius:9px 9px 0 0}
+.slice-more-details[open] .slice-metrics{margin:0 2px 7px}
+@media(max-width:760px){
+ .slice-float .slice-results-top{margin:5px 0 9px;padding:7px 9px}
+ .slice-float .slice-price-row{padding:4px 0 7px}
+ .slice-float .slice-result-highlights{gap:6px}
+ .slice-float .slice-result-stat span{font-size:10px}
+ .slice-float .slice-result-stat b{font-size:13px}
+ .slice-float .slice-more-details summary{min-height:42px;display:flex;align-items:center}
+}
+
 </style>
 <script src="/static/fjord_measure_circle.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
@@ -859,7 +893,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 </div>
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="text">🔠 Texte</button>
-<button type="button" id="mobilePaintBtn" aria-pressed="false">🎨 Peindre</button>
+<button type="button" id="mobilePaintBtn" aria-label="Ouvrir ou fermer la peinture" title="Peindre la pièce" aria-pressed="false">🎨</button>
 <button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
@@ -1073,6 +1107,28 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 <button type="button" id="touchMoveBtn" class="touch-move" aria-pressed="false" data-i18n="touchMove">☝️ Déplacer la pièce</button>
 <section id="sliceFloat" class="slice-float" hidden aria-label="Trancher la pièce">
  <div class="slice-float-header"><strong data-i18n="sliceTitle">▥ Aperçu du tranchage</strong><button type="button" id="sliceClose" aria-label="Fermer le tranchage">✕</button></div>
+ <div class="slice-results-top" aria-label="Résultats du tranchage et estimation">
+ <div class="slice-price-row"><span data-i18n="slicePriceLabel">Prix estimé (avant taxes)</span><strong id="slicePrice">—</strong></div>
+  <div class="slice-result-highlights">
+   <div class="slice-result-stat"><span data-i18n="sliceWeight">Filament estimé</span><b id="sliceWeightValue">—</b></div>
+   <div class="slice-result-stat"><span data-i18n="sliceTime">Temps estimé</span><b id="sliceTimeValue">—</b></div>
+   <div class="slice-result-stat"><span data-i18n="sliceLayersCount">Nombre de couches</span><b id="sliceLayersValue">—</b></div>
+  </div>
+ </div>
+ <details class="slice-more-details">
+  <summary>▤ Voir toutes les mesures et les coûts</summary>
+ <div class="slice-metrics">
+  <span data-i18n="slicePieces">Pièces</span><b id="slicePiecesValue">—</b>
+
+  <span data-i18n="sliceLength">Longueur filament (1,75 mm)</span><b id="sliceLengthValue">—</b>
+  <span data-i18n="sliceDimensions">Dimensions du modèle</span><b id="sliceDimensionsValue">—</b>
+
+
+  <span data-i18n="sliceMaterialCost">Filament + perte</span><b id="sliceMaterialCostValue">—</b>
+  <span data-i18n="sliceMachineCost">Machine</span><b id="sliceMachineCostValue">—</b>
+  <span data-i18n="sliceSetupMarkup">Préparation + majoration</span><b id="sliceSetupMarkupValue">—</b>
+ </div>
+ </details>
  <div class="slice-settings">
   <div><label for="sliceMaterial" data-i18n="sliceMaterialLabel">Matériau</label><select id="sliceMaterial"><option>PLA</option><option selected>PETG</option><option>ASA</option><option>TPU</option><option value="Autre">Autre</option></select></div>
   <div><label for="sliceLayerHeight" data-i18n="sliceLayerLabel">Hauteur de couche</label><select id="sliceLayerHeight"><option value="0.08">0,08 mm</option><option value="0.12">0,12 mm</option><option value="0.2" selected>0,20 mm</option><option value="0.28">0,28 mm</option></select></div>
@@ -1097,18 +1153,6 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  </div>
  <div class="slice-legend"><span>🟠 <span data-i18n="sliceLegendPrint">Filament déposé</span></span><span>🔵 <span data-i18n="sliceLegendTravel">Déplacement</span></span><span>🔴 <span data-i18n="sliceLegendHead">Tête</span></span></div>
  <div class="slice-engine-state" id="sliceEngineState" role="status">En attente du moteur de tranchage…</div>
- </div>
- <div class="slice-price-row"><span data-i18n="slicePriceLabel">Prix estimé (avant taxes)</span><strong id="slicePrice">—</strong></div>
- <div class="slice-metrics">
-  <span data-i18n="slicePieces">Pièces</span><b id="slicePiecesValue">—</b>
-  <span data-i18n="sliceWeight">Filament estimé</span><b id="sliceWeightValue">—</b>
-  <span data-i18n="sliceLength">Longueur filament (1,75 mm)</span><b id="sliceLengthValue">—</b>
-  <span data-i18n="sliceDimensions">Dimensions du modèle</span><b id="sliceDimensionsValue">—</b>
-  <span data-i18n="sliceTime">Temps estimé</span><b id="sliceTimeValue">—</b>
-  <span data-i18n="sliceLayersCount">Nombre de couches</span><b id="sliceLayersValue">—</b>
-  <span data-i18n="sliceMaterialCost">Filament + perte</span><b id="sliceMaterialCostValue">—</b>
-  <span data-i18n="sliceMachineCost">Machine</span><b id="sliceMachineCostValue">—</b>
-  <span data-i18n="sliceSetupMarkup">Préparation + majoration</span><b id="sliceSetupMarkupValue">—</b>
  </div>
  <div id="sliceWarning" class="slice-warning" role="status"></div>
  <p class="slice-disclaimer" data-i18n="sliceDisclaimer">Aperçu des couches et estimation automatique, pas un vrai tranchage ni du G-code. Remplissage estimé à 18 %, supports et rétractions non calculés. Prix à confirmer.</p>
@@ -2990,6 +3034,7 @@ function sliceOpen(){
  if(measureMode)$('measure').click();
  deactivateGizmo();stopGeneratorPreview();
  sliceActive=true;sliceRealData=null;sliceMode='layers';$('sliceFloat').hidden=false;
+ $('sliceFloat').scrollTop=0; // Show the slice results first, even when reopened.
  $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
  $('mobileSliceBtn').setAttribute('aria-pressed','true');

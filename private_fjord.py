@@ -307,7 +307,7 @@ if(fjordAutoButton){
  panel.id='fjordAutoPrintDialog';
  panel.setAttribute('aria-label','Préparer l’impression X2D depuis l’Atelier');
  panel.innerHTML='<div class="fjord-dialog-head"><strong>🖨️ Ma X2D · Préparation automatique</strong><button type="button" id="fjordAutoClose">✕</button></div>'+
- '<p>Profils mémorisés par matériau et hauteur de couche. Une fois tes profils choisis, un clic tranche et ouvre l’aperçu des couches. Tu décides ensuite d’envoyer le 3MF. Le démarrage physique demande une confirmation distincte.</p>'+
+ '<p class="fjord-auto-intro">Profils mémorisés par matériau et hauteur de couche. Une fois tes profils choisis, un clic tranche et ouvre l’aperçu des couches. Tu décides ensuite d’envoyer le 3MF. Le démarrage physique demande une confirmation distincte.</p>'+
  '<p id="fjordAutoState" role="status" aria-live="polite">Vérification de la configuration…</p>'+
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
@@ -684,6 +684,10 @@ if(fjordAutoButton){
    prepared={stage:result.stage,preview:result.preview,chosen,config};
    const review=panel.querySelector('#fjordSliceReview');
    review.hidden=false;
+   // Put the actual Bambu toolpath directly after the dialog title.
+   // This must remain above the explanatory text and profile controls.
+   const heading=panel.querySelector('.fjord-dialog-head');
+   if(review.previousElementSibling!==heading)heading.insertAdjacentElement('afterend',review);
    panel.classList.add('fjord-preview-active');
    reviewZoom=1;reviewPanX=reviewPanY=0;
    const slider=panel.querySelector('#fjordReviewLayer');
@@ -692,7 +696,9 @@ if(fjordAutoButton){
    panel.querySelector('#fjordReviewTransfer').disabled=false;
    state.textContent='✓ Tranchage terminé. Inspecte le résultat avant d’envoyer.';
    drawBambuReview();
-   review.scrollIntoView({block:'nearest',behavior:'smooth'});
+   // The first visible content on mobile is now the result, not settings.
+   panel.scrollTop=0;
+   requestAnimationFrame(()=>{if(panel.open&&prepared)panel.scrollTop=0;});
   }catch(error){
    state.textContent='⚠ '+String(error.message||error).slice(0,240)+
     ' Aucune commande de démarrage n’a été envoyée.';
@@ -777,7 +783,7 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog button:disabled{opacity:.5;cursor:not-allowed}
 #fjordAutoPrintDialog a{color:#94e5fb}
 #fjordSliceReview[hidden]{display:none!important}
-#fjordSliceReview{border-top:1px solid #4c7388;margin-top:16px;padding-top:12px}
+#fjordSliceReview{border-top:1px solid #4c7388;margin-top:9px;padding-top:8px}
 #fjordSliceReview h3{font-size:15px;margin:4px 0}
 .fjord-review-preview{position:relative;width:min(100%,420px);margin:10px auto}
 #fjordReviewCanvas{width:100%;height:auto;display:block;border:1px solid #527b93;border-radius:10px;background:#101c29;touch-action:none;user-select:none}
@@ -794,6 +800,8 @@ if(fjordAutoButton){
 #fjordSliceReview .fjord-auto-send{background:#166c5b;color:#fff;font-weight:800;width:100%;padding:12px}
 #fjordSliceReview #fjordReviewRedo{width:100%;margin-top:8px}
 #fjordAutoPrintDialog{max-height:90dvh}
+#fjordAutoPrintDialog.fjord-preview-active .fjord-auto-intro{display:none!important}
+#fjordAutoPrintDialog.fjord-preview-active #fjordAutoState{margin:6px 0!important;font-size:12px}
 #fjordAutoPrintDialog.fjord-print-ready #fjordAutoForm,#fjordAutoPrintDialog.fjord-print-ready #fjordSliceReview{display:none!important}
  .fjord-slice-print-entry{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
  .fjord-slice-print-entry #fjordPrintShortcut{width:100%;display:flex!important;min-height:51px!important;
@@ -828,7 +836,10 @@ if(fjordAutoButton){
  #fjordAutoPrintDialog.fjord-preview-active #fjordAutoForm{display:none}
  #fjordAutoPrintDialog.fjord-print-ready #fjordAutoForm,#fjordAutoPrintDialog.fjord-print-ready #fjordSliceReview{display:none!important}
  #fjordAutoPrintDialog.fjord-print-ready #fjordStartNow{min-height:58px;position:sticky;bottom:0;z-index:2}
- #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview{padding-top:5px}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview{padding-top:3px;margin-top:2px;border-top:0}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview>h3{margin:2px 0 4px}
+ #fjordAutoPrintDialog.fjord-preview-active #fjordSliceReview>p:first-of-type{margin:4px 0!important;font-size:12px}
+ #fjordAutoPrintDialog.fjord-preview-active .fjord-review-preview{margin:6px auto}
  #fjordReviewTransfer{position:sticky;bottom:0;z-index:2;min-height:56px!important;
   margin:9px 0 3px;box-shadow:0 -7px 14px #112c40c9}
 }

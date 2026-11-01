@@ -34,6 +34,11 @@ try:
   page.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
   page.locator('[data-shape="cube"]').evaluate("el=>el.click()")
   page.wait_for_function("document.querySelectorAll('#sceneList .scene-item').length===1")
+  assert page.locator("#fjordPaintFast").is_hidden(),"No large paint button in the top toolbar"
+  mobile_paint=page.locator("#mobilePaintBtn")
+  assert mobile_paint.inner_text().strip()=="🎨","Mobile uses a compact paint icon"
+  assert mobile_paint.get_attribute("aria-label")=="Ouvrir ou fermer la peinture"
+  assert mobile_paint.bounding_box()["width"]<=48,"Paint icon should not waste mobile width"
   page.locator("#mobilePaintBtn").evaluate("el=>el.click()")
   assert page.locator("#fjordPaintPanel").is_visible(),"mobile paint panel should open"
   assert page.locator("#mobilePaintBtn").get_attribute("aria-pressed")=="true"
