@@ -2969,7 +2969,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     <h2>Détails de la soumission</h2>
     <dl class="fj-checkout-bill">
       <div class="fj-checkout-row"><dt>Soumission</dt><dd>{{reference}}</dd></div>
-      <div class="fj-checkout-row"><dt>Description</dt><dd>{{title}}</dd></div>
+      <div class="fj-checkout-row"><dt>Description</dt><dd>{{quote_description}}</dd></div>
       <div class="fj-checkout-row fj-checkout-total"><dt>Montant CAD</dt><dd>{{amount}}</dd></div>
     </dl>
     <h2>Méthode de paiement</h2>
@@ -3028,7 +3028,7 @@ function fjordCopyAll(button){
  fjordCopyText('Les Impressions du Fjord\nCourriel Interac : '+email+'\nMontant : '+amount+'\nRéférence : '+reference,button);
 }
 </script>""",amount=_money(total),reference=reference,
-    title=q.get("title") or "Impression 3D personnalisée",
+    quote_description=q.get("title") or "Impression 3D personnalisée",
     recipient=recipient,square_url=square_url))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
