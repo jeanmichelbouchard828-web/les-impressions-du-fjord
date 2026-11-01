@@ -201,6 +201,21 @@ class RemotePrintTests(unittest.TestCase):
         self.assertIn("FTP", hint)
         self.assertNotIn("192.0.2.1", hint)
         self.assertNotIn("MY-SECRET", hint)
+        cases = [
+            ("550 Permission denied /gcode/foo.3mf printer=192.0.2.7 secret=ABC", "550/553"),
+            ("530 Not logged in password=NOPE", "530"),
+            ("552 Disk full", "plein"),
+            ("FTPS SSL: UNEXPECTED_EOF_WHILE_READING", "TLS"),
+            ("425 Can't open data connection", "canal de données"),
+            ("Bambu FTPS command failed: STOR aborted", "STOR"),
+        ]
+        for error_text, category in cases:
+            with self.subTest(category=category):
+                classified = _upload_error_hint({"Status":752,"Error":error_text})
+                self.assertIn(category, classified)
+                self.assertNotIn("192.0.2.7", classified)
+                self.assertNotIn("secret=ABC", classified)
+                self.assertNotIn("password=NOPE", classified)
         with (
             patch("fjord_printer._connection", return_value="https://test.octoeverywhere.com"),
             patch("fjord_printer.urllib.request.build_opener") as opener,
