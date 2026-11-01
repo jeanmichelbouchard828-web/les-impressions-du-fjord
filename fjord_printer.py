@@ -97,6 +97,29 @@ def _api(path, *, method="GET", payload=None, timeout=9):
         raise PrinterError("Réponse de l'imprimante incomplète.")
     return result
 
+def _upload_error_hint(envelope):
+    """Map known OctoEverywhere transfer diagnostics without exposing raw
+    exception text, LAN addresses, printer IDs, or authentication secrets."""
+    if not isinstance(envelope, dict):
+        return ""
+    messages = []
+    for value in (envelope.get("Error"), envelope.get("Message"),
+                  (envelope.get("Result") or {}).get("Error")
+                  if isinstance(envelope.get("Result"), dict) else None):
+        if isinstance(value, str):
+            messages.append(value[:300].lower())
+    context = " ".join(messages)
+    if any(word in context for word in ("permission", "denied", "auth", "login", "password", "access code")):
+        return " Le plugin signale un refus d'accès : vérifie le code d'accès X2D enregistré dans OctoEverywhere."
+    if any(word in context for word in ("timeout", "timed out", "unreachable", "refused", "cannot connect", "connection failed")):
+        return " Le plugin signale une connexion de transfert interrompue vers la X2D."
+    if "ftp" in context or "ftps" in context:
+        return " Le plugin signale une erreur FTP/FTPS sur la connexion de fichiers."
+    if any(word in context for word in ("no space", "disk full", "storage full")):
+        return " Le plugin signale un problème d'espace de stockage sur l'imprimante."
+    return ""
+
+
 def _upload(virtual_path, raw):
     if not isinstance(raw, bytes) or not _safe_virtual_path(virtual_path):
         raise PrinterError("Chemin ou fichier d'impression invalide.")
@@ -125,10 +148,12 @@ def _upload(virtual_path, raw):
         code = result.get("Status", "?") if isinstance(result, dict) else "?"
         if code == 752:
             raise PrinterError(
-                "OctoEverywhere a échoué pendant le transfert (code 752). "
-                "Le tranchage est réussi, mais le fichier n'est pas confirmé sur la X2D. "
-                "Télécharge le 3MF avec le bouton ci-dessous et utilise Bambu Studio, "
-                "ou vérifie le transfert de fichiers OctoEverywhere et la connexion de l'imprimante."
+                "Échec du transfert OctoEverywhere (752). "
+                "Ton 3MF est tranché, mais il n'est pas confirmé sur la X2D."
+                + _upload_error_hint(result) +
+                " Utilise « Télécharger le 3MF tranché » plus haut, "
+                "ou lance le diagnostic en lecture seule ci-dessous. "
+                "Aucune impression n'a démarré."
             )
         if code == 788:
             raise PrinterError("L'envoi de fichiers n'est pas pris en charge sur cette connexion OctoEverywhere (code 788).")
@@ -674,6 +699,54 @@ body.light .fj-print-hint{color:#496477!important}
                 return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
             return redirect(url_for("fjord_printer_page"))
+
+    @app.get("/api/admin/atelier/impression-diagnostic")
+    @admin_required
+    def fjord_printer_atelier_diagnostic():
+        """Read-only checks: OctoEverywhere status and Bambu gcode file listing.
+
+        Never upload a test file or send printer movement/start commands.
+        Admin-only, short timeout, no private connection URLs or filenames.
+        """
+        checks = {"status": False, "files": False}
+        details = []
+        for key, operation in (
+            ("status", lambda: _api("/status", timeout=8)),
+            ("files", lambda: _api("/files/list", timeout=12)),
+        ):
+            try:
+                result = operation()
+                if key == "status":
+                    checks[key] = isinstance(result.get("JobStatus"), dict)
+                else:
+                    checks[key] = isinstance(result.get("Root"), list)
+                if not checks[key]:
+                    details.append(("État" if key == "status" else "Fichiers")
+                                   + " : réponse incomplète.")
+            except PrinterError as exc:
+                details.append(("État" if key == "status" else "Fichiers")
+                               + " : " + str(exc)[:150])
+        if checks["status"] and checks["files"]:
+            diagnosis = (
+                "La connexion d'état et la consultation des fichiers répondent. "
+                "Le problème 752 concerne probablement l'écriture du 3MF vers la X2D, "
+                "mais la cause exacte nécessite les journaux du plugin OctoEverywhere."
+            )
+        elif checks["status"]:
+            diagnosis = (
+                "La connexion d'état répond, mais l'accès aux fichiers de la X2D échoue. "
+                "Vérifie la connexion FTP/FTPS locale, le code d'accès et la configuration "
+                "du conteneur OctoEverywhere."
+            )
+        else:
+            diagnosis = (
+                "La connexion OctoEverywhere ne répond pas complètement. "
+                "Vérifie que le conteneur et la X2D sont connectés."
+            )
+        response = jsonify(ok=True, status_ok=checks["status"], files_ok=checks["files"],
+                           diagnosis=diagnosis, details=details)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
 
     @app.get("/api/admin/atelier/impression-etat")
     @admin_required
