@@ -282,6 +282,13 @@ if(savedModelId && /^[0-9]+$/.test(savedModelId)){
 // ou autre filament unique. Pas de conversion trompeuse des couleurs AMS en STL.
 const fjordAutoButton=document.getElementById('fjordAutoPrintLauncher');
 if(fjordAutoButton){
+ // The green Print button opens the automatic workflow for a non-empty bed.
+ // With an empty bed it still links to the beloved manual printing page.
+ document.getElementById('fjordPrintShortcut')?.addEventListener('click',event=>{
+  if(!models.length)return;
+  event.preventDefault();
+  fjordAutoButton.click();
+ });
  const panel=document.createElement('dialog');
  panel.id='fjordAutoPrintDialog';
  panel.setAttribute('aria-label','Tranchage officiel X2D depuis l’Atelier');
