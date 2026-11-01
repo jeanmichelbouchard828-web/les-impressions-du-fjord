@@ -57,6 +57,7 @@ try:
     status=200,content_type="application/json",
     body=json.dumps({"ok":True,"status_ok":True,"files_ok":False,
                      "diagnosis":"La connexion d'état répond, mais l'accès aux fichiers échoue.",
+                     "last_upload":"Échec du transfert OctoEverywhere (752). Problème FTPS 550/553.",
                      "details":[]})))
   page.route("**/api/admin/atelier/impression-etat",lambda route:route.fulfill(
     status=200,content_type="application/json",
@@ -124,6 +125,8 @@ try:
   assert page.locator("#fjordReviewDiagnostic").is_enabled()
   page.locator("#fjordReviewDiagnostic").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordReviewDiagnosticResult').textContent.includes('Fichiers : échec')")
+  assert "FTPS 550/553" in page.locator("#fjordReviewDiagnosticResult").inner_text()
+  assert not transfers and not starts
   assert not transfers and not starts, "Read-only diagnostic cannot upload or start" 
   page.locator("#fjordReview3DToggle").evaluate("el=>el.click()")
   assert page.locator("#fjordReview3DToggle").get_attribute("aria-pressed")=="false"
