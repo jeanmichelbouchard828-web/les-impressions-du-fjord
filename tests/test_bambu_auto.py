@@ -75,8 +75,7 @@ class AutoTests(unittest.TestCase):
             self.assertEqual(args[args.index("--slice")+1],"0")
             self.assertTrue(args[-1].endswith(".stl"))
             self.assertEqual(args[args.index("--arrange")+1],"1")
-            self.assertIn("--curr-bed-type",args)
-            self.assertEqual(args[args.index("--curr-bed-type")+1],"Textured PEI Plate")
+            self.assertNotIn("--curr-bed-type",args)  # Unsupported by official Bambu CLI
             machine_path = Path(args[args.index("--load-settings")+1].split(";")[0])
             process_path = Path(args[args.index("--load-settings")+1].split(";")[1])
             filament_path = Path(args[args.index("--load-filaments")+1])
@@ -96,6 +95,19 @@ class AutoTests(unittest.TestCase):
             with patch("bambu_auto.subprocess.run",side_effect=run):
                 result=slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
                 self.assertEqual(verify_sliced_bambu_3mf(result),[1])
+
+    def test_plate_names_match_bambu_enum_and_zero_temperature_is_rejected(self):
+        from bambu_auto import BED_TYPES
+        self.assertEqual(BED_TYPES["Cool Plate SuperTack"][0],"Supertack Plate")
+        self.assertEqual(BED_TYPES["Smooth PEI Plate / High Temp Plate"][0],"High Temp Plate")
+        petg={**FILAMENT,"filament_type":["PETG"],
+              "cool_plate_temp":["0"],"supertack_plate_temp":["70"]}
+        with patch("bambu_auto.cli_location",return_value="/bin/true"):
+            with patch("bambu_auto.subprocess.run") as called:
+                with self.assertRaisesRegex(AutoSliceError,"ne permet pas"):
+                    slice_x2d(stl(),{**PRESETS,"Filament":petg},
+                              verify_sliced_bambu_3mf,bed_type="Cool Plate")
+                called.assert_not_called()
 
     def test_unknown_bed_type_rejected_before_slicer_or_printer(self):
         with patch("bambu_auto.subprocess.run") as called:

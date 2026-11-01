@@ -20,12 +20,16 @@ LOG = logging.getLogger('fjord.bambu_slicer')
 MAX_STL = 8 * 1024 * 1024
 MAX_3MF = 30 * 1024 * 1024
 OUTPUT_NAME = 'x2d_tranche.gcode.3mf'
-# These labels are the exact Bambu Studio CLI build-plate values.
-# Never infer the user's actual plate or silently switch its material settings.
-BED_TYPES = frozenset((
-    'Textured PEI Plate', 'Smooth PEI Plate / High Temp Plate',
-    'Engineering Plate', 'Cool Plate SuperTack', 'Cool Plate',
-))
+# UI plate names map to the values of the Bambu Studio curr_bed_type enum.
+# The actual CLI has NO --curr-bed-type flag; choose the bed via process JSON.
+# See BambuStudio src/libslic3r/PrintConfig.cpp s_keys_map_BedType.
+BED_TYPES = {
+    'Textured PEI Plate': ('Textured PEI Plate', 'textured_plate_temp'),
+    'Smooth PEI Plate / High Temp Plate': ('High Temp Plate', 'hot_plate_temp'),
+    'Engineering Plate': ('Engineering Plate', 'eng_plate_temp'),
+    'Cool Plate SuperTack': ('Supertack Plate', 'supertack_plate_temp'),
+    'Cool Plate': ('Cool Plate', 'cool_plate_temp'),
+}
 _SLICING_SLOT = threading.BoundedSemaphore(1)
 
 
@@ -168,9 +172,27 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
         machine = cli_preset(presets.get("Imprimante"), "Imprimante")
         process = cli_preset(presets.get("Impression"), "Impression")
         filament = cli_preset(presets.get("Filament"), "Filament")
-        # A bare STL has no plate metadata. Both the process config and the
-        # highest-priority CLI setting must use the explicitly selected plate.
-        process["curr_bed_type"] = bed_type
+        # A bare STL has no stored build-plate choice. Use the exact enum
+        # token within the process JSON loaded by Bambu Studio.
+        native_bed, temperature_key = BED_TYPES[bed_type]
+        process["curr_bed_type"] = native_bed
+        # A zero stock plate temperature means the selected filament cannot
+        # be printed on that plate. Reject before generating any printer file.
+        plate_temperatures = filament.get(temperature_key, [])
+        if not isinstance(plate_temperatures, list):
+            plate_temperatures = [plate_temperatures]
+        if plate_temperatures:
+            try:
+                compatible = any(float(value) > 0 for value in plate_temperatures)
+            except (ValueError, TypeError, OverflowError) as exc:
+                raise AutoSliceError(
+                    "Température de plaque illisible dans le profil filament."
+                ) from exc
+            if not compatible:
+                raise AutoSliceError(
+                    "Le profil filament ne permet pas l'impression sur cette plaque : "
+                    + bed_type + ". Sélectionne une plaque compatible réellement installée."
+                )
         with tempfile.TemporaryDirectory(prefix="fjord_x2d_") as work:
             root = Path(work)
             input_file = root / "atelier.stl"
@@ -189,7 +211,6 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
                 files.append(target)
             args = [
                 cli, "--debug", "3", "--arrange", "1",
-                "--curr-bed-type", bed_type,
                 "--load-settings", "{};{}".format(files[0], files[1]),
                 "--load-filaments", str(files[2]),
                 "--slice", "0",
