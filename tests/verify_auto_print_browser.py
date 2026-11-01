@@ -112,6 +112,7 @@ try:
   assert "20,5 g" in page.locator("#fjordReviewWeight").inner_text()
   assert "1 h" in page.locator("#fjordReviewTime").inner_text()
   assert "$" in page.locator("#fjordReviewPrice").inner_text()
+  page.locator(".fjord-review-pricing summary").evaluate("el=>el.click()")
   page.locator("#fjordReviewKgRate").fill("50")
   assert "$" in page.locator("#fjordReviewPrice").inner_text()
   assert page.locator("#fjordReviewDownload").is_enabled()
