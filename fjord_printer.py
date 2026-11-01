@@ -18,7 +18,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from flask import abort, flash, get_flashed_messages, redirect, render_template_string, request, session, url_for
+from flask import abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, session, url_for
 
 MAX_SLICED_3MF = 30 * 1024 * 1024
 MAX_ZIP_ENTRIES = 2500
@@ -194,7 +194,41 @@ def _status():
             "features":features,
             "can_start":bool(features & FEATURE_START) and state in ("idle", "complete", "cancelled")}
 
-def register_printer_admin(app, admin_required, verify, csrfinput, page):
+def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
+    # Parsed user presets are intentionally not assumed to be machine-ready.
+    def available_presets():
+        result = {"Imprimante": [], "Impression": [], "Filament": []}
+        if db is None:
+            return result
+        from bambu_auto import full_preset, AutoSliceError
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT id,name,category,settings FROM bambu_user_presets ORDER BY category,name LIMIT 1000"
+            ).fetchall()
+        for row in rows:
+            category = row["category"]
+            if category not in result:
+                continue
+            try:
+                full_preset(row["settings"], category)
+            except (AutoSliceError, TypeError, ValueError):
+                continue
+            result[category].append({"id": row["id"], "name": row["name"]})
+        return result
+
+    @app.get("/api/admin/atelier/impression-profils")
+    @admin_required
+    def fjord_print_profiles():
+        from bambu_auto import cli_location
+        response = jsonify({
+            "engine_ready": bool(cli_location()),
+            "profiles": available_presets(),
+            "message": ("Bambu Studio disponible" if cli_location() else
+                        "Moteur Bambu Studio à installer et valider sur Railway"),
+        })
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.get("/admin/atelier-imprimer")
     @admin_required
     def fjord_printer_page():
@@ -210,6 +244,8 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page):
             error = str(exc)
         token = secrets.token_urlsafe(24)
         session["fjord_print_nonce"] = token
+        from bambu_auto import cli_location
+        auto_engine_ready = bool(cli_location())
         return page("Impression X2D", r"""
 <style>
 /* Scoped to the private printing console: no changes to public pages. */
@@ -344,6 +380,17 @@ body.light .fj-print-hint{color:#496477!important}
     </nav>
   </section>
 
+  <section class="fj-print-card" id="fjordAutoSliceCard" style="margin-bottom:18px" aria-labelledby="fjordAutoSliceTitle">
+    <div class="fj-print-step-title"><span class="fj-print-number" aria-hidden="true">★</span>
+      <h2 id="fjordAutoSliceTitle">Tranchage automatique Bambu Studio · X2D</h2></div>
+    <p>Pour une création de l’Atelier, utilise le bouton « Préparer sur ma X2D » directement dans l’Atelier administrateur. Choisis trois profils complets : imprimante X2D, impression et filament. Le serveur tranche puis transfère le 3MF sur l’imprimante. Le démarrage reste soumis à une confirmation.</p>
+    {% if auto_engine_ready %}
+      <div class="fj-print-notice" role="status">Moteur Bambu Studio détecté. La compatibilité réelle dépend des profils sélectionnés et de l'imprimante.</div>
+    {% else %}
+      <div class="fj-print-notice error" role="status">Moteur Bambu Studio absent sur ce déploiement Railway : tranchage automatique désactivé jusqu’à son installation et à la validation de profils complets. Tu peux toujours envoyer un 3MF déjà tranché.</div>
+    {% endif %}
+    <a class="fj-print-refresh" style="display:inline-block;margin-top:12px" href="/admin/atelier-3d">← Ouvrir ma création dans l'Atelier</a>
+  </section>
   <div class="fj-print-step-bar" aria-label="Étapes d’impression">
     <div><strong aria-hidden="true">1</strong><span>Vérifier la X2D</span></div>
     <div><strong aria-hidden="true">2</strong><span>Envoyer le fichier 3MF</span></div>
@@ -466,7 +513,57 @@ body.light .fj-print-hint{color:#496477!important}
 })();
 </script>
 """,csrf_field=csrfinput(),nonce=token,status=status,files=files,error=error,
-           selected=request.args.get("selected",""),messages=get_flashed_messages())
+           selected=request.args.get("selected",""),messages=get_flashed_messages(),
+           auto_engine_ready=auto_engine_ready)
+
+    @app.post("/admin/atelier-imprimer/preparer")
+    @admin_required
+    def fjord_print_auto_prepare():
+        """Slice a binary STL with the *official* X2D CLI and upload, never start."""
+        from bambu_auto import cli_location, full_preset, slice_x2d, AutoSliceError, MAX_STL
+        request.max_content_length = MAX_STL + 2 * 1024 * 1024
+        verify()
+        try:
+            if not cli_location():
+                raise AutoSliceError("Moteur Bambu Studio absent sur Railway. Aucun fichier envoyé.")
+            upload = request.files.get("stl")
+            if upload is None or not str(upload.filename or "").lower().endswith(".stl"):
+                raise AutoSliceError("Fichier STL invalide.")
+            raw = upload.stream.read(MAX_STL + 1)
+            if db is None:
+                raise AutoSliceError("Bibliothèque de profils indisponible.")
+            selected_ids = {}
+            for category, field in (("Imprimante","machine"),("Impression","process"),
+                                    ("Filament","filament")):
+                value = request.form.get(field, "")
+                if not value.isdecimal() or not 0 < int(value) < 10000000:
+                    raise AutoSliceError("Choisis un profil complet pour chaque catégorie.")
+                selected_ids[category] = int(value)
+            with db() as conn:
+                rows = conn.execute(
+                    "SELECT id,name,category,settings FROM bambu_user_presets "
+                    "WHERE id = ANY(%s)", (list(selected_ids.values()),)
+                ).fetchall()
+            presets = {}
+            for row in rows:
+                cat = row["category"]
+                if cat in selected_ids and row["id"] == selected_ids[cat]:
+                    full_preset(row["settings"], cat)
+                    presets[cat] = row["settings"]
+            if len(presets) != 3:
+                raise AutoSliceError("Les profils choisis ne sont pas tous complets.")
+            # No printer commands until successful Bambu slicing AND 3MF validation.
+            sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf)
+            printer = _status()
+            if not printer["can_start"]:
+                raise AutoSliceError("Imprimante indisponible/occupée : transfert annulé.")
+            virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
+            _upload(virtual_path, sliced)
+            flash("✅ Tranchage Bambu Studio terminé et fichier envoyé. Vérifie la pièce et confirme le démarrage ci-dessous.")
+            return redirect(url_for("fjord_printer_page", selected=virtual_path))
+        except (AutoSliceError, PrinterError) as exc:
+            flash(str(exc))
+            return redirect(url_for("fjord_printer_page"))
 
     @app.post("/admin/atelier-imprimer/envoyer")
     @admin_required
