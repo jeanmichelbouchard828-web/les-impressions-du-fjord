@@ -590,6 +590,44 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 #generatorSection [data-generator-pick][hidden],
 #generatorSection .fjord-catalog-group[hidden]{display:none!important}
 
+
+/* A real Bambu-style surface paint workspace, not only whole-part recolouring. */
+.fjord-fast-row #fjordPaintFast{border:1px solid #3aa2cc;background:#163649;color:#c8f0ff;
+ font-weight:800;border-radius:8px;min-height:36px;padding:7px 12px;white-space:nowrap}
+.fjord-fast-row #fjordPaintFast:hover,.fjord-fast-row #fjordPaintFast.active{background:#115d81;
+ color:#fff;border-color:#8adfff}
+.fjord-paint-panel{width:340px!important;right:9px!important;top:65px!important;
+ background:#162432!important;border:1px solid #427b98!important;z-index:190!important}
+.fjord-paint-mode-note{background:#25425a;border:1px solid #3e6681;border-radius:7px;
+ color:#e6f6fd;padding:8px 10px;font-size:12px;margin:9px 0}
+.fjord-paint-mode-note strong{display:block;margin-top:3px;overflow-wrap:anywhere}
+.fjord-paint-help{font-size:12px;line-height:1.5;color:#d7ebf7;margin:8px 0}
+.fjord-paint-palette-header{display:flex;align-items:center;justify-content:space-between;
+ gap:8px;font-size:12px;margin:7px 0}
+.fjord-paint-palette-header button{padding:3px 9px;min-height:31px}
+.fjord-paint-ams-palette,.fjord-paint-presets{display:flex;gap:7px;flex-wrap:wrap;
+ margin:7px 0 5px}
+.fjord-paint-swatch{width:36px;min-width:36px;height:36px;border-radius:9px;
+ background:var(--swatch)!important;border:2px solid #a5b9c9!important;
+ padding:0!important;box-shadow:0 2px 6px #0006;position:relative}
+.fjord-paint-swatch[aria-pressed="true"]{outline:3px solid #6dd4ff;
+ outline-offset:2px;border-color:#fff!important}
+.fjord-paint-swatch:hover{transform:translateY(-2px)}
+.fjord-paint-ams-palette .fjord-paint-swatch{width:48px;height:47px;
+ display:flex;justify-content:center;align-items:end}
+.fjord-paint-ams-palette .fjord-paint-swatch small{
+ font-size:10px;line-height:1.1;color:#fff;background:#202a36d9;
+ padding:2px 3px;border-radius:3px;text-shadow:0 1px #000}
+.fjord-paint-ams-message{font-size:11px;color:#c3d4e3;margin:5px 0 13px;
+ line-height:1.4}
+.fjord-paint-field>label{margin-top:9px}
+.fjord-paint-grid button{background:#1d3850;border-color:#4b7999}
+.fjord-paint-grid button.active{background:#0b76a4;border-color:#81e1ff}
+@media(max-width:760px){
+ .fjord-paint-panel{position:fixed!important;top:auto!important;bottom:66px!important;
+  max-height:68dvh!important;width:min(360px,calc(100vw - 18px))!important;z-index:500!important}
+}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
@@ -641,6 +679,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
   <button data-fjord-tool="cutZ" title="Vue de coupe"><span>⬡</span><em>Vue de coupe</em></button>
   <button data-fjord-tool="dropToBed" title="Niveau"><span>▱</span><em>Niveau</em></button>
   <button data-fjord-tool="layFace" title="Poser sur une face"><span>▣</span><em>Poser sur une face</em></button>
+  <button type="button" id="fjordPaintFast" class="fjord-fast-paint" aria-pressed="false" title="Atelier peinture multicolore : pinceau, facette, remplissage, sphère, hauteur et gomme"><span>🎨</span><em>Peinture 3D</em></button>
   <button data-fjord-tool="viewFit" title="Loupe"><span>⊕</span><em>Loupe</em></button>
  </div>
  <div class="fjord-fast-row fjord-fast-compact" role="toolbar" aria-label="Découpe et modification">
@@ -810,7 +849,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <p class="note" data-i18n="units">Toutes les dimensions sont en millimètres.</p></section></aside>
 <div class="stage" id="stage">
 <section class="fjord-paint-panel" id="fjordPaintPanel" hidden aria-label="Panneau de peinture 3D">
-<div class="fjord-paint-heading"><strong>🎨 Peinture 3D</strong><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div>
+<div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div>
+<div class="fjord-paint-mode-note">Pièce : <strong id="fjordPaintModelLabel">Aucune pièce sélectionnée</strong></div>
+<p class="fjord-paint-help">Choisis ton outil et une couleur. <strong>Clique ou glisse sur la surface</strong> de la pièce pour la peindre.</p>
 <div class="fjord-paint-grid" role="toolbar" aria-label="Outils de peinture">
 <button type="button" data-fjord-paint-tool="brush" class="active" aria-pressed="true">🖌 Pinceau</button>
 <button type="button" data-fjord-paint-tool="sphere" aria-pressed="false">◉ Sphère</button>
@@ -820,7 +861,22 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <button type="button" data-fjord-paint-tool="eraser" aria-pressed="false">⌫ Gomme</button>
 </div>
 <div class="fjord-paint-field"><label for="fjordPaintSize">Diamètre du pinceau : <strong id="fjordPaintSizeLabel">7 mm</strong></label><input type="range" id="fjordPaintSize" min="1" max="40" step="1" value="7"></div>
-<div class="fjord-paint-field"><label for="fjordPaintColor">Couleur active (les couleurs AMS sont aussi disponibles dans Propriétés)</label>
+<div class="fjord-paint-field">
+<div class="fjord-paint-palette-header"><strong>🧵 Couleurs de tes bobines AMS</strong><button type="button" id="fjordPaintRefreshAms" title="Actualiser les couleurs AMS">↻</button></div>
+<div id="fjordPaintAmsPalette" class="fjord-paint-ams-palette" role="group" aria-label="Bobines AMS pour la peinture"></div>
+<p class="fjord-paint-ams-message" id="fjordPaintAmsMessage">Lecture des bobines AMS…</p>
+<label>Couleurs personnalisées</label>
+<div class="fjord-paint-presets" id="fjordPaintPresets" role="group" aria-label="Palette de peinture rapide">
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#FFFFFF" style="--swatch:#FFFFFF" title="Blanc" aria-label="Blanc"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#101820" style="--swatch:#101820" title="Noir" aria-label="Noir"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#F04444" style="--swatch:#F04444" title="Rouge" aria-label="Rouge"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#25A3EB" style="--swatch:#25A3EB" title="Bleu" aria-label="Bleu"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#41B86D" style="--swatch:#41B86D" title="Vert" aria-label="Vert"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#F6CD35" style="--swatch:#F6CD35" title="Jaune" aria-label="Jaune"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#F6A150" style="--swatch:#F6A150" title="Orange" aria-label="Orange"></button>
+<button type="button" class="fjord-paint-swatch" data-fjord-color="#8B61C5" style="--swatch:#8B61C5" title="Violet" aria-label="Violet"></button>
+</div>
+<label for="fjordPaintColor">Couleur active</label>
 <div class="fjord-paint-color-row"><input id="fjordPaintColor" type="color" value="#f04c55"><strong id="fjordPaintColorLabel">#F04C55</strong></div></div>
 <button type="button" id="fjordPaintEraseAll">Effacer la peinture de la pièce</button>
 <p class="tool-note" id="fjordPaintStatus" role="status" aria-live="polite">Clique sur la pièce pour commencer.</p>
@@ -975,7 +1031,7 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 <div id="info" role="status" aria-live="polite"></div>
 <section id="fjordAmsColors" class="fjord-ams-colors" aria-label="Couleurs de filaments disponibles">
  <div class="fjord-ams-head"><h3>🎨 Couleurs AMS</h3><button type="button" id="fjordAmsRefresh" title="Actualiser les couleurs de l'imprimante" aria-label="Actualiser les couleurs AMS">↻</button></div>
- <button type="button" class="primary fjord-paint-launch" id="fjordPaintOpenAms">🎨 Peindre directement sur la pièce</button>
+ <button type="button" class="primary fjord-paint-launch" id="fjordPaintOpenAms">🖌 Ouvrir les pinceaux de peinture 3D</button>
  <p class="tool-note" id="fjordAmsStatus" role="status" aria-live="polite">Connexion aux bobines AMS…</p>
  <div id="fjordAmsSlots" class="fjord-ams-slots"></div>
  <label for="fjordManualColor">Ou choisir une couleur manuellement</label>
