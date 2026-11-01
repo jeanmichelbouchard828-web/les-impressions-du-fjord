@@ -9,6 +9,7 @@ import json
 import math
 import re
 import secrets
+from urllib.parse import urlsplit
 from decimal import Decimal, ROUND_HALF_UP
 
 from flask import abort, flash, make_response, redirect, render_template_string, request, send_file, url_for
@@ -64,6 +65,35 @@ def _quote_amounts(q):
     gst = round(subtotal * 0.05, 2) if q["apply_taxes"] else 0.0
     qst = round(subtotal * 0.09975, 2) if q["apply_taxes"] else 0.0
     return subtotal, gst, qst, round(subtotal + gst + qst, 2)
+
+
+def _square_checkout_url(value):
+    """Only official Square-hosted HTTPS checkout links may be offered to clients."""
+    value=(value or "").strip()
+    if not value or len(value)>1200 or any(ord(x)<33 or ord(x)>126 for x in value):
+        return None
+    try:
+        parts=urlsplit(value)
+        if (parts.scheme!="https" or parts.hostname not in
+                ("square.link","checkout.square.site","squareup.com","www.squareup.com")
+                or not parts.path or parts.username or parts.password or
+                parts.port not in (None,443) or parts.fragment):
+            return None
+    except ValueError:
+        return None
+    return value
+
+
+def _active_square_url(q):
+    """An edited quote must never reuse a checkout link for an old total."""
+    url=_square_checkout_url(q.get("square_link_url"))
+    if url is None:return None
+    try:
+        saved=int(q.get("square_link_amount_cents") or 0)
+        current=int((Decimal(str(_quote_amounts(q)[3]))*100).quantize(Decimal("1")))
+        return url if saved>0 and saved==current else None
+    except (ValueError,TypeError,ArithmeticError):
+        return None
 
 
 def _quote_payment_token(db, q):
@@ -1329,6 +1359,8 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
                      payment_status TEXT NOT NULL DEFAULT 'En attente'""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_url TEXT")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_amount_cents BIGINT")
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
                      ON private_quotes(payment_token)""")
 
@@ -1689,7 +1721,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     def fjord_quotes():
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
-            quotes=c.execute("""SELECT id,model_id,customer,email,title,quantity,unit_price,shipping,
+            quotes=c.execute("""SELECT id,model_id,customer,email,title,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
                      apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
@@ -1706,6 +1738,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         counters={k:sum(stage==k for stage in stages.values()) for k in ("attente","acceptees","payees","production","terminees")}
         interac_email=payment_setting["value"] if payment_setting else ""
         quote_totals={q["id"]:_quote_amounts(q)[3] for q in quotes}
+        square_active={q["id"]:bool(_active_square_url(q)) for q in quotes}
         chosen=request.args.get("model_id","",type=str)
         atelier_model=next((m for m in models if str(m["id"])==chosen),None)
         from_atelier=bool(atelier_model and request.args.get("atelier")=="1")
@@ -1773,6 +1806,13 @@ body.light .fj-reset-button{color:#126185;border-color:#318cb7}
 body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{color:#fff}
 @media(max-width:540px){.fj-quote-actions button{width:100%}}
 .fj-payment-form{max-width:360px;margin:12px 0 6px}
+.fj-square-settings{margin:14px 0;padding:15px;border:1px solid #4bb8dd;border-radius:13px}
+.fj-square-settings label{font-weight:700}
+.fj-square-settings input[type=url]{width:100%;max-width:100%;box-sizing:border-box}
+.fj-square-settings .fj-square-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.fj-square-settings .fj-square-row button{min-height:44px}
+.fj-square-settings .fj-square-status{font-weight:750}
+body.light .fj-square-settings{border-color:#4b96b9}
 .fj-bmo-details{border:1px solid #5386a1;border-radius:12px;margin:12px 0;padding:12px;overflow-wrap:anywhere}
 .fj-bmo-details summary{cursor:pointer;font-weight:700;list-style-position:inside}
 .fj-bmo-details .fj-bmo-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0}
@@ -1945,8 +1985,24 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 </div>{% endif %}
 
 <form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
+<div class="fj-square-settings">
+<strong>💳 Paiement Square en un clic</strong>
+<p class="fj-help">Montant à créer dans Square : <strong>{{money(quote_totals[q.id])}} CAD</strong> (rabais, livraison et taxes déjà compris). Dans Square : Liens de paiement → Créer → Encaisser un paiement, montant fixe; désactive les taxes et pourboires supplémentaires pour éviter de facturer deux fois.</p>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/square">{{csrf|safe}}
+<label for="fjordSquare{{q.id}}">Lien de paiement Square pour cette soumission</label>
+<input id="fjordSquare{{q.id}}" type="url" name="square_link_url" maxlength="1200"
+ placeholder="https://square.link/u/…" value="{{q.square_link_url or ''}}">
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400"><input type="checkbox" name="square_amount_checked" value="yes" style="width:auto;margin:5px 0 0"><span>J'ai vérifié dans Square que le montant à payer est exactement <strong>{{money(quote_totals[q.id])}} CAD</strong>, sans taxes ou pourboires ajoutés.</span></label>
+<div class="fj-square-row"><button type="submit">💾 Enregistrer le lien Square</button><a href="https://squareup.com/dashboard" target="_blank" rel="noopener noreferrer">↗ Créer le lien sur Square</a></div>
+</form>
+{% if q.square_link_url %}
+<p class="fj-square-status">{% if square_active[q.id] %}✓ Lien Square actif : le PDF et son QR ouvriront directement la caisse Square.{% else %}⚠ Ce lien Square n'est plus valable pour le montant actuel. Crée un nouveau lien Square et enregistre-le avant d'envoyer le PDF.{% endif %}</p>
+{% endif %}
+</div>
+{% if interac_email or square_active[q.id] %}
+<a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Tester le paiement du client</a>
+{% endif %}
 {% if interac_email %}
-<a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Ouvrir la page de paiement du client</a>
 <details class="fj-bmo-details">
 <summary>🏦 Envoyer la demande Interac au client (BMO)</summary>
 <p class="fj-help"><strong>Pour que ton client paie sans copier-coller :</strong> ouvre BMO, choisis « Demander des fonds », entre son courriel et le montant ci-dessous, puis envoie la demande officielle Interac. Le client recevra un courriel Interac avec son bouton de paiement bancaire prérempli. La soumission PDF contient aussi un bouton « PAYER PAR INTERAC » et un QR qui ouvrent la page d'aide au paiement.</p>
@@ -2280,7 +2336,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  document.querySelectorAll('.fj-quote-card').forEach(card=>{card.hidden=selected!=='all' && card.dataset.stage!==selected});
 }));
-</script>""",models=models,quotes=quotes,quote_totals=quote_totals,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
+</script>""",models=models,quotes=quotes,quote_totals=quote_totals,square_active=square_active,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
           from_atelier=from_atelier,atelier_model=atelier_model,atelier_material=atelier_material,
           atelier_layer=atelier_layer,atelier_colors=atelier_colors)
@@ -2589,16 +2645,35 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         flash("Soumission créée. Tu peux maintenant télécharger le PDF.")
         return redirect("/admin/soumissions-pro/"+str(result["id"])+"/pdf")
 
+    @app.post("/admin/soumissions-pro/<int:quote_id>/square")
+    @admin_required
+    def fjord_quote_square_link(quote_id):
+        verify()
+        supplied=request.form.get("square_link_url","").strip()
+        if supplied and not _square_checkout_url(supplied):
+            abort(400,"Utilise un lien HTTPS officiel Square (square.link ou checkout.square.site).")
+        if supplied and request.form.get("square_amount_checked")!="yes":
+            abort(400,"Confirme le montant exact dans Square avant d'activer le lien.")
+        with db() as c:
+            c.execute("SELECT pg_advisory_xact_lock(7342026, 4)")
+            q=c.execute("SELECT * FROM private_quotes WHERE id=%s",(quote_id,)).fetchone()
+            if not q:abort(404)
+            cents=int((Decimal(str(_quote_amounts(q)[3]))*100).quantize(Decimal("1"))) if supplied else None
+            c.execute("""UPDATE private_quotes SET square_link_url=%s,square_link_amount_cents=%s
+                         WHERE id=%s""",(supplied or None,cents,quote_id))
+        flash("Lien Square enregistré pour le montant actuel." if supplied else "Lien Square désactivé.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
     @app.get("/admin/soumissions-pro/<int:quote_id>/paiement")
     @admin_required
     def fjord_admin_payment_link(quote_id):
         with db() as c:
-            q=c.execute("SELECT id,payment_token FROM private_quotes WHERE id=%s",
+            q=c.execute("SELECT * FROM private_quotes WHERE id=%s",
                         (quote_id,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
-        if not setting or not setting["value"]:
-            flash("Configure d'abord ton adresse Interac.")
+        if not _active_square_url(q) and not (setting and setting["value"]):
+            flash("Ajoute un lien Square ou configure ton adresse Interac.")
             return redirect("/admin/soumissions-pro")
         token=_quote_payment_token(db,q)
         if not token:abort(500)
@@ -2754,12 +2829,14 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
             abort(404)
         with db() as c:
-            q=c.execute("""SELECT id,public_number,quantity,unit_price,shipping,apply_taxes,military_discount
+            q=c.execute("""SELECT id,public_number,quantity,unit_price,shipping,apply_taxes,military_discount,
+                                    square_link_url,square_link_amount_cents
                              FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
-        if not q or not setting or not setting["value"]:
+        square_url=_active_square_url(q) if q else None
+        recipient=setting["value"] if setting and setting["value"] else ""
+        if not q or not (square_url or recipient):
             abort(404)
-        recipient=setting["value"]
         subtotal,gst,qst,total=_quote_amounts(q)
         reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
         response=make_response(page("Paiement Interac",r"""
@@ -2781,6 +2858,7 @@ body.light .payment-wrap .payment-detail{border-color:#c1dbe8}
 .payment-detail strong{font-size:17px;overflow-wrap:anywhere}
 .payment-detail button{font-size:14px;padding:9px 12px}
 .payment-wrap .notice{font-size:13px;color:#b6d1e3}
+.payment-square-button{display:block;padding:17px 20px;border-radius:12px;background:#0077ab;color:#fff!important;text-align:center;font-size:20px;font-weight:850;text-decoration:none;margin:17px 0 12px;min-height:56px}
 .payment-main-step{margin:18px 0;padding:18px;border:1px solid #56b8e0;border-radius:14px}
 .payment-main-step h2{font-size:21px;margin:0 0 9px}
 .payment-fallback{margin-top:16px;padding:12px;border:1px solid #426a82;border-radius:12px}
@@ -2796,12 +2874,18 @@ body.light .payment-total{color:#076d9d}
 <section class="card">
 <div>Montant exact à transférer (taxes comprises si applicables)</div>
 <div class="payment-total">{{amount}}</div>
+{% if square_url %}
+<a class="payment-square-button" href="{{square_url}}" target="_blank" rel="noopener noreferrer">💳 PAYER MAINTENANT AVEC SQUARE ↗</a>
+<p class="notice">Paiement sécurisé sur Square (carte, Apple Pay ou Google Pay selon votre appareil). Vérifiez le montant sur la page Square avant d'autoriser le paiement.</p>
+{% else %}
 <div class="payment-main-step">
 <h2>✅ Un paiement facile, sans rien recopier</h2>
 <p>Si vous avez reçu une <strong>demande de fonds Interac</strong> de Les Impressions du Fjord, ouvrez ce courriel officiel Interac et cliquez sur son bouton pour accéder à votre banque. Le destinataire et le montant seront déjà indiqués; vous n'avez qu'à vérifier puis autoriser le virement.</p>
 <p class="notice">La demande officielle est envoyée séparément par BMO. Le bouton de la soumission et son code QR ouvrent cette page d'aide : ils ne peuvent pas déclencher un virement bancaire.</p>
 </div>
-<details class="payment-fallback"><summary>Je n'ai pas reçu de demande Interac — autre façon de payer</summary>
+{% endif %}
+{% if recipient %}
+<details class="payment-fallback"><summary>{% if square_url %}Payer plutôt par virement Interac{% else %}Je n'ai pas reçu de demande Interac — autre façon de payer{% endif %}</summary>
 <p>Si aucune demande de fonds n'a été envoyée, vous pouvez faire un virement Interac dans votre application bancaire habituelle.</p>
 <button type="button" class="payment-primary" onclick="fjordCopy('payEmail',this)">📧 Copier l'adresse du destinataire</button>
 <ol class="payment-steps">
@@ -2819,6 +2903,7 @@ body.light .payment-total{color:#076d9d}
 <button type="button" class="payment-copy-all" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
 <p class="payment-feedback" id="fjordPaymentFeedback" role="status" aria-live="polite"></p>
 </details>
+{% endif %}
 <p class="notice">Vérifiez toujours le destinataire dans votre banque et conservez la confirmation du virement. Ce site ne peut pas confirmer la réception des fonds automatiquement. Ne payez pas deux fois la même soumission.</p>
 </section>
 <p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
@@ -2845,7 +2930,7 @@ function fjordCopyAll(button){
  const reference=document.getElementById('payRef').textContent.trim();
  fjordCopyText('Les Impressions du Fjord\nCourriel Interac : '+email+'\nMontant : '+amount+'\nRéférence : '+reference,button);
 }
-</script>""",amount=_money(total),reference=reference,recipient=recipient))
+</script>""",amount=_money(total),reference=reference,recipient=recipient,square_url=square_url))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
@@ -2891,7 +2976,9 @@ function fjordCopyAll(button){
         display_number=q.get("public_number") or "FJ-{:05d}".format(q["id"])
         token=_quote_payment_token(db,q)
         accept_url=url_for("fjord_accept_quote",token=token,_external=True) if token else None
-        payment_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
+        active_square_url=_active_square_url(q)
+        interac_url=url_for("fjord_payment_page",token=token,_external=True) if token and interac_setting and interac_setting["value"] else None
+        payment_url=active_square_url or interac_url
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -2999,7 +3086,7 @@ function fjordCopyAll(button){
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"PAYER PAR INTERAC")
+            pdf.drawString(52,top-24,"PAYER EN LIGNE AVEC SQUARE" if active_square_url else "PAYER PAR INTERAC")
             pdf.setFont("Helvetica",10)
             pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
             pdf.drawString(52,top-58,"Référence : {}".format(display_number))
@@ -3007,7 +3094,7 @@ function fjordCopyAll(button){
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"PAYER PAR INTERAC - CLIQUEZ ICI")
+            pdf.drawCentredString(222,bottom+18,"PAYER PAR CARTE - SQUARE" if active_square_url else "PAYER PAR INTERAC - CLIQUEZ ICI")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
