@@ -6,9 +6,9 @@ import sys
 import time
 import urllib.request
 from playwright.sync_api import sync_playwright
-from private_fjord import admin_studio
-
 ROOT=pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from private_fjord import admin_studio
 PORT=8876
 BASE=f"http://127.0.0.1:{PORT}"
 TEST_HTML=ROOT/"atelier3d_auto_print_e2e.html"
