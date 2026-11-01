@@ -1998,7 +1998,7 @@ body.light .fj-square-section>summary{background:#e1f2f8}
 <option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select></div>
-{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé manuellement le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
+{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé {% if q.stripe_session_id %}automatiquement par Stripe{% else %}manuellement{% endif %} le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
 <details class="fj-card-section fj-square-section" {% if q.square_link_url and not square_active[q.id] %}open{% endif %}><summary>💳 {% if square_active[q.id] %}Paiement en ligne configuré ✓{% else %}Configurer le paiement par carte{% endif %}</summary><div class="fj-square-settings">
 <strong>💳 Paiement par carte en un clic (Stripe ou Square)</strong>
 <p class="fj-help">Montant à créer : <strong>{{money(quote_totals[q.id])}} CAD</strong>, livraison, rabais et taxes inclus. Crée un lien de paiement à montant fixe dans Stripe ou Square, sans rajouter de taxes, de frais ou de pourboire.</p>
