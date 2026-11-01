@@ -1948,14 +1948,14 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 {% if interac_email %}
 <a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Ouvrir la page de paiement du client</a>
 <details class="fj-bmo-details">
-<summary>🏦 Préparer une demande de fonds BMO</summary>
-<p class="fj-help">Ces renseignements correspondent à la soumission PDF. Les demandes de fonds sont envoyées dans BMO, pas automatiquement par ce site.</p>
+<summary>🏦 Envoyer la demande Interac au client (BMO)</summary>
+<p class="fj-help"><strong>Pour que ton client paie sans copier-coller :</strong> ouvre BMO, choisis « Demander des fonds », entre son courriel et le montant ci-dessous, puis envoie la demande officielle Interac. Le client recevra un courriel Interac avec son bouton de paiement bancaire prérempli. La soumission PDF contient aussi un bouton « PAYER PAR INTERAC » et un QR qui ouvrent la page d'aide au paiement.</p>
 <div class="fj-bmo-row"><div>Client<br><strong>{{q.customer}}</strong></div></div>
 <div class="fj-bmo-row"><div>Courriel du client<br><strong id="bmoEmail{{q.id}}">{{q.email or 'Non renseigné'}}</strong></div>{% if q.email %}<button type="button" data-copy-id="bmoEmail{{q.id}}">Copier</button>{% endif %}</div>
 <div class="fj-bmo-row"><div>Montant exact<br><strong id="bmoAmount{{q.id}}">{{money(quote_totals[q.id])}}</strong></div><button type="button" data-copy-id="bmoAmount{{q.id}}">Copier</button></div>
 <div class="fj-bmo-row"><div>Numéro de soumission<br><strong id="bmoRef{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}}</strong></div><button type="button" data-copy-id="bmoRef{{q.id}}">Copier</button></div>
-<div class="fj-bmo-actions"><button type="button" data-bmo-copy="{{q.id}}">📋 Copier les renseignements</button>
-<a href="https://www.bmo.com/" target="_blank" rel="noopener noreferrer">↗ Ouvrir BMO (site officiel)</a></div>
+<div class="fj-bmo-actions"><a class="btn" href="https://www.bmo.com/" target="_blank" rel="noopener noreferrer">🏦 Ouvrir BMO pour demander le paiement ↗</a>
+<button type="button" data-bmo-copy="{{q.id}}">📋 Copier le montant et les coordonnées</button></div>
 <p role="status" aria-live="polite" data-bmo-status="{{q.id}}" class="fj-help"></p>
 <p class="fj-help">Dans BMO : Paiements et virements → Demande de fonds → client → montant → référence. Le client autorise ensuite la demande dans sa banque. Vérifie le dépôt avant de sélectionner « Payée ».</p>
 </details>
@@ -2781,6 +2781,13 @@ body.light .payment-wrap .payment-detail{border-color:#c1dbe8}
 .payment-detail strong{font-size:17px;overflow-wrap:anywhere}
 .payment-detail button{font-size:14px;padding:9px 12px}
 .payment-wrap .notice{font-size:13px;color:#b6d1e3}
+.payment-main-step{margin:18px 0;padding:18px;border:1px solid #56b8e0;border-radius:14px}
+.payment-main-step h2{font-size:21px;margin:0 0 9px}
+.payment-fallback{margin-top:16px;padding:12px;border:1px solid #426a82;border-radius:12px}
+.payment-fallback summary{cursor:pointer;font-weight:700;padding:5px 0}
+.payment-fallback[open]{padding-bottom:20px}
+body.light .payment-main-step{border-color:#328ab2}
+body.light .payment-fallback{border-color:#9bc9df}
 body.light .payment-total{color:#076d9d}
 </style>
 <div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
@@ -2789,14 +2796,20 @@ body.light .payment-total{color:#076d9d}
 <section class="card">
 <div>Montant exact à transférer (taxes comprises si applicables)</div>
 <div class="payment-total">{{amount}}</div>
-<button type="button" class="payment-primary" onclick="fjordCopy('payEmail',this)">📧 Copier l’adresse Interac pour payer</button>
+<div class="payment-main-step">
+<h2>✅ Un paiement facile, sans rien recopier</h2>
+<p>Si vous avez reçu une <strong>demande de fonds Interac</strong> de Les Impressions du Fjord, ouvrez ce courriel officiel Interac et cliquez sur son bouton pour accéder à votre banque. Le destinataire et le montant seront déjà indiqués; vous n'avez qu'à vérifier puis autoriser le virement.</p>
+<p class="notice">La demande officielle est envoyée séparément par BMO. Le bouton de la soumission et son code QR ouvrent cette page d'aide : ils ne peuvent pas déclencher un virement bancaire.</p>
+</div>
+<details class="payment-fallback"><summary>Je n'ai pas reçu de demande Interac — autre façon de payer</summary>
+<p>Si aucune demande de fonds n'a été envoyée, vous pouvez faire un virement Interac dans votre application bancaire habituelle.</p>
+<button type="button" class="payment-primary" onclick="fjordCopy('payEmail',this)">📧 Copier l'adresse du destinataire</button>
 <ol class="payment-steps">
-<li>Ouvrez votre application bancaire habituelle (ou son site officiel).</li>
-<li>Choisissez <strong>Virement Interac → Envoyer</strong> et collez l'adresse courriel copiée.</li>
-<li>Entrez le montant et la référence ci-dessous; vérifiez les détails avant de confirmer le virement.</li>
+<li>Ouvrez votre application bancaire ou son site officiel.</li>
+<li>Choisissez « Virement Interac → Envoyer », puis collez l'adresse.</li>
+<li>Entrez le montant et la référence de la soumission; vérifiez avant de confirmer.</li>
 </ol>
-<p class="notice">Si vous avez déjà reçu une demande officielle de fonds Interac pour cette soumission, acceptez cette demande dans votre banque <strong>au lieu d'envoyer un deuxième virement</strong>.</p>
-<h2 style="font-size:20px;margin:20px 0 5px">Renseignements à copier</h2>
+<h2 style="font-size:20px;margin:20px 0 5px">Renseignements pour le virement</h2>
 <div class="payment-detail"><div>📧 Courriel du destinataire<br><strong id="payEmail">{{recipient}}</strong></div>
 <button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
 <div class="payment-detail"><div>🔖 Référence à inscrire dans le message<br><strong id="payRef">{{reference}}</strong></div>
@@ -2805,7 +2818,8 @@ body.light .payment-total{color:#076d9d}
 <button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
 <button type="button" class="payment-copy-all" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
 <p class="payment-feedback" id="fjordPaymentFeedback" role="status" aria-live="polite"></p>
-<p class="notice">Vérifiez le destinataire dans votre banque avant de confirmer. Conservez votre preuve de virement. Ce site ne débite pas votre compte et ne peut pas confirmer automatiquement la réception du paiement.</p>
+</details>
+<p class="notice">Vérifiez toujours le destinataire dans votre banque et conservez la confirmation du virement. Ce site ne peut pas confirmer la réception des fonds automatiquement. Ne payez pas deux fois la même soumission.</p>
 </section>
 <p>Besoin d'aide? Communique avec Les Impressions du Fjord et mentionne {{reference}}.</p>
 </div>
@@ -2985,7 +2999,7 @@ function fjordCopyAll(button){
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"PAYER PAR VIREMENT INTERAC")
+            pdf.drawString(52,top-24,"PAYER PAR INTERAC")
             pdf.setFont("Helvetica",10)
             pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
             pdf.drawString(52,top-58,"Référence : {}".format(display_number))
@@ -2993,7 +3007,7 @@ function fjordCopyAll(button){
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"CLIQUEZ POUR LES INSTRUCTIONS DE PAIEMENT")
+            pdf.drawCentredString(222,bottom+18,"PAYER PAR INTERAC - CLIQUEZ ICI")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
