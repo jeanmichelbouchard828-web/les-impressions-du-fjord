@@ -318,6 +318,96 @@ if(fjordAutoButton){
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
  const preferenceKey='fjord-x2d-profile-preferences-v1';
  let inventory=null,busy=false,opened=false,prepared=null;
+ const review=panel.querySelector('#fjordSliceReview');
+ const transfer=panel.querySelector('#fjordReviewTransfer');
+ const slider=panel.querySelector('#fjordReviewLayer');
+ function invalidatePreview(){
+  prepared=null;
+  review.hidden=true;
+  transfer.disabled=true;
+ }
+ function drawBambuReview(){
+  if(!prepared)return;
+  const layers=prepared.preview.layers;
+  const index=Math.min(layers.length-1,Math.max(0,Number(slider.value)||0));
+  const canvas=panel.querySelector('#fjordReviewCanvas'),ctx=canvas.getContext('2d');
+  if(!ctx)return;
+  ctx.fillStyle='#101c29';ctx.fillRect(0,0,canvas.width,canvas.height);
+  const side=Math.min(canvas.width,canvas.height)-38;
+  const tx=x=>19+(x/256)*side,ty=y=>canvas.height-19-(y/256)*side;
+  ctx.strokeStyle='#365064';ctx.lineWidth=.7;
+  for(let mm=0;mm<=256;mm+=32){
+   ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
+   ctx.beginPath();ctx.moveTo(tx(0),ty(mm));ctx.lineTo(tx(256),ty(mm));ctx.stroke();
+  }
+  const accumulated=panel.querySelector('#fjordReviewAccumulated').checked;
+  const shown=accumulated?layers.slice(0,index+1):[layers[index]];
+  for(let i=0;i<shown.length;i++){
+   const layer=shown[i];
+   ctx.strokeStyle=i===shown.length-1?'#ffa857':'#47738d';
+   ctx.lineWidth=i===shown.length-1?1.3:.7;
+   ctx.beginPath();
+   for(const segment of layer.segments||[]){
+    ctx.moveTo(tx(segment[0]),ty(segment[1]));
+    ctx.lineTo(tx(segment[2]),ty(segment[3]));
+   }
+   ctx.stroke();
+  }
+  const active=layers[index];
+  panel.querySelector('#fjordReviewLabel').textContent=
+   (index+1)+' / '+layers.length+' · Z '+Number(active.z).toFixed(2)+' mm';
+  panel.querySelector('#fjordReviewSummary').textContent=
+   active.moves.toLocaleString('fr-CA')+' mouvements extrudés sur cette couche · '+
+   prepared.preview.total_moves.toLocaleString('fr-CA')+' au total'+
+   (prepared.preview.sampled?' · tracé partiellement échantillonné':'');
+ }
+ slider.addEventListener('input',drawBambuReview);
+ panel.querySelector('#fjordReviewAccumulated').addEventListener('change',drawBambuReview);
+ panel.querySelector('#fjordReviewRedo').addEventListener('click',()=>{
+  invalidatePreview();
+  state.textContent='Aperçu mis de côté. Modifie les profils, puis retranche la pièce.';
+ });
+ transfer.addEventListener('click',async()=>{
+  if(busy||!prepared)return;
+  const approved=prepared;
+  if(!confirm('Envoyer ce 3MF tranché à ta X2D ? L’impression ne démarrera PAS encore.'))return;
+  busy=true;transfer.disabled=true;submit.disabled=true;
+  panel.querySelector('#fjordAutoClose').disabled=true;
+  state.textContent='Étape 3/3 · Transfert du 3MF approuvé sur ma X2D…';
+  try{
+   const body=new FormData();
+   body.append('csrf',__FJORD_CSRF__);
+   body.append('stage',approved.stage);
+   const response=await fetch('/admin/atelier-imprimer/transmettre',{
+    method:'POST',body,credentials:'same-origin',headers:{Accept:'application/json'}
+   });
+   if(!(response.headers.get('content-type')||'').includes('application/json'))
+    throw Error('Session administrateur expirée : reconnecte-toi.');
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw Error(result.error||'Transfert impossible.');
+   if(typeof result.next!=='string'||!result.next.startsWith('/admin/atelier-imprimer?'))
+    throw Error('Adresse de confirmation invalide.');
+   if(remember.checked){
+    try{
+     const settings=savedProfiles();
+     settings[approved.config]=approved.chosen;
+     localStorage.setItem(preferenceKey,JSON.stringify(settings));
+    }catch(_){}
+   }
+   invalidatePreview();
+   state.textContent='✓ 3MF envoyé. Vérifie maintenant ta X2D avant le démarrage physique.';
+   location.assign(result.next);
+  }catch(error){
+   state.textContent='⚠ '+String(error.message||error).slice(0,240)+
+    ' Aucune impression physique n’a été démarrée.';
+  }finally{
+   busy=false;
+   panel.querySelector('#fjordAutoClose').disabled=false;
+   if(prepared)transfer.disabled=false;
+   updateReady();
+  }
+ });
+
  const material=()=>String(document.getElementById('sliceMaterial')?.value||'PLA').trim().toUpperCase();
  const layer=()=>String(document.getElementById('sliceLayerHeight')?.value||'0.2');
  const jobKey=()=>material()+'|'+layer();
