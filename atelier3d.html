@@ -885,9 +885,11 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  <button type="button" id="generatorCamera" hidden>📷 Capturer une photo avec la caméra</button>
  <p id="generatorAssetStatus" class="generator-message" role="status"></p>
 </div>
+<p id="generatorEditNotice" class="generator-message" role="status" hidden></p>
 <div class="generator-actions">
 <button type="button" id="generatorShow" data-i18n="generatorShow">👁 Aperçu</button>
 <button type="button" class="primary" id="generatorAdd" data-i18n="generatorAdd">+ Créer la pièce</button>
+<button type="button" id="generatorCancelEdit" hidden>✕ Annuler la modification</button>
 </div>
 <p id="generatorMessage" class="generator-message" role="status" aria-live="polite"></p>
 <p class="generator-help" data-i18n="generatorHelp">Aperçu transparent non exporté. Les engrenages et filetages sont des géométries simplifiées à vérifier avant assemblage.</p>
@@ -1034,6 +1036,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 <button type="button" class="part-action" role="menuitem" data-context-action="move" data-i18n="move">Déplacer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="rotate" data-i18n="rotate">Tourner</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="scale" data-i18n="scale">Échelle</button>
+<button type="button" class="part-action" role="menuitem" data-context-action="editGenerator" hidden>⚙️ Modifier le générateur…</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="duplicate" data-i18n="duplicate">Dupliquer</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="cutZ" data-i18n="cutZ">Couper en deux</button>
 <button type="button" class="part-action" role="menuitem" data-context-action="measure" data-i18n="measure">Mesurer</button>
@@ -1597,6 +1600,7 @@ function serialize(){
   vertices:m.userData.type==='imported'?Array.from(m.geometry.getAttribute('position').array):null,
   // Merge comme Bambu Studio : une pièce principale, avec ses sous-pièces préservées.
   parts:m.userData.mergedParts?m.userData.mergedParts.map(p=>({...p})):null,
+  generator:normalizeGeneratorSpec(m.userData.fjordGenerator),
   filament:m.userData.fjordFilament?{...m.userData.fjordFilament}:null,
   ...window.fjordPaint?.serializeMesh?.(m)
  }))};
@@ -1637,6 +1641,7 @@ function restore(data){
     size:Number(entry.textSpec.size)||18,depth:Number(entry.textSpec.depth)||2
    };
   }
+  if(entry.generator)m.userData.fjordGenerator=normalizeGeneratorSpec(entry.generator);
   window.fjordPaint?.restoreMesh?.(m,entry);
   if(entry.type==='imported' && Array.isArray(entry.parts) && entry.parts.length>=2 && entry.parts.length<=100){
    const count=g.getAttribute('position').count;
@@ -1896,6 +1901,7 @@ $('language').addEventListener('change',syncTouchMoveButton);
 window.matchMedia('(max-width:620px)').addEventListener('change',syncTouchMoveButton);
 syncTouchMoveButton();
 const contextMenu=$('contextMenu');
+let contextGeneratorTarget=null;
 let rightPanStart=null;
 const rightPanThreshold=5;
 function findHit(e){
@@ -1932,12 +1938,15 @@ renderer.domElement.addEventListener('wheel',e=>{
 function hideContext(){contextMenu.hidden=true}
 function showContextMenu(e){
  const hit=findHit(e);
- if(hit&&!selectedSet.has(hit.object))pick(hit.object);
+ contextGeneratorTarget=hit?.object||null;
+ if(hit && selected!==hit.object)pick(hit.object);
+ const generatorEdit=contextMenu.querySelector('[data-context-action="editGenerator"]');
  contextMenu.querySelectorAll('.part-action').forEach(el=>el.hidden=!hit);
  const mergeAction=contextMenu.querySelector('[data-context-action="mergeAll"]');
  if(mergeAction)mergeAction.disabled=selectedSet.size<2;
  const splitAction=contextMenu.querySelector('[data-context-action="splitMerged"]');
  if(splitAction)splitAction.hidden=!selected?.userData.mergedParts;
+ if(generatorEdit)generatorEdit.hidden=!normalizeGeneratorSpec(contextGeneratorTarget?.userData?.fjordGenerator);
  contextMenu.querySelectorAll('.blank-action,.plate-action').forEach(el=>el.hidden=!!hit);
  contextMenu.querySelectorAll('.common-action').forEach(el=>el.hidden=!hit);
  const deletePlate=contextMenu.querySelector('[data-context-action="deletePlate"]');
@@ -2153,6 +2162,7 @@ contextMenu.querySelectorAll('[data-context-action]').forEach(btn=>btn.addEventL
  }
  if(action==='deletePlate'){fjordDeleteBed(fjordActiveBed);return;}
  if(action.startsWith('shape-')){document.querySelector('[data-shape="'+action.slice(6)+'"]')?.click();return}
+ if(action==='editGenerator'){openGeneratorEditor(contextGeneratorTarget);return;}
  if(action==='mergeAll'){fjordMergeAll();return;}
  if(action==='paint'){$('fjordPaintToggle').click();return;}
  if(action==='textTool'){document.querySelector('[data-fjord-panel="text"]')?.click();return;}
@@ -2235,6 +2245,8 @@ $('duplicate').addEventListener('click',()=>{
  m.position.copy(original.position);m.position.x+=15;m.rotation.copy(original.rotation);m.scale.copy(original.scale);
  m.material.color.setHex(basePartColor(original));
  if(visual?.textSpec)m.userData.fjordText={...visual.textSpec};
+ if(original.userData.fjordGenerator)m.userData.fjordGenerator=normalizeGeneratorSpec(original.userData.fjordGenerator);
+ if(original.userData.fjordFilament)m.userData.fjordFilament={...original.userData.fjordFilament};
  if(visual?.paintFaces)window.fjordPaint?.restoreMesh?.(m,visual);
  pick(m);
 });
@@ -2325,6 +2337,7 @@ async function importModelFile(file, displayName){
      }
      if(item.textSpec && typeof item.textSpec.value==='string')
        m.userData.fjordText={value:item.textSpec.value.slice(0,60),size:Number(item.textSpec.size)||18,depth:Number(item.textSpec.depth)||2};
+     if(item.generator)m.userData.fjordGenerator=normalizeGeneratorSpec(item.generator);
      window.fjordPaint?.restoreMesh?.(m,item);
      last=m;
    }
