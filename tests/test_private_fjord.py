@@ -110,8 +110,13 @@ class PrivateFjordTests(unittest.TestCase):
             self.assertEqual(admin.count('id="' + control + '"'), 1, control)
         for ref in ("/admin/modeles", "/admin/profils-bambu"):
             self.assertIn('href="' + ref + '"', admin)
+        self.assertGreater(admin.index('id="fjordPrintShortcut"'),
+                           admin.index('id="fjordAdminShortcut"'))
+        self.assertIn('id="sliceFloat"', admin)
+        self.assertGreater(admin.index('id="fjordPrintShortcut"'),
+                           admin.index('id="sliceFloat"'))
         self.assertLess(admin.index('id="fjordPrintShortcut"'),
-                        admin.index('id="fjordAdminShortcut"'))
+                        admin.index('id="cutFloat"'))
         self.assertNotIn('fjord-admin-header', public)
         self.assertNotIn('fjord-admin-core', public)
         self.assertNotIn('fjordPrintShortcut', public)
