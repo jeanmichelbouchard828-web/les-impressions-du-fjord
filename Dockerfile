@@ -5,8 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     prusa-slicer xvfb xauth libgl1 ca-certificates curl libgtk-3-0 \
     libfuse2 libnss3 libasound2 libgbm1 libdrm2 libxkbcommon0 libpulse0 \
-    libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 && \
+    libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libwebkit2gtk-4.1-0 && \
     rm -rf /var/lib/apt/lists/*
+# Prevent a live site with an AppImage that cannot load its required WebKit GTK library.
+# Debian Bookworm libwebkit2gtk-4.1-0 provides libwebkit2gtk-4.1.so.0.
+RUN ldconfig -p | grep -F 'libwebkit2gtk-4.1.so.0'
 # Pinned official Bambu Studio 2.8.2.61 with X2D preset improvements.
 # SHA-256 verifies the downloaded binary before extraction.
 RUN mkdir -p /opt/bambu && \
