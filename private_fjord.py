@@ -2729,7 +2729,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
 body.light .payment-total{color:#076d9d}
 </style>
 <div class="payment-wrap"><div class="eyebrow">Les Impressions du Fjord</div>
-<h1>💸 Payer par virement Interac</h1>\n<p><a class="btn" href="{{accept_url}}">✓ Accepter officiellement ma soumission</a></p>
+<h1>💸 Payer par virement Interac</h1>
 <p>Voici les informations pour payer ta soumission. Le paiement s'effectue dans l'application ou le site de ta banque, et non sur cette page.</p>
 <section class="card">
 <div>Montant total de la soumission, taxes comprises si applicables</div>
@@ -2752,7 +2752,7 @@ async function fjordCopy(id,button){
  catch(e){button.textContent="Copie manuelle nécessaire"}
  setTimeout(()=>button.textContent="Copier",2200);
 }
-</script>""",amount=_money(total),reference=reference,recipient=recipient,accept_url=url_for("fjord_accept_quote",token=token)))
+</script>""",amount=_money(total),reference=reference,recipient=recipient))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow, noarchive"
         response.headers["Referrer-Policy"]="no-referrer"
@@ -2930,19 +2930,13 @@ async function fjordCopy(id,button){
                 # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
                 pass
         if accept_url:
+            # L'aperçu de la pièce reste dans le PDF sous forme d'image.
+            # Ne pas créer de lien "voir en 3D" qui change de page.
             pdf.setFillColor(cyan)
             pdf.roundRect(39,14,315,27,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
             pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
             pdf.linkURL(accept_url,(39,14,354,41),relative=1)
-            if q["model_id"]:
-                # Le PDF reste statique; ce bouton ouvre la vraie visionneuse Web.
-                model_view_url=accept_url+"#fjordQuote3D"
-                pdf.setFillColor(navy)
-                pdf.roundRect(365,14,211,27,6,stroke=0,fill=1)
-                pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",9)
-                pdf.drawCentredString(470,23,"VOIR MA CRÉATION EN 3D")
-                pdf.linkURL(model_view_url,(365,14,576,41),relative=1)
         pdf.restoreState()
         w,h=legal
         pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
