@@ -771,7 +771,6 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  }
  .fjord-paint-panel.mobile-collapsed .fjord-paint-heading{padding:2px 0;margin:0}
  .fjord-paint-panel.mobile-collapsed .fjord-paint-heading strong{font-size:13px}
- #fjordPaintOrbit{display:none!important} /* Rotation naturelle à deux doigts sur mobile. */
 }
 @media(max-width:760px) and (orientation:landscape){
  #fjordWorkspace .stage{height:clamp(260px,calc(100dvh - 175px),560px)!important;min-height:260px!important}
@@ -1210,7 +1209,6 @@ body>.quickbar,body>#mobileIconBar{flex:0 0 auto!important}
 <div class="fjord-paint-heading"><strong>🎨 Atelier peinture 3D</strong><div class="fjord-paint-heading-actions"><button type="button" id="fjordPaintMobileFold" aria-expanded="true" aria-controls="fjordPaintPanel" title="Masquer ou afficher les options de peinture">▾ Réduire</button><button type="button" id="fjordPaintClose" aria-label="Fermer la peinture">✕</button></div></div>
 <div class="fjord-paint-mode-note">Pièce : <strong id="fjordPaintModelLabel">Aucune pièce sélectionnée</strong></div>
 <p class="fjord-paint-help">🖌 Clic gauche : peindre. 🖱️ Clic droit maintenu : tourner autour de la pièce. Molette : zoomer.</p>
-<button type="button" id="fjordPaintOrbit" class="fjord-paint-view-button" aria-pressed="false" title="Tourner la vue sans peindre, utile sur mobile">🔄 Tourner la vue 3D (sans peindre)</button>
 <p class="fjord-paint-help" id="fjordPaintTouchGuide">Sur téléphone : 1 doigt pour peindre. À 2 doigts, glisse pour tourner la vue et pince pour zoomer, sans laisser de peinture.</p>
 <div class="fjord-paint-grid" role="toolbar" aria-label="Outils de peinture">
 <button type="button" data-fjord-paint-tool="brush" class="active" aria-pressed="true">🖌 Pinceau</button>
