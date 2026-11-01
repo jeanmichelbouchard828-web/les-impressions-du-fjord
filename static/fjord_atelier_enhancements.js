@@ -440,16 +440,14 @@ export function installFjordEnhancements(api){
   if(e.pointerType==='touch'&&touchPointers.has(e.pointerId)){
    touchPointers.delete(e.pointerId);
    const endedMulti=touchPaintMultiGesture;
+   const started=touchStrokeStart;
    // Keep the native OrbitControls pointerup; it must release both fingers.
-   if(!touchPointers.size){
-    touchPaintMultiGesture=false;
-    touchStrokeStart=null;
-   }
+   if(!touchPointers.size)touchPaintMultiGesture=false;
    if(strokePointer===e.pointerId){
     strokePointer=null;api.orbit.enabled=true;
-   }else if(!endedMulti && e.type==='pointerup' && touchStrokeStart?.id===e.pointerId
+   }else if(!endedMulti && e.type==='pointerup' && started?.id===e.pointerId
        &&paintOn&&!cameraNavigate){
-    const d=Math.hypot(e.clientX-touchStrokeStart.x,e.clientY-touchStrokeStart.y);
+    const d=Math.hypot(e.clientX-started.x,e.clientY-started.y);
     // Single finger tap paints once, rather than painting during pointerdown.
     if(d<=18){
      const hit=hitPaint(e);
