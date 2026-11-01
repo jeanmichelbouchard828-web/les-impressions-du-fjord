@@ -96,6 +96,11 @@ def admin_studio(html, csrf_token):
         '🖨️ Imprimer sur ma X2D</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + print_shortcut, 1)
+    # Shorten the two long library labels without changing their IDs/actions.
+    html = html.replace('📚 Importer de ma bibliothèque</button>',
+                        '📚 Importer bibliothèque</button>', 1)
+    html = html.replace('💾 Enregistrer dans ma bibliothèque</button>',
+                        '💾 Sauver bibliothèque</button>', 1)
     # Reorganize only the private Atelier header; keep every original button
     # and its ID so all existing actions and keyboard shortcuts remain intact.
     import re as _re
