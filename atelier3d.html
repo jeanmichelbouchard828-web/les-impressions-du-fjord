@@ -691,6 +691,78 @@ body.light .fjord-measure-values>div{background:#d2e9f7}
 body.light .fjord-measure-values span{color:#29576f}
 body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{color:#0f4b6b}
 
+
+/* Mobile ergonomics — no document-wide horizontal drift. Independent
+   tool strips remain scrollable, while the canvas gets the available width. */
+@media(max-width:760px){
+ html,body{width:100%;max-width:100%;overflow-x:clip}
+ header,.fjord-menubar,.quickbar,.mobile-iconbar,#fjordWorkspace{width:100%;max-width:100%;min-width:0}
+ .fjord-menubar{flex-wrap:nowrap;overflow-x:auto!important;overflow-y:hidden;
+  scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+  padding:4px 7px!important;gap:3px!important;min-height:39px}
+ .fjord-menubar summary{white-space:nowrap;font-size:12px;padding:6px 8px}
+ .fjord-menu-brand{flex:none}
+ .quickbar{min-height:45px;padding:3px 6px!important}
+ .quickbar .quick-button{min-width:39px;width:39px;height:39px;min-height:39px}
+ .mobile-iconbar{gap:5px;padding:5px 7px!important;min-height:51px;overflow-x:auto!important;
+  overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .mobile-iconbar button{min-height:42px!important;padding:7px 10px!important;font-size:12px!important}
+ #fjordWorkspace.shell{display:block!important;width:100%!important;max-width:100%!important;
+  min-height:0!important;height:auto!important;overflow:visible!important}
+ #fjordWorkspace .stage{width:100%!important;max-width:100%!important;
+  height:clamp(345px,calc(100dvh - 235px),760px)!important;
+  min-height:345px!important;position:relative;isolation:isolate;overflow:hidden}
+ #fjordWorkspace .stage>canvas{width:100%!important;height:100%!important}
+ #fjordWorkspace .fjord-camera-controls{right:6px!important;top:8px!important;gap:5px!important;
+  max-width:54px;z-index:29!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-widget{display:none!important}
+ #fjordWorkspace .fjord-camera-controls button{min-width:41px!important;width:41px!important;
+  min-height:41px!important;height:41px!important;padding:7px!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-camera-buttons,
+ #fjordWorkspace .fjord-camera-controls .fjord-camera-zoom{gap:4px!important}
+ #fjordWorkspace .hint{display:none!important}
+ #fjordWorkspace .mobile-stage-info:not(:empty){top:8px;left:8px;right:65px;
+  max-width:calc(100% - 76px);font-size:11px}
+ .slice-float{position:absolute!important;left:5px!important;right:5px!important;top:auto!important;
+  bottom:5px!important;width:calc(100% - 10px)!important;max-width:none!important;
+  max-height:clamp(195px,45dvh,440px)!important;z-index:80!important;
+  padding:10px 12px 9px!important;overflow-y:auto!important;overflow-x:hidden!important;
+  border-radius:15px!important;box-shadow:0 -10px 28px #0009}
+ .slice-float-header{position:sticky;top:-10px;z-index:3;background:var(--panel);
+  padding:5px 0 9px;margin:-5px 0 8px}
+ .slice-float-header strong{font-size:14px!important}
+ .slice-float-header button{min-width:42px;min-height:42px}
+ .slice-settings{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .slice-settings label{font-size:12px}
+ .slice-settings select{font-size:16px!important;min-height:44px;min-width:0;width:100%;padding:6px 7px}
+ .slice-mode-tabs{gap:7px}
+ .slice-mode-tabs button{min-height:46px;font-size:12px}
+ .slice-float input[type=range]{min-height:40px;touch-action:pan-y}
+ .slice-level{font-size:14px}
+ .slice-actions button{min-height:44px!important}
+ .slice-price-row{font-size:12px}
+ .slice-price-row strong{font-size:21px}
+ .slice-metrics{font-size:12px}
+ .fjord-paint-panel{
+  width:auto!important;max-width:none!important;left:6px!important;right:6px!important;
+  top:auto!important;bottom:calc(6px + env(safe-area-inset-bottom,0px))!important;
+  padding:9px 11px!important;max-height:min(35dvh,275px)!important
+ }
+ .fjord-paint-panel.mobile-collapsed{
+  max-height:59px!important;min-height:59px!important;overflow:hidden!important;
+  border-radius:13px!important;padding:5px 10px!important
+ }
+ .fjord-paint-panel.mobile-collapsed .fjord-paint-heading{padding:2px 0;margin:0}
+ .fjord-paint-panel.mobile-collapsed .fjord-paint-heading strong{font-size:13px}
+ #fjordPaintOrbit{display:none!important} /* Rotation naturelle à deux doigts sur mobile. */
+}
+@media(max-width:760px) and (orientation:landscape){
+ #fjordWorkspace .stage{height:clamp(260px,calc(100dvh - 175px),560px)!important;min-height:260px!important}
+ .slice-float{max-height:min(53dvh,315px)!important}
+ .fjord-paint-panel{max-height:48dvh!important}
+}
+
+
 </style>
 <script src="/static/fjord_measure_circle.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
@@ -939,7 +1011,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 <div class="fjord-paint-mode-note">Pièce : <strong id="fjordPaintModelLabel">Aucune pièce sélectionnée</strong></div>
 <p class="fjord-paint-help">🖌 Clic gauche : peindre. 🖱️ Clic droit maintenu : tourner autour de la pièce. Molette : zoomer.</p>
 <button type="button" id="fjordPaintOrbit" class="fjord-paint-view-button" aria-pressed="false" title="Tourner la vue sans peindre, utile sur mobile">🔄 Tourner la vue 3D (sans peindre)</button>
-<p class="fjord-paint-help" id="fjordPaintTouchGuide">Sur téléphone : 1 doigt pour peindre, 2 doigts pour zoomer et déplacer la vue. « Tourner la vue » permet de faire pivoter avec 1 doigt sans peindre.</p>
+<p class="fjord-paint-help" id="fjordPaintTouchGuide">Sur téléphone : 1 doigt pour peindre. À 2 doigts, glisse pour tourner la vue et pince pour zoomer, sans laisser de peinture.</p>
 <div class="fjord-paint-grid" role="toolbar" aria-label="Outils de peinture">
 <button type="button" data-fjord-paint-tool="brush" class="active" aria-pressed="true">🖌 Pinceau</button>
 <button type="button" data-fjord-paint-tool="sphere" aria-pressed="false">◉ Sphère</button>

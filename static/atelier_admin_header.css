@@ -91,3 +91,37 @@ header.fjord-admin-header{
    position:static;box-shadow:none;width:100%;max-height:none;margin-top:7px
  }
 }
+
+/* Phone-first admin: one compact two-row header, not a desktop toolbar
+   overflowing sideways. Printing belongs to the Slice panel, not here. */
+@media(max-width:760px){
+ header.fjord-admin-header{
+  box-sizing:border-box;width:100%;max-width:100%;min-width:0;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-areas:"brand links" "project prefs"!important;
+  gap:4px 8px!important;padding:5px 9px!important;
+  align-items:center!important;overflow:visible
+ }
+ .fjord-admin-header .fjord-admin-brand{min-width:0;overflow:hidden}
+ .fjord-admin-header .brand{font-size:13px!important;line-height:1.2!important;
+  white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
+ .fjord-admin-header .fjord-admin-links{min-width:0;flex-wrap:nowrap!important;gap:4px}
+ .fjord-admin-header #fjordAdminShortcut{min-height:37px!important;
+  padding:6px 8px!important;font-size:11px!important;white-space:nowrap!important}
+ .fjord-admin-header .project-menu{min-width:0}
+ .fjord-admin-header #projectMenuButton{min-height:39px!important;
+  font-size:12px!important;padding:6px 11px!important}
+ .fjord-admin-header .top-preferences{min-width:0;display:flex;flex-wrap:nowrap!important;
+  flex-direction:row!important;justify-content:flex-end;gap:5px!important}
+ .fjord-admin-header .top-preferences select{max-width:min(27vw,106px)!important;
+  min-width:0!important;min-height:39px!important;padding:4px 5px!important;font-size:12px!important}
+ .fjord-admin-header .project-menu .top-actions{
+  max-width:calc(100vw - 18px)!important;left:0!important
+ }
+ .fjord-admin-header .fjord-admin-more-menu{max-width:calc(100vw - 48px)!important}
+}
+@media(max-width:360px){
+ .fjord-admin-header #fjordAdminShortcut{font-size:0!important;min-width:40px!important}
+ .fjord-admin-header #fjordAdminShortcut::before{content:"⚙️";font-size:19px}
+ .fjord-admin-header .top-preferences select{max-width:27vw!important;font-size:11px!important}
+}

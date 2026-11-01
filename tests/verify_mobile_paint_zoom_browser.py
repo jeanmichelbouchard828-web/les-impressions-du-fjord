@@ -38,8 +38,13 @@ try:
   assert page.locator("#fjordPaintPanel").is_visible(),"mobile paint panel should open"
   assert page.locator("#mobilePaintBtn").get_attribute("aria-pressed")=="true"
   assert page.locator("#fjordPaintMobileFold").is_visible()
+  assert page.locator("#fjordPaintPanel").evaluate("el=>el.classList.contains('mobile-collapsed')")
+  assert page.locator("#fjordPaintQuickOrbit").count()==0,"No floating rotation button"
+  assert page.evaluate("window.fjordPaint.isActive()")
+  assert page.evaluate("window.fjordPaint.cameraState()")
+  page.locator("#fjordPaintMobileFold").click()  # Open tools, otherwise canvas stays large.
   page.locator('[data-fjord-paint-tool="triangle"]').evaluate("el=>el.click()")
-  page.locator("#fjordPaintMobileFold").click()
+  page.locator("#fjordPaintMobileFold").click()  # Fold tools again to paint.
   assert page.locator("#fjordPaintPanel").evaluate(
     "el=>el.classList.contains('mobile-collapsed')")
   assert page.locator("#fjordPaintMobileFold").get_attribute("aria-expanded")=="false"
@@ -80,22 +85,25 @@ try:
     "document.querySelector('#fjordPaintStatus').innerText.includes('facette(s)')",
     timeout=10000)
   assert page.evaluate("window.fjordPaint.isActive()"),"Painting must remain active after tap"
-  # Switch to orbit mode: one finger should rotate without adding paint.
-  page.locator("#fjordPaintMobileFold").click()
-  assert page.locator("#fjordPaintOrbit").is_visible()
-  page.locator("#fjordPaintOrbit").click()
-  assert page.locator("#fjordPaintOrbit").get_attribute("aria-pressed")=="true"
-  assert page.evaluate("window.fjordPaint.isOrbiting()")
-  page.locator("#fjordPaintMobileFold").click()
+  # Two fingers traveling together orbit the view while staying in paint mode.
+  # Pinch apart still zooms because paint mode uses DOLLY_ROTATE.
+  painted=page.locator("#fjordPaintStatus").inner_text()
+  assert page.evaluate("window.fjordPaint.isActive()")
+  assert not page.evaluate("window.fjordPaint.isOrbiting()"),"No toggle needed"
   start=page.evaluate("window.fjordPaint.cameraState().position")
-  cdp.send("Input.dispatchTouchEvent",{"type":"touchStart","touchPoints":[{"id":3,"x":x,"y":y}]})
-  for dx in [14,29,45,60]:
-   cdp.send("Input.dispatchTouchEvent",{"type":"touchMove","touchPoints":[{"id":3,"x":x+dx,"y":y+10}]})
-   page.wait_for_timeout(30)
+  def rotpoints(dx):
+   return [{"id":3,"x":x-35+dx,"y":y-15+dx*.2},
+           {"id":4,"x":x+35+dx,"y":y+15+dx*.2}]
+  cdp.send("Input.dispatchTouchEvent",{"type":"touchStart","touchPoints":rotpoints(0)})
+  for dx in [10,22,34,48,63,80]:
+   cdp.send("Input.dispatchTouchEvent",{"type":"touchMove","touchPoints":rotpoints(dx)})
+   page.wait_for_timeout(55)
   cdp.send("Input.dispatchTouchEvent",{"type":"touchEnd","touchPoints":[]})
-  page.wait_for_timeout(260)
+  page.wait_for_timeout(280)
   end=page.evaluate("window.fjordPaint.cameraState().position")
-  assert any(abs(a-b)>1 for a,b in zip(start,end)),("One finger orbit toggle failed",start,end)
+  assert any(abs(a-b)>1 for a,b in zip(start,end)),("Two-finger orbit failed",start,end)
+  assert page.locator("#fjordPaintStatus").inner_text()==painted,"Two-finger orbit should never paint"
+  assert page.evaluate("window.fjordPaint.isActive()"),"Orbit keeps painting enabled"
   page.locator("#mobilePaintBtn").evaluate("el=>el.click()")
   assert not page.evaluate("window.fjordPaint.isActive()")
   # Standard touch zoom must remain available after leaving paint mode.
@@ -103,7 +111,7 @@ try:
   assert dist() < after*1.15, "Zoom controls still work outside paint"
   assert not errors,errors
   browser.close()
- print("PASS mobile paint, fold, one-finger painting, two-finger pinch zoom and orbit")
+ print("PASS mobile paint, automatic fold, one-finger painting, two-finger rotate and pinch without buttons")
 finally:
  server.terminate()
  try:server.wait(timeout=5)

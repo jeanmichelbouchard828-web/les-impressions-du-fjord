@@ -6,7 +6,7 @@ export function installFjordEnhancements(api){
  const $=id=>document.getElementById(id);
  const notice=(text)=>{const el=$('fjordPaintStatus');if(el)el.textContent=text;};
  let fontPromise=null,paintOn=false,paintTool='brush',paintHex='#f04c55',brushSize=7,strokePointer=null;
- let cameraNavigate=false,paintPreviousRightButton=null;
+ let cameraNavigate=false,paintPreviousRightButton=null,paintPreviousTwoTouch=null;
  // Touch painting waits for a tap or a clear one-finger drag. This prevents
  // a second finger arriving for pinch zoom from painting an accidental face.
  const touchPointers=new Map();
@@ -218,6 +218,7 @@ export function installFjordEnhancements(api){
   }
   const button=$('fjordPaintOrbit');
   if(button){button.setAttribute('aria-pressed',String(cameraNavigate));button.classList.toggle('active',cameraNavigate);}
+
   renderer.domElement.style.cursor=cameraNavigate?'grab':paintOn?'crosshair':'';
   if(paintOn)notice(cameraNavigate?
    '🔄 Tourner la vue : glisse sur la pièce ou le plateau. Désactive ce bouton pour reprendre le pinceau.':
@@ -243,6 +244,9 @@ export function installFjordEnhancements(api){
    api.orbit.mouseButtons.RIGHT=paintPreviousRightButton;
    paintPreviousRightButton=null;
   }
+  if(paintPreviousTwoTouch!==null){
+   api.orbit.touches.TWO=paintPreviousTwoTouch;paintPreviousTwoTouch=null;
+  }
   $('fjordPaintOrbit')?.setAttribute('aria-pressed','false');
   $('fjordPaintOrbit')?.classList.remove('active');
   paintOn=false;$('fjordPaintPanel').hidden=true;
@@ -257,7 +261,12 @@ export function installFjordEnhancements(api){
   if(!api.models().length){notice('Importe ou crée une pièce pour commencer.');}
   api.disableCurrentTools();
   paintOn=true;$('fjordPaintPanel').hidden=false;
-  foldMobilePaint(false);
+  // One finger paints. Two fingers rotate + pinch-zoom with OrbitControls.
+  // Restore the normal pan/zoom mapping when painting closes.
+  if(paintPreviousTwoTouch===null)paintPreviousTwoTouch=api.orbit.touches.TWO;
+  api.orbit.touches.TWO=THREE.TOUCH.DOLLY_ROTATE;
+  // Preserve most of the phone's build plate; "Outils" expands the palette.
+  foldMobilePaint(window.matchMedia('(max-width:760px)').matches);
   // OrbitControls stays enabled except while a LEFT paint stroke is active.
   // RIGHT-drag temporarily orbits around the selected model, rather than panning
   // the whole build plate. Restore its original mapping on closing paint.
@@ -286,7 +295,7 @@ export function installFjordEnhancements(api){
   renderer.domElement.style.cursor='crosshair';
   paintToolChoose(paintTool);
   syncText();
-  notice('🖌 Clique gauche pour peindre · Clic droit maintenu pour tourner autour de la pièce · Molette pour zoomer. Sur mobile, utilise « Tourner la vue ».');
+  notice('🖌 1 doigt : peindre · 2 doigts : tourner la vue, pincer pour zoomer · ordinateur : clic droit pour tourner.');
  }
  // Mouse hover previews/open the painting tools. Clicking the already-open
  // button closes them, and the same hovering pointer must leave before an
@@ -398,14 +407,15 @@ export function installFjordEnhancements(api){
    touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(touchPointers.size>=2){
     touchPaintMultiGesture=true;
-    // A second touch always returns control to native OrbitControls.
+    // A second touch always returns control to native OrbitControls,
+    // mapped to TWO=DOLLY_ROTATE, never painting while moving the camera.
     if(strokePointer!==null){
      strokePointer=null;api.orbit.enabled=true;
     }
    }else{
     touchStrokeStart={id:e.pointerId,x:e.clientX,y:e.clientY};
    }
-   return false; // OrbitControls records both touch IDs for pinch zoom.
+   return false; // OrbitControls tracks both fingers for rotation and pinch zoom.
   }
   if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey)return false;
   const hit=hitPaint(e);
