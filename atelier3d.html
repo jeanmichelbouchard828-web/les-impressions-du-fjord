@@ -3177,7 +3177,7 @@ for(const axis of ['X','Y','Z']){
    say('sizeDone');
  }));
 }
-let measureMode=false,measureLine=null,measureObject=null;
+let measureMode=false,measureObject=null;
 const measureMarkers=[],measureOverlays=[],measurePickedPoints=[];
 const measureModeSelect=$('fjordMeasureMode'),measurePanel=$('fjordMeasureResults');
 const measureCircleValues=$('fjordMeasureCircleValues');
@@ -3205,7 +3205,6 @@ function measureOverlayLine(points,color){
  return line;
 }
 function clearMeasureLine(){
- if(measureLine){scene.remove(measureLine);measureLine.geometry.dispose();measureLine.material.dispose();measureLine=null}
  for(const line of measureOverlays){
   scene.remove(line);line.geometry.dispose();line.material.dispose();
  }
@@ -3254,7 +3253,7 @@ function measurePoint(point,mesh=null){
  }
  if(!circle){
   const d=measurePickedPoints[0].distanceTo(measurePickedPoints[1]);
-  measureLine=measureOverlayLine(measurePickedPoints,0xffae38);
+  measureOverlayLine(measurePickedPoints,0xffae38);
   $('fjordMeasureResultHeading').textContent=measureLocalized('Distance mesurée','Measured distance');
   $('fjordMeasureDistanceValue').textContent=d.toFixed(2)+' mm';
   $('fjordMeasureDistanceValue').hidden=false;
