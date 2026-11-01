@@ -471,7 +471,10 @@ if(fjordAutoButton){
  panel.addEventListener('close',stopPrinterPolling);
 
  let reviewZoom=1,reviewPanX=0,reviewPanY=0;
+ let review3D=true,reviewYaw=-.6,reviewPitch=.7;
  const reviewTouches=new Map();
+ const reviewCanvas=panel.querySelector('#fjordReviewCanvas');
+ const moneyReview=new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD'});
  function invalidatePreview(){
   prepared=null;
   review.hidden=true;
@@ -479,34 +482,118 @@ if(fjordAutoButton){
   transfer.disabled=true;
   reviewZoom=1;reviewPanX=reviewPanY=0;
  }
+ function refreshReviewPrice(){
+  if(!prepared)return;
+  const p=prepared.preview;
+  const secs=Number(p.estimated_seconds),grams=Number(p.filament_grams);
+  const validTime=Number.isFinite(secs)&&secs>0;
+  const validWeight=Number.isFinite(grams)&&grams>0;
+  const duration=validTime?Math.floor(secs/3600)+' h '+Math.round((secs%3600)/60)+' min':'—';
+  panel.querySelector('#fjordReviewTime').textContent=duration;
+  panel.querySelector('#fjordReviewWeight').textContent=validWeight?grams.toLocaleString('fr-CA',{maximumFractionDigits:1})+' g':'—';
+  panel.querySelector('#fjordReviewCount').textContent=String(p.layer_count||p.layers.length);
+  const price=panel.querySelector('#fjordReviewPrice');
+  const note=panel.querySelector('#fjordReviewPriceNote');
+  const breakdown=panel.querySelector('#fjordReviewBreakdown');
+  if(!validTime||!validWeight){
+   price.textContent='—';
+   note.textContent='Durée ou poids non disponible dans le 3MF Bambu. Prix non calculé, pour éviter une estimation trompeuse.';
+   breakdown.textContent='Vérifie les informations du 3MF dans Bambu Studio.';
+   return;
+  }
+  const rates=['fjordReviewKgRate','fjordReviewHourRate','fjordReviewSetupRate','fjordReviewMarkup']
+     .map(id=>Number(panel.querySelector('#'+id).value));
+  if(rates.some(v=>!Number.isFinite(v)||v<0)||rates[3]>500||rates[0]>1000||rates[1]>1000||rates[2]>10000){
+   price.textContent='—';note.textContent='Vérifie les tarifs saisis.';breakdown.textContent='';return;
+  }
+  const materialCost=grams/1000*rates[0]*1.10;
+  const machineCost=secs/3600*rates[1];
+  const subtotal=materialCost+machineCost+rates[2];
+  const total=subtotal*(1+rates[3]/100);
+  price.textContent=moneyReview.format(total);
+  note.textContent='Avant taxes · indicatif · temps et poids du vrai 3MF Bambu Studio · perte de filament +10 %.';
+  breakdown.textContent='Filament et perte : '+moneyReview.format(materialCost)+' · Machine : '+
+   moneyReview.format(machineCost)+' · Préparation : '+moneyReview.format(rates[2])+
+   ' · Majoration : '+rates[3].toLocaleString('fr-CA')+' %.';
+ }
+ for(const id of ['fjordReviewKgRate','fjordReviewHourRate','fjordReviewSetupRate','fjordReviewMarkup']){
+  panel.querySelector('#'+id).addEventListener('input',refreshReviewPrice);
+ }
  function drawBambuReview(){
   if(!prepared)return;
   const layers=prepared.preview.layers;
   const index=Math.min(layers.length-1,Math.max(0,Number(slider.value)||0));
-  const canvas=panel.querySelector('#fjordReviewCanvas'),ctx=canvas.getContext('2d');
+  const canvas=reviewCanvas,ctx=canvas.getContext('2d');
   if(!ctx)return;
   ctx.fillStyle='#101c29';ctx.fillRect(0,0,canvas.width,canvas.height);
-  const side=Math.min(canvas.width,canvas.height)-38;
-  // Transform about canvas centre; identical geometry for mouse and touch.
-  const tx=x=>canvas.width/2+(19+(x/256)*side-canvas.width/2)*reviewZoom+reviewPanX;
-  const ty=y=>canvas.height/2+(canvas.height-19-(y/256)*side-canvas.height/2)*reviewZoom+reviewPanY;
-  ctx.strokeStyle='#365064';ctx.lineWidth=.7;
-  for(let mm=0;mm<=256;mm+=32){
-   ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
-   ctx.beginPath();ctx.moveTo(tx(0),ty(mm));ctx.lineTo(tx(256),ty(mm));ctx.stroke();
-  }
   const accumulated=panel.querySelector('#fjordReviewAccumulated').checked;
   const shown=accumulated?layers.slice(0,index+1):[layers[index]];
-  for(let i=0;i<shown.length;i++){
-   const layer=shown[i];
-   ctx.strokeStyle=i===shown.length-1?'#ffa857':'#47738d';
-   ctx.lineWidth=i===shown.length-1?1.3:.7;
-   ctx.beginPath();
-   for(const segment of layer.segments||[]){
-    ctx.moveTo(tx(segment[0]),ty(segment[1]));
-    ctx.lineTo(tx(segment[2]),ty(segment[3]));
+  if(review3D){
+   // Project the real XYZ G-code extrusion paths. This is a 3D toolpath
+   // visualization, not a fabricated watertight shaded model.
+   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+   for(const layer of shown)for(const seg of layer.segments||[]){
+    minX=Math.min(minX,seg[0],seg[2]);maxX=Math.max(maxX,seg[0],seg[2]);
+    minY=Math.min(minY,seg[1],seg[3]);maxY=Math.max(maxY,seg[1],seg[3]);
    }
-   ctx.stroke();
+   if(!Number.isFinite(minX)){minX=105;maxX=120;minY=105;maxY=120;}
+   const minZ=Number(shown[0].z)||0,maxZ=Number(shown[shown.length-1].z)||0;
+   const centreX=(minX+maxX)/2,centreY=(minY+maxY)/2,centreZ=(minZ+maxZ)/2;
+   const span=Math.max(10,maxX-minX,maxY-minY,(maxZ-minZ)*1.4);
+   const scale=canvas.width*.59/span*reviewZoom;
+   const cy=Math.cos(reviewYaw),sy=Math.sin(reviewYaw);
+   const cp=Math.cos(reviewPitch),sp=Math.sin(reviewPitch);
+   const project=(x,y,z)=>{
+    const dx=x-centreX,dy=y-centreY,dz=z-centreZ;
+    const xx=dx*cy-dy*sy,yy=dx*sy+dy*cy;
+    return [canvas.width/2+xx*scale+reviewPanX,
+      canvas.height/2+(-yy*cp-dz*sp)*scale+reviewPanY];
+   };
+   const pad=Math.max(3,span*.15);
+   ctx.strokeStyle='#38546a';ctx.lineWidth=.65;
+   for(let i=0;i<=6;i++){
+    const x=minX-pad+(maxX-minX+2*pad)*i/6;
+    const y=minY-pad+(maxY-minY+2*pad)*i/6;
+    let a=project(x,minY-pad,0),b=project(x,maxY+pad,0);
+    ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+    a=project(minX-pad,y,0);b=project(maxX+pad,y,0);
+    ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+   }
+   for(let i=0;i<shown.length;i++){
+    const layer=shown[i],segments=layer.segments||[];
+    ctx.strokeStyle=i===shown.length-1?'#ffa857':'#568caa';
+    ctx.globalAlpha=i===shown.length-1?1:.65;
+    ctx.lineWidth=i===shown.length-1?1.4:1;
+    ctx.beginPath();
+    const step=Math.max(1,Math.ceil(segments.length/1200));
+    for(let j=0;j<segments.length;j+=step){
+     const seg=segments[j],a=project(seg[0],seg[1],Number(layer.z)||0),
+       b=project(seg[2],seg[3],Number(layer.z)||0);
+     ctx.moveTo(...a);ctx.lineTo(...b);
+    }
+    ctx.stroke();
+   }
+   ctx.globalAlpha=1;
+  }else{
+   const side=Math.min(canvas.width,canvas.height)-38;
+   const tx=x=>canvas.width/2+(19+(x/256)*side-canvas.width/2)*reviewZoom+reviewPanX;
+   const ty=y=>canvas.height/2+(canvas.height-19-(y/256)*side-canvas.height/2)*reviewZoom+reviewPanY;
+   ctx.strokeStyle='#365064';ctx.lineWidth=.7;
+   for(let mm=0;mm<=256;mm+=32){
+    ctx.beginPath();ctx.moveTo(tx(mm),ty(0));ctx.lineTo(tx(mm),ty(256));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(tx(0),ty(mm));ctx.lineTo(tx(256),ty(mm));ctx.stroke();
+   }
+   for(let i=0;i<shown.length;i++){
+    const layer=shown[i];
+    ctx.strokeStyle=i===shown.length-1?'#ffa857':'#47738d';
+    ctx.lineWidth=i===shown.length-1?1.3:.7;
+    ctx.beginPath();
+    for(const segment of layer.segments||[]){
+     ctx.moveTo(tx(segment[0]),ty(segment[1]));
+     ctx.lineTo(tx(segment[2]),ty(segment[3]));
+    }
+    ctx.stroke();
+   }
   }
   const active=layers[index];
   panel.querySelector('#fjordReviewLabel').textContent=
@@ -515,6 +602,7 @@ if(fjordAutoButton){
    active.moves.toLocaleString('fr-CA')+' mouvements extrudés sur cette couche · '+
    prepared.preview.total_moves.toLocaleString('fr-CA')+' au total'+
    (prepared.preview.sampled?' · tracé partiellement échantillonné':'');
+  refreshReviewPrice();
  }
  slider.addEventListener('input',drawBambuReview);
  for(const [id,direction] of [['fjordReviewPrevious',-1],['fjordReviewNext',1]]){
