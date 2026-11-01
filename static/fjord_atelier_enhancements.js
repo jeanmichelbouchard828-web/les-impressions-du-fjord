@@ -404,5 +404,6 @@ export function installFjordEnhancements(api){
  }
  // Expose only the actions the core studio must coordinate.
  return {toggle,open,close,onPointerDown,onPointerMove,onPointerUp,restoreMesh,serializeMesh,resetForWholeColor,
-  closeOnBlank:()=>{if(paintOn&&!cameraNavigate)close();},syncText,isActive:()=>paintOn,isOrbiting:()=>paintOn&&cameraNavigate};
+  closeOnBlank:()=>{if(paintOn&&!cameraNavigate)close();},syncText,isActive:()=>paintOn,isOrbiting:()=>paintOn&&cameraNavigate,
+  cameraState:()=>({position:api.orbit.object.position.toArray(),target:api.orbit.target.toArray(),rightButton:api.orbit.mouseButtons.RIGHT})};
 }
