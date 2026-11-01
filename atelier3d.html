@@ -1606,6 +1606,7 @@ function serialize(){
  }))};
 }
 function restore(data){
+ if(generatorEditTarget)cancelGeneratorEditor();
  sliceClose();
  if(!data||data.version!==1||!Array.isArray(data.objects)||data.objects.length>100)throw Error('Invalid project');
  exitLayFaceMode();deactivateGizmo();
@@ -1745,6 +1746,7 @@ function remember(){
  redoStack.length=0;
 }
 function pick(m){
+ if(generatorEditTarget&&m!==generatorEditTarget)cancelGeneratorEditor();
  if(m && generatorPreviewEnabled)stopGeneratorPreview();
  const changed=selected!==m || selectedSet.size!==(m?1:0);
  if(changed){
@@ -3590,8 +3592,102 @@ function cutSelected(){
 }
 
 /* Parametric part generator: temporary translucent preview, then a real STL-ready mesh. */
+
+// Keep original parametric settings per mesh so that right-click editing,
+// undo/redo, duplicate and exported project JSON can round-trip them safely.
+// Files imported before this feature have no source settings: never guess.
+function normalizeGeneratorSpec(raw){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+ const cfg=generatorKinds.find(k=>k.id===raw.kind);
+ if(!cfg||!raw.params||typeof raw.params!=='object'||Array.isArray(raw.params))return null;
+ const params={};
+ for(const [id,,,initial,min,max,step,unit] of cfg.fields){
+  const value=raw.params[id];
+  if(unit==='text'){
+   if(typeof value!=='string'||value.length>200)return null;
+   params[id]=value;
+  }else{
+   if(typeof value!=='number'||!Number.isFinite(value)||value<min||value>max)return null;
+   if(step===1&&!Number.isInteger(value))return null;
+   params[id]=value;
+  }
+ }
+ let assets={image:null,audio:null};
+ if(cfg.needs==='image'){
+  const asset=raw.assets?.image;
+  if(asset && typeof asset==='object'&&Number.isInteger(asset.width)&&Number.isInteger(asset.height)
+    &&asset.width>0&&asset.height>0&&asset.width<=84&&asset.height<=84
+    &&Array.isArray(asset.values)&&asset.values.length===asset.width*asset.height
+    &&asset.values.every(x=>typeof x==='number'&&Number.isFinite(x)&&x>=0&&x<=1))
+   assets.image={width:asset.width,height:asset.height,values:asset.values.slice()};
+ }else if(cfg.needs==='audio'){
+  const asset=raw.assets?.audio;
+  if(Array.isArray(asset)&&asset.length===128&&asset.every(x=>typeof x==='number'&&Number.isFinite(x)&&x>=0&&x<=1))
+   assets.audio=asset.slice();
+ }
+ return {kind:cfg.id,params,assets};
+}
+
 const generatorState=Object.fromEntries(generatorKinds.map(k=>[k.id,defaultParams(k.id)]));
 let generatorGhost=null,generatorTimer=null,generatorPreviewEnabled=false; // Preview only on request.
+let generatorEditTarget=null;
+function generatorSavedSettings(){
+ const cfg=generatorDefinition();
+ return normalizeGeneratorSpec({
+  kind:cfg.id,params:{...generatorState[cfg.id]},
+  assets:cfg.needs==='image'?
+   {image:generatorAssets.image}:cfg.needs==='audio'?
+   {audio:generatorAssets.audio}:{}
+ });
+}
+function syncGeneratorEditingUI(){
+ const editing=Boolean(generatorEditTarget),fr=currentLang()==='fr';
+ $('generatorCancelEdit').hidden=!editing;
+ $('generatorKind').disabled=editing;
+ generatorSearchInput.disabled=editing;
+ document.querySelectorAll('#generatorSection [data-generator-pick]').forEach(b=>b.disabled=editing);
+ $('generatorAdd').textContent=editing
+  ?(fr?'✓ Appliquer à la pièce':'✓ Apply to part')
+  :langText[currentLang()].generatorAdd;
+ $('generatorEditNotice').hidden=!editing;
+ $('generatorEditNotice').textContent=editing
+  ?(fr?'Modification de « '+generatorEditTarget.name+' » — les dimensions du générateur sont avant l’échelle et la rotation déjà appliquées. La pièce n’est remplacée qu’après « Appliquer ».':
+      'Editing “'+generatorEditTarget.name+'” — generator sizes are before the existing scale and rotation. The part is only replaced when you apply.')
+  :'';
+}
+function cancelGeneratorEditor(){
+ if(!generatorEditTarget)return;
+ generatorEditTarget=null;
+ stopGeneratorPreview();
+ syncGeneratorEditingUI();
+}
+function openGeneratorEditor(mesh){
+ const spec=normalizeGeneratorSpec(mesh?.userData?.fjordGenerator);
+ if(!spec||!models.includes(mesh)){
+  status.textContent='Cette pièce ne possède pas de paramètres de générateur enregistrés.';
+  return;
+ }
+ if(selected!==mesh)pick(mesh);
+ window.fjordPaint?.close?.();
+ if(measureMode)$('measure').click();
+ if(layFaceMode)exitLayFaceMode();
+ if(cutPreviewActive)hideCutPreview();
+ if(sliceActive)sliceClose();
+ stopGeneratorPreview();
+ generatorEditTarget=mesh;
+ generatorSearchInput.value='';
+ generatorState[spec.kind]={...spec.params};
+ generatorAssets.image=spec.assets.image;
+ generatorAssets.audio=spec.assets.audio;
+ $('generatorKind').disabled=false;
+ $('generatorKind').value=spec.kind;
+ generatorRebuild();
+ document.querySelector('[data-fjord-panel="generators"]')?.click();
+ if(isCompactEditor())openMobileMenu('generators',document.querySelector('[data-fjord-panel="generators"]'));
+ $('generatorFields').querySelector('input')?.focus({preventScroll:true});
+ generatorMessage('⚙️ '+(currentLang()==='fr'?'Modifie les valeurs, puis applique les changements.':'Edit the values, then apply the changes.'));
+}
+
 function clearGeneratorGhost(){
  if(!generatorGhost)return;
  scene.remove(generatorGhost);generatorGhost.geometry.dispose();generatorGhost.material.dispose();generatorGhost=null;
@@ -3702,6 +3798,7 @@ function generatorRebuild(){
  updateGeneratorSearch();
  if(generatorPreviewEnabled)queueGeneratorPreview();
  generatorPreviewButtonText();
+ syncGeneratorEditingUI();
 }
 let qrLibraryPromise=null;
 function prepareQrGenerator(){
@@ -3835,18 +3932,63 @@ $('generatorShow').addEventListener('click',()=>{
  if(generatorPreviewEnabled){stopGeneratorPreview();generatorMessage('');return}
  generatorPreviewEnabled=true;generatorDrawGhost();generatorPreviewButtonText();
 });
+$('generatorCancelEdit').addEventListener('click',()=>{
+ cancelGeneratorEditor();
+ generatorMessage(currentLang()==='fr'?'Modification annulée.':'Edit cancelled.');
+});
 $('generatorAdd').addEventListener('click',async()=>{
  if(generatorTimer!==null){clearTimeout(generatorTimer);generatorTimer=null}
- let geometry;
- try{geometry=await generatorGeometry()}catch(e){generatorMessage(e.message||langText[currentLang()].generatorInvalid);return}
- remember();
- stopGeneratorPreview();
+ const button=$('generatorAdd'),target=generatorEditTarget;
  const cfg=generatorDefinition();
- const title=currentLang()==='en'?cfg.en:cfg.fr;
- const m=makeMesh(geometry,'imported',title+' '+(++counter));
- m.position.z=-geometry.boundingBox.min.z;
- pick(m);
- generatorMessage(langText[currentLang()].generatorCreated);
+ button.disabled=true;
+ let geometry;
+ try{
+  geometry=await generatorGeometry();
+  const spec=generatorSavedSettings();
+  if(!spec)throw Error('Paramètres de générateur invalides.');
+  if(cfg.needs==='image'&&!spec.assets.image)throw Error('Recharge la photo de ce générateur.');
+  if(cfg.needs==='audio'&&!spec.assets.audio)throw Error('Recharge le fichier audio de ce générateur.');
+  if(target){
+   if(!models.includes(target)||target.userData.fjordGenerator?.kind!==cfg.id)
+    throw Error('La pièce à modifier n’est plus disponible.');
+   const painted=Boolean(target.userData.fjordPaintFaces&&
+     Object.keys(target.userData.fjordPaintFaces).length);
+   if(painted&&!confirm('Modifier cette pièce supprimera sa peinture par facette. Continuer ?')){
+    geometry.dispose();geometry=null;return;
+   }
+   const bounds=modelWorldBounds(target);
+   const onPlate=Math.abs(bounds.min.z)<.02;
+   remember();
+   stopGeneratorPreview();
+   window.fjordPaint?.resetForWholeColor?.(target);
+   const previous=target.geometry;target.geometry=geometry;geometry=null;
+   previous.dispose();
+   target.userData.fjordGenerator=spec;
+   if(onPlate)snapPartToBed(target);
+   cancelGeneratorEditor();
+   pick(target);
+   generatorMessage(currentLang()==='fr'
+     ?'✓ Pièce modifiée. Annuler (Ctrl+Z) permet de retrouver l’ancienne géométrie.'
+     :'✓ Part updated. Undo (Ctrl+Z) restores its previous geometry.');
+  }else{
+   if(models.length>=100)throw Error('Le plateau contient déjà 100 pièces.');
+   remember();
+   stopGeneratorPreview();
+   const title=currentLang()==='en'?cfg.en:cfg.fr;
+   const m=makeMesh(geometry,'imported',title+' '+(++counter));
+   geometry=null;
+   m.userData.fjordGenerator=spec;
+   m.position.z=-m.geometry.boundingBox.min.z;
+   pick(m);
+   generatorMessage(langText[currentLang()].generatorCreated);
+  }
+ }catch(e){
+  geometry?.dispose();
+  generatorMessage('⚠ '+(e.message||langText[currentLang()].generatorInvalid));
+ }finally{
+  button.disabled=false;
+  syncGeneratorEditingUI();
+ }
 });
 $('language').addEventListener('change',generatorRebuild);
 $('generatorKind').value=generatorKinds[0].id;
