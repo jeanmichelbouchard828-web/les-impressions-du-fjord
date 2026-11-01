@@ -33,6 +33,13 @@ try:
         page.wait_for_function("window.__fjordEditorStarted === true",timeout=60000)
         assert page.locator('[data-generator-pick="torsion_spring"]').count()==1
         assert "Peindre" in page.locator("#fjordPaintToggle").inner_text()
+        # Delete is the first item in the right-click part menu; compact menu excludes redundant shortcuts.
+        menu=page.locator("#contextMenu [data-context-action]")
+        assert menu.first.get_attribute("data-context-action")=="remove", "Supprimer doit être en premier"
+        for removed in ("growSelected","scaleCustom","rotX90","rotY90","rotZ90","half","double"):
+            assert page.locator('#contextMenu [data-context-action="'+removed+'"]').count()==0,removed
+        assert page.locator('#contextMenu [data-context-action="move"]').count()==1
+        assert page.locator('#contextMenu [data-context-action="scale"]').count()==1
         # Entry points must all launch the same working painting palette.
         page.locator("#fjordPaintLaunch").evaluate("el=>el.click()")
         assert page.locator("#fjordPaintPanel").is_visible()
