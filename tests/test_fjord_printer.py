@@ -224,6 +224,43 @@ class RemotePrintTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in calls.call_args_list],
                          ["/status","/files/list"])
 
+    def test_matching_3mf_immediately_complete_exposes_elapsed_and_temperatures(self):
+        import time
+        target = "gcode/fjord_auto_94beba3d46c1.3mf"
+        with self.client.session_transaction() as sess:
+            sess["fjord_atelier_recent_start"] = {
+                "path": target, "time": time.time()-35, "start_ack": "relay_only"
+            }
+        def instant_complete(path, **kwargs):
+            if path == "/status":
+                return {"Features":32,"JobStatus":{
+                    "State":"complete","SubState":"", "Error":None,
+                    "CurrentPrint":{
+                        "FileName":"fjord_auto_94beba3d46c1",
+                        "Progress":100,"DurationSec":0,"CurrentLayer":0,
+                        "Temps":{"HotendActual":23.5,"HotendTarget":0,
+                                 "BedActual":20.2,"BedTarget":0}}}}
+            if path == "/files/list":
+                return {"Root":[{"Type":"folder","Children":[
+                    {"Type":"file","VirtualPath":target}]}]}
+            raise AssertionError("Only read-only status and file list are allowed")
+        with patch("fjord_printer._api",side_effect=instant_complete) as calls,\
+             patch("fjord_printer._plugin_log_hint",return_value=None):
+            state = self.client.get("/api/admin/atelier/impression-etat")
+            diagnostic = self.client.get("/api/admin/atelier/impression-diagnostic")
+        self.assertEqual(state.status_code,200)
+        self.assertTrue(state.json["job_matches_start"])
+        self.assertEqual(state.json["elapsed_sec"],0)
+        self.assertEqual(state.json["hotend_target"],0)
+        self.assertEqual(state.json["bed_target"],0)
+        self.assertEqual(diagnostic.status_code,200)
+        self.assertIn("Durée rapportée par la X2D : 0 s",diagnostic.json["diagnosis"])
+        self.assertIn("Couche rapportée : 0",diagnostic.json["diagnosis"])
+        self.assertIn("buse 0",diagnostic.json["diagnosis"])
+        self.assertIn("sans preuve d'une impression physique",diagnostic.json["diagnosis"] if diagnostic.json["start_ack"]=="native_ok" else "sans preuve d'une impression physique" )
+        self.assertEqual([call.args[0] for call in calls.call_args_list],
+                         ["/status", "/status", "/files/list"])
+
     def test_old_completed_job_never_counts_as_new_start(self):
         import time
         expected = "gcode/fjord_auto_new_xyz.3mf"
