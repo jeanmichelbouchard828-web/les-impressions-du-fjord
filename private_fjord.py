@@ -636,26 +636,43 @@ if(fjordAutoButton){
   startMessage.textContent='';startNow.disabled=true;
  }
  async function refreshPrinter(){
-  // Continue reporting printer state after /start, without re-enabling start.
   if(!transferred&&!startScreen.classList.contains('fjord-start-sent'))return;
   try{
-   const response=await fetch('/api/admin/atelier/impression-etat',{
-    credentials:'same-origin',cache:'no-store'
-   });
-   if(!response.ok)throw Error('La X2D ne répond pas.');
-   const data=await response.json();
-   if(!data.ok)throw Error(data.error||'Statut indisponible.');
+   const res=await fetch('/api/admin/atelier/impression-etat',{credentials:'same-origin',cache:'no-store'});
+   if(!res.ok)throw Error('X2D non joignable.');
+   const data=await res.json();
+   if(!data.ok)throw Error(data.error||'État indisponible.');
    printerCanStart=data.can_start===true;
-   const states={idle:'Prête',printing:'Impression en cours',paused:'En pause',
-     complete:'Terminée',cancelled:'Annulée'};
-   liveState.textContent=(states[data.state]||data.state||'Inconnu')+
-       (data.file?' · '+data.file:'');
-   const progress=Number(data.progress);
-   liveProgress.hidden=!(Number.isFinite(progress)&&data.progress!==null);
-   if(!liveProgress.hidden)liveProgress.value=Math.max(0,Math.min(100,progress));
+   const names={idle:'Prête (pas de travail actif)',warmingup:'Préparation / chauffe',
+    printing:'Impression en cours',paused:'En pause',resuming:'Reprise',
+    complete:'Terminée',cancelled:'Annulée',error:'Erreur'};
+   liveState.textContent=(names[data.state]||data.state||'Inconnu')+
+    (data.file?' · '+data.file:'')+(data.substate?' · '+data.substate:'');
+   const active=['warmingup','printing','paused','resuming','complete'].includes(data.state);
+   const pct=(typeof data.progress==='number'&&Number.isFinite(data.progress)&&
+    data.progress>=0&&data.progress<=100)?data.progress:null;
+   liveProgress.hidden=!(active&&pct!==null);
+   if(!liveProgress.hidden)liveProgress.value=pct;
+   livePercent.textContent=active&&pct!==null?
+    pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %':'En attente de progression réelle';
+   const info=[];
+   if(active&&data.total_layers>0&&data.current_layer!=null)
+    info.push('Couche '+data.current_layer+' / '+data.total_layers);
+   if(active&&Number.isFinite(data.time_left_sec))
+    info.push('Temps restant : '+Math.ceil(data.time_left_sec/60)+' min');
+   if(data.printer_error)info.push('⚠ '+data.printer_error);
+   if(startScreen.classList.contains('fjord-start-sent')&&
+    ['idle','cancelled','error'].includes(data.state)&&Number(data.start_command_age_sec)>=20)
+    info.unshift('⚠ Commande acceptée, mais aucun départ confirmé. Vérifie l’écran de la X2D, le stockage USB et les erreurs. Ne relance pas automatiquement.');
+   else if(!active)info.unshift('Aucune impression en cours confirmée.');
+   else if(startScreen.classList.contains('fjord-start-sent')&&
+      data.job_matches_start===false&&data.file)
+    info.unshift('⚠ Le fichier actif ne correspond pas clairement au 3MF envoyé.');
+   liveNote.textContent=info.join(' · ')||'État réel de la X2D via OctoEverywhere.';
   }catch(error){
    printerCanStart=false;liveState.textContent='⚠ '+String(error.message||error).slice(0,140);
-   liveProgress.hidden=true;
+   liveProgress.hidden=true;livePercent.textContent='Progression indisponible';
+   liveNote.textContent='Vérifie directement l’écran de la X2D.';
   }
   refreshStartButton();
  }
