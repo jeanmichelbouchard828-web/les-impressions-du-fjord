@@ -122,6 +122,7 @@ class ReviewTests(unittest.TestCase):
             self.assertEqual(preview_download.status_code,200)
             self.assertEqual(preview_download.data,archive)
             self.assertIn("attachment",preview_download.headers.get("Content-Disposition",""))
+            self.assertIn(".gcode.3mf",preview_download.headers.get("Content-Disposition",""))
             upload.assert_not_called()
             state.assert_not_called()
             success=client.post("/admin/atelier-imprimer/transmettre",
