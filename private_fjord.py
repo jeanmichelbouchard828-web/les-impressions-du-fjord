@@ -503,6 +503,10 @@ if(fjordAutoButton){
  '<p class="fjord-auto-intro">Pour ce premier essai, utilise les profils d’origine Bambu Studio. Tes profils CHATOU personnalisés restent disponibles dans les listes.</p>'+
  '<p class="fjord-auto-stock-note">✓ X2D 0,4 mm · 0,20 mm Standard · Generic PETG (ou autre matériau sélectionné). Confirme ta plaque et ta bobine avant d’imprimer.</p>'+
  '<p id="fjordAutoState" role="status" aria-live="polite">Vérification de la configuration…</p>'+
+ '<aside id="fjordSharedX2D" class="fjord-shared-job" hidden aria-label="Suivi partagé de ma X2D">'+
+ '<strong>📱💻 Suivi X2D synchronisé</strong>'+
+ '<p id="fjordSharedDescription">Dernière commande X2D</p>'+
+ '<button type="button" id="fjordSharedView">🔎 Voir le même suivi sur cet appareil</button></aside>'+
  '<form id="fjordAutoForm"><label>Imprimante X2D<select name="machine" required></select></label>'+
  '<label>Profil d’impression<select name="process" required></select></label>'+
  '<label>Filament<select name="filament" required></select></label>'+
@@ -597,7 +601,10 @@ if(fjordAutoButton){
  '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
  '<details id="fjordRemoteStartHelp" class="fjord-remote-start-help" hidden>'+
  '<summary>⚠️ Démarrage distant non confirmé · autre façon d’imprimer</summary>'+
- '<p>Ton 3MF est déjà enregistré sur la X2D. Sur l’écran de l’imprimante, ouvre <strong>Fichiers</strong>, sélectionne le fichier indiqué ci-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Pas besoin de renvoyer le fichier.</p>'+
+ '<p><strong>Solution pour imprimer À DISTANCE depuis cet Atelier (mobile ou ordinateur) :</strong> sur la X2D, ouvrir Réglages → LAN uniquement, puis activer <strong>Mode développeur (impression 3D)</strong>. Configurer ensuite OctoEverywhere sur le PC/Docker local en connexion LAN avec l’IP et le code d’accès de la X2D. Le relais OctoEverywhere reste joignable par Internet depuis ton Atelier. Un essai réel est requis pour valider le départ.</p>'+
+ '<p><strong>Compromis obligatoire :</strong> LAN uniquement déconnecte Bambu Cloud et Bambu Handy. Ne l’active pas sans accepter cette perte temporaire. Ne partage jamais l’IP privée ni le code d’accès sur le site public.</p>'+
+ '<p><a href="https://wiki.bambulab.com/en/knowledge-sharing/enable-developer-mode" target="_blank" rel="noopener noreferrer">Guide officiel Bambu : mode développeur</a></p>'+
+ '<p><strong>Solution de secours :</strong> ton 3MF est déjà enregistré sur la X2D. Sur l’écran de l’imprimante, ouvre <strong>Fichiers</strong>, repère le nom affiché au-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Sur PC, Bambu Connect peut aussi lancer le 3MF téléchargé, après ta confirmation.</p>'+
  '<p>Si le fichier imprime localement mais pas depuis l’Atelier, le micrologiciel peut refuser les commandes MQTT non autorisées. Le <strong>mode LAN uniquement + développeur</strong> peut être une solution, mais désactive Bambu Handy et les fonctions cloud. Ne change pas ce réglage sans en accepter les conséquences.</p>'+
  '<small>Le relais peut répondre 200 même si l’imprimante refuse le départ. Aucun essai automatique ne sera effectué.</small></details>'+
  '<p class="fjord-review-note">Une commande acceptée ne prouve pas que la première couche a commencé. Vérifie la X2D.</p>'+
@@ -614,6 +621,9 @@ if(fjordAutoButton){
  const preferenceKey='fjord-x2d-profile-preferences-v1';
  let inventory=null,busy=false,opened=false,prepared=null,transferred=null,printerCanStart=false,printerPoll=null;
  let expectedJobFile='',confirmedActiveJob=false,printerPollVersion=0;
+ const sharedBox=panel.querySelector('#fjordSharedX2D');
+ const sharedDescription=panel.querySelector('#fjordSharedDescription');
+ let latestSharedJob=null;
  const review=panel.querySelector('#fjordSliceReview');
  const transfer=panel.querySelector('#fjordReviewTransfer');
  const transferBox=panel.querySelector('#fjordTransferStatus');
@@ -737,6 +747,7 @@ if(fjordAutoButton){
  panel.querySelector('#fjordAmsReload').addEventListener('click',reloadAms);
  function clearPrintScreen(){
   printerPollVersion++;expectedJobFile='';confirmedActiveJob=false;
+  latestSharedJob=null;sharedBox.hidden=true;
   transfer.after(transferBox);transferStage('reset');
   transferred=null;printerCanStart=false;startScreen.hidden=true;
   panel.classList.remove('fjord-print-ready');
@@ -751,7 +762,7 @@ if(fjordAutoButton){
   startMessage.textContent='';startNow.disabled=true;
  }
  async function refreshPrinter(){
-  if(!transferred&&!startScreen.classList.contains('fjord-start-sent'))return;
+  if(!panel.open)return;
   const version=++printerPollVersion;
   try{
    const res=await fetch('/api/admin/atelier/impression-etat',{credentials:'same-origin',cache:'no-store'});
@@ -759,6 +770,15 @@ if(fjordAutoButton){
    const data=await res.json();
    if(version!==printerPollVersion||!panel.open)return;
    if(!data.ok)throw Error(data.error||'État indisponible.');
+   const synced=data.shared_job;
+   if(synced&&typeof synced.file==='string'&&synced.file.startsWith('gcode/')&&
+      Number.isFinite(synced.age_sec)&&synced.age_sec>=0&&synced.age_sec<=86400){
+    latestSharedJob=synced;sharedBox.hidden=false;
+    const filename=synced.file.split('/').pop();
+    sharedDescription.textContent=filename+' · '+(synced.age_sec<60
+      ?'Commande envoyée récemment':Math.round(synced.age_sec/60)+' min depuis la dernière commande')+
+      ' · état lu directement sur la X2D';
+   }else{latestSharedJob=null;sharedBox.hidden=true;}
    printerCanStart=data.can_start===true;
    const labels={idle:'Prête (pas de travail actif)',warmingup:'Préparation / chauffe',
     printing:'Impression en cours',paused:'En pause',resuming:'Reprise',
@@ -816,7 +836,7 @@ if(fjordAutoButton){
    const outcome=String(data.start_outcome||'');
    const remoteFailed=['instant_finish','not_started','printer_error','unverified_finish'].includes(outcome);
    if(sent&&remoteFailed){
-    startHelp.hidden=false;
+    startHelp.hidden=false;startHelp.open=true;
     if(outcome==='instant_finish'){
      startMessage.textContent='⚠ La X2D a signalé ce 3MF terminé sans chauffe, durée ni couche : '+
        'le démarrage distant a probablement été refusé. Le fichier reste utilisable directement sur la machine.';
@@ -871,6 +891,21 @@ if(fjordAutoButton){
   refreshStartButton();
  }
  panel.querySelector('#fjordRefreshPrinter').addEventListener('click',refreshPrinter);
+ panel.querySelector('#fjordSharedView').addEventListener('click',()=>{
+  if(!latestSharedJob||busy)return;
+  // Only observe the last command across devices; no launch token is shared.
+  transferred=null;printerCanStart=false;
+  expectedJobFile=latestSharedJob.file;confirmedActiveJob=false;
+  startScreen.hidden=false;
+  startScreen.classList.add('fjord-start-sent');
+  panel.classList.add('fjord-print-ready');
+  panel.querySelector('#fjordStartFile').textContent=expectedJobFile;
+  startMessage.textContent='Suivi partagé : vérification du vrai démarrage de ce 3MF.';
+  startHelp.hidden=false;startHelp.open=false;
+  startNow.disabled=true;
+  beginPrinterPolling();
+  startScreen.scrollIntoView({block:'nearest',behavior:'smooth'});
+ });
  panel.querySelector('#fjordLiveDiagnostic').addEventListener('click',async()=>{
   const button=panel.querySelector('#fjordLiveDiagnostic');
   const result=panel.querySelector('#fjordLiveDiagnosticResult');
@@ -929,7 +964,7 @@ if(fjordAutoButton){
   }catch(error){
    // The one-use server nonce is consumed regardless of the result.
    transferred=null;printerCanStart=false;stopPrinterPolling();
-   startHelp.hidden=false;
+   startHelp.hidden=false;startHelp.open=true;
    startMessage.textContent='⚠ '+String(error.message||error)+
      ' · Vérifie l’imprimante avant de retenter; le fichier envoyé reste disponible sur la X2D.';
   }finally{busy=false;refreshStartButton();}
@@ -1493,6 +1528,7 @@ if(fjordAutoButton){
   invalidatePreview();
   clearPrintScreen();
   stopPrinterPolling();
+  beginPrinterPolling();
   monoConsent.checked=false;
   updateMonoApproval();
   try{
@@ -1563,6 +1599,11 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog{width:min(580px,95vw);max-height:84dvh;overflow:auto;padding:18px;border:1px solid #58b9de;background:#112c40;color:#f0f8fd;border-radius:15px}
 #fjordAutoPrintDialog::backdrop{background:#000b}
 #fjordAutoPrintDialog .fjord-dialog-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
+#fjordAutoPrintDialog #fjordSharedX2D[hidden],#fjordAutoPrintDialog.fjord-preview-active #fjordSharedX2D,#fjordAutoPrintDialog.fjord-print-ready #fjordSharedX2D{display:none!important}
+#fjordAutoPrintDialog .fjord-shared-job{margin:9px 0;padding:12px;border:1px solid #4389a7;border-radius:12px;background:#16384c;display:grid;gap:8px}
+#fjordAutoPrintDialog .fjord-shared-job strong{font-weight:800;font-size:14px}
+#fjordAutoPrintDialog .fjord-shared-job p{margin:0;font-size:12px;overflow-wrap:anywhere}
+#fjordAutoPrintDialog .fjord-shared-job button{min-height:46px;white-space:normal;text-align:center}
 #fjordAutoPrintDialog p{line-height:1.5;color:#d2e5ee}
 #fjordAutoPrintDialog form{display:grid;gap:12px;margin:18px 0}
 #fjordAutoPrintDialog .fjord-support-controls{min-width:0;display:grid;gap:9px;margin:0;padding:12px;border:1px solid #527f92;border-radius:11px}

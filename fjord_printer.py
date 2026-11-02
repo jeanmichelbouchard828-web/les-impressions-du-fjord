@@ -447,6 +447,52 @@ def _verify_native_start_reply(reply):
 
 
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
+    # The schema lives with the normal app migrations in app.py.
+    # Admin-only start metadata is shared, but never the one-use nonce.
+
+    def latest_start():
+        previous = session.get("fjord_atelier_recent_start")
+        if not isinstance(previous, dict):
+            previous = None
+        if db is not None:
+            try:
+                with db() as conn:
+                    row = conn.execute(
+                        "SELECT file_path,start_ack,sent_at FROM fjord_printer_recent_start WHERE slot=1"
+                    ).fetchone()
+                if row is not None:
+                    shared = {"path": row["file_path"], "start_ack": row["start_ack"],
+                              "time": float(row["sent_at"])}
+                    if _safe_virtual_path(shared["path"]) and (
+                        previous is None or shared["time"] >= float(previous.get("time", 0))
+                    ):
+                        previous = shared
+            except (ValueError, TypeError, OverflowError):
+                pass
+            except Exception:
+                # Printing status must remain readable even if DB sync is down.
+                app.logger.warning("Suivi X2D partagé momentanément indisponible.")
+        return previous
+
+    def remember_start(path, ack):
+        record = {"time": time.time(), "path": path, "start_ack": ack}
+        session["fjord_atelier_recent_start"] = record
+        if db is not None:
+            try:
+                with db() as conn:
+                    conn.execute(
+                        """INSERT INTO fjord_printer_recent_start(slot,file_path,start_ack,sent_at)
+                           VALUES(1,%s,%s,%s)
+                           ON CONFLICT (slot) DO UPDATE SET
+                           file_path=EXCLUDED.file_path,
+                           start_ack=EXCLUDED.start_ack,
+                           sent_at=EXCLUDED.sent_at""",
+                        (path, ack, record["time"]))
+            except Exception:
+                # An already relayed command must never be retried just because
+                # a separate tracking database write failed.
+                app.logger.warning("Commande X2D relayée; synchronisation multiécran indisponible.")
+
     # Parsed user presets are intentionally not assumed to be machine-ready.
     def available_presets():
         from bambu_stock_profiles import available_original_presets
@@ -945,7 +991,7 @@ body.light .fj-print-hint{color:#496477!important}
         """
         checks = {"status": False, "files": False}
         details = []
-        previous_start = session.get("fjord_atelier_recent_start")
+        previous_start = latest_start()
         last_path = previous_start.get("path") if isinstance(previous_start, dict) else None
         if not _safe_virtual_path(last_path):
             last_path = None
@@ -1168,12 +1214,16 @@ body.light .fj-print-hint{color:#496477!important}
                 "substate": status.get("substate"),
                 "printer_error": status.get("error")
             })
-            previous = session.get("fjord_atelier_recent_start")
+            previous = latest_start()
             if isinstance(previous, dict):
                 age = time.time() - float(previous.get("time", 0))
                 if 0 <= age <= 24 * 3600:
                     payload = response.get_json()
                     payload["start_command_age_sec"] = round(age)
+                    payload["shared_job"] = {
+                        "file": previous["path"], "age_sec": round(age),
+                        "start_ack": previous.get("start_ack")
+                    }
                     result_file = str(status["file"] or "").lower()
                     expected_name = str(previous.get("path", "")).rsplit("/", 1)[-1].lower()
                     payload["job_matches_start"] = bool(
@@ -1245,9 +1295,7 @@ body.light .fj-print-hint{color:#496477!important}
                              if isinstance(native_info, dict) else "")
             ack_kind = "native_ok" if native_result == "ok" else "relay_only"
             # Keep only a classification, not raw MQTT/native packets.
-            session["fjord_atelier_recent_start"] = {
-                "time": time.time(), "path": path, "start_ack": ack_kind
-            }
+            remember_start(path, ack_kind)
             result = jsonify(
                 ok=True,
                 message=("Réponse native reçue : OK. La X2D doit encore confirmer le démarrage réel."
