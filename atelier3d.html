@@ -4524,7 +4524,7 @@ function openMobileMenu(kind,trigger){
  mobileMenuBody.scrollTop=0;
  // Place the active tool within reach when a mobile category shares a desktop panel.
  const focusTool=({measure:'#measure',freehand:'#fjordFreehandToggle',projects:'#sceneList'})[kind];
- if(focusTool){const target=mobileMenuBody.querySelector(focusTool);if(target)target.scrollIntoView({block:'nearest',behavior:'instant'});}
+ if(focusTool){const target=mobileMenuBody.querySelector(focusTool);if(target){const panelRect=mobileMenuBody.getBoundingClientRect(),targetRect=target.getBoundingClientRect();mobileMenuBody.scrollTop+=targetRect.top-panelRect.top-12;}}
  $('mobileMenuClose').focus({preventScroll:true});
 }
 document.querySelectorAll('[data-open-tools]').forEach(button=>button.addEventListener('click',()=>openMobileMenu(button.dataset.openTools,button)));
