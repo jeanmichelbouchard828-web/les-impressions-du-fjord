@@ -1156,11 +1156,11 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <nav id="mobileIconBar" class="mobile-iconbar" aria-label="Menu des outils">
 <button type="button" data-open-tools="text">🔠 Texte</button>
 <button type="button" id="mobilePaintBtn" aria-label="Ouvrir ou fermer la peinture" title="Peindre la pièce" aria-pressed="false">🎨</button>
-<button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="shapes" data-i18n="mobileForms" aria-expanded="false">➕ Formes</button>
+<button type="button" data-open-tools="generators" data-i18n="mobileGenerate" aria-expanded="false">⚙️ Générer</button>
+<button type="button" id="mobileArrangeBtn">▦ Arranger</button>
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
 <button type="button" data-open-tools="size" data-i18n="mobileSize" aria-expanded="false">📏 Taille</button>
-<button type="button" data-open-tools="generators" data-i18n="mobileGenerate" aria-expanded="false">⚙️ Générer</button>
 <button type="button" data-open-tools="freehand" aria-expanded="false" title="Outils de modification et création">✎ Main levée</button>
 <button type="button" data-open-tools="measure" aria-expanded="false">📐 Mesurer</button>
 <button type="button" data-open-tools="paint" aria-expanded="false">🎨 Peinture 3D</button>
@@ -4382,6 +4382,11 @@ async function generatorGeometry(){
   const n=Number(p[name]);
   if(!Number.isFinite(n)||n<min||n>max)throw Error('Dimension invalide : '+name);
   if(step===1&&n!==Math.round(n))throw Error('Valeur entière requise : '+name);
+ }
+ if(kind==='torsion_spring'){
+  const wire=Number(p.thickness),pitch=Number(p.pitch),diameter=Number(p.diameter);
+  if(pitch<wire+.08)throw Error('Ressort à torsion : le pas axial doit dépasser le diamètre du fil d’au moins 0,08 mm. Augmente « Pas axial des spires ».');
+  if(diameter<=2.2*wire)throw Error('Ressort à torsion : augmente le diamètre moyen ou réduis le diamètre du fil.');
  }
  await prepareQrGenerator();
  const geometry=artGeneratorKinds.some(x=>x.id===kind)?
