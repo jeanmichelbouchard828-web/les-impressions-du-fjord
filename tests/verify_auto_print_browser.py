@@ -247,8 +247,19 @@ try:
       document.querySelector('#projectMenuButton')!==null &&
       document.querySelector('#fjordAdminShortcut')!==null;
   }"""),"Full-height phone plate with compact accessible header"
+  # PRO mobile: first icon is PRINT, without forcing an extra preview slice.
+  assert mobile.locator("#mobileIconBar button").first.get_attribute("id")=="mobileSliceBtn"
+  assert "Imprimer" in mobile.locator("#mobileSliceBtn").inner_text()
+  assert mobile.locator("#mobileSliceBtn").get_attribute("data-i18n") is None
   mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
-  assert mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"),"Slicer must enter fullscreen"
+  mobile.wait_for_function("document.querySelector('#fjordAutoPrintDialog')?.open===true")
+  assert not mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"), (
+      "Mobile print action must not open a redundant slicer")
+  mobile.locator("#fjordAutoClose").evaluate("el=>el.click()")
+  # The Bambu preview / layer-construction slicer remains accessible afterward.
+  mobile.locator("#sliceTop").evaluate("el=>el.click()")
+  assert mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"), (
+      "Detailed slicer must remain available after the new Print entry")
   assert mobile.evaluate("""() => {
    const pane=document.querySelector('#sliceFloat').getBoundingClientRect();
    const stage=document.querySelector('#stage').getBoundingClientRect();
