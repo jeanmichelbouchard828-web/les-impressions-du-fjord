@@ -197,6 +197,19 @@ try:
   assert "Aucun départ" in page.locator("#fjordLiveNote").inner_text()
   assert "DÉMARRAGE NON CONFIRMÉ" in page.locator("#fjordStartResult").inner_text()
   assert "terminé" not in page.locator("#fjordStartResult").inner_text().lower(), "Never show stale completed success"
+  # Regression: remote start can report the NEW 3MF as complete without
+  # ever entering a physical heating/printing state.
+  printer_status.update({"state":"complete","progress":100,
+    "file":"fjord_auto_test.3mf","can_start":True,
+    "elapsed_sec":0,"current_layer":0,"total_layers":60,
+    "hotend_target":0,"bed_target":0,
+    "job_matches_start":True,"start_command_age_sec":45})
+  page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
+  page.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Fin signalée')")
+  assert page.locator("#fjordLiveProgress").is_hidden()
+  assert "0 s" in page.locator("#fjordLiveNote").inner_text()
+  assert "ARRÊT NON VÉRIFIÉ" in page.locator("#fjordStartResult").inner_text()
+  assert "buse cible 0" in page.locator("#fjordLiveNote").inner_text()
   printer_status.update({"state":"printing","progress":42.5,
     "file":"fjord_auto_test.3mf","can_start":False,
     "current_layer":25,"total_layers":60,"time_left_sec":720,
