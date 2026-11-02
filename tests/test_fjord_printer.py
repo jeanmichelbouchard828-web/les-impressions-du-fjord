@@ -459,7 +459,7 @@ class RemotePrintTests(unittest.TestCase):
         desktop = app.test_client()
         with phone.session_transaction() as sess:
             sess["fjord_atelier_start"] = {
-                "path": "gcode/fjord_auto_shared_test.3mf", "nonce": "fresh-nonce",
+                "path": "gcode/X2D_test.3mf", "nonce": "fresh-nonce",
                 "time": __import__("time").time(), "material": "PETG"
             }
         with patch("fjord_printer._api", side_effect=fake_api) as requests:
@@ -471,7 +471,7 @@ class RemotePrintTests(unittest.TestCase):
             status = desktop.get("/api/admin/atelier/impression-etat")
             self.assertEqual(status.status_code, 200)
             self.assertEqual(status.json["shared_job"]["file"],
-                             "gcode/fjord_auto_shared_test.3mf")
+                             "gcode/X2D_test.3mf")
             self.assertEqual(status.json["shared_job"]["start_ack"], "relay_only")
             self.assertEqual(status.json["start_outcome"], "pending")
             self.assertFalse(status.json["job_matches_start"])
