@@ -62,7 +62,10 @@ try:
         assert page.locator('#contextMenu [data-context-action="selectAll"]').is_visible()
         assert page.locator('#contextMenu [data-context-action="deleteAll"]').is_disabled()
         page.locator('#contextMenu .fjord-primitive-submenu > summary[aria-label="Ajouter une forme primitive"]').click()
-        assert page.locator('#contextMenu [data-context-action="shape-cube"]').is_visible()
+        assert page.locator('#fjordContextShapeList button').count()>=20
+        assert page.locator('#fjordContextShapeList button').filter(has_text="Cube").first.is_visible()
+        assert page.locator('#fjordContextGeneratorList button').count()>=35
+        assert page.locator('#fjordContextGeneratorList button').filter(has_text="Ressort à torsion").count()==1
         page.keyboard.press("Escape")
         page.mouse.click(blank_x,blank_y,button="left")
         assert page.locator("#contextMenu").is_hidden()
