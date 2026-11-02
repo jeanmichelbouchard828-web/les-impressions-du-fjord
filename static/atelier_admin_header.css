@@ -230,3 +230,13 @@ header.fjord-admin-header{
  }
  .fjord-admin-header .fjord-admin-mode-badge{font-size:8px!important}
 }
+
+/* Mobile admin: same single-row density as the public workshop. */
+@media(max-width:760px){
+ header.fjord-admin-header{min-height:0!important;padding:2px 5px!important;gap:3px!important;align-items:center!important}
+ .fjord-admin-header .fjord-admin-brand{flex:0 0 84px!important;max-width:84px!important;gap:0!important;align-self:center!important}
+ .fjord-admin-header .fjord-admin-mode-badge{padding:1px 3px!important;line-height:1!important}
+ .fjord-admin-header #projectMenuButton{height:34px!important;min-height:34px!important;padding:3px 6px!important}
+ .fjord-admin-header #fjordAdminShortcut,.fjord-admin-header #fjordPrintShortcut{height:34px!important;min-height:34px!important;width:36px!important;min-width:36px!important;max-width:36px!important;padding:0!important}
+ .fjord-admin-header .top-preferences select{height:34px!important;min-height:34px!important}
+}
