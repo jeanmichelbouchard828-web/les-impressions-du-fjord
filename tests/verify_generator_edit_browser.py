@@ -29,6 +29,18 @@ try:
    content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
   page.goto(BASE+"/atelier3d.html",wait_until="domcontentloaded")
   page.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
+  # Right-click creation menus are first, regardless of object selection.
+  assert page.evaluate("""() => {
+    const menu=document.querySelector('#contextMenu');
+    const create=menu.firstElementChild;
+    const summaries=[...create?.querySelectorAll(':scope > details > summary')||[]];
+    return create?.classList.contains('fjord-context-create') &&
+      summaries.length===2 &&
+      summaries[0].textContent.includes('Ajouter une forme') &&
+      summaries[1].textContent.includes('Générateurs') &&
+      menu.querySelectorAll('#fjordContextShapeList').length===1 &&
+      menu.querySelectorAll('#fjordContextGeneratorList').length===1;
+  }"""),"Right-click shape and generator menus must be first, without duplicates"
 
   def save():
    with page.expect_download() as result:
