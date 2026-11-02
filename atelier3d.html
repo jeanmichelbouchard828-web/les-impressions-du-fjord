@@ -597,6 +597,17 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .context-menu .fjord-primitive-list button{padding-left:14px}
 .context-menu .fjord-primitive-list{max-height:min(44vh,340px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .context-menu .fjord-context-create{border-top:1px solid #494c52;margin-top:5px;padding-top:4px}
+.context-menu .fjord-context-search{padding:7px 7px 3px 12px}
+.context-menu .fjord-context-search input{display:block;width:100%;max-width:100%;min-height:36px;
+ border-radius:7px;border:1px solid #657782;background:#1b252c;color:#f2f7fc;
+ padding:7px 10px;font:inherit;font-size:13px;outline:none}
+.context-menu .fjord-context-search input::placeholder{color:#aebec7}
+.context-menu .fjord-context-search input:focus{border-color:#69c6da;box-shadow:0 0 0 2px #69c6da30}
+.context-menu .fjord-primitive-list button[hidden],
+.context-menu .fjord-context-empty[hidden]{display:none!important}
+.context-menu .fjord-context-empty{font-size:12px;color:#becbd4;margin:4px 10px 8px 15px}
+@media(max-width:760px){.context-menu .fjord-context-search input{min-height:41px;font-size:14px}}
+
 
 
 /* Search all 3D generators without hiding the live configuration. */
@@ -1453,10 +1464,12 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <div class="fjord-context-create" role="group" aria-label="Créer des formes et générateurs">
 <details class="fjord-primitive-submenu">
 <summary role="menuitem" aria-label="Ajouter une forme primitive"><span class="fjord-menu-add-icon">▢<b>+</b></span> Ajouter une forme <span class="fjord-menu-subarrow">›</span></summary>
-<div class="fjord-primitive-list" id="fjordContextShapeList" aria-label="Toutes les formes"></div></details>
+<div class="fjord-context-search"><input type="search" id="fjordContextShapeSearch" aria-label="Rechercher une forme" aria-controls="fjordContextShapeList" placeholder="🔎 Rechercher une forme…" autocomplete="off" spellcheck="false"></div>
+<div class="fjord-primitive-list" id="fjordContextShapeList" aria-label="Toutes les formes"></div><p class="fjord-context-empty" id="fjordContextShapeEmpty" role="status" hidden>Aucune forme trouvée.</p></details>
 <details class="fjord-primitive-submenu">
 <summary role="menuitem" aria-label="Choisir un générateur">⚙️ Générateurs <span class="fjord-menu-subarrow">›</span></summary>
-<div class="fjord-primitive-list" id="fjordContextGeneratorList" aria-label="Tous les générateurs"></div>
+<div class="fjord-context-search"><input type="search" id="fjordContextGeneratorSearch" aria-label="Rechercher un générateur" aria-controls="fjordContextGeneratorList" placeholder="🔎 Rechercher un générateur…" autocomplete="off" spellcheck="false"></div>
+<div class="fjord-primitive-list" id="fjordContextGeneratorList" aria-label="Tous les générateurs"></div><p class="fjord-context-empty" id="fjordContextGeneratorEmpty" role="status" hidden>Aucun générateur trouvé.</p>
 </details>
 </div>
 <div class="context-heading part-action" data-i18n="contextHeading">Outils de la pièce</div>
@@ -2382,6 +2395,39 @@ function clearActiveEditingToolsOnBlank(){
 }
 const contextMenu=$('contextMenu');
 // Build context submenus from the real editor catalogs: no duplicated or stale lists.
+// Keep both searches accent-insensitive, including French/English names and ids.
+function fjordNormalizeContextSearch(value){
+ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+function fjordFilterContextCatalog(type){
+ const kind=type==='shape'?'Shape':'Generator';
+ const input=$('fjordContext'+kind+'Search');
+ const list=$('fjordContext'+kind+'List');
+ const empty=$('fjordContext'+kind+'Empty');
+ if(!input||!list||!empty)return;
+ const words=fjordNormalizeContextSearch(input.value).split(/\s+/).filter(Boolean);
+ let shown=0;
+ list.querySelectorAll(':scope > button').forEach(btn=>{
+  const candidate=fjordNormalizeContextSearch(btn.dataset.search||btn.textContent);
+  const matching=words.every(word=>candidate.includes(word));
+  btn.hidden=!matching;
+  if(matching)shown++;
+ });
+ empty.hidden=shown!==0;
+}
+for(const type of ['shape','generator']){
+ const kind=type==='shape'?'Shape':'Generator';
+ const field=$('fjordContext'+kind+'Search');
+ field?.addEventListener('input',()=>fjordFilterContextCatalog(type));
+ field?.addEventListener('keydown',event=>event.stopPropagation());
+}
+function fjordResetContextSearches(){
+ for(const type of ['shape','generator']){
+  const input=$('fjordContext'+(type==='shape'?'Shape':'Generator')+'Search');
+  if(input)input.value='';
+  fjordFilterContextCatalog(type);
+ }
+}
 function fjordPopulateContextCatalogs(){
  const shapes=$('fjordContextShapeList'),generators=$('fjordContextGeneratorList');
  if(shapes){
@@ -2394,6 +2440,7 @@ function fjordPopulateContextCatalogs(){
    const button=document.createElement('button');
    button.type='button';button.setAttribute('role','menuitem');
    button.textContent=source.textContent.trim()||kind;
+   button.dataset.search=[kind,button.textContent,source.getAttribute('aria-label')||''].join(' ');
    button.addEventListener('click',()=>{hideContext();source.click();});
    shapes.append(button);
   });
@@ -2404,6 +2451,7 @@ function fjordPopulateContextCatalogs(){
    const button=document.createElement('button');
    button.type='button';button.setAttribute('role','menuitem');
    button.textContent=currentLang()==='en'?cfg.en:cfg.fr;
+   button.dataset.search=[cfg.id,cfg.fr,cfg.en].join(' ');
    button.addEventListener('click',()=>{
     hideContext();
     if(generatorEditTarget)cancelGeneratorEditor();
@@ -2418,6 +2466,8 @@ function fjordPopulateContextCatalogs(){
    generators.append(button);
   }
  }
+ fjordFilterContextCatalog('shape');
+ fjordFilterContextCatalog('generator');
 }
 fjordPopulateContextCatalogs();
 
@@ -2476,6 +2526,7 @@ function showContextMenu(e){
  const clear=contextMenu.querySelector('[data-context-action="deleteAll"]');
  if(clear)clear.disabled=!models.length;
  contextMenu.querySelectorAll('.fjord-primitive-submenu').forEach(submenu=>{submenu.open=false;});
+ fjordResetContextSearches();
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
  // Offset the pop-up from the cursor so clicking the same point dismisses it.
