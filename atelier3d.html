@@ -4631,6 +4631,8 @@ document.addEventListener('keydown',e=>{
 });
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);if(sliceActive)stage.classList.toggle('fjord-slice-tight',w<510)}
 new ResizeObserver(resize).observe(stage);resize();
+// Update the projection after a phone rotation, without resetting the user camera angle.
+window.addEventListener("orientationchange",()=>requestAnimationFrame(resize));
 const fjordOrientationRotor=document.getElementById('fjordOrientationRotor');
 function fjordUpdateOrientationCube(){
  if(!fjordOrientationRotor)return;
