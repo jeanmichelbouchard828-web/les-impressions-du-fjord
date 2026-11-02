@@ -724,7 +724,7 @@ body.light .fj-print-hint{color:#496477!important}
     @admin_required
     def fjord_print_auto_prepare():
         """Slice official Bambu 3MF and stage for owner review; never upload here."""
-        from bambu_auto import cli_location, full_preset, slice_x2d, AutoSliceError, MAX_STL, BED_TYPES
+        from bambu_auto import cli_location, full_preset, slice_x2d, AutoSliceError, MAX_STL, BED_TYPES, SUPPORT_MODES
         from fjord_slice_review import stage_slice, SliceReviewError
         request.max_content_length = MAX_STL + 2 * 1024 * 1024
         verify()
@@ -780,12 +780,22 @@ body.light .fj-print-hint{color:#496477!important}
                 actual = actual[0] if actual else ""
             if str(actual).strip().upper() != expected_material:
                 raise AutoSliceError("Profil filament incompatible avec le matériau de l'Atelier : aucun transfert.")
+            # Only supported process overrides can reach the official Bambu CLI.
+            support_mode = request.form.get('support_mode', 'off')
+            plate_only_value = request.form.get('support_plate_only', '0')
+            if support_mode not in SUPPORT_MODES or plate_only_value not in ('0', '1'):
+                raise AutoSliceError('Réglages de supports automatiques invalides.')
+            support_plate_only = plate_only_value == '1'
             # Stage only: do not contact OctoEverywhere until explicit review.
-            sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf, bed_type=bed_type)
+            sliced = slice_x2d(raw, presets, verify_sliced_bambu_3mf,
+                               bed_type=bed_type, support_mode=support_mode,
+                               support_plate_only=support_plate_only)
             token, preview = stage_slice(sliced, verify_sliced_bambu_3mf)
             success = "Tranchage Bambu terminé. Examine les couches avant d’envoyer à la X2D."
             if request.accept_mimetypes.best == "application/json":
-                response = jsonify(ok=True, stage=token, preview=preview, message=success)
+                response = jsonify(ok=True, stage=token, preview=preview, message=success,
+                                   support_mode=support_mode,
+                                   support_plate_only=support_plate_only)
                 response.headers["Cache-Control"] = "no-store"
                 return response
             flash("3MF prêt pour l’aperçu dans l’Atelier administrateur. Aucun fichier envoyé.")
