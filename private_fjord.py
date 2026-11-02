@@ -2885,6 +2885,9 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                      (quote_id,signer,quote_snapshot,quote_hash,terms_version,ip_hash,user_agent)
                      VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(quote_id) DO NOTHING""",
                      (q["id"],signer,snapshot,digest,"QC-2026-10",iphash,(request.user_agent.string or "")[:350]))
+                # Après signature, proposer immédiatement le règlement intégral de la soumission.
+                if os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"):
+                    return redirect(url_for("fjord_payment_page",token=token))
                 return redirect(url_for("fjord_accept_quote",token=token))
         subtotal,gst,qst,total=_quote_amounts(q)
         response=make_response(page("Acceptation de soumission",'''<section class="tracking-panel">
@@ -2944,13 +2947,13 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
 {% endif %}
 <p>Veuillez consulter le PDF de soumission et ses conditions transmis par Les Impressions du Fjord avant d’accepter.</p>
 {% if changed %}<p>Cette soumission a été modifiée depuis son acceptation. Une nouvelle acceptation est nécessaire : communiquez avec Les Impressions du Fjord.</p>
-{% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>
+{% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>{% if stripe_ready %}<p><a class="btn" href="{{url_for('fjord_payment_page',token=token)}}">💳 Payer 100 % de la soumission — {{total}}</a></p>{% endif %}
 {% else %}<form method="post">{{csrf|safe}}<input type="hidden" name="quote_hash" value="{{digest}}">
 <label>Nom complet du client<input name="signer" maxlength="150" required autocomplete="name"></label>
 <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
 <div class="card" style="margin:16px 0;border-color:#68c6e7"><strong>VENTE FINALE – FABRICATION PERSONNALISÉE</strong><p>Le client confirme avoir vérifié et approuvé les caractéristiques convenues du produit, notamment le modèle, les dimensions, le matériau, la couleur et la quantité. Une fois la fabrication commencée, aucune annulation ou modification pour simple changement d'avis n'est garantie, sous réserve des droits prévus par la loi. Les garanties légales et les recours applicables demeurent pleinement en vigueur.</p><label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="final_sale" value="yes" required style="width:auto;margin-top:5px"><span>Je reconnais avoir lu et compris les conditions de vente finale pour cet article personnalisé, sous réserve de mes droits légaux.</span></label></div>
 <button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
-<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),token=token,model_url=url_for("fjord_client_quote_mesh",token=token)))
+<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),token=token,stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET")),model_url=url_for("fjord_client_quote_mesh",token=token)))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow"
         response.headers["Referrer-Policy"]="no-referrer"
