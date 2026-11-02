@@ -270,6 +270,21 @@ try:
   assert all(b'name="material"' in (chunk or b"") for chunk in slices)
   assert not errors,errors
 
+  # The same read-only print tracking is available from a fresh desktop tab.
+  prepare_scene()
+  printer_status.clear()
+  printer_status.update({"ok":True,"state":"idle","progress":0,"file":"",
+    "can_start":True,"shared_job":{"file":"gcode/fjord_auto_shared_test.3mf",
+      "age_sec":25,"start_ack":"relay_only"},"start_outcome":"pending",
+    "start_command_age_sec":25,"job_matches_start":False})
+  page.locator("#fjordPrintShortcut").evaluate("el=>el.click()")
+  page.wait_for_function("!document.querySelector('#fjordSharedX2D').hidden",timeout=12000)
+  assert "fjord_auto_shared_test.3mf" in page.locator("#fjordSharedDescription").inner_text()
+  page.locator("#fjordSharedView").evaluate("el=>el.click()")
+  assert page.locator("#fjordStartAtelier").is_visible()
+  assert page.locator("#fjordStartNow").is_disabled()
+  assert len(starts)==1, "Viewing shared status must never launch a second job"
+
   # Mobile review uses a true full-height sheet, accessible layer controls,
   # and finger-friendly zoom without uploading before approval.
   mobile=browser.new_page(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
@@ -286,10 +301,9 @@ try:
     status=200,content_type="application/json",
     body=json.dumps({"ok":True,"file":"gcode/fjord_mobile_demo.3mf",
        "nonce":"mobile-confirmation-0123456789abcdefghijk"})))
+  mobile_status={"ok":True,"state":"idle","can_start":True,"progress":0,"file":""}
   mobile.route("**/api/admin/atelier/impression-etat",lambda route:route.fulfill(
-    status=200,content_type="application/json",
-    body=json.dumps({"ok":True,"state":"idle","can_start":True,
-                     "progress":0,"file":""})))
+    status=200,content_type="application/json",body=json.dumps(mobile_status)))
   mobile.on("dialog",lambda dialog:dialog.accept())
   mobile.goto(BASE+"/"+TEST_HTML.name,wait_until="domcontentloaded")
   mobile.wait_for_function("window.__fjordEditorStarted===true",timeout=60000)
@@ -431,6 +445,24 @@ try:
   mobile.locator("#fjordReviewRedo").evaluate("el=>el.click()")
   assert mobile.locator("#fjordSliceReview").is_hidden()
   assert mobile.locator("#fjordAutoForm").is_visible(),"Edit and re-slice must restore accessible profiles"
+  # The phone and desktop use the same responsive shared-status component.
+  mobile.locator("#fjordAutoClose").evaluate("el=>el.click()")
+  mobile_status["shared_job"]={"file":"gcode/fjord_auto_shared_test.3mf",
+                               "age_sec":35,"start_ack":"relay_only"}
+  mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
+  mobile.wait_for_function("!document.querySelector('#fjordSharedX2D').hidden",timeout=12000)
+  assert "fjord_auto_shared_test.3mf" in mobile.locator("#fjordSharedDescription").inner_text()
+  mobile.locator("#fjordSharedView").evaluate("el=>el.click()")
+  assert mobile.locator("#fjordStartAtelier").is_visible()
+  assert mobile.locator("#fjordStartNow").is_disabled()
+  assert mobile.evaluate("""() => {
+    const el=document.querySelector('#fjordSharedView');
+    const area=document.querySelector('#fjordAutoPrintDialog');
+    return el.getBoundingClientRect().width>0 &&
+      area.getBoundingClientRect().width>=innerWidth-3 &&
+      document.documentElement.scrollWidth<=innerWidth+2;
+  }"""),"Shared tracking must not cause horizontal scrolling on mobile"
+
   # Closing the preview must return the compact editor, not trap the phone
   # in a blank full-screen overlay.
   mobile.locator("#fjordAutoClose").evaluate("el=>el.click()")
