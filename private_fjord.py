@@ -769,7 +769,8 @@ if(fjordAutoButton){
      ?pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %'
      :sent?'Progression de CE fichier non confirmée':'En attente du départ';
    liveState.textContent=matched?
-     (labels[data.state]||data.state||'État inconnu')+
+     (data.state==='complete'&&!confirmedActiveJob?'Fin signalée (non vérifiée)':
+      (labels[data.state]||data.state||'État inconnu'))+
       (reportedName?' · '+reportedName:''):
      (reportedName?'Dernière tâche connue : '+reportedName+
       ' · '+(labels[data.state]||data.state||'État inconnu'):
@@ -780,6 +781,14 @@ if(fjordAutoButton){
     info.push('Couche '+data.current_layer+' / '+data.total_layers);
    if(ownProgress&&Number.isFinite(data.time_left_sec))
     info.push('Temps restant : '+Math.ceil(data.time_left_sec/60)+' min');
+   if(sent&&Number.isFinite(data.elapsed_sec)&&data.elapsed_sec>=0)
+    info.push('Durée déclarée par la X2D : '+Math.round(data.elapsed_sec)+' s');
+   if(sent&&data.current_layer!==null&&Number.isFinite(data.current_layer)&&!ownProgress)
+    info.push('Couche déclarée : '+data.current_layer);
+   const temps=[];
+   if(Number.isFinite(data.hotend_target))temps.push('buse cible '+data.hotend_target+' °C');
+   if(Number.isFinite(data.bed_target))temps.push('plateau cible '+data.bed_target+' °C');
+   if(sent&&temps.length)info.push(temps.join(' · '));
    if(data.printer_error)info.push('⚠ '+data.printer_error);
    const age=Number(data.start_command_age_sec);
    if(sent&&!matched){
@@ -802,8 +811,8 @@ if(fjordAutoButton){
     }else if(data.state==='complete'&&confirmedActiveJob){
      startMessage.textContent='✓ La X2D rapporte terminé un travail dont le démarrage a été observé.';
     }else if(data.state==='complete'){
-     startMessage.textContent='⚠ La X2D annonce terminé sans démarrage observé de ce fichier. '+
-      'Vérifie l’écran avant de considérer l’impression réussie.';
+     startMessage.textContent='⚠ ARRÊT NON VÉRIFIÉ : la X2D signale ce 3MF « terminé » '+
+      'sans phase de chauffe ou d’impression observée. Consulte les températures, la durée et l’écran.';
      info.push('⚠ Aucun état de chauffe ou d’impression observé pour ce fichier.');
     }else if(Number.isFinite(age)&&age>=20){
      startMessage.textContent='⚠ Le fichier est reconnu, mais aucun état actif ne confirme son départ.';
@@ -836,8 +845,8 @@ if(fjordAutoButton){
    if(!response.ok||!data.ok)throw Error('Diagnostic indisponible.');
    result.textContent='État : '+(data.status_ok?'OK':'échec')+
     ' · Accès aux fichiers : '+(data.files_ok?'OK':'échec')+
-    '\\n'+String(data.diagnosis||'')+
-    (data.last_upload?'\\nDernier transfert : '+data.last_upload:'');
+    '\n'+String(data.diagnosis||'')+
+    (data.last_upload?'\nDernier transfert : '+data.last_upload:'');
   }catch(error){result.textContent='⚠ '+String(error.message||error).slice(0,160);}
   finally{button.disabled=false;}
  });
