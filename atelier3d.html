@@ -2336,6 +2336,29 @@ function showContextMenu(e){
  contextMenu.style.left=Math.max(5,Math.min(e.clientX-rect.left+14,stage.clientWidth-contextMenu.offsetWidth-7))+'px';
  contextMenu.style.top=Math.max(5,Math.min(e.clientY-rect.top+14,stage.clientHeight-contextMenu.offsetHeight-7))+'px';
 }
+// fjord-touch-longpress-context-v1: stationary one-finger hold opens the existing right-click menu.
+let fjordHold=null;
+function fjordCancelHold(){if(fjordHold?.timer)clearTimeout(fjordHold.timer);fjordHold=null;}
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(e.pointerType!=='touch'||!e.isPrimary||fjordWalkMode||window.fjordPaint?.isActive?.())return;
+ fjordCancelHold();
+ const hold={id:e.pointerId,x:e.clientX,y:e.clientY,timer:null};
+ fjordHold=hold;
+ hold.timer=setTimeout(()=>{
+  if(fjordHold!==hold||activeTouchIds.size>1)return;
+  fjordHold=null;
+  showContextMenu({clientX:hold.x,clientY:hold.y});
+  // A long press must not become a tap or drag when the finger lifts.
+  touchTap=null;
+  activeTouchIds.delete(hold.id);
+ },650);
+},true);
+renderer.domElement.addEventListener('pointermove',e=>{
+ if(fjordHold?.id===e.pointerId&&Math.hypot(e.clientX-fjordHold.x,e.clientY-fjordHold.y)>12)fjordCancelHold();
+},true);
+renderer.domElement.addEventListener('pointerup',e=>{if(fjordHold?.id===e.pointerId)fjordCancelHold();},true);
+renderer.domElement.addEventListener('pointercancel',fjordCancelHold,true);
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!e.isPrimary)fjordCancelHold();},true);
 // Prevent the browser menu; the studio menu opens only after a stationary right-click.
 // Browsers can send "contextmenu" on right-button DOWN, so showing it here
 // would obstruct OrbitControls before the user can drag the view.
