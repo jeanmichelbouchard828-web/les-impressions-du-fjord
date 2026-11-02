@@ -870,6 +870,17 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  body>header #fjordAdminAccess::after{content:"⚙️";font-size:21px!important;line-height:1!important}
  body>header:has(#fjordAdminAccess) .top-preferences{flex-wrap:nowrap!important}
  body>header:has(#fjordAdminAccess) .top-preferences select{flex:0 1 94px!important;max-width:94px!important}
+ /* Mobile dense: remove unnecessary header and toolbar spacing. */
+ body>header{padding:2px 5px!important;gap:3px!important}
+ body>header #projectMenuButton{min-height:34px!important;padding:4px 7px!important}
+ body>header .top-preferences{gap:3px!important}
+ body>header .top-preferences select{min-height:34px!important;padding:3px 2px!important}
+ body>header #fjordAdminAccess{min-height:34px!important;height:34px!important;width:36px!important;min-width:36px!important;max-width:36px!important;flex-basis:36px!important}
+ #mobileIconBar{height:40px!important;min-height:40px!important;padding:1px 4px!important;gap:3px!important}
+ #mobileIconBar>button{min-height:36px!important;height:36px!important;padding:4px 7px!important}
+ body>#fjordBedTabs{min-height:27px!important;height:27px!important;padding:0 4px!important}
+ body>#fjordBedTabs .fjord-bed-tab,body>#fjordBedTabs .fjord-add-bed{min-height:25px!important;height:25px!important}
+
 
  @media(max-width:390px){body>header .brand{max-width:82px!important}body>header .top-preferences select{max-width:84px!important}}
 
