@@ -172,9 +172,21 @@ try:
   assert len(starts)==1,starts
   assert 'name="ams_mapping"' in starts[0],starts[0]
   assert page.locator("#fjordStartNow").is_disabled()
+  # A successful relay request must NEVER recycle a previous 100% completed job.
+  printer_status.update({"state":"complete","progress":100,
+    "file":"Creation-du-Fjord (2)","can_start":True,
+    "current_layer":23,"total_layers":23,"time_left_sec":0,
+    "job_matches_start":False,"start_command_age_sec":30})
+  page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
+  page.wait_for_function("document.querySelector('#fjordLivePercent').textContent.includes('non confirmée')")
+  assert page.locator("#fjordLiveProgress").is_hidden(), "Old job must NOT show a 100% bar"
+  assert "Dernière tâche connue" in page.locator("#fjordLiveState").inner_text()
+  assert "Aucun départ" in page.locator("#fjordLiveNote").inner_text()
+  assert "aucun démarrage" in page.locator("#fjordStartResult").inner_text()
   printer_status.update({"state":"printing","progress":42.5,
     "file":"fjord_auto_test.3mf","can_start":False,
-    "current_layer":25,"total_layers":60,"time_left_sec":720})
+    "current_layer":25,"total_layers":60,"time_left_sec":720,
+    "job_matches_start":True,"start_command_age_sec":50})
   page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordLivePercent').textContent.includes('42,5')")
   assert not page.locator("#fjordLiveProgress").is_hidden()
