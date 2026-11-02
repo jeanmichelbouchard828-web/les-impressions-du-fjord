@@ -556,6 +556,11 @@ if(fjordAutoButton){
  '</div><p id="fjordReviewBreakdown" aria-live="polite"></p></details>'+
  '<p class="fjord-review-note">Aperçu des trajectoires réelles, éventuellement échantillonnées pour la fluidité. Pour les détails critiques, vérifie aussi dans Bambu Studio. Aucun fichier transmis.</p>'+
  '<button type="button" class="fjord-auto-send" id="fjordReviewTransfer">📤 Envoyer le 3MF tranché à ma X2D</button>'+
+ '<div class="fjord-transfer-status" id="fjordTransferStatus" role="status" aria-live="polite" hidden>'+
+ '<div class="fjord-transfer-status-head"><strong id="fjordTransferLabel">Envoi vers la X2D…</strong>'+
+ '<span id="fjordTransferPercent">En cours…</span></div>'+
+ '<progress id="fjordTransferProgress" max="100" aria-label="Transfert confirmé du 3MF vers la X2D"></progress>'+
+ '<small id="fjordTransferHint">Envoi en cours via OctoEverywhere. Le pourcentage réel FTPS n’est pas disponible.</small></div>'+
  '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Bambu Studio)</button>'+
  '<button type="button" id="fjordReviewDiagnostic">🔎 Diagnostiquer le transfert X2D (journal FTPS)</button>'+
  '<p id="fjordReviewDiagnosticResult" role="status" aria-live="polite" hidden></p>'+
@@ -598,6 +603,39 @@ if(fjordAutoButton){
  let expectedJobFile='',confirmedActiveJob=false,printerPollVersion=0;
  const review=panel.querySelector('#fjordSliceReview');
  const transfer=panel.querySelector('#fjordReviewTransfer');
+ const transferBox=panel.querySelector('#fjordTransferStatus');
+ const transferProgress=panel.querySelector('#fjordTransferProgress');
+ const transferLabel=panel.querySelector('#fjordTransferLabel');
+ const transferPercent=panel.querySelector('#fjordTransferPercent');
+ const transferHint=panel.querySelector('#fjordTransferHint');
+ function transferStage(stage){
+  transferBox.hidden=false;
+  transferBox.classList.toggle('fjord-transfer-done',stage==='done');
+  transferBox.classList.toggle('fjord-transfer-error',stage==='error');
+  if(stage==='uploading'){
+   // The browser only sends a short staging token; the real FTPS transfer
+   // happens on the server. Do not invent an upload-bytes percentage.
+   transferProgress.removeAttribute('value');
+   transferLabel.textContent='📤 Transfert du 3MF vers la X2D…';
+   transferPercent.textContent='En cours…';
+   transferHint.textContent='Envoi réel via OctoEverywhere · pourcentage FTPS indisponible avant confirmation.';
+  }else if(stage==='done'){
+   transferProgress.value=100;
+   transferLabel.textContent='✓ 3MF confirmé sur la X2D';
+   transferPercent.textContent='100 %';
+   transferHint.textContent='Le transfert est terminé. L’impression n’a PAS encore démarré.';
+  }else if(stage==='error'){
+   transferProgress.removeAttribute('value');
+   transferLabel.textContent='⚠ Transfert non confirmé';
+   transferPercent.textContent='Échec';
+   transferHint.textContent='Aucun démarrage automatique. Consulte le message d’erreur et le diagnostic.';
+  }else{
+   transferBox.hidden=true;
+   transferProgress.removeAttribute('value');
+   transferLabel.textContent='En attente de transfert';
+   transferPercent.textContent='';
+  }
+ }
  const slider=panel.querySelector('#fjordReviewLayer');
  const startScreen=panel.querySelector('#fjordStartAtelier');
  const startNow=panel.querySelector('#fjordStartNow');
@@ -685,6 +723,7 @@ if(fjordAutoButton){
  panel.querySelector('#fjordAmsReload').addEventListener('click',reloadAms);
  function clearPrintScreen(){
   printerPollVersion++;expectedJobFile='';confirmedActiveJob=false;
+  transfer.after(transferBox);transferStage('reset');
   transferred=null;printerCanStart=false;startScreen.hidden=true;
   panel.classList.remove('fjord-print-ready');
   startScreen.classList.remove('fjord-start-sent');
@@ -1125,6 +1164,8 @@ if(fjordAutoButton){
   if(!confirm('Envoyer ce 3MF tranché à ta X2D ? L’impression ne démarrera PAS encore.'))return;
   busy=true;transfer.disabled=true;submit.disabled=true;
   panel.querySelector('#fjordAutoClose').disabled=true;
+  transfer.after(transferBox);
+  transferStage('uploading');
   state.textContent='Étape 3/3 · Transfert du 3MF approuvé sur ma X2D…';
   try{
    const body=new FormData();
@@ -1141,6 +1182,7 @@ if(fjordAutoButton){
    if(typeof result.file!=='string'||!result.file.startsWith('gcode/')||
       typeof result.nonce!=='string'||result.nonce.length<24)
     throw Error('Confirmation de transfert incomplète : aucun démarrage possible.');
+   transferStage('done');
    if(remember.checked){
     try{
      const settings=savedProfiles();
@@ -1153,6 +1195,7 @@ if(fjordAutoButton){
    expectedJobFile=result.file;confirmedActiveJob=false;
    startScreen.hidden=false;
    startScreen.classList.remove('fjord-start-sent');
+   startScreen.insertBefore(transferBox,startScreen.firstChild);
    panel.classList.add('fjord-print-ready');
    panel.querySelector('#fjordStartFile').textContent=result.file;
    safetyVerified.checked=false;safetyCleared.checked=false;
@@ -1165,6 +1208,7 @@ if(fjordAutoButton){
    // Show the whole safe server message; a 240-character truncation previously
    // split sentences and made the transfer warning misleading on mobile.
    const msg=String(error.message||error).slice(0,650);
+   transferStage('error');
    state.textContent='⚠ '+msg;
   }finally{
    busy=false;
@@ -1529,6 +1573,17 @@ if(fjordAutoButton){
 #fjordStartAtelier h3{font-size:17px;margin:4px 0}
 #fjordStartAtelier>p{overflow-wrap:anywhere}
 #fjordStartAtelier .fjord-printer-state{display:grid;gap:8px;border:1px solid #456b83;border-radius:12px;padding:13px}
+#fjordAutoPrintDialog #fjordTransferStatus[hidden]{display:none!important}
+#fjordAutoPrintDialog .fjord-transfer-status{display:grid;gap:6px;margin:9px 0 12px;padding:10px 12px;
+ border:1px solid #4d8eab;border-radius:10px;background:#14354b;max-width:100%;min-width:0}
+#fjordAutoPrintDialog .fjord-transfer-status-head{display:flex;justify-content:space-between;align-items:center;
+ gap:12px;min-width:0;font-size:13px}
+#fjordAutoPrintDialog .fjord-transfer-status-head strong{font-weight:750;min-width:0}
+#fjordAutoPrintDialog .fjord-transfer-status-head span{white-space:nowrap;font-weight:750}
+#fjordAutoPrintDialog #fjordTransferProgress{width:100%;height:9px;min-height:9px;accent-color:#48c9a0}
+#fjordAutoPrintDialog .fjord-transfer-status small{font-size:11px;color:#c6e1eb;line-height:1.35}
+#fjordAutoPrintDialog .fjord-transfer-done{border-color:#49bc94;background:#143e36}
+#fjordAutoPrintDialog .fjord-transfer-error{border-color:#d1a66b;background:#443626}
 #fjordLiveProgress{width:100%;height:12px;accent-color:#55cfaa}
 #fjordStartAtelier .fjord-live-percent{font-size:20px;font-weight:800;color:#b4f8db}
 #fjordStartAtelier .fjord-live-note{font-size:12px;color:#c7dce7;line-height:1.55;margin:2px 0 10px}
