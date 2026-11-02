@@ -956,6 +956,17 @@ body.light .fj-print-hint{color:#496477!important}
                 "Vérifie que le conteneur et la X2D sont connectés."
             )
         job_matches_start = None
+        if recent_start_age is not None and isinstance(previous_start, dict):
+            acknowledgement = previous_start.get("start_ack")
+            if acknowledgement == "relay_only":
+                diagnosis += (
+                    " La commande a obtenu une réponse 200 du relais, mais aucune "
+                    "confirmation native de démarrage n'a été transmise."
+                )
+            elif acknowledgement == "native_ok":
+                diagnosis += (
+                    " La réponse native était OK, sans preuve d'une impression physique."
+                )
         if recent_start_age is not None and last_path:
             expected_name = last_path.rsplit("/", 1)[-1].lower()
             observed_name = printer_file.lower()
@@ -1005,6 +1016,8 @@ body.light .fj-print-hint{color:#496477!important}
                            printer_state=printer_state,
                            printer_error=printer_error,
                            recent_start_age_sec=recent_start_age,
+                           start_ack=(previous_start.get("start_ack")
+                                      if isinstance(previous_start, dict) else None),
                            recent_job_matches_start=job_matches_start,
                            reported_job_name=printer_file if recent_start_age is not None else None,
                            last_job_file_present=file_present)
@@ -1108,10 +1121,24 @@ body.light .fj-print-hint{color:#496477!important}
             if response.get("VirtualPath") not in (None, path):
                 raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
             _verify_native_start_reply(response)
-            session["fjord_atelier_recent_start"] = {"time": time.time(), "path": path}
+            native_reply = response.get("PrinterResponse")
+            native_info = (native_reply.get("print")
+                           if isinstance(native_reply, dict) and isinstance(native_reply.get("print"), dict)
+                           else native_reply)
+            native_result = (str(native_info.get("result") or "").lower().strip()
+                             if isinstance(native_info, dict) else "")
+            ack_kind = "native_ok" if native_result == "ok" else "relay_only"
+            # Keep only a classification, not raw MQTT/native packets.
+            session["fjord_atelier_recent_start"] = {
+                "time": time.time(), "path": path, "start_ack": ack_kind
+            }
             result = jsonify(
                 ok=True,
-                message="Commande de démarrage acceptée. La X2D doit confirmer le départ dans l'état réel.",
+                message=("Réponse native reçue : OK. La X2D doit encore confirmer le démarrage réel."
+                         if ack_kind == "native_ok" else
+                         "Commande reçue par le relais SANS confirmation native. "
+                         "Aucun démarrage réel confirmé."),
+                start_ack=ack_kind,
                 file=path
             )
             result.headers["Cache-Control"] = "no-store"
