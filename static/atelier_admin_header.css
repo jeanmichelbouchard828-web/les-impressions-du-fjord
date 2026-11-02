@@ -246,3 +246,17 @@ header.fjord-admin-header{
  .fjord-admin-header .top-preferences{flex:0 1 164px!important;max-width:164px!important;gap:2px!important}
  .fjord-admin-header .top-preferences select{width:81px!important;max-width:81px!important;min-width:0!important;flex:0 1 81px!important;font-size:11px!important;padding:2px 1px!important;text-overflow:ellipsis!important}
 }
+
+/* Keep file + admin gear together; reclaim unused mobile header gaps. */
+@media(max-width:760px){
+ header.fjord-admin-header{justify-content:flex-start!important;column-gap:3px!important}
+ .fjord-admin-header .fjord-admin-brand{flex:0 0 83px!important;max-width:83px!important}
+ .fjord-admin-header .brand::after{content:none!important}
+ .fjord-admin-header .fjord-home-link{font-size:0!important;line-height:1!important}
+ .fjord-admin-header .fjord-home-link::after{content:"🏔️ Fjord 3D";font-size:12px!important;font-weight:800;white-space:nowrap}
+ .fjord-admin-header .project-menu{flex:0 0 35px!important;width:35px!important;min-width:35px!important;max-width:35px!important}
+ .fjord-admin-header #projectMenuButton{width:35px!important;min-width:35px!important;height:35px!important;min-height:35px!important}
+ .fjord-admin-header .fjord-admin-links{flex:0 0 35px!important;min-width:35px!important;max-width:35px!important}
+ .fjord-admin-header #fjordAdminShortcut{width:35px!important;min-width:35px!important;max-width:35px!important;height:35px!important;min-height:35px!important}
+ .fjord-admin-header .top-preferences{margin-left:auto!important}
+}
