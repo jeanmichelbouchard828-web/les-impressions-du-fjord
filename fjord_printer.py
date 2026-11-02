@@ -106,6 +106,17 @@ def _categorize_plugin_log(log_text):
     """
     if not isinstance(log_text, str) or not log_text:
         return None
+    # Explicit firmware authorization errors are a distinct failure mode from
+    # FTPS upload failures. Never reveal private raw MQTT logs to the browser.
+    recent = [line.lower() for line in log_text.splitlines()[-180:]]
+    for line in reversed(recent):
+        if "84033543" in line or (
+            "mqtt" in line and ("verification failed" in line or
+                               "verify failed" in line or
+                               "signature invalid" in line)):
+            return ("Le journal contient un échec de vérification MQTT sur une commande. "
+                    "Le firmware peut refuser le démarrage à distance : vérifie "
+                    "les messages sur l'écran de la X2D. Aucun départ confirmé.")
     relevant = []
     for line in log_text.splitlines()[-180:]:
         lower = line.lower()
