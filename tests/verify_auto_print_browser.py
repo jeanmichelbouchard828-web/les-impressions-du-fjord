@@ -151,7 +151,10 @@ try:
   page.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Prête')")
   page.wait_for_function("document.querySelector('#fjordAmsSelect option[value=\\\"4\\\"]') !== null",timeout=8000)
   assert page.locator("#fjordAmsSelect option").count()==2
-  page.locator("#fjordAmsSelect").select_option("4")
+  assert page.locator('#fjordAmsTiles button[data-mapping="4"]').count()==1
+  page.locator('#fjordAmsTiles button[data-mapping="4"]').evaluate("el=>el.click()")
+  assert page.locator("#fjordAmsSelect").input_value()=="4"
+  assert page.locator('#fjordAmsTiles button[data-mapping="4"]').get_attribute("aria-pressed")=="true"
   assert "PETG vert" in page.locator("#fjordAmsAssignStatus").inner_text()
   assert page.locator("#fjordStartNow").is_disabled()
   page.locator("#fjordStartVerified").evaluate("el=>el.click()")
