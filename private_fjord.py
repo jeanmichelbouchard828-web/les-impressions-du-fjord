@@ -682,31 +682,60 @@ if(fjordAutoButton){
    const data=await res.json();
    if(!data.ok)throw Error(data.error||'État indisponible.');
    printerCanStart=data.can_start===true;
-   const names={idle:'Prête (pas de travail actif)',warmingup:'Préparation / chauffe',
+   const labels={idle:'Prête (pas de travail actif)',warmingup:'Préparation / chauffe',
     printing:'Impression en cours',paused:'En pause',resuming:'Reprise',
     complete:'Terminée',cancelled:'Annulée',error:'Erreur'};
-   liveState.textContent=(names[data.state]||data.state||'Inconnu')+
-    (data.file?' · '+data.file:'')+(data.substate?' · '+data.substate:'');
-   const active=['warmingup','printing','paused','resuming','complete'].includes(data.state);
+   const sent=startScreen.classList.contains('fjord-start-sent');
+   const matched=sent&&data.job_matches_start===true;
+   const reported=['warmingup','printing','paused','resuming','complete'].includes(data.state);
    const pct=(typeof data.progress==='number'&&Number.isFinite(data.progress)&&
     data.progress>=0&&data.progress<=100)?data.progress:null;
-   liveProgress.hidden=!(active&&pct!==null);
-   if(!liveProgress.hidden)liveProgress.value=pct;
-   livePercent.textContent=active&&pct!==null?
-    pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %':'En attente de progression réelle';
+   // Previous COMPLETE prints can remain at 100% even when a new start
+   // command has been acknowledged but never acted on by the printer.
+   const ownProgress=matched&&reported&&pct!==null;
+   liveProgress.hidden=!ownProgress;
+   if(ownProgress)liveProgress.value=pct;
+   livePercent.textContent=ownProgress
+     ?pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %'
+     :sent?'Progression de CE fichier non confirmée':'En attente du départ';
+   const reportedName=String(data.file||'').slice(0,120);
+   liveState.textContent=matched?
+     (labels[data.state]||data.state||'État inconnu')+
+      (reportedName?' · '+reportedName:''):
+     (reportedName?'Dernière tâche connue : '+reportedName+
+      ' · '+(labels[data.state]||data.state||'État inconnu'):
+      (labels[data.state]||data.state||'État inconnu'))+
+      (data.substate?' · '+data.substate:'');
    const info=[];
-   if(active&&data.total_layers>0&&data.current_layer!=null)
+   if(ownProgress&&data.total_layers>0&&data.current_layer!=null)
     info.push('Couche '+data.current_layer+' / '+data.total_layers);
-   if(active&&Number.isFinite(data.time_left_sec))
+   if(ownProgress&&Number.isFinite(data.time_left_sec))
     info.push('Temps restant : '+Math.ceil(data.time_left_sec/60)+' min');
    if(data.printer_error)info.push('⚠ '+data.printer_error);
-   if(startScreen.classList.contains('fjord-start-sent')&&
-    ['idle','cancelled','error'].includes(data.state)&&Number(data.start_command_age_sec)>=20)
-    info.unshift('⚠ Commande acceptée, mais aucun départ confirmé. Vérifie l’écran de la X2D, la clé USB et les erreurs. Si le code 84033543 apparaît (MQTT verification failed), le micrologiciel peut refuser une commande non signée. Ne relance pas automatiquement.');
-   else if(!active)info.unshift('Aucune impression en cours confirmée.');
-   else if(startScreen.classList.contains('fjord-start-sent')&&
-      data.job_matches_start===false&&data.file)
-    info.unshift('⚠ Le fichier actif ne correspond pas clairement au 3MF envoyé.');
+   const age=Number(data.start_command_age_sec);
+   if(sent&&!matched){
+    if(reportedName)info.unshift('⚠ La X2D rapporte « '+reportedName+
+      ' » : ce n’est pas le fichier récemment envoyé.');
+    else info.unshift('⚠ La X2D ne rapporte aucun fichier correspondant au dernier envoi.');
+    if(Number.isFinite(age)&&age>=20){
+     info.push('Aucun départ de ce 3MF confirmé après '+Math.round(age)+' s. '+
+      'Ne renvoie pas la commande automatiquement. Consulte le diagnostic et l’écran de la X2D.');
+     startMessage.textContent='⚠ Commande reçue par le relais, mais aucun démarrage de ce fichier confirmé. '+
+      'Le 100 % affiché par la X2D peut être un travail précédent.';
+    }else info.push('Commande envoyée : vérification du départ réel en cours.');
+   }else if(sent&&matched){
+    if(['warmingup','printing','paused','resuming'].includes(data.state))
+     startMessage.textContent='✓ X2D : fichier correspondant détecté · '+
+      (labels[data.state]||'travail actif')+'.';
+    else if(data.state==='complete')
+     startMessage.textContent='✓ La X2D rapporte ce fichier terminé.';
+    else if(Number.isFinite(age)&&age>=20)
+     info.push('⚠ Le fichier a été reconnu, mais aucun état d’impression actif.');
+   }else if(!sent&&reportedName&&data.state==='complete'){
+    info.push('Ancienne tâche terminée : sa progression ne concerne pas le nouvel envoi.');
+   }else if(!sent){
+    info.push('Le fichier est transmis, mais aucune commande de départ n’a été donnée.');
+   }
    liveNote.textContent=info.join(' · ')||'État réel de la X2D via OctoEverywhere.';
   }catch(error){
    printerCanStart=false;liveState.textContent='⚠ '+String(error.message||error).slice(0,140);
@@ -767,7 +796,7 @@ if(fjordAutoButton){
    if(!response.ok||!result.ok)throw Error(result.error||'La X2D a refusé le démarrage.');
    transferred=null;printerCanStart=false;
    startScreen.classList.add('fjord-start-sent');
-   startMessage.textContent='✓ '+result.message;
+   startMessage.textContent='⏳ '+result.message+' · Attente du démarrage réel…';
    stopPrinterPolling();beginPrinterPolling();
   }catch(error){
    // The one-use server nonce is consumed regardless of the result.
