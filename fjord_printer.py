@@ -968,7 +968,8 @@ body.light .fj-print-hint{color:#496477!important}
                 elif printer_state in ("idle", "cancelled", "error"):
                     diagnosis += (
                         " La commande reçue par le relais n'a pas déclenché de nouveau "
-                        "travail confirmé : état X2D « " + printer_state + " »."
+                        "travail confirmé : le départ réel n'est pas confirmé. "
+                        "État X2D « " + printer_state + " »."
                     )
                 else:
                     diagnosis += (
