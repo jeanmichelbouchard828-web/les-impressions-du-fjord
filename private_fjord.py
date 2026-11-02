@@ -561,7 +561,15 @@ if(fjordAutoButton){
  '<span id="fjordTransferPercent">En cours…</span></div>'+
  '<progress id="fjordTransferProgress" max="100" aria-label="Transfert confirmé du 3MF vers la X2D"></progress>'+
  '<small id="fjordTransferHint">Envoi en cours via OctoEverywhere. Le pourcentage réel FTPS n’est pas disponible.</small></div>'+
- '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Bambu Studio)</button>'+
+ '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Studio / Connect)</button>'+
+ '<details class="fjord-connect-handoff" id="fjordConnectHandoff">'+
+ '<summary>☁️ Imprimer via Bambu Connect (ordinateur · Bambu Handy conservé)</summary>'+
+ '<p><strong>1.</strong> Depuis ton PC Windows ou Mac, télécharge le 3MF ci-dessus. <strong>2.</strong> Dans les fichiers téléchargés, copie son <em>chemin local complet</em> puis colle-le ici. <strong>3.</strong> Ouvre Bambu Connect, vérifie la X2D, le plateau et la bobine, puis confirme l’impression dans le logiciel Bambu.</p>'+
+ '<label for="fjordConnectLocalPath">Chemin complet du fichier sur ton ordinateur<input id="fjordConnectLocalPath" type="text" autocomplete="off" spellcheck="false" placeholder="C:…\\Downloads\\Creation-du-Fjord-X2D-tranche.gcode.3mf" aria-describedby="fjordConnectNote"></label>'+
+ '<a id="fjordConnectOpen" href="#" role="button" aria-disabled="true" tabindex="-1">🖨️ Ouvrir le fichier dans Bambu Connect</a>'+
+ '<p id="fjordConnectNote" role="status">Copie le chemin complet du 3MF téléchargé sur ce même ordinateur. Aucun fichier ne sera envoyé en cliquant ici avant la confirmation dans Bambu Connect.</p>'+
+ '<small>⚠️ Sur mobile, le navigateur ne peut pas ouvrir un fichier sur le PC à ta place. Pour imprimer uniquement depuis le téléphone, il faudra une passerelle PC autorisée. Le lancement direct non signé depuis Railway reste bloqué par certains micrologiciels.</small>'+
+ '<a class="fjord-connect-doc-link" href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noopener noreferrer">Documentation officielle Bambu Connect</a></details>'+
  '<button type="button" id="fjordReviewDiagnostic">🔎 Diagnostiquer le transfert X2D (journal FTPS)</button>'+
  '<p id="fjordReviewDiagnosticResult" role="status" aria-live="polite" hidden></p>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
@@ -1165,6 +1173,37 @@ if(fjordAutoButton){
    diagnosticResult.textContent='⚠ '+String(error.message||error).slice(0,220);
   }finally{diagnosticButton.disabled=false;}
  });
+ const connectInput=panel.querySelector('#fjordConnectLocalPath');
+ const connectLink=panel.querySelector('#fjordConnectOpen');
+ const connectNote=panel.querySelector('#fjordConnectNote');
+ function updateBambuConnectLink(){
+  let path=connectInput.value.trim();
+  if(path.length>=2&&path.charCodeAt(0)===34&&path.charCodeAt(path.length-1)===34)
+   path=path.slice(1,-1);
+  // File upload elements intentionally hide absolute paths; only the owner
+  // can supply a trusted local path. Never send this path to Railway.
+  const win=/^[A-Za-z]:/.test(path)&&path.charCodeAt(2)===92;
+  const mac=path.startsWith('/')&&!path.startsWith('//');
+  const valid=(win||mac)&&path.length<=1024&&path.toLowerCase().endsWith('.3mf')&&
+    !Array.from(path).some(char=>char.charCodeAt(0)<32);
+  if(!valid){
+   connectLink.href='#';connectLink.setAttribute('aria-disabled','true');
+   connectLink.tabIndex=-1;
+   connectNote.textContent='Colle le chemin ABSOLU d’un 3MF enregistré sur cet ordinateur (Windows ou Mac). Aucun accès au disque sans ton accord.';
+   return;
+  }
+  const filename=path.replaceAll(String.fromCharCode(92),'/').split('/').pop();
+  const name=filename.replace(/\.gcode\.3mf$/i,'').replace(/\.3mf$/i,'');
+  connectLink.href='bambu-connect://import-file?path='+encodeURIComponent(path)+
+   '&name='+encodeURIComponent(name)+'&version=1.0.0';
+  connectLink.removeAttribute('aria-disabled');connectLink.tabIndex=0;
+  connectNote.textContent='Prêt pour Bambu Connect sur CE PC. La boîte de dialogue Bambu confirmera la X2D, la bobine et le démarrage.';
+ }
+ connectInput.addEventListener('input',updateBambuConnectLink);
+ connectLink.addEventListener('click',event=>{
+  if(connectLink.getAttribute('aria-disabled')==='true')event.preventDefault();
+ });
+ updateBambuConnectLink();
  const download3mf=panel.querySelector('#fjordReviewDownload');
  download3mf.addEventListener('click',async()=>{
   if(!prepared||busy)return;
@@ -1189,10 +1228,10 @@ if(fjordAutoButton){
    if(blob.size<100||blob.size>30*1024*1024)throw Error('3MF incomplet.');
    const url=URL.createObjectURL(blob);
    const link=document.createElement('a');
-   link.href=url;link.download='Creation-du-Fjord-X2D-tranche.3mf';
+   link.href=url;link.download='Creation-du-Fjord-X2D-tranche.gcode.3mf';
    document.body.appendChild(link);link.click();link.remove();
    setTimeout(()=>URL.revokeObjectURL(url),60000);
-   state.textContent='✓ Fichier 3MF tranché téléchargé. Ouvre-le dans Bambu Studio si l’envoi distant échoue.';
+   state.textContent='✓ 3MF tranché téléchargé. Sur PC, ouvre-le dans Bambu Connect / Studio pour le lancement autorisé (Bambu Handy conservé).';
   }catch(error){
    state.textContent='⚠ '+String(error.message||error).slice(0,180);
   }finally{
@@ -1556,6 +1595,21 @@ if(fjordAutoButton){
 .fjord-review-rategrid label{font-size:12px;min-width:0}
 .fjord-review-rategrid input{width:100%;min-width:0;min-height:43px;padding:6px}
 #fjordReviewBreakdown{font-size:12px;color:#c6e3ed}
+#fjordAutoPrintDialog .fjord-connect-handoff{margin:8px 0 12px;padding:11px 12px;border-radius:10px;
+ background:#173349;border:1px solid #5d90af;color:#d8edf8;font-size:13px;line-height:1.5}
+#fjordAutoPrintDialog .fjord-connect-handoff summary{cursor:pointer;font-weight:800;line-height:1.5}
+#fjordAutoPrintDialog .fjord-connect-handoff p{margin:10px 0}
+#fjordAutoPrintDialog .fjord-connect-handoff label{display:grid;gap:6px;min-width:0}
+#fjordAutoPrintDialog #fjordConnectLocalPath{display:block;width:100%;max-width:100%;min-height:43px;
+ border-radius:8px;border:1px solid #6698b5;background:#102638;color:#f5faff;padding:9px;font-size:13px}
+#fjordAutoPrintDialog #fjordConnectLocalPath:focus-visible{outline:2px solid #7bdaeb;outline-offset:1px}
+#fjordAutoPrintDialog #fjordConnectOpen{display:flex;align-items:center;justify-content:center;
+ min-height:44px;padding:10px;margin:10px 0 5px;border-radius:9px;border:1px solid #4bc5a0;
+ background:#166951;color:white;text-decoration:none;font-size:13px;font-weight:750}
+#fjordAutoPrintDialog #fjordConnectOpen[aria-disabled=true]{opacity:.55;cursor:not-allowed}
+#fjordAutoPrintDialog #fjordConnectNote{color:#bcdce9;font-size:12px;overflow-wrap:anywhere}
+#fjordAutoPrintDialog .fjord-connect-handoff small{display:block;color:#c5d9e4;margin:8px 0;font-size:11px}
+#fjordAutoPrintDialog .fjord-connect-doc-link{font-size:12px;color:#83d7ff;display:inline-block;margin-top:7px}
 #fjordReviewDownload{display:block;width:100%;min-height:48px;border:1px solid #6792af;
  border-radius:10px;background:#17344b;color:#e2f5ff;margin:8px 0;padding:9px;font-weight:700}
 #fjordReviewDiagnostic{display:block;width:100%;min-height:46px;color:#d5f3fc;
