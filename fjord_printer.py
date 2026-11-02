@@ -1001,7 +1001,9 @@ body.light .fj-print-hint{color:#496477!important}
                     )
             elif not job_matches_start:
                 diagnosis += " Départ du nouveau fichier encore non observé."
-            if file_present is False:
+            if file_present is True:
+                diagnosis += " Le dernier 3MF envoyé apparaît bien dans la liste des fichiers de la X2D."
+            elif file_present is False:
                 diagnosis += " Le dernier fichier envoyé n'est plus présent dans la liste de la X2D."
             if printer_error:
                 diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
