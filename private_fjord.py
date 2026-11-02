@@ -827,6 +827,7 @@ if(fjordAutoButton){
     }
    }else if(sent&&matched){
     if(isRunning){
+     startHelp.hidden=true;startHelp.open=false;
      startMessage.textContent='✓ X2D : le fichier transféré est reconnu · '+
       (labels[data.state]||'travail actif')+'.';
     }else if(data.state==='complete'&&confirmedActiveJob){
