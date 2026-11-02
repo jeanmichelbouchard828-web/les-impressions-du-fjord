@@ -861,9 +861,12 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
   padding:2px 8px!important;font-size:11px!important}
  .fjord-bed-tabs .fjord-add-bed{min-height:27px!important;height:27px!important}
  /* Sur mobile, les onglets de plateau suivent la barre des outils. */
- body>#mobileIconBar{order:20!important}
- body>#fjordBedTabs{order:21!important}
- body>#fjordWorkspace{order:22!important}
+ body>header{order:0!important}
+ body>.fjord-menubar{order:1!important}
+ body>.quickbar{order:2!important}
+ body>#mobileIconBar{order:3!important}
+ body>#fjordBedTabs{order:4!important}
+ body>#fjordWorkspace{order:5!important}
  #mobileIconBar{height:46px!important;min-height:46px!important;
   padding:2px 5px!important;gap:3px!important}
  #mobileIconBar button{min-height:39px!important;height:39px!important;
