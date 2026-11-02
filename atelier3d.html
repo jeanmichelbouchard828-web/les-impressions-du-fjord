@@ -4501,7 +4501,8 @@ function openMobileMenu(kind,trigger){
  if(!isCompactEditor())return;
  if(mobileMenuActive===kind){closeMobileMenu();return}
  if(mobileMenuActive)closeMobileMenu();
- const node=document.querySelector('[data-tool-panel="'+kind+'"]');
+ const panelKind=({measure:"edit",freehand:"edit",projects:"parts"})[kind]||kind;
+ const node=document.querySelector('[data-tool-panel="'+panelKind+'"]');
  if(!node)return;
  mobileMenuReturnFocus=trigger||null;
  mobileMenuPlaceholder=document.createComment('mobile tool panel: '+kind);
