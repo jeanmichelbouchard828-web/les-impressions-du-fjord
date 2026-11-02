@@ -189,13 +189,21 @@ try:
   # A successful relay request must NEVER recycle a previous 100% completed job.
   printer_status.update({"state":"complete","progress":100,
     "file":"Creation-du-Fjord (2)","can_start":True,
-    "current_layer":23,"total_layers":23,"time_left_sec":0,
+    "elapsed_sec":539,"current_layer":17,"total_layers":23,"time_left_sec":0,
+    "hotend_target":0,"bed_target":0,
     "job_matches_start":False,"start_command_age_sec":30,
     "start_outcome":"not_started","start_ack":"relay_only"})
   page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordLivePercent').textContent.includes('non confirmée')")
   assert page.locator("#fjordLiveProgress").is_hidden(), "Old job must NOT show a 100% bar"
   assert "Dernière tâche connue" in page.locator("#fjordLiveState").inner_text()
+  assert "539" not in page.locator("#fjordLiveNote").inner_text(), (
+      "Previous job elapsed duration must not appear for latest print")
+  assert "Couche déclarée : 17" not in page.locator("#fjordLiveNote").inner_text(), (
+      "Previous job layer must not appear for latest print")
+  assert "buse cible 0" not in page.locator("#fjordLiveNote").inner_text(), (
+      "Previous job temperatures must not be attributed to current print")
+  assert "ancienne tâche masquées" in page.locator("#fjordLiveNote").inner_text()
   assert "Aucun départ" in page.locator("#fjordLiveNote").inner_text()
   assert "Aucun démarrage réel confirmé" in page.locator("#fjordStartResult").inner_text()
   assert page.locator("#fjordRemoteStartHelp").is_visible()
