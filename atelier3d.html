@@ -875,6 +875,13 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  #fjordWorkspace .stage .touch-move::after{content:"☝️";font-size:22px!important;line-height:1!important}
  #fjordWorkspace .stage .touch-move[aria-pressed="true"]{box-shadow:0 0 0 2px #6cddff!important}
 
+ 
+/* Compact right-side language and theme selectors on phones. */
+@media(max-width:760px){
+ body>header .top-preferences{gap:2px!important;min-width:0!important}
+ body>header .top-preferences select{width:82px!important;max-width:82px!important;min-width:0!important;flex:0 1 82px!important;font-size:11px!important;padding:2px 1px!important;text-overflow:ellipsis!important}
+}
+
  /* Mobile dense: remove unnecessary header and toolbar spacing. */
  body>header{padding:2px 5px!important;gap:3px!important}
  body>header #projectMenuButton{min-height:34px!important;padding:4px 7px!important}
