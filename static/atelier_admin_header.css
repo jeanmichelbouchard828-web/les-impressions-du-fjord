@@ -240,3 +240,9 @@ header.fjord-admin-header{
  .fjord-admin-header #fjordAdminShortcut,.fjord-admin-header #fjordPrintShortcut{height:34px!important;min-height:34px!important;width:36px!important;min-width:36px!important;max-width:36px!important;padding:0!important}
  .fjord-admin-header .top-preferences select{height:34px!important;min-height:34px!important}
 }
+
+/* Match the public workshop: narrower right-side selectors. */
+@media(max-width:760px){
+ .fjord-admin-header .top-preferences{flex:0 1 164px!important;max-width:164px!important;gap:2px!important}
+ .fjord-admin-header .top-preferences select{width:81px!important;max-width:81px!important;min-width:0!important;flex:0 1 81px!important;font-size:11px!important;padding:2px 1px!important;text-overflow:ellipsis!important}
+}
