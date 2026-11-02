@@ -863,6 +863,14 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  body>header #projectMenuButton{min-height:39px!important;padding:6px 9px!important;font-size:12px!important;white-space:nowrap!important}
  body>header .top-preferences{display:flex!important;flex:1 1 auto!important;min-width:0!important;gap:4px!important;justify-content:flex-end!important}
  body>header .top-preferences select{min-width:0!important;max-width:105px!important;min-height:39px!important;font-size:12px!important;padding:5px 3px!important}
+ /* Public: icone Administration compacte, sans reduire le plateau ni les reglages. */
+ body>header:has(#fjordAdminAccess) .brand{font-size:0!important;max-width:84px!important}
+ body>header:has(#fjordAdminAccess) .brand::after{content:"🏔️ Fjord 3D";font-size:12px!important}
+ body>header #fjordAdminAccess{flex:0 0 42px!important;width:42px!important;min-width:42px!important;max-width:42px!important;min-height:39px!important;height:39px!important;box-sizing:border-box!important;padding:0!important;font-size:0!important;overflow:hidden!important}
+ body>header #fjordAdminAccess::after{content:"⚙️";font-size:21px!important;line-height:1!important}
+ body>header:has(#fjordAdminAccess) .top-preferences{flex-wrap:nowrap!important}
+ body>header:has(#fjordAdminAccess) .top-preferences select{flex:0 1 94px!important;max-width:94px!important}
+
  @media(max-width:390px){body>header .brand{max-width:82px!important}body>header .top-preferences select{max-width:84px!important}}
 
  .fjord-menubar,.quickbar{display:none!important}
