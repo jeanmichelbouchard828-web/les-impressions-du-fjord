@@ -251,12 +251,12 @@ document.addEventListener("DOMContentLoaded",()=>{
             raise ValueError('Emplacement du bouton X2D dans le tranchage introuvable')
         html = html.replace(slice_location, '</div>\n' + slice_entry +
                             '\n</section>\n<div id="cutFloat"', 1)
-        html = html.replace('<header>\n<div><div class="brand">🏔️ Atelier 3D du Fjord',
+        html = html.replace('<header>\n<div><div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a>',
                             '<header class="fjord-admin-header">\n<div class="fjord-admin-brand">'
-                            '<div class="brand">🏔️ Atelier 3D du Fjord', 1)
+                            '<div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a>', 1)
         html = html.replace(
-            '<div class="brand">🏔️ Atelier 3D du Fjord</div>',
-            '<div class="brand">🏔️ Atelier 3D du Fjord</div>'
+            '<div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div>',
+            '<div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div>'
             '<span id="fjordAdminModeBanner" role="status" class="fjord-admin-mode-badge" '
             'aria-label="Mode administrateur actif">🔒 ADMINISTRATEUR</span>', 1)
         html = html.replace('</head>',
