@@ -36,6 +36,11 @@ try:
     status=200,content_type="application/json",body=json.dumps(inventory)))
   page.route("**/api/atelier/filaments",lambda route:route.fulfill(
     status=200,content_type="application/json",body='{"connected":false,"available":false,"sources":[]}'))
+  printer_status={"ok":True,"state":"idle","progress":0,"file":"","can_start":True}
+  ams_data={"ok":True,"sources":[{"mapping":4,"slot":"AMS 1 · Bobine 2",
+    "color":"#18D779","material":"PETG","name":"PETG vert"}]}
+  page.route("**/api/admin/atelier/ams-assignation",lambda route:route.fulfill(
+    status=200,content_type="application/json",body=json.dumps(ams_data)))
   slices=[];transfers=[];starts=[]
   review={"source":"G-code réel du 3MF Bambu Studio","layer_count":2,"total_moves":4,
           "estimated_seconds":3600,"filament_grams":20.5,"stats_source":"Bambu Studio (3MF)",
@@ -60,9 +65,7 @@ try:
                      "last_upload":"Échec du transfert OctoEverywhere (752). Problème FTPS 550/553.",
                      "details":[]})))
   page.route("**/api/admin/atelier/impression-etat",lambda route:route.fulfill(
-    status=200,content_type="application/json",
-    body=json.dumps({"ok":True,"state":"idle","progress":0,"file":"",
-                     "can_start":True})))
+    status=200,content_type="application/json",body=json.dumps(printer_status)))
   def start(route):
    starts.append(route.request.post_data)
    route.fulfill(status=200,content_type="application/json",
@@ -146,6 +149,10 @@ try:
   assert "/atelier3d_auto_print_e2e.html" in page.url, "Must not leave Atelier"
   assert len(transfers)==1 and len(slices)==1 and not starts
   page.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Prête')")
+  page.wait_for_function("document.querySelector('#fjordAmsSelect option[value=\\\"4\\\"]') !== null",timeout=8000)
+  assert page.locator("#fjordAmsSelect option").count()==2
+  page.locator("#fjordAmsSelect").select_option("4")
+  assert "PETG vert" in page.locator("#fjordAmsAssignStatus").inner_text()
   assert page.locator("#fjordStartNow").is_disabled()
   page.locator("#fjordStartVerified").evaluate("el=>el.click()")
   page.locator("#fjordStartCleared").evaluate("el=>el.click()")
@@ -153,7 +160,17 @@ try:
   page.locator("#fjordStartNow").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordStartResult').textContent.includes('acceptée')",timeout=12000)
   assert len(starts)==1,starts
+  assert 'name="ams_mapping"' in starts[0],starts[0]
   assert page.locator("#fjordStartNow").is_disabled()
+  printer_status.update({"state":"printing","progress":42.5,
+    "file":"fjord_auto_test.3mf","can_start":False,
+    "current_layer":25,"total_layers":60,"time_left_sec":720})
+  page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
+  page.wait_for_function("document.querySelector('#fjordLivePercent').textContent.includes('42,5')")
+  assert not page.locator("#fjordLiveProgress").is_hidden()
+  assert "Couche 25 / 60" in page.locator("#fjordLiveNote").inner_text()
+  assert "12 min" in page.locator("#fjordLiveNote").inner_text()
+
   assert page.locator("#fjordStartAtelier").is_visible()
   saved=page.evaluate("JSON.parse(localStorage.getItem('fjord-x2d-profile-preferences-v1'))")
   assert saved["PETG|0.2"]=={"machine":"1","process":"2","filament":"3","bed_type":"Textured PEI Plate"},saved
