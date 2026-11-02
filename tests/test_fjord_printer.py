@@ -264,6 +264,8 @@ class RemotePrintTests(unittest.TestCase):
         self.assertFalse(diagnosis.json["recent_job_matches_start"])
         self.assertIn("ANCIEN travail", diagnosis.json["diagnosis"])
         self.assertIn("PAS confirmée", diagnosis.json["diagnosis"])
+        self.assertIn("Le transfert a réussi", diagnosis.json["diagnosis"])
+        self.assertNotIn("clé USB lisible", diagnosis.json["diagnosis"])
         self.assertNotIn("752 concerne", diagnosis.json["diagnosis"])
         self.assertEqual([call.args[0] for call in calls.call_args_list],
                          ["/status", "/status", "/files/list"])
