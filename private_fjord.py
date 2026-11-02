@@ -133,8 +133,11 @@ def admin_studio(html, csrf_token):
  #mobileIconBar #fjordMobileQuote,#mobileIconBar #fjordMobileMove{display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 auto;width:43px;min-width:43px;height:43px;min-height:43px;padding:0!important;border-radius:10px;border:1px solid #3d7699;background:#17354e;color:#fff;font-size:21px;box-shadow:none;cursor:pointer}
  #mobileIconBar #fjordMobileMove[aria-pressed="true"]{background:#087db8;color:white;border-color:#6cddff}
  #fjordMobileQuote:disabled{opacity:.55}
- .fjord-admin-core #quote{display:none!important}
- #touchMoveBtn{display:none!important}
+ #quote,#touchMoveBtn{display:none!important}
+ #fjordMobileQuote:not(#mobileIconBar #fjordMobileQuote),#fjordMobileMove:not(#mobileIconBar #fjordMobileMove){display:none!important}
+ #mobileIconBar{scroll-padding-left:7px}
+ #mobileIconBar #fjordMobileQuote,#mobileIconBar #fjordMobileMove{position:static!important;right:auto!important;bottom:auto!important;max-width:none!important;transform:none!important;box-shadow:none!important}
+
 }
 </style>
 <script>
@@ -143,7 +146,7 @@ document.addEventListener("DOMContentLoaded",()=>{
  const textBtn=bar?.querySelector('[data-open-tools="text"]');
  const quote=document.getElementById("fjordMobileQuote");
  const move=document.getElementById("fjordMobileMove");
- if(bar&&textBtn&&quote&&move){textBtn.after(quote,move)}
+ if(bar&&textBtn&&quote&&move){textBtn.after(quote,move);document.querySelectorAll("#mobileIconBar #fjordMobileQuote, #mobileIconBar #fjordMobileMove").forEach(b=>b.style.removeProperty("display"))}
  quote?.addEventListener("click",()=>{if(!quote.disabled)document.getElementById("quote")?.click()});
  const originalMove=document.getElementById("touchMoveBtn");
  const syncMove=()=>move?.setAttribute("aria-pressed",originalMove?.getAttribute("aria-pressed")||"false");
