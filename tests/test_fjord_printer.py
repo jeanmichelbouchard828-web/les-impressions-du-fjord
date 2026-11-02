@@ -224,6 +224,50 @@ class RemotePrintTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in calls.call_args_list],
                          ["/status","/files/list"])
 
+    def test_old_completed_job_never_counts_as_new_start(self):
+        import time
+        expected = "gcode/fjord_auto_new_xyz.3mf"
+        with self.client.session_transaction() as sess:
+            sess["fjord_atelier_recent_start"] = {
+                "path": expected, "time": time.time()-65
+            }
+        def previous_job(path, **kwargs):
+            if path == "/status":
+                return {
+                    "Features": 32,
+                    "JobStatus": {
+                        "State": "complete",
+                        "CurrentPrint": {
+                            "FileName": "Creation-du-Fjord (2)",
+                            "Progress": 100,
+                            "CurrentLayer": 23,
+                            "TotalLayers": 23,
+                        },
+                    },
+                }
+            if path == "/files/list":
+                return {"Root": [{"Type": "folder", "Name": "gcode", "Children": [
+                    {"Type": "file", "Name": "fjord_auto_new_xyz.3mf",
+                     "VirtualPath": expected}
+                ]}]}
+            raise AssertionError("Diagnostic must be read-only")
+        with (patch("fjord_printer._api", side_effect=previous_job) as calls,
+              patch("fjord_printer._plugin_log_hint", return_value=None)):
+            state = self.client.get("/api/admin/atelier/impression-etat")
+            diagnosis = self.client.get("/api/admin/atelier/impression-diagnostic")
+        self.assertEqual(state.status_code, 200)
+        self.assertEqual(state.json["progress"], 100)
+        self.assertFalse(state.json["job_matches_start"])
+        self.assertGreater(state.json["start_command_age_sec"], 20)
+        self.assertEqual(diagnosis.status_code, 200)
+        self.assertTrue(diagnosis.json["last_job_file_present"])
+        self.assertFalse(diagnosis.json["recent_job_matches_start"])
+        self.assertIn("ANCIEN travail", diagnosis.json["diagnosis"])
+        self.assertIn("PAS confirmée", diagnosis.json["diagnosis"])
+        self.assertNotIn("752 concerne", diagnosis.json["diagnosis"])
+        self.assertEqual([call.args[0] for call in calls.call_args_list],
+                         ["/status", "/status", "/files/list"])
+
     def test_752_upload_error_is_actionable_but_never_leaks_upstream_details(self):
         from fjord_printer import _upload_error_hint
         hint = _upload_error_hint({
