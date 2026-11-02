@@ -854,6 +854,17 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
 @media(max-width:760px){
  /* Every regular editing control is still available through Projet and the
     mobile iconbar. The old redundant menu/quickbar rows waste 80+ pixels. */
+ /* En-tete commun compact pour l’atelier public et administrateur. */
+ body>header{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:6px!important;padding:5px 8px!important;min-height:0!important}
+ body>header>.brand,body>header>div:first-child{flex:0 1 auto!important;min-width:0!important}
+ body>header .brand{font-size:12px!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+ body>header .subtitle{display:none!important}
+ body>header .project-menu{flex:0 0 auto!important}
+ body>header #projectMenuButton{min-height:39px!important;padding:6px 9px!important;font-size:12px!important;white-space:nowrap!important}
+ body>header .top-preferences{display:flex!important;flex:1 1 auto!important;min-width:0!important;gap:4px!important;justify-content:flex-end!important}
+ body>header .top-preferences select{min-width:0!important;max-width:105px!important;min-height:39px!important;font-size:12px!important;padding:5px 3px!important}
+ @media(max-width:390px){body>header .brand{max-width:82px!important}body>header .top-preferences select{max-width:84px!important}}
+
  .fjord-menubar,.quickbar{display:none!important}
  .fjord-bed-tabs{min-height:29px!important;height:29px!important;
   padding:1px 5px!important;gap:2px!important}
