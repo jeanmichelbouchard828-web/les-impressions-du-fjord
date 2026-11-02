@@ -903,6 +903,7 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  body>#fjordBedTabs{order:4!important;flex:0 0 auto!important;width:100%!important;box-sizing:border-box!important;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;scrollbar-width:thin!important;-webkit-overflow-scrolling:touch}
  body>#fjordBedTabs .fjord-bed-tab{flex:0 0 auto!important;white-space:nowrap!important}
  body>#fjordBedTabs .fjord-add-bed{flex:0 0 auto!important}
+ body>#fjordBedTabs{touch-action:pan-x!important;overscroll-behavior-x:contain!important}
  body>#fjordBedTabs .fjord-bed-tab[aria-selected="true"]{background:#17669b!important;color:#fff!important;border-color:#71d7ff!important;box-shadow:inset 0 -2px 0 #71d7ff!important}
  body>#fjordBedTabs .fjord-bed-tab:focus-visible,body>#fjordBedTabs .fjord-add-bed:focus-visible{outline:2px solid #71d7ff!important;outline-offset:-2px!important}
  body>#fjordWorkspace{order:5!important}
@@ -4573,7 +4574,7 @@ function openMobileMenu(kind,trigger){
  if(button){button.setAttribute('aria-expanded','true');$('mobileMenuTitle').textContent=button.textContent}
  mobileMenuBody.scrollTop=0;
  // Place the active tool within reach when a mobile category shares a desktop panel.
- const focusTool=({measure:'#fjordMeasureWorkspace',projects:'#sceneList'})[kind];
+ const focusTool=({measure:'#fjordMeasureWorkspace',projects:'#sceneList',freehand:'#move'})[kind];
  if(focusTool){const target=mobileMenuBody.querySelector(focusTool);if(target){const panelRect=mobileMenuBody.getBoundingClientRect(),targetRect=target.getBoundingClientRect();mobileMenuBody.scrollTop+=targetRect.top-panelRect.top-12;}}
  $('mobileMenuClose').focus({preventScroll:true});
 }
@@ -4633,6 +4634,7 @@ function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)retur
 new ResizeObserver(resize).observe(stage);resize();
 // Update the projection after a phone rotation, without resetting the user camera angle.
 window.addEventListener("orientationchange",()=>requestAnimationFrame(resize));
+window.visualViewport?.addEventListener("resize",()=>requestAnimationFrame(resize));
 const fjordOrientationRotor=document.getElementById('fjordOrientationRotor');
 function fjordUpdateOrientationCube(){
  if(!fjordOrientationRotor)return;
