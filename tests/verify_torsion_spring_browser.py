@@ -61,7 +61,7 @@ try:
         })""")
         assert page.locator('#contextMenu [data-context-action="selectAll"]').is_visible()
         assert page.locator('#contextMenu [data-context-action="deleteAll"]').is_disabled()
-        page.locator("#contextMenu .fjord-primitive-submenu summary").click()
+        page.locator('#contextMenu .fjord-primitive-submenu > summary[aria-label="Ajouter une forme primitive"]').click()
         assert page.locator('#contextMenu [data-context-action="shape-cube"]').is_visible()
         page.keyboard.press("Escape")
         page.mouse.click(blank_x,blank_y,button="left")
