@@ -1492,13 +1492,11 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <div class="fjord-menu-separator" role="separator"></div>
 <details class="fjord-primitive-submenu">
 <summary role="menuitem" aria-label="Ajouter une forme primitive"><span class="fjord-menu-add-icon">▢<b>+</b></span> Ajouter une forme <span class="fjord-menu-subarrow">›</span></summary>
-<div class="fjord-primitive-list" aria-label="Formes primitives">
-<button type="button" role="menuitem" data-context-action="shape-cube">Cube</button>
-<button type="button" role="menuitem" data-context-action="shape-cylinder">Cylindre</button>
-<button type="button" role="menuitem" data-context-action="shape-sphere">Sphère</button>
-<button type="button" role="menuitem" data-context-action="shape-cone">Cône</button>
-<button type="button" role="menuitem" data-context-action="shape-torus">Tore</button>
-</div></details>
+<div class="fjord-primitive-list" id="fjordContextShapeList" aria-label="Toutes les formes"></div></details>
+<details class="fjord-primitive-submenu">
+<summary role="menuitem" aria-label="Choisir un générateur">⚙️ Générateurs <span class="fjord-menu-subarrow">›</span></summary>
+<div class="fjord-primitive-list" id="fjordContextGeneratorList" aria-label="Tous les générateurs"></div>
+</details>
 <button type="button" role="menuitem" disabled title="Verrouillage du plateau en développement">Verrouiller</button>
 <button type="button" role="menuitem" data-context-action="renamePlate">Renommer le plateau</button>
 <button type="button" role="menuitem" disabled title="Les étiquettes par couche seront disponibles avec le visualiseur de tranchage">Afficher les étiquettes par couche</button>
@@ -2378,6 +2376,43 @@ function clearActiveEditingToolsOnBlank(){
  window.fjordCloseCategoryDrawer?.();
 }
 const contextMenu=$('contextMenu');
+// Build context submenus from the real editor catalogs: no duplicated or stale lists.
+function fjordPopulateContextCatalogs(){
+ const shapes=$('fjordContextShapeList'),generators=$('fjordContextGeneratorList');
+ if(shapes){
+  shapes.replaceChildren();
+  const seen=new Set();
+  document.querySelectorAll('[data-shape]').forEach(source=>{
+   const kind=source.dataset.shape;
+   if(!kind||seen.has(kind))return;
+   seen.add(kind);
+   const button=document.createElement('button');
+   button.type='button';button.setAttribute('role','menuitem');
+   button.textContent=source.textContent.trim()||kind;
+   button.addEventListener('click',()=>{hideContext();source.click();});
+   shapes.append(button);
+  });
+ }
+ if(generators){
+  generators.replaceChildren();
+  for(const cfg of generatorKinds){
+   const button=document.createElement('button');
+   button.type='button';button.setAttribute('role','menuitem');
+   button.textContent=currentLang()==='en'?cfg.en:cfg.fr;
+   button.addEventListener('click',()=>{
+    hideContext();
+    const picker=$('generatorKind');
+    picker.value=cfg.id;
+    picker.dispatchEvent(new Event('change',{bubbles:true}));
+    if(isCompactEditor())openMobileMenu('generators',document.querySelector('[data-open-tools="generators"]'));
+    else document.querySelector('[data-tool-panel="generators"]')?.scrollIntoView({block:'nearest'});
+   });
+   generators.append(button);
+  }
+ }
+}
+fjordPopulateContextCatalogs();
+
 let contextGeneratorTarget=null;
 let rightPanStart=null;
 const rightPanThreshold=5;
