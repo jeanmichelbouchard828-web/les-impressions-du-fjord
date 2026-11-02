@@ -260,3 +260,39 @@ header.fjord-admin-header{
  .fjord-admin-header #fjordAdminShortcut{width:35px!important;min-width:35px!important;max-width:35px!important;height:35px!important;min-height:35px!important}
  .fjord-admin-header .top-preferences{margin-left:auto!important}
 }
+
+
+/* Atelier PRO mobile: printer and administration share the same compact
+   header row. The original mobile Slice button is moved here with JS,
+   hidden on desktop, and presented as a clear icon-sized action. */
+#mobileSliceBtn.fjord-mobile-print{display:none!important}
+@media(max-width:760px){
+ .fjord-admin-header .fjord-admin-links{
+  box-sizing:border-box;display:flex!important;flex:0 0 73px!important;
+  width:73px!important;min-width:73px!important;max-width:73px!important;
+  flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-start!important;
+  gap:3px!important
+ }
+ .fjord-admin-header .fjord-admin-links #mobileSliceBtn.fjord-mobile-print{
+  box-sizing:border-box;display:inline-flex!important;flex:0 0 35px!important;
+  width:35px!important;min-width:35px!important;max-width:35px!important;
+  height:35px!important;min-height:35px!important;max-height:35px!important;
+  align-items:center!important;justify-content:center!important;
+  padding:0!important;margin:0!important;
+  border:1px solid #70d5af!important;border-radius:9px!important;
+  background:#17684f!important;color:#fff!important;
+  font-size:19px!important;line-height:1!important;font-weight:800!important;
+  box-shadow:none!important;cursor:pointer
+ }
+ .fjord-admin-header .fjord-admin-links #mobileSliceBtn.fjord-mobile-print:focus-visible{
+  outline:2px solid #a8f9d2!important;outline-offset:2px!important
+ }
+ .fjord-admin-header .top-preferences{
+  min-width:0!important;flex:0 1 148px!important;max-width:148px!important
+ }
+}
+@media(max-width:390px){
+ .fjord-admin-header .fjord-admin-brand{flex:0 1 76px!important;max-width:76px!important}
+ .fjord-admin-header .top-preferences{flex:0 1 135px!important;max-width:135px!important}
+ .fjord-admin-header .top-preferences select{flex:0 1 66px!important;width:66px!important;max-width:66px!important}
+}
