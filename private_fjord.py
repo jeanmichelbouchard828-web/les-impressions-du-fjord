@@ -494,6 +494,13 @@ if(fjordAutoButton){
  '<option value="Cool Plate SuperTack">Cool Plate SuperTack</option>'+
  '<option value="Cool Plate">Cool Plate (certains filaments incompatibles)</option>'+
  '</select></label>'+
+ '<fieldset class="fjord-support-controls"><legend>🌳 Supports automatiques</legend>'+
+ '<label for="fjordAutoSupportMode">Mode de supports<select name="support_mode" id="fjordAutoSupportMode">'+
+ '<option value="tree(auto)" selected>🌳 Arborescents automatiques (recommandé)</option>'+
+ '<option value="normal(auto)">▥ Normaux automatiques</option>'+
+ '<option value="off">Aucun support</option></select></label>'+
+ '<label class="fjord-auto-remember"><input type="checkbox" name="support_plate_only" id="fjordAutoSupportPlateOnly"> Seulement à partir du plateau</label>'+
+ '<small>Bambu Studio détecte les surplombs et crée les supports dans le 3MF. Sans surplomb, aucun support n’est nécessaire.</small></fieldset>'+
  '<section id="fjordMonoApproval" class="fjord-mono-approval" hidden>'+
  '<strong>🎨 Plusieurs couleurs détectées sur ta création.</strong>'+
  '<p>Le STL ne conserve pas la peinture AMS. Pour vérifier le tranchage, tu peux envoyer seulement la géométrie en <b>une couleur PETG</b>. Ta création peinte restera inchangée dans l’Atelier.</p>'+
@@ -504,6 +511,7 @@ if(fjordAutoButton){
  '<section id="fjordSliceReview" tabindex="-1" hidden aria-label="Aperçu des couches réellement tranchées">'+
  '<h3>▤ Résultat du tranchage Bambu Studio</h3>'+
  '<p>Examine les trajectoires du G-code du 3MF, couche par couche, avant de l’envoyer à la X2D.</p>'+
+ '<p id="fjordReviewSupports" class="fjord-review-supports" role="status">Supports : —</p>'+
  '<div class="fjord-review-preview"><canvas id="fjordReviewCanvas" width="420" height="420" role="img" aria-label="Vue pivotable en 3D du G-code tranché, un doigt pour tourner et deux doigts pour zoomer ou déplacer."></canvas>'+
  '<button type="button" class="fjord-review-mode" id="fjordReview3DToggle" aria-pressed="true">◈ 3D</button>'+
  '<div class="fjord-review-zoom" role="group" aria-label="Zoom de l’aperçu"><button type="button" id="fjordReviewZoomOut" aria-label="Dézoomer">−</button><button type="button" id="fjordReviewFit" aria-label="Recentrer et ajuster le zoom">⌗</button><button type="button" id="fjordReviewZoomIn" aria-label="Agrandir">+</button></div></div>'+
@@ -1107,7 +1115,9 @@ if(fjordAutoButton){
  function profilesSelected(){
   return {...Object.fromEntries(Object.keys(names).map(field=>
    [field,form.elements.namedItem(field).value])),
-   bed_type:form.elements.namedItem('bed_type').value};
+   bed_type:form.elements.namedItem('bed_type').value,
+   support_mode:form.elements.namedItem('support_mode').value,
+   support_plate_only:form.elements.namedItem('support_plate_only').checked?'1':'0'};
  }
  function eligible(field,item){
   if(field==='machine')return /X2D/i.test(item.model||'')&&
@@ -1138,7 +1148,12 @@ if(fjordAutoButton){
  }
  panel.querySelector('#fjordAutoClose').addEventListener('click',()=>{if(!busy)panel.close()});
  panel.addEventListener('click',event=>{if(event.target===panel&&!busy)panel.close()});
- form.addEventListener('change',event=>{if(event.target?.tagName==='SELECT')invalidatePreview();updateReady();});
+ form.addEventListener('change',event=>{
+  if(event.target?.tagName==='SELECT'||event.target?.name==='support_plate_only')invalidatePreview();
+  const noSupport=form.elements.namedItem('support_mode').value==='off';
+  form.elements.namedItem('support_plate_only').disabled=noSupport;
+  updateReady();
+ });
  function modelHasColorChanges(mesh){
   // Paint mode may create an empty face map and enable vertex colours even
   // without applying a single paint stroke. That is not multicolour.
@@ -1229,6 +1244,12 @@ if(fjordAutoButton){
    if(typeof result.stage!=='string'||!Array.isArray(result.preview?.layers)||!result.preview.layers.length)
     throw Error('Aucun aperçu réel disponible : envoi désactivé.');
    prepared={stage:result.stage,preview:result.preview,chosen,config};
+   const supportLabels={'off':'Désactivés','tree(auto)':'🌳 Arborescents automatiques',
+     'normal(auto)':'▥ Normaux automatiques'};
+   panel.querySelector('#fjordReviewSupports').textContent='Supports : '+
+    (supportLabels[chosen.support_mode]||'Non précisés')+
+    (chosen.support_mode!=='off'&&chosen.support_plate_only==='1'?' · uniquement sur le plateau':'')+
+    ' · inclus dans le tranchage Bambu';
    const review=panel.querySelector('#fjordSliceReview');
    review.hidden=false;
    // Put the actual Bambu toolpath directly after the dialog title.
@@ -1308,6 +1329,12 @@ if(fjordAutoButton){
     if(selected)select.value=String(selected.id);
     if(!saved||String(selected?.id)!==String(saved.id))rememberedAll=false;
    }
+   const supportSelect=form.elements.namedItem('support_mode');
+   supportSelect.value=['off','tree(auto)','normal(auto)'].includes(remembered.support_mode)
+    ?remembered.support_mode:'tree(auto)';
+   const supportPlate=form.elements.namedItem('support_plate_only');
+   supportPlate.checked=remembered.support_plate_only==='1';
+   supportPlate.disabled=supportSelect.value==='off';
    const plate=form.elements.namedItem('bed_type');
    plate.value=[...plate.options].some(option=>option.value===remembered.bed_type)
     ?remembered.bed_type:'';
@@ -1343,6 +1370,10 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog .fjord-dialog-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
 #fjordAutoPrintDialog p{line-height:1.5;color:#d2e5ee}
 #fjordAutoPrintDialog form{display:grid;gap:12px;margin:18px 0}
+#fjordAutoPrintDialog .fjord-support-controls{min-width:0;display:grid;gap:9px;margin:0;padding:12px;border:1px solid #527f92;border-radius:11px}
+#fjordAutoPrintDialog .fjord-support-controls legend{padding:0 5px;font-weight:750}
+#fjordAutoPrintDialog .fjord-support-controls small{font-size:12px;color:#b8d9e6;line-height:1.4}
+#fjordReviewSupports{font-size:13px;font-weight:700;padding:8px 10px;border:1px solid #476f83;border-radius:8px;background:#16394c}
 #fjordAutoPrintDialog label{display:grid;gap:4px}
 #fjordAutoPrintDialog select{min-height:44px;width:100%;background:#203f54;color:white;border:1px solid #7195ab}
 #fjordAutoPrintDialog button{min-height:42px}
