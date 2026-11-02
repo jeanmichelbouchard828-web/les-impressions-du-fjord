@@ -358,6 +358,31 @@ def _available_ams_sources():
     return sources
 
 
+def _verify_native_start_reply(reply):
+    """An upstream 200 is only transport success; reject explicit Bambu failures.
+
+    Some firmware rejects a privileged MQTT command asynchronously, so absence
+    of an error here is NOT proof the printer physically started printing.
+    """
+    native = reply.get("PrinterResponse") if isinstance(reply, dict) else None
+    if not isinstance(native, dict):
+        return
+    message = native.get("print") if isinstance(native.get("print"), dict) else native
+    result = str(message.get("result") or "").strip().lower()
+    if result not in ("fail", "failed", "error", "rejected"):
+        return
+    code = message.get("err_code")
+    if type(code) is int and code == 84033543:
+        raise PrinterError(
+            "La X2D a refusé la commande MQTT (84033543 : vérification requise). "
+            "Vérifie l'écran et lance ce fichier avec Bambu Studio. Aucun départ confirmé."
+        )
+    raise PrinterError(
+        "La réponse native de la X2D indique que le démarrage a été refusé. "
+        "Vérifie les messages sur l'écran de l'imprimante."
+    )
+
+
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
     # Parsed user presets are intentionally not assumed to be machine-ready.
     def available_presets():
@@ -847,6 +872,21 @@ body.light .fj-print-hint{color:#496477!important}
         """
         checks = {"status": False, "files": False}
         details = []
+        previous_start = session.get("fjord_atelier_recent_start")
+        last_path = previous_start.get("path") if isinstance(previous_start, dict) else None
+        if not _safe_virtual_path(last_path):
+            last_path = None
+        recent_start_age = None
+        if isinstance(previous_start, dict):
+            try:
+                age = time.time() - float(previous_start.get("time", 0))
+                if 0 <= age <= 24 * 3600:
+                    recent_start_age = round(age)
+            except (TypeError, ValueError, OverflowError):
+                pass
+        printer_state = None
+        printer_error = ""
+        file_present = None
         for key, operation in (
             ("status", lambda: _api("/status", timeout=8)),
             ("files", lambda: _api("/files/list", timeout=12)),
@@ -854,9 +894,16 @@ body.light .fj-print-hint{color:#496477!important}
             try:
                 result = operation()
                 if key == "status":
-                    checks[key] = isinstance(result.get("JobStatus"), dict)
+                    job = result.get("JobStatus")
+                    checks[key] = isinstance(job, dict)
+                    if checks[key]:
+                        printer_state = str(job.get("State") or "inconnu").lower()[:36]
+                        printer_error = str(job.get("Error") or "")[:120]
                 else:
                     checks[key] = isinstance(result.get("Root"), list)
+                    if checks[key] and last_path and recent_start_age is not None:
+                        file_present = any(row["path"] == last_path
+                                           for row in _printer_files(result))
                 if not checks[key]:
                     details.append(("État" if key == "status" else "Fichiers")
                                    + " : réponse incomplète.")
@@ -885,6 +932,19 @@ body.light .fj-print-hint{color:#496477!important}
                 "La connexion OctoEverywhere ne répond pas complètement. "
                 "Vérifie que le conteneur et la X2D sont connectés."
             )
+        if recent_start_age is not None:
+            if printer_state in ("idle", "cancelled", "error") and recent_start_age >= 20:
+                diagnosis += (
+                    " La dernière commande de démarrage a été acceptée par le relais, "
+                    "mais la X2D indique encore « " + printer_state +
+                    " ». Le démarrage réel n'est pas confirmé."
+                )
+            elif printer_state in ("printing", "warmingup", "resuming"):
+                diagnosis += " La X2D indique maintenant une tâche active."
+            if file_present is False:
+                diagnosis += " Le dernier fichier envoyé n'est plus présent dans la liste de la X2D."
+            if printer_error:
+                diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
         prior = session.get("fjord_last_upload_diagnostic")
         previous_hint = ""
         if (isinstance(prior, dict) and
@@ -892,7 +952,11 @@ body.light .fj-print-hint{color:#496477!important}
             previous_hint = str(prior.get("hint", ""))[:420]
         response = jsonify(ok=True, status_ok=checks["status"], files_ok=checks["files"],
                            diagnosis=diagnosis, details=details,
-                           last_upload=previous_hint)
+                           last_upload=previous_hint,
+                           printer_state=printer_state,
+                           printer_error=printer_error,
+                           recent_start_age_sec=recent_start_age,
+                           last_job_file_present=file_present)
         response.headers["Cache-Control"] = "private, no-store"
         return response
 
@@ -992,6 +1056,7 @@ body.light .fj-print-hint{color:#496477!important}
             response = _api("/start", method="POST", payload=command, timeout=15)
             if response.get("VirtualPath") not in (None, path):
                 raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
+            _verify_native_start_reply(response)
             session["fjord_atelier_recent_start"] = {"time": time.time(), "path": path}
             result = jsonify(
                 ok=True,
