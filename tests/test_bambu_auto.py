@@ -96,6 +96,46 @@ class AutoTests(unittest.TestCase):
                 result=slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf)
                 self.assertEqual(verify_sliced_bambu_3mf(result),[1])
 
+    def test_auto_supports_are_in_real_bambu_process_and_not_in_machine(self):
+        for support_mode, plate_only, expected_enabled in (
+            ("off", False, "0"),
+            ("tree(auto)", False, "1"),
+            ("tree(auto)", True, "1"),
+            ("normal(auto)", False, "1"),
+        ):
+            with self.subTest(mode=support_mode, plate_only=plate_only):
+                def run(args, **kwargs):
+                    paths=args[args.index("--load-settings")+1].split(";")
+                    machine=json.loads(Path(paths[0]).read_text())
+                    process=json.loads(Path(paths[1]).read_text())
+                    self.assertNotIn("enable_support",machine)
+                    self.assertEqual(process["enable_support"],expected_enabled)
+                    self.assertEqual(process["layer_height"],PROCESS["layer_height"])
+                    if support_mode!="off":
+                        self.assertEqual(process["support_type"],support_mode)
+                        self.assertEqual(process["support_on_build_plate_only"],
+                                         "1" if plate_only else "0")
+                    out=Path(args[args.index("--outputdir")+1])
+                    (out/args[args.index("--export-3mf")+1]).write_bytes(sliced_3mf())
+                    return subprocess.CompletedProcess(args,0,b"success")
+                with patch("bambu_auto.cli_location",return_value="/opt/bambu"), \
+                     patch("bambu_auto.subprocess.run",side_effect=run):
+                    sliced=slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf,
+                        support_mode=support_mode,support_plate_only=plate_only)
+                    self.assertEqual(verify_sliced_bambu_3mf(sliced),[1])
+
+    def test_invalid_support_settings_never_launch_bambu(self):
+        for value in ["tree(manual)", "hybrid(auto)", "--evil", None, ""]:
+            with self.subTest(value=value),patch("bambu_auto.subprocess.run") as invoked:
+                with self.assertRaisesRegex(AutoSliceError,"supports"):
+                    slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf,support_mode=value)
+                invoked.assert_not_called()
+        with patch("bambu_auto.subprocess.run") as invoked:
+            with self.assertRaisesRegex(AutoSliceError,"supports"):
+                slice_x2d(stl(),PRESETS,verify_sliced_bambu_3mf,
+                          support_mode="tree(auto)",support_plate_only="true")
+            invoked.assert_not_called()
+
     def test_plate_names_match_bambu_enum_and_zero_temperature_is_rejected(self):
         from bambu_auto import BED_TYPES
         self.assertEqual(BED_TYPES["Cool Plate SuperTack"][0],"Supertack Plate")
