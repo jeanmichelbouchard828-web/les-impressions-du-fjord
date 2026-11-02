@@ -936,14 +936,26 @@ body.light .fj-print-hint{color:#496477!important}
         # Inspect only a tail of remote plugin logs; never send raw log text.
         log_hint = _plugin_log_hint()
         if checks["status"] and checks["files"]:
-            diagnosis = (
-                "La connexion d'état et la consultation des fichiers répondent. "
-                "Une réponse de lecture ne prouve pas que la dernière commande de départ a été exécutée. "
-                + (log_hint or
-                   "Aucun détail exploitable dans les dernières lignes du journal. "
-                   "Sur la X2D, vérifie d'abord la présence d'une clé USB lisible "
-                   "et son espace libre, puis les journaux du conteneur.")
-            )
+            if file_present is True:
+                # A fresh verified file listing is stronger than generic FTPS
+                # troubleshooting. Focus on the native print-start command.
+                diagnosis = (
+                    "La X2D répond et le 3MF récemment envoyé est présent dans ses fichiers. "
+                    "Le transfert a réussi; il reste à confirmer l'exécution du démarrage. "
+                    + (log_hint or
+                       "Aucune erreur exploitable dans les dernières lignes du journal. "
+                       "Si la machine refuse le départ, consulte l'écran de la X2D "
+                       "pour un éventuel code de vérification MQTT.")
+                )
+            else:
+                diagnosis = (
+                    "La connexion d'état et la consultation des fichiers répondent. "
+                    "Une réponse de lecture ne prouve pas que la dernière commande de départ a été exécutée. "
+                    + (log_hint or
+                       "Aucun détail exploitable dans les dernières lignes du journal. "
+                       "Sur la X2D, vérifie d'abord la présence d'une clé USB lisible "
+                       "et son espace libre, puis les journaux du conteneur.")
+                )
         elif checks["status"]:
             diagnosis = (
                 "La connexion d'état répond, mais l'accès aux fichiers de la X2D échoue. "
