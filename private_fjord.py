@@ -136,7 +136,7 @@ def admin_studio(html, csrf_token):
 <script>
 document.addEventListener("DOMContentLoaded",()=>{
  const quick=document.getElementById("fjordMobileQuote");
- quick?.addEventListener("click",()=>document.getElementById("quote")?.click());
+ quick?.addEventListener("click",()=>{if(!quick.disabled)document.getElementById("quote")?.click()});
 });
 </script>'''
     html = html.replace('</body>', mobile_quote + '</body>', 1)
@@ -274,10 +274,12 @@ async function fjordSaveStudioModel(forQuote,button){
  const name=prompt(forQuote?"Nom de la creation pour la soumission :":"Nom du modele a sauvegarder :",suggestion)?.trim().slice(0,120);
  if(!name)return;
  fjordSavingQuote=true;
- const buttons=[privateSaveBtn,fjordQuoteButton,fjordSliceQuoteButton].filter(Boolean);
+ const buttons=[privateSaveBtn,fjordQuoteButton,fjordSliceQuoteButton,document.getElementById("fjordMobileQuote")].filter(Boolean);
  const oldNames=buttons.map(b=>b.textContent);
  buttons.forEach(b=>b.disabled=true);
  if(button)button.textContent="Preparation du modele…";
+ const mobileQuote=document.getElementById("fjordMobileQuote");
+ if(forQuote&&mobileQuote)mobileQuote.textContent="⏳ Préparation…";
  try{
   let blob=null,filename="Creation-du-Fjord.stl",colored=false;
   if(forQuote){
@@ -340,6 +342,7 @@ async function fjordSaveStudioModel(forQuote,button){
    }catch(error){console.warn("Photo indisponible",error)}
   }
   if(button)button.textContent="Enregistrement…";
+ if(forQuote&&mobileQuote)mobileQuote.textContent="⏳ Enregistrement…";
   const response=await fetch("/admin/modeles/api/save",{method:"POST",body:form,
      credentials:"same-origin",headers:{"Accept":"application/json"}});
   if(!(response.headers.get("content-type")||"").includes("application/json"))
