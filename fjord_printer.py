@@ -896,6 +896,7 @@ body.light .fj-print-hint{color:#496477!important}
                 pass
         printer_state = None
         printer_error = ""
+        printer_file = ""
         file_present = None
         for key, operation in (
             ("status", lambda: _api("/status", timeout=8)),
@@ -909,6 +910,7 @@ body.light .fj-print-hint{color:#496477!important}
                     if checks[key]:
                         printer_state = str(job.get("State") or "inconnu").lower()[:36]
                         printer_error = str(job.get("Error") or "")[:120]
+                        printer_file = str((job.get("CurrentPrint") or {}).get("FileName") or "")[:120]
                 else:
                     checks[key] = isinstance(result.get("Root"), list)
                     if checks[key] and last_path and recent_start_age is not None:
@@ -925,7 +927,7 @@ body.light .fj-print-hint{color:#496477!important}
         if checks["status"] and checks["files"]:
             diagnosis = (
                 "La connexion d'état et la consultation des fichiers répondent. "
-                "Le code 752 concerne le transfert FTPS du 3MF et non le tranchage. "
+                "Une réponse de lecture ne prouve pas que la dernière commande de départ a été exécutée. "
                 + (log_hint or
                    "Aucun détail exploitable dans les dernières lignes du journal. "
                    "Sur la X2D, vérifie d'abord la présence d'une clé USB lisible "
@@ -942,15 +944,40 @@ body.light .fj-print-hint{color:#496477!important}
                 "La connexion OctoEverywhere ne répond pas complètement. "
                 "Vérifie que le conteneur et la X2D sont connectés."
             )
-        if recent_start_age is not None:
-            if printer_state in ("idle", "cancelled", "error") and recent_start_age >= 20:
-                diagnosis += (
-                    " La dernière commande de démarrage a été acceptée par le relais, "
-                    "mais la X2D indique encore « " + printer_state +
-                    " ». Le démarrage réel n'est pas confirmé."
-                )
-            elif printer_state in ("printing", "warmingup", "resuming"):
-                diagnosis += " La X2D indique maintenant une tâche active."
+        job_matches_start = None
+        if recent_start_age is not None and last_path:
+            expected_name = last_path.rsplit("/", 1)[-1].lower()
+            observed_name = printer_file.lower()
+            job_matches_start = bool(
+                expected_name and observed_name and
+                (expected_name in observed_name or
+                 expected_name.rsplit(".", 1)[0] in observed_name)
+            )
+            if job_matches_start and printer_state in ("printing", "warmingup", "resuming"):
+                diagnosis += " La X2D rapporte une impression active correspondant au fichier transmis."
+            elif job_matches_start and printer_state == "complete":
+                diagnosis += " La X2D rapporte ce fichier comme terminé."
+            elif recent_start_age >= 20 and not job_matches_start:
+                if printer_state == "complete" and printer_file:
+                    diagnosis += (
+                        " ATTENTION : la X2D annonce 100 % sur un ANCIEN travail ("
+                        + printer_file + "), différent du 3MF récemment envoyé. "
+                        "La nouvelle impression n'est PAS confirmée. Vérifie l'écran "
+                        "de la X2D et les refus éventuels de commande MQTT."
+                    )
+                elif printer_state in ("idle", "cancelled", "error"):
+                    diagnosis += (
+                        " La commande reçue par le relais n'a pas déclenché de nouveau "
+                        "travail confirmé : état X2D « " + printer_state + " »."
+                    )
+                else:
+                    diagnosis += (
+                        " La X2D ne signale pas de travail correspondant au fichier "
+                        "envoyé. Ne confonds pas la progression d'une autre tâche avec "
+                        "cette impression."
+                    )
+            elif not job_matches_start:
+                diagnosis += " Départ du nouveau fichier encore non observé."
             if file_present is False:
                 diagnosis += " Le dernier fichier envoyé n'est plus présent dans la liste de la X2D."
             if printer_error:
@@ -966,6 +993,8 @@ body.light .fj-print-hint{color:#496477!important}
                            printer_state=printer_state,
                            printer_error=printer_error,
                            recent_start_age_sec=recent_start_age,
+                           recent_job_matches_start=job_matches_start,
+                           reported_job_name=printer_file if recent_start_age is not None else None,
                            last_job_file_present=file_present)
         response.headers["Cache-Control"] = "private, no-store"
         return response
