@@ -682,7 +682,8 @@ if(fjordAutoButton){
    body.append('nonce',chosen.nonce);
    body.append('verified','yes');
    body.append('cleared','yes');
-   body.append('ams',panel.querySelector('#fjordStartAMS').checked?'yes':'no');
+   body.append('ams',amsEnabled.checked?'yes':'no');
+   if(amsEnabled.checked&&amsSelect.value)body.append('ams_mapping',amsSelect.value);
    const response=await fetch('/admin/atelier-imprimer/demarrer-atelier',{
     method:'POST',body,credentials:'same-origin',headers:{Accept:'application/json'}
    });
@@ -985,6 +986,7 @@ if(fjordAutoButton){
    const body=new FormData();
    body.append('csrf',__FJORD_CSRF__);
    body.append('stage',approved.stage);
+   body.append('material',material());
    const response=await fetch('/admin/atelier-imprimer/transmettre',{
     method:'POST',body,credentials:'same-origin',headers:{Accept:'application/json'}
    });
@@ -1012,6 +1014,7 @@ if(fjordAutoButton){
    startMessage.textContent='Fichier transmis. Confirme les vérifications avant le démarrage.';
    state.textContent='✓ 3MF envoyé. Tu peux poursuivre dans l’Atelier.';
    beginPrinterPolling();
+   reloadAms();
    startScreen.scrollIntoView({block:'nearest',behavior:'smooth'});
   }catch(error){
    // Show the whole safe server message; a 240-character truncation previously
@@ -1359,6 +1362,20 @@ if(fjordAutoButton){
 #fjordStartAtelier>p{overflow-wrap:anywhere}
 #fjordStartAtelier .fjord-printer-state{display:grid;gap:8px;border:1px solid #456b83;border-radius:12px;padding:13px}
 #fjordLiveProgress{width:100%;height:12px;accent-color:#55cfaa}
+#fjordStartAtelier .fjord-live-percent{font-size:20px;font-weight:800;color:#b4f8db}
+#fjordStartAtelier .fjord-live-note{font-size:12px;color:#c7dce7;line-height:1.55;margin:2px 0 10px}
+#fjordPrintPreflight{display:grid;gap:9px}
+#fjordPrintPreflight h4{margin:3px 0;font-size:15px}
+#fjordStartAtelier.fjord-start-sent #fjordPrintPreflight{display:none!important}
+#fjordAutoPrintDialog .fjord-ams-assign{border:1px solid #5486a0;border-radius:11px;padding:11px;display:grid;gap:8px;background:#163548}
+#fjordAutoPrintDialog .fjord-ams-assign.is-disabled{opacity:.55}
+#fjordAutoPrintDialog .fjord-ams-assign-row{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center}
+#fjordAutoPrintDialog .fjord-ams-assign-row label{min-width:0;font-weight:700;display:grid;gap:5px;font-size:12px}
+#fjordAutoPrintDialog #fjordAmsSelect{min-width:0;width:100%;max-width:100%;min-height:46px;overflow:hidden;text-overflow:ellipsis;border-radius:8px}
+#fjordAutoPrintDialog .fjord-ams-assign-swatch{display:block;width:30px;height:34px;border-radius:8px;border:2px solid #d5e9f3;background:#8195a4}
+#fjordAutoPrintDialog #fjordAmsAssignStatus{font-size:12px;margin:2px 0;overflow-wrap:anywhere}
+#fjordAutoPrintDialog #fjordAmsReload{min-height:43px;background:#234d64;color:#fff;border:1px solid #6395ae}
+
 #fjordStartAtelier button{min-height:48px;border-radius:11px}
 #fjordStartNow{background:#17694e;color:#fff;font-weight:800;border:1px solid #6adaae}
 #fjordStartNow:disabled{opacity:.48}
