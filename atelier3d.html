@@ -876,6 +876,15 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  #fjordWorkspace .stage .touch-move[aria-pressed="true"]{box-shadow:0 0 0 2px #6cddff!important}
 
  
+/* The workshop brand is a real, keyboard-accessible home link. */
+.fjord-home-link{color:inherit!important;text-decoration:none!important;display:inline-block;max-width:100%}
+.fjord-home-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+@media(max-width:760px){
+ body>header:has(#fjordAdminAccess) .brand{font-size:12px!important}
+ body>header:has(#fjordAdminAccess) .brand::after{content:none!important}
+ body>header:has(#fjordAdminAccess) .fjord-home-link{font-size:0!important}
+ body>header:has(#fjordAdminAccess) .fjord-home-link::after{content:"🏔️ Fjord 3D";font-size:12px!important;white-space:nowrap}
+}
 /* Compact the camera cube and surrounding buttons without changing their actions. */
 @media(max-width:760px){
  #fjordWorkspace .fjord-camera-controls{transform:scale(.78)!important;transform-origin:top right!important;right:5px!important;top:7px!important}
@@ -1064,7 +1073,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
 <header>
-<div><div class="brand">🏔️ Atelier 3D du Fjord</div><div class="subtitle" data-i18n="tagline">Les impressions du Fjord · Création 3D</div></div>
+<div><div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div><div class="subtitle" data-i18n="tagline">Les impressions du Fjord · Création 3D</div></div>
 <div id="projectMenu" class="project-menu"><button type="button" id="projectMenuButton" aria-expanded="false" data-i18n="mobileProject">📁 Projet</button><div class="top-actions">
 <a href="/" data-i18n="back">← Retour au site</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">Ouvrir projet</button>
