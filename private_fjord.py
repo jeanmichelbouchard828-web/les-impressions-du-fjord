@@ -538,7 +538,9 @@ if(fjordAutoButton){
  '<strong id="fjordLivePercent" class="fjord-live-percent">En attente du départ réel</strong>'+
  '<progress id="fjordLiveProgress" value="0" max="100" hidden aria-label="Progression réelle de la X2D"></progress>'+
  '<p id="fjordLiveNote" class="fjord-live-note">La X2D doit confirmer le démarrage.</p>'+
- '<button type="button" id="fjordRefreshPrinter">↻ Actualiser l’état</button></div>'+
+ '<button type="button" id="fjordRefreshPrinter">↻ Actualiser l’état</button>'+
+ '<button type="button" id="fjordLiveDiagnostic">🔎 Diagnostic lecture seule</button>'+
+ '<p id="fjordLiveDiagnosticResult" role="status" hidden></p></div>'+
  '<div id="fjordPrintPreflight"><h4>🎨 Attribuer une couleur AMS avant le départ</h4>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartAMS" checked> Utiliser l’AMS</label>'+
  '<div id="fjordAmsAssign" class="fjord-ams-assign"><div class="fjord-ams-assign-row">'+
@@ -677,6 +679,24 @@ if(fjordAutoButton){
   refreshStartButton();
  }
  panel.querySelector('#fjordRefreshPrinter').addEventListener('click',refreshPrinter);
+ panel.querySelector('#fjordLiveDiagnostic').addEventListener('click',async()=>{
+  const button=panel.querySelector('#fjordLiveDiagnostic');
+  const result=panel.querySelector('#fjordLiveDiagnosticResult');
+  button.disabled=true;result.hidden=false;
+  result.textContent='Vérification de la connexion et des fichiers X2D…';
+  try{
+   const response=await fetch('/api/admin/atelier/impression-diagnostic',{
+    credentials:'same-origin',cache:'no-store'});
+   const data=await response.json();
+   if(!response.ok||!data.ok)throw Error('Diagnostic indisponible.');
+   result.textContent='État : '+(data.status_ok?'OK':'échec')+
+    ' · Accès aux fichiers : '+(data.files_ok?'OK':'échec')+
+    '\\n'+String(data.diagnosis||'')+
+    (data.last_upload?'\\nDernier transfert : '+data.last_upload:'');
+  }catch(error){result.textContent='⚠ '+String(error.message||error).slice(0,160);}
+  finally{button.disabled=false;}
+ });
+
  function stopPrinterPolling(){
   if(printerPoll!==null){clearInterval(printerPoll);printerPoll=null;}
  }
@@ -1392,6 +1412,8 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog .fjord-ams-assign-swatch{display:block;width:30px;height:34px;border-radius:8px;border:2px solid #d5e9f3;background:#8195a4}
 #fjordAutoPrintDialog #fjordAmsAssignStatus{font-size:12px;margin:2px 0;overflow-wrap:anywhere}
 #fjordAutoPrintDialog #fjordAmsReload{min-height:43px;background:#234d64;color:#fff;border:1px solid #6395ae}
+#fjordAutoPrintDialog #fjordLiveDiagnosticResult{white-space:pre-line;overflow-wrap:anywhere;font-size:12px;padding:10px;border:1px solid #628ba5;border-radius:8px}
+#fjordAutoPrintDialog #fjordLiveDiagnosticResult[hidden]{display:none!important}
 
 #fjordStartAtelier button{min-height:48px;border-radius:11px}
 #fjordStartNow{background:#17694e;color:#fff;font-weight:800;border:1px solid #6adaae}
