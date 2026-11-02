@@ -137,12 +137,6 @@ def admin_studio(html, csrf_token):
  #fjordMobileQuote:not(#mobileIconBar #fjordMobileQuote),#fjordMobileMove:not(#mobileIconBar #fjordMobileMove){display:none!important}
  #mobileIconBar{scroll-padding-left:7px}
  #mobileIconBar #fjordMobileQuote,#mobileIconBar #fjordMobileMove{position:static!important;right:auto!important;bottom:auto!important;max-width:none!important;transform:none!important;box-shadow:none!important}
- /* L'Atelier PRO garde le bouton d'impression tout a gauche sur mobile. */
- #mobileIconBar #mobileSliceBtn.fjord-mobile-print{display:inline-flex!important;align-items:center;justify-content:center;
-  flex:0 0 auto;min-width:106px;min-height:43px;padding:0 12px!important;
-  border:1px solid #75dbaf;border-radius:10px;background:#176f57;color:#fff;
-  font-size:13px;font-weight:800;white-space:nowrap;box-shadow:none}
- #mobileIconBar #mobileSliceBtn.fjord-mobile-print:focus-visible{outline:3px solid #fff;outline-offset:2px}
 
 }
 </style>
@@ -150,19 +144,20 @@ def admin_studio(html, csrf_token):
 document.addEventListener("DOMContentLoaded",()=>{
  const bar=document.getElementById("mobileIconBar");
  const textBtn=bar?.querySelector('[data-open-tools="text"]');
- // Admin mobile only: direct "Imprimer" action instead of a second slice entry.
- // Keep the native mobileSliceBtn id for existing editor state code, but
- // intercept its click BEFORE the public slicer's listener is reached.
+ // Private Atelier PRO only: keep this original button id for existing
+ // editor bindings, but move the printer icon BESIDE the admin gear in header.
+ // No duplicate print/slice control is left in the mobile tools strip.
  const printBtn=bar?.querySelector("#mobileSliceBtn");
- if(printBtn){
+ const links=document.querySelector("header.fjord-admin-header .fjord-admin-links");
+ if(printBtn&&links){
   printBtn.removeAttribute("data-i18n");
   printBtn.classList.add("fjord-mobile-print");
-  printBtn.textContent="🖨️ Imprimer";
-  printBtn.title="Préparer et imprimer sur ma X2D";
+  printBtn.textContent="🖨️";
+  printBtn.title="Imprimer sur ma X2D";
   printBtn.setAttribute("aria-label","Imprimer sur ma X2D");
   printBtn.removeAttribute("aria-pressed");
-  bar.prepend(printBtn);
-  bar.scrollLeft=0;
+  links.prepend(printBtn);
+  // The old mobile button's slicer listener must not run on this print icon.
   printBtn.addEventListener("click",event=>{
    event.preventDefault();
    event.stopImmediatePropagation();
