@@ -24,6 +24,12 @@ def init():
   c.execute("""CREATE TABLE IF NOT EXISTS gallery(id BIGSERIAL PRIMARY KEY,title TEXT NOT NULL,category TEXT NOT NULL,description TEXT NOT NULL,photo BYTEA,mime TEXT,created TIMESTAMPTZ DEFAULT NOW())""")
   c.execute("""CREATE TABLE IF NOT EXISTS sessions(tokenhash TEXT PRIMARY KEY,expires TIMESTAMPTZ NOT NULL)""")
   c.execute("""CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)""")
+  c.execute("""CREATE TABLE IF NOT EXISTS fjord_printer_recent_start (
+      slot SMALLINT PRIMARY KEY CHECK (slot = 1),
+      file_path TEXT NOT NULL,
+      start_ack TEXT NOT NULL,
+      sent_at DOUBLE PRECISION NOT NULL
+  )""")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
 init()
 # Compteur de visiteurs uniques (navigateur, pas nombre de pages vues).
