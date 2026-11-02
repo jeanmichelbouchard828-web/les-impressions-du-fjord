@@ -4554,6 +4554,7 @@ function closeMobileMenu(){
  mobileMenuActive=null;mobileMenuNode=null;mobileMenuPlaceholder=null;
  mobileMenuDrawer.hidden=true;mobileMenuBackdrop.hidden=true;
  mobileMenuDrawer.setAttribute('aria-hidden','true');
+ mobileMenuDrawer.setAttribute('aria-hidden','true');
  document.querySelectorAll('[data-open-tools]').forEach(b=>b.setAttribute('aria-expanded','false'));
  if(mobileMenuReturnFocus?.isConnected&&document.activeElement===document.body)mobileMenuReturnFocus.focus({preventScroll:true});
  mobileMenuReturnFocus=null;
@@ -4571,6 +4572,7 @@ function openMobileMenu(kind,trigger){
  mobileMenuBody.replaceChildren(node);
  mobileMenuNode=node;mobileMenuActive=kind;
  mobileMenuDrawer.hidden=false;mobileMenuBackdrop.hidden=false;
+ mobileMenuDrawer.setAttribute('aria-hidden','false');
  mobileMenuDrawer.setAttribute('aria-hidden','false');
  const button=document.querySelector('[data-open-tools="'+kind+'"]');
  if(button){button.setAttribute('aria-expanded','true');$('mobileMenuTitle').textContent=button.textContent}
@@ -4637,6 +4639,7 @@ new ResizeObserver(resize).observe(stage);resize();
 // Update the projection after a phone rotation, without resetting the user camera angle.
 window.addEventListener("orientationchange",()=>requestAnimationFrame(resize));
 window.visualViewport?.addEventListener("resize",()=>requestAnimationFrame(resize));
+window.addEventListener('pageshow',()=>requestAnimationFrame(resize));
 window.addEventListener('pageshow',()=>requestAnimationFrame(resize));
 const fjordOrientationRotor=document.getElementById('fjordOrientationRotor');
 function fjordUpdateOrientationCube(){
