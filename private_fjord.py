@@ -601,7 +601,7 @@ if(fjordAutoButton){
  '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
  '<details id="fjordRemoteStartHelp" class="fjord-remote-start-help" hidden>'+
  '<summary>⚠️ Démarrage distant non confirmé · autre façon d’imprimer</summary>'+
- '<p><strong>Sur téléphone ou ordinateur :</strong> ton 3MF est déjà enregistré sur la X2D. Sur son écran, ouvre <strong>Fichiers</strong>, repère le nom affiché au-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Pas besoin de renvoyer le fichier.</p>'+
+ '<p><strong>Sur téléphone ou ordinateur :</strong> ton 3MF est déjà enregistré sur la X2D. Sur l’écran de l’imprimante, ouvre <strong>Fichiers</strong>, repère le nom affiché au-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Pas besoin de renvoyer le fichier.</p>'+
  '<p><strong>Sur ordinateur :</strong> si le démarrage distant est bloqué, utilise le téléchargement du 3MF tranché et <strong>Bambu Connect</strong> depuis l’Atelier. Cette méthode demande une confirmation dans Bambu Connect.</p>'+
  '<p>Si le fichier imprime localement mais pas depuis l’Atelier, le micrologiciel peut refuser les commandes MQTT non autorisées. Le <strong>mode LAN uniquement + développeur</strong> peut être une solution, mais désactive Bambu Handy et les fonctions cloud. Ne change pas ce réglage sans en accepter les conséquences.</p>'+
  '<small>Le relais peut répondre 200 même si l’imprimante refuse le départ. Aucun essai automatique ne sera effectué.</small></details>'+
@@ -1597,7 +1597,7 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog{width:min(580px,95vw);max-height:84dvh;overflow:auto;padding:18px;border:1px solid #58b9de;background:#112c40;color:#f0f8fd;border-radius:15px}
 #fjordAutoPrintDialog::backdrop{background:#000b}
 #fjordAutoPrintDialog .fjord-dialog-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
-#fjordAutoPrintDialog #fjordSharedX2D[hidden]{display:none!important}
+#fjordAutoPrintDialog #fjordSharedX2D[hidden],#fjordAutoPrintDialog.fjord-preview-active #fjordSharedX2D,#fjordAutoPrintDialog.fjord-print-ready #fjordSharedX2D{display:none!important}
 #fjordAutoPrintDialog .fjord-shared-job{margin:9px 0;padding:12px;border:1px solid #4389a7;border-radius:12px;background:#16384c;display:grid;gap:8px}
 #fjordAutoPrintDialog .fjord-shared-job strong{font-weight:800;font-size:14px}
 #fjordAutoPrintDialog .fjord-shared-job p{margin:0;font-size:12px;overflow-wrap:anywhere}
