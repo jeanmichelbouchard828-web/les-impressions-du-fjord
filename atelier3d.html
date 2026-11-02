@@ -4541,6 +4541,13 @@ function openMobileMenu(kind,trigger){
  $('mobileMenuClose').focus({preventScroll:true});
 }
 document.querySelectorAll('[data-open-tools]').forEach(button=>button.addEventListener('click',()=>openMobileMenu(button.dataset.openTools,button)));
+// Keep the selected mobile tool visible without moving the 3D viewport.
+document.querySelectorAll('#mobileIconBar > button').forEach(button=>button.addEventListener('click',()=>{
+ const bar=$('mobileIconBar');if(!bar||!isCompactEditor())return;
+ const barBox=bar.getBoundingClientRect(),btnBox=button.getBoundingClientRect();
+ if(btnBox.left<barBox.left+8)bar.scrollLeft-=barBox.left+8-btnBox.left;
+ else if(btnBox.right>barBox.right-8)bar.scrollLeft+=btnBox.right-(barBox.right-8);
+}));
 $('mobileMenuClose').addEventListener('click',closeMobileMenu);
 mobileMenuBackdrop.addEventListener('click',closeMobileMenu);
 window.matchMedia('(max-width:760px)').addEventListener('change',()=>{if(!isCompactEditor())closeMobileMenu()});
