@@ -132,6 +132,8 @@ try:
   page.locator("#fjordReviewKgRate").fill("50")
   assert "$" in page.locator("#fjordReviewPrice").inner_text()
   assert page.locator("#fjordReviewDownload").is_enabled()
+  assert page.locator("#fjordTransferProgress").count()==1
+  assert page.locator("#fjordTransferStatus").is_hidden(), "No upload should be simulated before user approval"
   assert page.locator("#fjordReviewDiagnostic").is_enabled()
   page.locator("#fjordReviewDiagnostic").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordReviewDiagnosticResult').textContent.includes('Fichiers : échec')")
@@ -155,6 +157,17 @@ try:
   page.wait_for_function("!document.querySelector('#fjordStartAtelier').hidden",timeout=12000)
   assert "/atelier3d_auto_print_e2e.html" in page.url, "Must not leave Atelier"
   assert len(transfers)==1 and len(slices)==1 and not starts
+  assert page.locator("#fjordTransferStatus").is_visible()
+  assert page.locator("#fjordTransferStatus").get_attribute("class").find("fjord-transfer-done")>=0
+  assert page.locator("#fjordTransferProgress").get_attribute("value")=="100", (
+      "Only the actual upstream-confirmed 3MF transfer may show 100%")
+  assert "100 %" in page.locator("#fjordTransferPercent").inner_text()
+  assert "n’a PAS encore démarré" in page.locator("#fjordTransferHint").inner_text()
+  assert page.evaluate("""() => {
+    const wrap=document.querySelector("#fjordTransferStatus");
+    const start=document.querySelector("#fjordStartAtelier");
+    return wrap.parentElement===start && wrap===start.firstElementChild;
+  }"""), "The completion bar must remain visible above the print-start confirmation"
   page.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Prête')")
   page.wait_for_function("document.querySelector('#fjordAmsSelect option[value=\\\"4\\\"]') !== null",timeout=8000)
   assert page.locator("#fjordAmsSelect option").count()==2
