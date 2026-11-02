@@ -9,6 +9,7 @@ from flask import Flask, render_template_string
 from fjord_printer import (
     _categorize_plugin_log, _safe_virtual_path, _printer_files, _status, _connection, _api, _upload,
     verify_sliced_bambu_3mf, PrinterError, register_printer_admin,
+    _verify_native_start_reply,
 )
 
 def make_3mf(sliced=True):
@@ -191,6 +192,37 @@ class RemotePrintTests(unittest.TestCase):
             self.assertEqual(len(starts),1)
             self.assertEqual(starts[0].kwargs["payload"],{
                 "Path":"gcode/X2D_test.3mf","Plate":1,"UseAms":True})
+
+    def test_native_firmware_failure_is_not_reported_as_print_started(self):
+        _verify_native_start_reply({"VirtualPath":"gcode/part.3mf"})
+        _verify_native_start_reply({"PrinterResponse":{"result":"ok"}})
+        with self.assertRaisesRegex(PrinterError, "84033543"):
+            _verify_native_start_reply({
+                "PrinterResponse":{"print":{"result":"failed","err_code":84033543}}
+            })
+        with self.assertRaisesRegex(PrinterError, "refusé"):
+            _verify_native_start_reply({
+                "PrinterResponse":{"result":"failed","err_code":123}
+            })
+
+    def test_read_only_diagnostic_shows_last_start_without_restarting(self):
+        import time
+        with self.client.session_transaction() as sess:
+            sess["fjord_atelier_recent_start"]={
+                "path":"gcode/X2D_test.3mf","time":time.time()-50
+            }
+        with (
+            patch("fjord_printer._api",side_effect=fake_api) as calls,
+            patch("fjord_printer._plugin_log_hint",return_value=None),
+        ):
+            res=self.client.get("/api/admin/atelier/impression-diagnostic")
+        self.assertEqual(res.status_code,200)
+        self.assertEqual(res.json["printer_state"],"idle")
+        self.assertTrue(res.json["last_job_file_present"])
+        self.assertGreaterEqual(res.json["recent_start_age_sec"],20)
+        self.assertIn("pas confirmé",res.json["diagnosis"])
+        self.assertEqual([call.args[0] for call in calls.call_args_list],
+                         ["/status","/files/list"])
 
     def test_752_upload_error_is_actionable_but_never_leaks_upstream_details(self):
         from fjord_printer import _upload_error_hint
