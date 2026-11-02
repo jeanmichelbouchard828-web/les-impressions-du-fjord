@@ -549,7 +549,7 @@ if(fjordAutoButton){
  '<p class="fjord-live-note">Le tranchage automatique est actuellement monochrome. L’attribution AMS choisit la bobine physique, mais ne crée pas de trajectoires multicolores.</p>'+
   '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartVerified"> J’ai vérifié le matériau, les bobines AMS, la plaque et le tranchage.</label>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartCleared"> Le plateau est libre, la X2D est prête et je peux surveiller la première couche.</label>'+
- '<button type="button" id="fjordStartNow" disabled>▶ Démarrer l’impression sur ma X2D</button>'+
+ '<button type="button" id="fjordStartNow" disabled>▶ Démarrer l’impression sur ma X2D</button></div>'+
  '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
  '<p class="fjord-review-note">Une commande acceptée ne prouve pas que la première couche a commencé. Vérifie la X2D.</p>'+
  '<button type="button" id="fjordStartAnother">↺ Préparer une autre impression</button></section>'+
