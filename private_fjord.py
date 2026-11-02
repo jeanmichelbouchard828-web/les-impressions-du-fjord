@@ -228,6 +228,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 <style>
 #fjordStudioQuoteShortcut{display:flex;position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:8500;align-items:center;justify-content:center;min-height:46px;max-width:calc(100vw - 24px);padding:10px 18px;border:1px solid #7bdcff;border-radius:999px;background:linear-gradient(120deg,#0575b4,#14a4dd);box-shadow:0 5px 22px #00182dbb;color:#fff;font-size:14px;font-weight:800;cursor:pointer}
 #fjordStudioQuoteShortcut:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-width:760px){#fjordStudioQuoteShortcut{display:none!important}}
 @media(max-width:620px){#fjordStudioQuoteShortcut{right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));padding:10px 15px;font-size:13px}}
 </style>
 <script>
