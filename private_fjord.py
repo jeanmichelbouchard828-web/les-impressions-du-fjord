@@ -750,7 +750,6 @@ if(fjordAutoButton){
      startMessage.textContent='⚠ Le fichier est reconnu, mais aucun état actif ne confirme son départ.';
      info.push('⚠ Le fichier a été reconnu, mais aucun état d’impression actif.');
     }
-   }
    }else if(!sent&&reportedName&&data.state==='complete'){
     info.push('Ancienne tâche terminée : sa progression ne concerne pas le nouvel envoi.');
    }else if(!sent){
