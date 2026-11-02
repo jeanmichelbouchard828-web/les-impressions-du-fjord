@@ -546,6 +546,7 @@ if(fjordAutoButton){
  '<div id="fjordAmsAssign" class="fjord-ams-assign"><div class="fjord-ams-assign-row">'+
  '<span id="fjordAmsSwatch" class="fjord-ams-assign-swatch" aria-hidden="true"></span>'+
  '<label for="fjordAmsSelect">Filament 1 du 3MF<select id="fjordAmsSelect"><option value="">Auto X2D · aucune bobine imposée</option></select></label></div>'+
+ '<div id="fjordAmsTiles" class="fjord-ams-choice-grid" role="group" aria-label="Bobines AMS disponibles"></div>'+
  '<p id="fjordAmsAssignStatus" role="status">Chargement des bobines AMS…</p>'+
  '<button type="button" id="fjordAmsReload">↻ Actualiser les bobines</button></div>'+
  '<p class="fjord-live-note">Le tranchage automatique est actuellement monochrome. L’attribution AMS choisit la bobine physique, mais ne crée pas de trajectoires multicolores.</p>'+
@@ -580,7 +581,30 @@ if(fjordAutoButton){
  const amsSelect=panel.querySelector('#fjordAmsSelect');
  const amsStatus=panel.querySelector('#fjordAmsAssignStatus');
  const amsSwatch=panel.querySelector('#fjordAmsSwatch');
+ const amsTiles=panel.querySelector('#fjordAmsTiles');
  let amsSources=[];
+ function drawAmsTiles(){
+  amsTiles.replaceChildren();
+  const choices=[{mapping:'',slot:'Auto X2D',name:'Choix sur la X2D',color:'#8195a4'},...amsSources];
+  for(const choice of choices){
+   const button=document.createElement('button');
+   button.type='button';button.className='fjord-ams-choice';
+   const color=document.createElement('span');
+   color.className='fjord-ams-choice-color';color.style.backgroundColor=choice.color;
+   color.setAttribute('aria-hidden','true');
+   const label=document.createElement('span');label.className='fjord-ams-choice-label';
+   const name=document.createElement('strong');name.textContent=choice.slot;
+   const description=document.createElement('small');description.textContent=
+    choice.mapping===''?choice.name:choice.material+' · '+choice.name;
+   label.append(name,description);button.append(color,label);
+   button.dataset.mapping=String(choice.mapping);
+   button.addEventListener('click',()=>{
+    if(!amsEnabled.checked)return;
+    amsSelect.value=String(choice.mapping);updateAmsChoice();
+   });
+   amsTiles.append(button);
+  }
+ }
   const safetyVerified=panel.querySelector('#fjordStartVerified');
  const safetyCleared=panel.querySelector('#fjordStartCleared');
  function refreshStartButton(){
@@ -593,6 +617,10 @@ if(fjordAutoButton){
   panel.querySelector('#fjordAmsAssign').classList.toggle('is-disabled',!amsEnabled.checked);
   const source=amsSources.find(item=>String(item.mapping)===amsSelect.value);
   amsSwatch.style.backgroundColor=source?.color||'#8195a4';
+  amsTiles.querySelectorAll('button').forEach(button=>{
+   button.disabled=!amsEnabled.checked;
+   button.setAttribute('aria-pressed',String(button.dataset.mapping===amsSelect.value));
+  });
   amsStatus.textContent=!amsEnabled.checked?'Bobine externe · AMS désactivé.':
    source?'✓ '+source.slot+' · '+source.material+' · '+source.name+' ('+source.color+')':
    amsSources.length?'Mode auto : vérifie la bobine sélectionnée sur la X2D.':
@@ -615,9 +643,10 @@ if(fjordAutoButton){
     amsSelect.add(new Option(source.slot+' · '+source.material+' · '+source.name,
      String(source.mapping)));
    amsSelect.value=amsSources.some(item=>String(item.mapping)===selected)?selected:'';
-   updateAmsChoice();
+   drawAmsTiles();updateAmsChoice();
   }catch(error){
    amsSelect.replaceChildren(new Option('Auto X2D · aucune bobine imposée',''));
+   drawAmsTiles();updateAmsChoice();
    amsStatus.textContent='⚠ '+String(error.message||error).slice(0,140)+
     ' · Vérifie la bobine sur la X2D.';
   }finally{reload.disabled=false;amsSelect.disabled=!amsEnabled.checked;}
@@ -630,7 +659,7 @@ if(fjordAutoButton){
   panel.classList.remove('fjord-print-ready');
   startScreen.classList.remove('fjord-start-sent');
   amsSources=[];amsSelect.replaceChildren(new Option('Auto X2D · aucune bobine imposée',''));
-  amsEnabled.checked=true;updateAmsChoice();
+  amsEnabled.checked=true;drawAmsTiles();updateAmsChoice();
   safetyVerified.checked=false;safetyCleared.checked=false;
   livePercent.textContent='En attente du départ réel';
   liveNote.textContent='La X2D doit confirmer le démarrage.';
@@ -1412,6 +1441,14 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog .fjord-ams-assign-swatch{display:block;width:30px;height:34px;border-radius:8px;border:2px solid #d5e9f3;background:#8195a4}
 #fjordAutoPrintDialog #fjordAmsAssignStatus{font-size:12px;margin:2px 0;overflow-wrap:anywhere}
 #fjordAutoPrintDialog #fjordAmsReload{min-height:43px;background:#234d64;color:#fff;border:1px solid #6395ae}
+#fjordAutoPrintDialog .fjord-ams-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px;margin:9px 0}
+#fjordAutoPrintDialog .fjord-ams-choice{display:flex;align-items:center;gap:8px;text-align:left;min-width:0;min-height:51px!important;border-radius:9px;padding:7px;background:#193c50;color:#edf8ff;border:1px solid #517993}
+#fjordAutoPrintDialog .fjord-ams-choice[aria-pressed=true]{border-color:#8be8bf;box-shadow:inset 0 0 0 1px #8be8bf;background:#24566a}
+#fjordAutoPrintDialog .fjord-ams-choice:disabled{opacity:.45}
+#fjordAutoPrintDialog .fjord-ams-choice-color{display:block;flex:none;width:25px;height:25px;border-radius:7px;border:2px solid #d4e5ed}
+#fjordAutoPrintDialog .fjord-ams-choice-label{min-width:0;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+#fjordAutoPrintDialog .fjord-ams-choice-label strong,#fjordAutoPrintDialog .fjord-ams-choice-label small{font-size:11px;overflow-wrap:anywhere;line-height:1.25}
+#fjordAutoPrintDialog .fjord-ams-choice-label small{opacity:.8}
 #fjordAutoPrintDialog #fjordLiveDiagnosticResult{white-space:pre-line;overflow-wrap:anywhere;font-size:12px;padding:10px;border:1px solid #628ba5;border-radius:8px}
 #fjordAutoPrintDialog #fjordLiveDiagnosticResult[hidden]{display:none!important}
 
