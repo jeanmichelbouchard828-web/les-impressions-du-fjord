@@ -113,9 +113,16 @@ try:
   assert page.locator('[name="filament"]').input_value()=="3"
   assert len(slices)==0 and len(transfers)==0,"No automatic transmission at initial selection"
   page.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
+  assert page.locator('#fjordAutoSupportMode').input_value()=='tree(auto)'
+  page.locator('#fjordAutoSupportPlateOnly').check()
   page.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
   page.wait_for_function("!document.querySelector('#fjordSliceReview').hidden",timeout=30000)
   assert len(slices)==1 and len(transfers)==0,"Slice must never auto-upload"
+  assert b'name="support_mode"' in slices[0] and b'tree(auto)' in slices[0]
+  assert b'name="support_plate_only"' in slices[0]
+  assert b'\r\n1\r\n' in slices[0], "Plate-only flag must be sent"
+  assert "Arborescents automatiques" in page.locator("#fjordReviewSupports").inner_text()
+  assert "uniquement sur le plateau" in page.locator("#fjordReviewSupports").inner_text()
   assert page.locator("#fjordReviewCanvas").is_visible()
   assert page.locator("#fjordReview3DToggle").get_attribute("aria-pressed")=="true"
   assert "20,5 g" in page.locator("#fjordReviewWeight").inner_text()
