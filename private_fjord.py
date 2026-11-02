@@ -788,14 +788,21 @@ if(fjordAutoButton){
     info.push('Couche '+data.current_layer+' / '+data.total_layers);
    if(ownProgress&&Number.isFinite(data.time_left_sec))
     info.push('Temps restant : '+Math.ceil(data.time_left_sec/60)+' min');
-   if(sent&&Number.isFinite(data.elapsed_sec)&&data.elapsed_sec>=0)
-    info.push('Durée déclarée par la X2D : '+Math.round(data.elapsed_sec)+' s');
-   if(sent&&data.current_layer!==null&&Number.isFinite(data.current_layer)&&!ownProgress)
-    info.push('Couche déclarée : '+data.current_layer);
-   const temps=[];
-   if(Number.isFinite(data.hotend_target))temps.push('buse cible '+data.hotend_target+' °C');
-   if(Number.isFinite(data.bed_target))temps.push('plateau cible '+data.bed_target+' °C');
-   if(sent&&temps.length)info.push(temps.join(' · '));
+   // OctoEverywhere can report the previous completed job while waiting for
+   // the newly uploaded 3MF. Never present its duration/layers/temps as
+   // telemetry of the file whose start is being verified.
+   if(sent&&matched){
+    if(Number.isFinite(data.elapsed_sec)&&data.elapsed_sec>=0)
+     info.push('Durée de ce fichier déclarée par la X2D : '+Math.round(data.elapsed_sec)+' s');
+    if(data.current_layer!==null&&Number.isFinite(data.current_layer)&&!ownProgress)
+     info.push('Couche de ce fichier déclarée : '+data.current_layer);
+    const temps=[];
+    if(Number.isFinite(data.hotend_target))temps.push('buse cible '+data.hotend_target+' °C');
+    if(Number.isFinite(data.bed_target))temps.push('plateau cible '+data.bed_target+' °C');
+    if(temps.length)info.push(temps.join(' · '));
+   }else if(sent&&!matched&&reportedName){
+    info.push('Durée, couches et températures de l’ancienne tâche masquées : elles ne concernent pas ce 3MF.');
+   }
    if(data.printer_error)info.push('⚠ '+data.printer_error);
    const age=Number(data.start_command_age_sec);
    const outcome=String(data.start_outcome||'');
