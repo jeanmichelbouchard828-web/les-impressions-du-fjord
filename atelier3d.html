@@ -4516,7 +4516,7 @@ function closeMobileMenu(){
  mobileMenuActive=null;mobileMenuNode=null;mobileMenuPlaceholder=null;
  mobileMenuDrawer.hidden=true;mobileMenuBackdrop.hidden=true;
  document.querySelectorAll('[data-open-tools]').forEach(b=>b.setAttribute('aria-expanded','false'));
- if(mobileMenuReturnFocus?.isConnected)mobileMenuReturnFocus.focus({preventScroll:true});
+ if(mobileMenuReturnFocus?.isConnected&&document.activeElement===document.body)mobileMenuReturnFocus.focus({preventScroll:true});
  mobileMenuReturnFocus=null;
 }
 function openMobileMenu(kind,trigger){
