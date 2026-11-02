@@ -168,7 +168,7 @@ try:
   page.locator("#fjordStartCleared").evaluate("el=>el.click()")
   assert page.locator("#fjordStartNow").is_enabled()
   page.locator("#fjordStartNow").evaluate("el=>el.click()")
-  page.wait_for_function("document.querySelector('#fjordStartResult').textContent.includes('acceptée')",timeout=12000)
+  page.wait_for_function("document.querySelector('#fjordStartAtelier').classList.contains('fjord-start-sent')",timeout=12000)
   assert len(starts)==1,starts
   assert 'name="ams_mapping"' in starts[0],starts[0]
   assert page.locator("#fjordStartNow").is_disabled()
