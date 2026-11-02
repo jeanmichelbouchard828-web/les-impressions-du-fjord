@@ -595,6 +595,8 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
 .context-menu .fjord-menu-subarrow{margin-left:auto;font-size:23px;line-height:15px}
 .context-menu .fjord-primitive-list{background:#22252b;border-left:2px solid #41a9c6;margin:3px 4px 4px 13px;padding:2px 3px}
 .context-menu .fjord-primitive-list button{padding-left:14px}
+.context-menu .fjord-primitive-list{max-height:min(44vh,340px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.context-menu .fjord-context-create{border-top:1px solid #494c52;margin-top:5px;padding-top:4px}
 
 
 /* Search all 3D generators without hiding the live configuration. */
@@ -1490,6 +1492,11 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <button type="button" role="menuitem" data-context-action="deletePlate">Supprimer le plateau</button>
 <button type="button" role="menuitem" disabled title="Le déplacement entre plateaux n'est pas encore disponible">Déplacer le plateau</button>
 <div class="fjord-menu-separator" role="separator"></div>
+<button type="button" role="menuitem" disabled title="Verrouillage du plateau en développement">Verrouiller</button>
+<button type="button" role="menuitem" data-context-action="renamePlate">Renommer le plateau</button>
+<button type="button" role="menuitem" disabled title="Les étiquettes par couche seront disponibles avec le visualiseur de tranchage">Afficher les étiquettes par couche</button>
+</div>
+<div class="fjord-context-create" role="group" aria-label="Créer des formes et générateurs">
 <details class="fjord-primitive-submenu">
 <summary role="menuitem" aria-label="Ajouter une forme primitive"><span class="fjord-menu-add-icon">▢<b>+</b></span> Ajouter une forme <span class="fjord-menu-subarrow">›</span></summary>
 <div class="fjord-primitive-list" id="fjordContextShapeList" aria-label="Toutes les formes"></div></details>
@@ -1497,9 +1504,6 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <summary role="menuitem" aria-label="Choisir un générateur">⚙️ Générateurs <span class="fjord-menu-subarrow">›</span></summary>
 <div class="fjord-primitive-list" id="fjordContextGeneratorList" aria-label="Tous les générateurs"></div>
 </details>
-<button type="button" role="menuitem" disabled title="Verrouillage du plateau en développement">Verrouiller</button>
-<button type="button" role="menuitem" data-context-action="renamePlate">Renommer le plateau</button>
-<button type="button" role="menuitem" disabled title="Les étiquettes par couche seront disponibles avec le visualiseur de tranchage">Afficher les étiquettes par couche</button>
 </div>
 </div></div>
 <aside class="sidebar right" id="propertiesPanel"><div data-tool-panel="properties"><h2 data-i18n="properties">Propriétés de la pièce</h2>
@@ -2401,9 +2405,12 @@ function fjordPopulateContextCatalogs(){
    button.textContent=currentLang()==='en'?cfg.en:cfg.fr;
    button.addEventListener('click',()=>{
     hideContext();
-    const picker=$('generatorKind');
-    picker.value=cfg.id;
-    picker.dispatchEvent(new Event('change',{bubbles:true}));
+    if(generatorEditTarget)cancelGeneratorEditor();
+     const search=$('fjordGeneratorSearch');
+     if(search?.value){search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));}
+     const picker=$('generatorKind');
+     picker.value=cfg.id;
+     picker.dispatchEvent(new Event('change',{bubbles:true}));
     if(isCompactEditor())openMobileMenu('generators',document.querySelector('[data-open-tools="generators"]'));
     else {document.querySelector('[data-fjord-panel="generators"]')?.click();document.querySelector('[data-tool-panel="generators"]')?.scrollIntoView({block:'nearest'});}
    });
