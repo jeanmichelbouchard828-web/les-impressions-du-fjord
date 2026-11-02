@@ -535,11 +535,19 @@ if(fjordAutoButton){
  '<section id="fjordStartAtelier" hidden aria-label="Imprimer directement depuis l’Atelier">'+
  '<h3>🖨️ Mon 3MF est sur la X2D</h3><p id="fjordStartFile"></p>'+
  '<div class="fjord-printer-state"><strong>État de ma X2D</strong><span id="fjordLiveState">Connexion…</span>'+
- '<progress id="fjordLiveProgress" value="0" max="100" hidden></progress>'+
+ '<strong id="fjordLivePercent" class="fjord-live-percent">En attente du départ réel</strong>'+
+ '<progress id="fjordLiveProgress" value="0" max="100" hidden aria-label="Progression réelle de la X2D"></progress>'+
+ '<p id="fjordLiveNote" class="fjord-live-note">La X2D doit confirmer le démarrage.</p>'+
  '<button type="button" id="fjordRefreshPrinter">↻ Actualiser l’état</button></div>'+
- '<p>Vérifie les conditions avant de démarrer physiquement ta X2D.</p>'+
+ '<div id="fjordPrintPreflight"><h4>🎨 Attribuer une couleur AMS avant le départ</h4>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartAMS" checked> Utiliser l’AMS</label>'+
- '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartVerified"> J’ai vérifié le matériau, les bobines AMS, la plaque et le tranchage.</label>'+
+ '<div id="fjordAmsAssign" class="fjord-ams-assign"><div class="fjord-ams-assign-row">'+
+ '<span id="fjordAmsSwatch" class="fjord-ams-assign-swatch" aria-hidden="true"></span>'+
+ '<label for="fjordAmsSelect">Filament 1 du 3MF<select id="fjordAmsSelect"><option value="">Auto X2D · aucune bobine imposée</option></select></label></div>'+
+ '<p id="fjordAmsAssignStatus" role="status">Chargement des bobines AMS…</p>'+
+ '<button type="button" id="fjordAmsReload">↻ Actualiser les bobines</button></div>'+
+ '<p class="fjord-live-note">Le tranchage automatique est actuellement monochrome. L’attribution AMS choisit la bobine physique, mais ne crée pas de trajectoires multicolores.</p>'+
+  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartVerified"> J’ai vérifié le matériau, les bobines AMS, la plaque et le tranchage.</label>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartCleared"> Le plateau est libre, la X2D est prête et je peux surveiller la première couche.</label>'+
  '<button type="button" id="fjordStartNow" disabled>▶ Démarrer l’impression sur ma X2D</button>'+
  '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
@@ -564,17 +572,67 @@ if(fjordAutoButton){
  const startMessage=panel.querySelector('#fjordStartResult');
  const liveState=panel.querySelector('#fjordLiveState');
  const liveProgress=panel.querySelector('#fjordLiveProgress');
- const safetyVerified=panel.querySelector('#fjordStartVerified');
+ const livePercent=panel.querySelector('#fjordLivePercent');
+ const liveNote=panel.querySelector('#fjordLiveNote');
+ const amsEnabled=panel.querySelector('#fjordStartAMS');
+ const amsSelect=panel.querySelector('#fjordAmsSelect');
+ const amsStatus=panel.querySelector('#fjordAmsAssignStatus');
+ const amsSwatch=panel.querySelector('#fjordAmsSwatch');
+ let amsSources=[];
+  const safetyVerified=panel.querySelector('#fjordStartVerified');
  const safetyCleared=panel.querySelector('#fjordStartCleared');
  function refreshStartButton(){
   startNow.disabled=busy||!transferred||!printerCanStart||
     !safetyVerified.checked||!safetyCleared.checked;
  }
  [safetyVerified,safetyCleared].forEach(item=>item.addEventListener('change',refreshStartButton));
+ function updateAmsChoice(){
+  amsSelect.disabled=!amsEnabled.checked;
+  panel.querySelector('#fjordAmsAssign').classList.toggle('is-disabled',!amsEnabled.checked);
+  const source=amsSources.find(item=>String(item.mapping)===amsSelect.value);
+  amsSwatch.style.backgroundColor=source?.color||'#8195a4';
+  amsStatus.textContent=!amsEnabled.checked?'Bobine externe · AMS désactivé.':
+   source?'✓ '+source.slot+' · '+source.material+' · '+source.name+' ('+source.color+')':
+   amsSources.length?'Mode auto : vérifie la bobine sélectionnée sur la X2D.':
+   'Aucun emplacement compatible confirmé. Vérifie les bobines sur la X2D.';
+ }
+ async function reloadAms(){
+  const reload=panel.querySelector('#fjordAmsReload'),selected=amsSelect.value;
+  reload.disabled=true;amsSelect.disabled=true;amsSources=[];
+  amsStatus.textContent='Lecture du vrai inventaire AMS…';
+  try{
+   const response=await fetch('/api/admin/atelier/ams-assignation',{
+    credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}});
+   const data=await response.json();
+   if(!response.ok||!data.ok)throw Error(data.error||'AMS inaccessible.');
+   amsSources=(data.sources||[]).filter(item=>
+    item.material===material()&&Number.isInteger(item.mapping)&&
+    item.mapping>=0&&item.mapping<=255&&/^#[0-9a-fA-F]{6}$/.test(item.color));
+   amsSelect.replaceChildren(new Option('Auto X2D · aucune bobine imposée',''));
+   for(const source of amsSources)
+    amsSelect.add(new Option(source.slot+' · '+source.material+' · '+source.name,
+     String(source.mapping)));
+   amsSelect.value=amsSources.some(item=>String(item.mapping)===selected)?selected:'';
+   updateAmsChoice();
+  }catch(error){
+   amsSelect.replaceChildren(new Option('Auto X2D · aucune bobine imposée',''));
+   amsStatus.textContent='⚠ '+String(error.message||error).slice(0,140)+
+    ' · Vérifie la bobine sur la X2D.';
+  }finally{reload.disabled=false;amsSelect.disabled=!amsEnabled.checked;}
+ }
+ amsEnabled.addEventListener('change',updateAmsChoice);
+ amsSelect.addEventListener('change',updateAmsChoice);
+ panel.querySelector('#fjordAmsReload').addEventListener('click',reloadAms);
  function clearPrintScreen(){
   transferred=null;printerCanStart=false;startScreen.hidden=true;
   panel.classList.remove('fjord-print-ready');
+  startScreen.classList.remove('fjord-start-sent');
+  amsSources=[];amsSelect.replaceChildren(new Option('Auto X2D · aucune bobine imposée',''));
+  amsEnabled.checked=true;updateAmsChoice();
   safetyVerified.checked=false;safetyCleared.checked=false;
+  livePercent.textContent='En attente du départ réel';
+  liveNote.textContent='La X2D doit confirmer le démarrage.';
+  liveProgress.hidden=true;
   startMessage.textContent='';startNow.disabled=true;
  }
  async function refreshPrinter(){
