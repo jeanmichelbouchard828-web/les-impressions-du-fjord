@@ -182,7 +182,8 @@ try:
   assert page.locator("#fjordLiveProgress").is_hidden(), "Old job must NOT show a 100% bar"
   assert "Dernière tâche connue" in page.locator("#fjordLiveState").inner_text()
   assert "Aucun départ" in page.locator("#fjordLiveNote").inner_text()
-  assert "aucun démarrage" in page.locator("#fjordStartResult").inner_text()
+  assert "DÉMARRAGE NON CONFIRMÉ" in page.locator("#fjordStartResult").inner_text()
+  assert "terminé" not in page.locator("#fjordStartResult").inner_text().lower(), "Never show stale completed success"
   printer_status.update({"state":"printing","progress":42.5,
     "file":"fjord_auto_test.3mf","can_start":False,
     "current_layer":25,"total_layers":60,"time_left_sec":720,
