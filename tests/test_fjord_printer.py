@@ -204,6 +204,14 @@ class RemotePrintTests(unittest.TestCase):
             _verify_native_start_reply({
                 "PrinterResponse":{"result":"failed","err_code":123}
             })
+        for payload in (
+            {"print":{"err_code":84033543}},
+            {"err_code":"84033543"},
+            {"print":{"result":"success","err_code":"0x05024007"}},
+        ):
+            with self.subTest(payload=payload),self.assertRaisesRegex(PrinterError,"84033543"):
+                _verify_native_start_reply({"PrinterResponse":payload})
+        _verify_native_start_reply({"PrinterResponse":{"result":"ok","err_code":0}})
 
     def test_read_only_diagnostic_shows_last_start_without_restarting(self):
         import time
