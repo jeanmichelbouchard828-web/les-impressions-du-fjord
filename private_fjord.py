@@ -191,6 +191,19 @@ def admin_studio(html, csrf_token):
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
                             admin_shortcut +
                             '</div><div class="top-preferences">', 1)
+        # Mobile-only shortcut to the existing admin quotation workflow.
+        # Reuses the same model-save + quote logic; no duplicate submission.
+        html = html.replace('</body>', '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission PRO depuis le plateau">💰 Créer une soumission</button>
+<style>
+#fjordMobileQuote{display:none}
+@media(max-width:620px){
+ #fjordMobileQuote{display:flex;position:fixed;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:8500;align-items:center;justify-content:center;gap:6px;min-height:46px;max-width:calc(100vw - 24px);padding:10px 15px;border:1px solid #7bdcff;border-radius:999px;background:linear-gradient(120deg,#0575b4,#14a4dd);box-shadow:0 5px 22px #00182dbb;color:#fff;font-size:13px;font-weight:800;cursor:pointer}
+ #fjordMobileQuote:focus-visible{outline:3px solid #fff;outline-offset:3px}
+}
+</style>
+<script>
+(()=>{const btn=document.getElementById('fjordMobileQuote');btn?.addEventListener('click',()=>document.getElementById('quote')?.click());})();
+</script></body>''', 1)
         # Print controls belong to the Slice panel, not the crowded header.
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
