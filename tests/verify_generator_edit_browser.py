@@ -42,6 +42,39 @@ try:
       menu.querySelectorAll('#fjordContextGeneratorList').length===1;
   }"""),"Right-click shape and generator menus must be first, without duplicates"
 
+  # Real interaction: both live catalog searches filter entries instantly
+  # (case/accent insensitive), show empty states, and reset on a new right click.
+  empty_stage=page.locator("#stage canvas").first.bounding_box()
+  assert empty_stage
+  ex=empty_stage["x"]+empty_stage["width"]*.52
+  ey=empty_stage["y"]+empty_stage["height"]*.51
+  page.mouse.click(ex,ey,button="right")
+  assert page.locator("#contextMenu").is_visible()
+  page.locator("#contextMenu .fjord-primitive-submenu").nth(0).locator("summary").evaluate("el=>el.click()")
+  page.locator("#fjordContextShapeSearch").fill("CÛBE")
+  assert page.locator("#fjordContextShapeList > button:visible").count()==1
+  assert "Cube" in page.locator("#fjordContextShapeList > button:visible").first.inner_text()
+  page.locator("#fjordContextShapeSearch").fill("zzz-no-match-xyz")
+  assert page.locator("#fjordContextShapeList > button:visible").count()==0
+  assert page.locator("#fjordContextShapeEmpty").is_visible()
+  page.locator("#fjordContextShapeSearch").fill("")
+  assert page.locator("#fjordContextShapeEmpty").is_hidden()
+  page.locator("#contextMenu .fjord-primitive-submenu").nth(1).locator("summary").evaluate("el=>el.click()")
+  page.locator("#fjordContextGeneratorSearch").fill("ReSsOrT")
+  assert page.locator("#fjordContextGeneratorList > button:visible").count()>=1
+  page.locator("#fjordContextGeneratorSearch").fill("spring")
+  assert page.locator("#fjordContextGeneratorList > button:visible").count()>=1
+  page.locator("#fjordContextGeneratorSearch").fill("zzz-no-match-xyz")
+  assert page.locator("#fjordContextGeneratorList > button:visible").count()==0
+  assert page.locator("#fjordContextGeneratorEmpty").is_visible()
+  page.mouse.click(ex,ey,button="right")
+  assert page.locator("#fjordContextGeneratorSearch").input_value()==""
+  assert page.locator("#fjordContextShapeSearch").input_value()==""
+  assert page.locator("#fjordContextGeneratorEmpty").is_hidden()
+  # The search must not change the 3D geometry or trigger a generator.
+  assert page.locator("#sceneList .scene-item").count()==0
+  page.locator("#contextMenu").evaluate("el=>el.hidden=true")
+
   def save():
    with page.expect_download() as result:
     page.locator("#save").evaluate("el=>el.click()")
