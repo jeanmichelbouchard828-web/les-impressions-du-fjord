@@ -325,12 +325,17 @@ def _status():
         return (value if type(value) in (int, float) and math.isfinite(value) and
                 0 <= value <= maximum else None)
     progress = bounded_number(current.get("Progress"), 100)
+    temps = current.get("Temps") if isinstance(current.get("Temps"), dict) else {}
     return {"state":state, "progress":progress,
             "file":str(current.get("FileName") or "")[:120],
             "substate":str(job.get("SubState") or "")[:120],
             "error":str(job.get("Error") or "")[:160],
             "time_left_sec":bounded_number(current.get("TimeLeftSec"), 31_536_000),
             "elapsed_sec":bounded_number(current.get("DurationSec"), 31_536_000),
+            "hotend_actual":bounded_number(temps.get("HotendActual"), 500),
+            "hotend_target":bounded_number(temps.get("HotendTarget"), 500),
+            "bed_actual":bounded_number(temps.get("BedActual"), 200),
+            "bed_target":bounded_number(temps.get("BedTarget"), 200),
             "current_layer":bounded_number(current.get("CurrentLayer"), 1_000_000),
             "total_layers":bounded_number(current.get("TotalLayers"), 1_000_000),
             "features":features,
@@ -908,6 +913,10 @@ body.light .fj-print-hint{color:#496477!important}
         printer_state = None
         printer_error = ""
         printer_file = ""
+        printer_elapsed = None
+        printer_layer = None
+        printer_targets = {}
+        printer_substate = ""
         file_present = None
         for key, operation in (
             ("status", lambda: _api("/status", timeout=8)),
@@ -921,7 +930,19 @@ body.light .fj-print-hint{color:#496477!important}
                     if checks[key]:
                         printer_state = str(job.get("State") or "inconnu").lower()[:36]
                         printer_error = str(job.get("Error") or "")[:120]
-                        printer_file = str((job.get("CurrentPrint") or {}).get("FileName") or "")[:120]
+                        current_print = job.get("CurrentPrint") or {}
+                        printer_file = str(current_print.get("FileName") or "")[:120]
+                        printer_substate = str(job.get("SubState") or "")[:70]
+                        elapsed = current_print.get("DurationSec")
+                        printer_elapsed = elapsed if type(elapsed) in (int, float) and math.isfinite(elapsed) and 0 <= elapsed <= 31_536_000 else None
+                        layer = current_print.get("CurrentLayer")
+                        printer_layer = layer if type(layer) is int and 0 <= layer <= 1_000_000 else None
+                        targets = current_print.get("Temps") or {}
+                        if isinstance(targets, dict):
+                            for key in ("BedTarget", "HotendTarget"):
+                                value = targets.get(key)
+                                if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 500:
+                                    printer_targets[key] = round(value, 1)
                 else:
                     checks[key] = isinstance(result.get("Root"), list)
                     if checks[key] and last_path and recent_start_age is not None:
@@ -1017,6 +1038,18 @@ body.light .fj-print-hint{color:#496477!important}
                 diagnosis += " Le dernier 3MF envoyé apparaît bien dans la liste des fichiers de la X2D."
             elif file_present is False:
                 diagnosis += " Le dernier fichier envoyé n'est plus présent dans la liste de la X2D."
+            if printer_elapsed is not None:
+                diagnosis += " Durée rapportée par la X2D : " + str(round(printer_elapsed)) + " s."
+            if printer_layer is not None:
+                diagnosis += " Couche rapportée : " + str(printer_layer) + "."
+            if printer_targets:
+                diagnosis += " Températures cibles rapportées : " + ", ".join(
+                    label + " " + str(printer_targets[key]) + " °C"
+                    for key, label in (("HotendTarget", "buse"), ("BedTarget", "plateau"))
+                    if key in printer_targets
+                ) + "."
+            if printer_substate:
+                diagnosis += " Sous-état : " + printer_substate
             if printer_error:
                 diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
         prior = session.get("fjord_last_upload_diagnostic")
@@ -1065,6 +1098,10 @@ body.light .fj-print-hint{color:#496477!important}
                 "can_start": status["can_start"],
                 "time_left_sec": status.get("time_left_sec"),
                 "elapsed_sec": status.get("elapsed_sec"),
+                "hotend_actual": status.get("hotend_actual"),
+                "hotend_target": status.get("hotend_target"),
+                "bed_actual": status.get("bed_actual"),
+                "bed_target": status.get("bed_target"),
                 "current_layer": status.get("current_layer"),
                 "total_layers": status.get("total_layers"),
                 "substate": status.get("substate"),
