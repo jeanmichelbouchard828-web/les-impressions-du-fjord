@@ -523,9 +523,9 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  #fjordWorkspace .stage.fjord-slice-open.fjord-slice-tight .fjord-camera-controls{display:none!important}
 }
 /* Le cube 3D doit tenir dans son espace, même tourné. */
-.fjord-camera-controls{grid-template-columns:36px 106px!important;grid-template-rows:106px auto!important;column-gap:10px!important;row-gap:9px!important}
-.fjord-camera-controls .fjord-camera-buttons>button{width:36px!important;min-width:36px!important;height:36px!important}
-.fjord-camera-controls .fjord-orientation-widget{width:106px!important;min-width:106px!important;height:106px!important;perspective:430px!important}
+.fjord-camera-controls{grid-template-columns:32px 88px!important;grid-template-rows:88px auto!important;column-gap:7px!important;row-gap:6px!important}
+.fjord-camera-controls .fjord-camera-buttons>button{width:32px!important;min-width:32px!important;height:32px!important}
+.fjord-camera-controls .fjord-orientation-widget{width:88px!important;min-width:88px!important;height:88px!important;perspective:380px!important}
 .fjord-camera-controls .fjord-orientation-rotor{width:58px!important;height:58px!important;margin:-29px 0 0 -29px!important;scale:1!important}
 .fjord-camera-controls .fjord-orientation-face{width:58px!important;min-width:58px!important;height:58px!important;font-size:10px!important}
 .fjord-camera-controls .fjord-orientation-face.face-front{transform:translateZ(29px)!important}
@@ -2405,7 +2405,7 @@ function fjordPopulateContextCatalogs(){
     picker.value=cfg.id;
     picker.dispatchEvent(new Event('change',{bubbles:true}));
     if(isCompactEditor())openMobileMenu('generators',document.querySelector('[data-open-tools="generators"]'));
-    else document.querySelector('[data-tool-panel="generators"]')?.scrollIntoView({block:'nearest'});
+    else {document.querySelector('[data-fjord-panel="generators"]')?.click();document.querySelector('[data-tool-panel="generators"]')?.scrollIntoView({block:'nearest'});}
    });
    generators.append(button);
   }
@@ -2467,7 +2467,7 @@ function showContextMenu(e){
  if(all)all.disabled=!models.length;
  const clear=contextMenu.querySelector('[data-context-action="deleteAll"]');
  if(clear)clear.disabled=!models.length;
- contextMenu.querySelector('.fjord-primitive-submenu')?.removeAttribute('open');
+ contextMenu.querySelectorAll('.fjord-primitive-submenu').forEach(submenu=>{submenu.open=false;});
  contextMenu.hidden=false;
  const rect=stage.getBoundingClientRect();
  // Offset the pop-up from the cursor so clicking the same point dismisses it.
@@ -4429,7 +4429,7 @@ async function generatorGeometry(){
  }
  if(kind==='torsion_spring'){
   const wire=Number(p.thickness),pitch=Number(p.pitch),diameter=Number(p.diameter);
-  if(pitch<wire+.08)throw Error('Ressort à torsion : le pas axial doit dépasser le diamètre du fil d’au moins 0,08 mm. Augmente « Pas axial des spires ».');
+  if(pitch<wire+.08)throw Error('Ressort à torsion : le pas des spires (pas axial) doit dépasser le diamètre du fil d’au moins 0,08 mm. Augmente « Pas axial des spires ».');
   if(diameter<=2.2*wire)throw Error('Ressort à torsion : augmente le diamètre moyen ou réduis le diamètre du fil.');
  }
  await prepareQrGenerator();
