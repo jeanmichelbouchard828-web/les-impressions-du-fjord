@@ -860,6 +860,11 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
   padding:2px 5px!important;gap:3px!important}
  #mobileIconBar button{min-height:39px!important;height:39px!important;
   font-size:12px!important;padding:6px 8px!important}
+ /* Barre mobile compacte : tous les outils restent accessibles par défilement horizontal. */
+ #mobileIconBar{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x proximity;scrollbar-width:thin;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x!important}
+ #mobileIconBar>button{flex:0 0 auto!important;white-space:nowrap!important;scroll-snap-align:start}
+ #mobileMenuDrawer:not([hidden]){max-height:min(76dvh,720px)!important;overflow:hidden!important}
+ #mobileMenuContent{overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
  #fjordWorkspace .stage{
   height:max(350px,calc(100dvh - 132px))!important;
   min-height:350px!important;
