@@ -126,21 +126,29 @@ def admin_studio(html, csrf_token):
     html = html.replace('<button id="export" data-i18n="export">', button + '<button id="export" data-i18n="export">', 1)
     # Mobile-only quick quote: reuses the existing save-and-create flow, no duplicate submission.
     mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission PRO" title="Créer une soumission PRO">💰</button>
+<button type="button" id="fjordMobileMove" aria-label="Déplacer la pièce" title="Déplacer la pièce" aria-pressed="false">✥</button>
 <style>
-#fjordMobileQuote{display:none}
+#fjordMobileQuote,#fjordMobileMove{display:none}
 @media(max-width:760px){
- #fjordMobileQuote{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:42px;width:42px;height:42px;padding:0;border-radius:11px;border:1px solid #3d7699;background:#17354e;color:#fff;font-size:21px;box-shadow:none;cursor:pointer}
+ #mobileIconBar #fjordMobileQuote,#mobileIconBar #fjordMobileMove{display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 auto;width:43px;min-width:43px;height:43px;min-height:43px;padding:0!important;border-radius:10px;border:1px solid #3d7699;background:#17354e;color:#fff;font-size:21px;box-shadow:none;cursor:pointer}
+ #mobileIconBar #fjordMobileMove[aria-pressed="true"]{background:#087db8;color:white;border-color:#6cddff}
  #fjordMobileQuote:disabled{opacity:.55}
- /* The existing quote action remains available to JS, but is not duplicated in the mobile toolbar. */
  .fjord-admin-core #quote{display:none!important}
+ #touchMoveBtn{display:none!important}
 }
 </style>
 <script>
 document.addEventListener("DOMContentLoaded",()=>{
- const quick=document.getElementById("fjordMobileQuote");
- const toolbar=document.querySelector(".top-preferences");
- if(quick&&toolbar)toolbar.insertBefore(quick,toolbar.firstChild);
- quick?.addEventListener("click",()=>{if(!quick.disabled)document.getElementById("quote")?.click()});
+ const bar=document.getElementById("mobileIconBar");
+ const textBtn=bar?.querySelector('[data-open-tools="text"]');
+ const quote=document.getElementById("fjordMobileQuote");
+ const move=document.getElementById("fjordMobileMove");
+ if(bar&&textBtn&&quote&&move){textBtn.after(quote,move)}
+ quote?.addEventListener("click",()=>{if(!quote.disabled)document.getElementById("quote")?.click()});
+ const originalMove=document.getElementById("touchMoveBtn");
+ const syncMove=()=>move?.setAttribute("aria-pressed",originalMove?.getAttribute("aria-pressed")||"false");
+ move?.addEventListener("click",()=>{originalMove?.click();syncMove()});
+ if(originalMove){new MutationObserver(syncMove).observe(originalMove,{attributes:true,attributeFilter:["aria-pressed"]});syncMove()}
 });
 </script>'''
     html = html.replace('</body>', mobile_quote + '</body>', 1)
