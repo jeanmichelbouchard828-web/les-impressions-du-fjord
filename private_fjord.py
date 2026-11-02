@@ -587,6 +587,11 @@ if(fjordAutoButton){
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordStartCleared"> Le plateau est libre, la X2D est prête et je peux surveiller la première couche.</label>'+
  '<button type="button" id="fjordStartNow" disabled>▶ Démarrer l’impression sur ma X2D</button></div>'+
  '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
+ '<details id="fjordRemoteStartHelp" class="fjord-remote-start-help" hidden>'+
+ '<summary>⚠️ Démarrage distant non confirmé · autre façon d’imprimer</summary>'+
+ '<p>Ton 3MF est déjà enregistré sur la X2D. Sur l’écran de l’imprimante, ouvre <strong>Fichiers</strong>, sélectionne le fichier indiqué ci-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Pas besoin de renvoyer le fichier.</p>'+
+ '<p>Si le fichier imprime localement mais pas depuis l’Atelier, le micrologiciel peut refuser les commandes MQTT non autorisées. Le <strong>mode LAN uniquement + développeur</strong> peut être une solution, mais désactive Bambu Handy et les fonctions cloud. Ne change pas ce réglage sans en accepter les conséquences.</p>'+
+ '<small>Le relais peut répondre 200 même si l’imprimante refuse le départ. Aucun essai automatique ne sera effectué.</small></details>'+
  '<p class="fjord-review-note">Une commande acceptée ne prouve pas que la première couche a commencé. Vérifie la X2D.</p>'+
  '<button type="button" id="fjordStartAnother">↺ Préparer une autre impression</button></section>'+
  '<p><a href="/admin/profils-bambu">⚙️ Vérifier mes profils</a> · <a href="/admin/atelier-imprimer">Page d’impression classique</a></p>';
@@ -640,6 +645,7 @@ if(fjordAutoButton){
  const startScreen=panel.querySelector('#fjordStartAtelier');
  const startNow=panel.querySelector('#fjordStartNow');
  const startMessage=panel.querySelector('#fjordStartResult');
+ const startHelp=panel.querySelector('#fjordRemoteStartHelp');
  const liveState=panel.querySelector('#fjordLiveState');
  const liveProgress=panel.querySelector('#fjordLiveProgress');
  const livePercent=panel.querySelector('#fjordLivePercent');
@@ -733,6 +739,7 @@ if(fjordAutoButton){
   livePercent.textContent='En attente du départ réel';
   liveNote.textContent='La X2D doit confirmer le démarrage.';
   liveProgress.hidden=true;
+  startHelp.hidden=true;startHelp.open=false;
   startMessage.textContent='';startNow.disabled=true;
  }
  async function refreshPrinter(){
@@ -791,6 +798,19 @@ if(fjordAutoButton){
    if(sent&&temps.length)info.push(temps.join(' · '));
    if(data.printer_error)info.push('⚠ '+data.printer_error);
    const age=Number(data.start_command_age_sec);
+   const outcome=String(data.start_outcome||'');
+   const remoteFailed=['instant_finish','not_started','printer_error','unverified_finish'].includes(outcome);
+   if(sent&&remoteFailed){
+    startHelp.hidden=false;
+    if(outcome==='instant_finish'){
+     startMessage.textContent='⚠ La X2D a signalé ce 3MF terminé sans chauffe, durée ni couche : '+
+       'le démarrage distant a probablement été refusé. Le fichier reste utilisable directement sur la machine.';
+     startHelp.open=true;
+    }else if(outcome==='not_started'){
+     startMessage.textContent='⚠ Aucun démarrage réel confirmé. '+
+       'Le relais a reçu la commande, mais la X2D n’a pas démarré le nouveau fichier.';
+    }
+   }
    if(sent&&!matched){
     if(reportedName)info.unshift('⚠ La X2D rapporte « '+reportedName+
       ' » : ce n’est pas le fichier récemment envoyé.');
@@ -798,8 +818,9 @@ if(fjordAutoButton){
     if(Number.isFinite(age)&&age>=20){
      info.push('Aucun départ de ce 3MF confirmé après '+Math.round(age)+' s. '+
       'Ne renvoie pas la commande automatiquement. Consulte le diagnostic et l’écran de la X2D.');
-     startMessage.textContent='⚠ DÉMARRAGE NON CONFIRMÉ : la X2D indique une autre tâche. '+
-      'Le succès HTTP concerne seulement la commande, pas une impression.';
+     if(outcome!=='not_started')
+      startMessage.textContent='⚠ DÉMARRAGE NON CONFIRMÉ : la X2D indique une autre tâche. '+
+       'Le succès HTTP concerne seulement la commande, pas une impression.';
     }else{
      startMessage.textContent='⏳ Commande envoyée au relais. Aucune activité du nouveau 3MF confirmée.';
      info.push('Commande envoyée : vérification du départ réel en cours.');
@@ -811,8 +832,9 @@ if(fjordAutoButton){
     }else if(data.state==='complete'&&confirmedActiveJob){
      startMessage.textContent='✓ La X2D rapporte terminé un travail dont le démarrage a été observé.';
     }else if(data.state==='complete'){
-     startMessage.textContent='⚠ ARRÊT NON VÉRIFIÉ : la X2D signale ce 3MF « terminé » '+
-      'sans phase de chauffe ou d’impression observée. Consulte les températures, la durée et l’écran.';
+     if(outcome!=='instant_finish')
+      startMessage.textContent='⚠ ARRÊT NON VÉRIFIÉ : la X2D signale ce 3MF « terminé » '+
+       'sans phase de chauffe ou d’impression observée. Consulte les températures, la durée et l’écran.';
      info.push('⚠ Aucun état de chauffe ou d’impression observé pour ce fichier.');
     }else if(Number.isFinite(age)&&age>=20){
      startMessage.textContent='⚠ Le fichier est reconnu, mais aucun état actif ne confirme son départ.';
@@ -866,6 +888,7 @@ if(fjordAutoButton){
   if(busy||!transferred||!printerCanStart||!safetyVerified.checked||!safetyCleared.checked)return;
   if(!confirm('DÉMARRER réellement ce 3MF sur ma X2D ? Vérifie le plateau, la bonne bobine et la première couche.'))return;
   const chosen=transferred;busy=true;refreshStartButton();
+  startHelp.hidden=true;startHelp.open=false;
   startMessage.textContent='Commande de démarrage envoyée à la X2D…';
   try{
    const body=new FormData();
@@ -890,8 +913,9 @@ if(fjordAutoButton){
   }catch(error){
    // The one-use server nonce is consumed regardless of the result.
    transferred=null;printerCanStart=false;stopPrinterPolling();
+   startHelp.hidden=false;
    startMessage.textContent='⚠ '+String(error.message||error)+
-     ' · Vérifie l’imprimante avant de retenter; un nouvel envoi sera nécessaire.';
+     ' · Vérifie l’imprimante avant de retenter; le fichier envoyé reste disponible sur la X2D.';
   }finally{busy=false;refreshStartButton();}
  });
  panel.addEventListener('close',stopPrinterPolling);
@@ -1594,6 +1618,12 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog .fjord-transfer-done{border-color:#49bc94;background:#143e36}
 #fjordAutoPrintDialog .fjord-transfer-error{border-color:#d1a66b;background:#443626}
 #fjordLiveProgress{width:100%;height:12px;accent-color:#55cfaa}
+#fjordAutoPrintDialog #fjordRemoteStartHelp[hidden]{display:none!important}
+#fjordAutoPrintDialog .fjord-remote-start-help{margin:8px 0 12px;padding:11px 12px;border:1px solid #d4ab65;
+ border-radius:10px;background:#343121;color:#f5e9ca;font-size:12px;line-height:1.55}
+#fjordAutoPrintDialog .fjord-remote-start-help summary{cursor:pointer;font-size:13px;font-weight:750}
+#fjordAutoPrintDialog .fjord-remote-start-help p{margin:9px 0 4px}
+#fjordAutoPrintDialog .fjord-remote-start-help small{color:#e3d8b5;font-size:11px}
 #fjordStartAtelier .fjord-live-percent{font-size:20px;font-weight:800;color:#b4f8db}
 #fjordStartAtelier .fjord-live-note{font-size:12px;color:#c7dce7;line-height:1.55;margin:2px 0 10px}
 #fjordPrintPreflight{display:grid;gap:9px}
