@@ -890,7 +890,7 @@ def fjord_customer_support():
  return page("Assistance clientèle", """<section class="card" style="max-width:850px;margin:24px auto;padding:24px">
  <h1>Service à la clientèle</h1><p>Les Impressions du Fjord — impression 3D sur mesure à Saguenay, Québec.</p>
  <p>Pour toute question concernant une soumission, une commande, un paiement, une livraison ou une demande de remboursement, communiquez avec nous :</p>
- <p><a href="/contact">Formulaire de contact</a> · <a href="tel:+15819980831">581 998-0831</a></p>
+ <p><a href="mailto:lesimpressionsdufjord@gmail.com">lesimpressionsdufjord@gmail.com</a> · <a href="/contact">Formulaire de contact</a> · <a href="tel:+15819980831">581 998-0831</a></p>
  <p>Veuillez indiquer votre numéro de soumission ou de commande si vous en avez un. Ne transmettez jamais votre numéro complet de carte bancaire dans un message.</p>
  </section>""")
 
@@ -902,7 +902,7 @@ def fjord_privacy_policy():
  <h2>Utilisation</h2><p>Ces renseignements servent à répondre aux demandes, évaluer et fabriquer les créations, établir les soumissions, traiter les commandes, fournir l'assistance et tenir les dossiers nécessaires aux activités de l'entreprise.</p>
  <h2>Partage et paiement</h2><p>Les informations nécessaires au paiement peuvent être transmises au prestataire de paiement, notamment Stripe. Les renseignements peuvent également être communiqués à nos fournisseurs techniques d'hébergement et de messagerie dans la mesure nécessaire au fonctionnement du service, ou lorsque la loi l'exige. Les données de carte sont saisies sur les interfaces sécurisées du prestataire de paiement plutôt que dans notre formulaire de soumission.</p>
  <h2>Protection et conservation</h2><p>Nous limitons l'accès aux informations de gestion aux personnes autorisées et utilisons des connexions HTTPS pour le site. Nous conservons les renseignements pendant la durée nécessaire à la gestion des demandes et commandes et aux obligations légales applicables. Aucun système informatique ne garantit une sécurité absolue.</p>
- <h2>Vos demandes</h2><p>Pour demander l'accès à vos renseignements, leur correction ou leur suppression lorsque permise par la loi, utilisez notre <a href="/contact">formulaire de contact</a> ou appelez au <a href="tel:+15819980831">581 998-0831</a>.</p>
+ <h2>Vos demandes</h2><p>Pour demander l'accès à vos renseignements, leur correction ou leur suppression lorsque permise par la loi, écrivez à <a href="mailto:lesimpressionsdufjord@gmail.com">lesimpressionsdufjord@gmail.com</a>, utilisez notre <a href="/contact">formulaire de contact</a> ou appelez au <a href="tel:+15819980831">581 998-0831</a>.</p>
  <p>Cette politique concerne le site et les services de Les Impressions du Fjord. Pour les paiements, consultez également les politiques de confidentialité du prestataire de paiement.</p>
  </section>""")
 
@@ -914,7 +914,7 @@ def fjord_terms():
  <h2>Fichiers et créations</h2><p>En transmettant un modèle ou une image, vous confirmez avoir le droit de nous demander de le reproduire ou de le modifier. Nous pouvons refuser les projets incompatibles avec nos capacités ou nos obligations légales.</p>
  <h2>Fabrication et variations</h2><p>L'impression 3D peut présenter de légères variations d'aspect, de texture et de dimensions selon le matériau et le procédé. Les usages critiques pour la sécurité doivent être expressément discutés et validés avant commande.</p>
  <h2>Paiement, annulation et remboursement</h2><p>Les modalités de paiement sont communiquées lors de la commande. Pour annuler ou demander un remboursement, contactez-nous rapidement. Chaque demande est examinée selon l'avancement de la fabrication, la nature personnalisée du produit et les droits prévus par les lois applicables du Québec. Aucune disposition ne limite vos droits légaux.</p>
- <h2>Livraison et assistance</h2><p>Les modalités de remise, d'expédition et les frais applicables sont confirmés avec le client. Pour une question ou une réclamation, consultez notre <a href="/assistance">page d'assistance</a>.</p>
+ <h2>Livraison et assistance</h2><p>Les modalités de remise, d'expédition et les frais applicables sont confirmés avec le client. Pour une question ou une réclamation, écrivez à <a href="mailto:lesimpressionsdufjord@gmail.com">lesimpressionsdufjord@gmail.com</a> ou consultez notre <a href="/assistance">page d'assistance</a>.</p>
  </section>""")
 
 @app.get("/health")
