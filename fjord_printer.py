@@ -422,18 +422,28 @@ def _verify_native_start_reply(reply):
         return
     message = native.get("print") if isinstance(native.get("print"), dict) else native
     result = str(message.get("result") or "").strip().lower()
-    if result not in ("fail", "failed", "error", "rejected"):
-        return
     code = message.get("err_code")
-    if type(code) is int and code == 84033543:
+    # Firmware may return the verification code without a 'result: failed'
+    # string, or serialize it as a number-as-text. Do not accept that as OK.
+    code_text = str(code).strip() if code is not None else ""
+    try:
+        code_number = int(code_text, 0) if code_text.startswith(("0x", "0X")) else int(code_text)
+    except (ValueError, TypeError):
+        code_number = 0
+    if code_number in (84033543, 84033545, 84033546):
         raise PrinterError(
-            "La X2D a refusé la commande MQTT (84033543 : vérification requise). "
-            "Vérifie l'écran et lance ce fichier avec Bambu Studio. Aucun départ confirmé."
+            "La X2D a refusé une commande MQTT nécessitant une vérification "
+            "(code {}). Le relais a bien répondu, mais aucun départ n'est confirmé. "
+            "Lance le 3MF déjà transféré sur l'écran de la X2D; "
+            "ne renvoie pas la commande en boucle.".format(code_number)
         )
-    raise PrinterError(
-        "La réponse native de la X2D indique que le démarrage a été refusé. "
-        "Vérifie les messages sur l'écran de l'imprimante."
-    )
+    if result not in ("fail", "failed", "error", "rejected") and not code_number:
+        return
+    if code_number or result in ("fail", "failed", "error", "rejected"):
+        raise PrinterError(
+            "La réponse native de la X2D indique que le démarrage a été refusé. "
+            "Vérifie les messages sur l'écran de l'imprimante."
+        )
 
 
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
