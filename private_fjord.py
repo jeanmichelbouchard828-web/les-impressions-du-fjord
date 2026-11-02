@@ -2069,22 +2069,6 @@ body.light .fj-quote-total strong{color:#07608e}
 <option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
 </select></div>
 {% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé {% if q.stripe_session_id %}automatiquement par Stripe{% else %}manuellement{% endif %} le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
-<details class="fj-card-section fj-square-section"><summary>🔗 Optionnel : lien de paiement externe (Stripe / Square)</summary><div class="fj-square-settings">
-<strong>🔗 Lien de paiement externe (optionnel)</strong>
-<p class="fj-help">Stripe Checkout est déjà intégré automatiquement au site. Cette section sert uniquement si tu veux utiliser un lien de paiement externe Stripe ou Square.</p>
-<p class="fj-help">Montant à créer : <strong>{{money(quote_totals[q.id])}} CAD</strong>, livraison, rabais et taxes inclus. Crée un lien de paiement à montant fixe dans Stripe ou Square, sans rajouter de taxes, de frais ou de pourboire.</p>
-<form method="post" action="/admin/soumissions-pro/{{q.id}}/square">{{csrf|safe}}
-<label for="fjordSquare{{q.id}}">Lien de paiement Stripe ou Square pour cette soumission</label>
-<input id="fjordSquare{{q.id}}" type="url" name="square_link_url" maxlength="1200"
- placeholder="https://buy.stripe.com/… ou https://square.link/u/…" value="{{q.square_link_url or ''}}">
-<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400"><input type="checkbox" name="square_amount_checked" value="yes" style="width:auto;margin:5px 0 0"><span>J'ai vérifié dans le service de paiement que le montant à payer est exactement <strong>{{money(quote_totals[q.id])}} CAD</strong>, sans taxes ou pourboires ajoutés.</span></label>
-<div class="fj-square-row"><button type="submit">💾 Enregistrer le lien de paiement</button><a href="https://dashboard.stripe.com/payment_links" target="_blank" rel="noopener noreferrer">↗ Créer sur Stripe</a><a href="https://squareup.com/dashboard" target="_blank" rel="noopener noreferrer">↗ Créer sur Square</a></div>
-</form>
-{% if q.square_link_url %}
-<p class="fj-square-status">{% if square_active[q.id] %}✓ Lien de paiement actif : le PDF et son QR ouvriront directement la page de paiement sécurisée.{% else %}⚠ Le lien actuel n'est plus valable pour ce montant. Crée un nouveau lien puis enregistre-le avant d'envoyer le PDF.{% endif %}</p>
-{% endif %}
-</div>
-</details>
 <details class="fj-card-section fj-advanced"><summary>⚙️ Plus d’options <small>Caméra, couleurs, référence, Interac, suppression</small></summary><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div>
 <section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
 <h4>📹 Caméra en direct pour le client</h4>
