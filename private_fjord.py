@@ -665,7 +665,7 @@ if(fjordAutoButton){
    if(data.printer_error)info.push('⚠ '+data.printer_error);
    if(startScreen.classList.contains('fjord-start-sent')&&
     ['idle','cancelled','error'].includes(data.state)&&Number(data.start_command_age_sec)>=20)
-    info.unshift('⚠ Commande acceptée, mais aucun départ confirmé. Vérifie l’écran de la X2D, le stockage USB et les erreurs. Ne relance pas automatiquement.');
+    info.unshift('⚠ Commande acceptée, mais aucun départ confirmé. Vérifie l’écran de la X2D, la clé USB et les erreurs. Si le code 84033543 apparaît (MQTT verification failed), le micrologiciel peut refuser une commande non signée. Ne relance pas automatiquement.');
    else if(!active)info.unshift('Aucune impression en cours confirmée.');
    else if(startScreen.classList.contains('fjord-start-sent')&&
       data.job_matches_start===false&&data.file)
