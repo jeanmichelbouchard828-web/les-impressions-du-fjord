@@ -185,17 +185,21 @@ try:
   assert len(starts)==1,starts
   assert 'name="ams_mapping"' in starts[0],starts[0]
   assert page.locator("#fjordStartNow").is_disabled()
+  assert page.locator("#fjordRemoteStartHelp").is_hidden()
   # A successful relay request must NEVER recycle a previous 100% completed job.
   printer_status.update({"state":"complete","progress":100,
     "file":"Creation-du-Fjord (2)","can_start":True,
     "current_layer":23,"total_layers":23,"time_left_sec":0,
-    "job_matches_start":False,"start_command_age_sec":30})
+    "job_matches_start":False,"start_command_age_sec":30,
+    "start_outcome":"not_started","start_ack":"relay_only"})
   page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordLivePercent').textContent.includes('non confirmée')")
   assert page.locator("#fjordLiveProgress").is_hidden(), "Old job must NOT show a 100% bar"
   assert "Dernière tâche connue" in page.locator("#fjordLiveState").inner_text()
   assert "Aucun départ" in page.locator("#fjordLiveNote").inner_text()
-  assert "DÉMARRAGE NON CONFIRMÉ" in page.locator("#fjordStartResult").inner_text()
+  assert "Aucun démarrage réel confirmé" in page.locator("#fjordStartResult").inner_text()
+  assert page.locator("#fjordRemoteStartHelp").is_visible()
+  assert "sur l’écran de l’imprimante" in page.locator("#fjordRemoteStartHelp").inner_text()
   assert "terminé" not in page.locator("#fjordStartResult").inner_text().lower(), "Never show stale completed success"
   # Regression: remote start can report the NEW 3MF as complete without
   # ever entering a physical heating/printing state.
@@ -203,21 +207,26 @@ try:
     "file":"fjord_auto_test.3mf","can_start":True,
     "elapsed_sec":0,"current_layer":0,"total_layers":60,
     "hotend_target":0,"bed_target":0,
-    "job_matches_start":True,"start_command_age_sec":45})
+    "job_matches_start":True,"start_command_age_sec":45,
+    "start_outcome":"instant_finish","start_ack":"relay_only"})
   page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordLiveState').textContent.includes('Fin signalée')")
   assert page.locator("#fjordLiveProgress").is_hidden()
   assert "0 s" in page.locator("#fjordLiveNote").inner_text()
-  assert "ARRÊT NON VÉRIFIÉ" in page.locator("#fjordStartResult").inner_text()
+  assert "probablement été refusé" in page.locator("#fjordStartResult").inner_text()
+  assert page.locator("#fjordRemoteStartHelp").is_visible()
+  assert page.locator("#fjordRemoteStartHelp").get_attribute("open") is not None
   assert "buse cible 0" in page.locator("#fjordLiveNote").inner_text()
   printer_status.update({"state":"printing","progress":42.5,
     "file":"fjord_auto_test.3mf","can_start":False,
     "current_layer":25,"total_layers":60,"time_left_sec":720,
-    "job_matches_start":True,"start_command_age_sec":50})
+    "job_matches_start":True,"start_command_age_sec":50,
+    "start_outcome":"active","start_ack":"relay_only"})
   page.locator("#fjordRefreshPrinter").evaluate("el=>el.click()")
   page.wait_for_function("document.querySelector('#fjordLivePercent').textContent.includes('42,5')")
   assert not page.locator("#fjordLiveProgress").is_hidden()
   assert "Couche 25 / 60" in page.locator("#fjordLiveNote").inner_text()
+  assert page.locator("#fjordRemoteStartHelp").is_hidden()
   assert "12 min" in page.locator("#fjordLiveNote").inner_text()
 
   assert page.locator("#fjordStartAtelier").is_visible()
