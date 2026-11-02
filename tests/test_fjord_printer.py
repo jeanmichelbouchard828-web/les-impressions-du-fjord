@@ -430,6 +430,59 @@ class RemotePrintTests(unittest.TestCase):
             self.assertEqual(upload.call_count,1)
             self.assertFalse(any(c.args[0]=="/start" for c in call.call_args_list))
 
+    def test_print_status_shared_between_mobile_and_desktop_sessions(self):
+        """Both authenticated devices observe the same last start, but cannot replay it."""
+        class SharedDb:
+            def __init__(self):
+                self.row = None
+            def __call__(self):
+                return self
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def execute(self, sql, params=None):
+                if "INSERT INTO fjord_printer_recent_start" in sql:
+                    self.row = {"file_path": params[0], "start_ack": params[1],
+                                "sent_at": params[2]}
+                return self
+            def fetchone(self):
+                return self.row
+        database = SharedDb()
+        app = Flask("shared_print_status")
+        app.secret_key = "test-only"
+        app.config["TESTING"] = True
+        register_printer_admin(app, lambda f: f, lambda: None, lambda: "",
+                               lambda name, html, **kw: render_template_string(html, **kw),
+                               db=database)
+        phone = app.test_client()
+        desktop = app.test_client()
+        with phone.session_transaction() as sess:
+            sess["fjord_atelier_start"] = {
+                "path": "gcode/fjord_auto_shared_test.3mf", "nonce": "fresh-nonce",
+                "time": __import__("time").time(), "material": "PETG"
+            }
+        with patch("fjord_printer._api", side_effect=fake_api) as requests:
+            started = phone.post("/admin/atelier-imprimer/demarrer-atelier", data={
+                "nonce": "fresh-nonce", "verified": "yes", "cleared": "yes",
+                "ams": "no"
+            })
+            self.assertEqual(started.status_code, 200)
+            status = desktop.get("/api/admin/atelier/impression-etat")
+            self.assertEqual(status.status_code, 200)
+            self.assertEqual(status.json["shared_job"]["file"],
+                             "gcode/fjord_auto_shared_test.3mf")
+            self.assertEqual(status.json["shared_job"]["start_ack"], "relay_only")
+            self.assertEqual(status.json["start_outcome"], "pending")
+            self.assertFalse(status.json["job_matches_start"])
+            self.assertNotIn("nonce", status.json)
+            self.assertEqual(len([c for c in requests.call_args_list
+                                  if c.args[0] == "/start"]), 1)
+            # Reading from another browser never creates another command.
+            desktop.get("/api/admin/atelier/impression-etat")
+            self.assertEqual(len([c for c in requests.call_args_list
+                                  if c.args[0] == "/start"]), 1)
+
     def test_ams_assignment_uses_live_native_mapping_without_guessing_slot_number(self):
         import time
         from fjord_printer import _available_ams_sources
