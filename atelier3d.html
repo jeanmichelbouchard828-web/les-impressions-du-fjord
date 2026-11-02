@@ -870,6 +870,11 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  body>header #fjordAdminAccess::after{content:"⚙️";font-size:21px!important;line-height:1!important}
  body>header:has(#fjordAdminAccess) .top-preferences{flex-wrap:nowrap!important}
  body>header:has(#fjordAdminAccess) .top-preferences select{flex:0 1 94px!important;max-width:94px!important}
+ /* Bouton tactile discret: garder la fonction, supprimer le gros encart vide. */
+ #fjordWorkspace .stage .touch-move{right:8px!important;bottom:8px!important;min-width:44px!important;width:44px!important;max-width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;font-size:0!important;overflow:hidden!important;border-radius:12px!important}
+ #fjordWorkspace .stage .touch-move::after{content:"☝️";font-size:22px!important;line-height:1!important}
+ #fjordWorkspace .stage .touch-move[aria-pressed="true"]{box-shadow:0 0 0 2px #6cddff!important}
+
  /* Mobile dense: remove unnecessary header and toolbar spacing. */
  body>header{padding:2px 5px!important;gap:3px!important}
  body>header #projectMenuButton{min-height:34px!important;padding:4px 7px!important}
