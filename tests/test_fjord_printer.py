@@ -257,7 +257,8 @@ class RemotePrintTests(unittest.TestCase):
         self.assertIn("Durée rapportée par la X2D : 0 s",diagnostic.json["diagnosis"])
         self.assertIn("Couche rapportée : 0",diagnostic.json["diagnosis"])
         self.assertIn("buse 0",diagnostic.json["diagnosis"])
-        self.assertIn("sans preuve d'une impression physique",diagnostic.json["diagnosis"] if diagnostic.json["start_ack"]=="native_ok" else "sans preuve d'une impression physique" )
+        self.assertEqual(diagnostic.json["start_ack"],"relay_only")
+        self.assertIn("aucune confirmation native",diagnostic.json["diagnosis"])
         self.assertEqual([call.args[0] for call in calls.call_args_list],
                          ["/status", "/status", "/files/list"])
 
