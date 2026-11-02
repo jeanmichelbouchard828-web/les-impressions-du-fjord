@@ -341,6 +341,43 @@ def _status():
             "features":features,
             "can_start":bool(features & FEATURE_START) and state in ("idle", "complete", "cancelled")}
 
+def _atelier_remote_start_outcome(status, previous, age):
+    """Read-only assessment; never infer a successful physical print from an API 200.
+
+    A Bambu firmware may report a freshly named job as 'complete' without ever
+    heating, moving or extruding. This is a possible rejected command, not success.
+    """
+    if not isinstance(previous, dict) or not isinstance(age, (int, float)) or age < 0:
+        return "none"
+    path = previous.get("path")
+    if not _safe_virtual_path(path):
+        return "none"
+    expected = path.rsplit("/", 1)[-1].lower()
+    reported = str(status.get("file") or "").lower()
+    matches = bool(reported and (expected in reported or expected[:-4] in reported))
+    state = str(status.get("state") or "").lower()
+    if matches and state in ("printing", "warmingup", "resuming", "paused"):
+        return "active"
+    if age < 20:
+        return "pending"
+    if matches and state == "complete":
+        elapsed = status.get("elapsed_sec")
+        layer = status.get("current_layer")
+        hotend = status.get("hotend_target")
+        bed = status.get("bed_target")
+        no_duration = elapsed is None or elapsed < 2
+        no_layers = layer is None or layer == 0
+        no_heat = all(value is None or value <= 0 for value in (hotend, bed))
+        if no_duration and no_layers and no_heat:
+            return "instant_finish"
+        return "unverified_finish"
+    if state == "error":
+        return "printer_error"
+    if not matches and age >= 30:
+        return "not_started"
+    return "pending"
+
+
 def _available_ams_sources():
     """Read-only, native AMS mapping numbers; do not infer tray indexes."""
     status = _api("/status?IncludeMaterialSystem=true", timeout=10)
@@ -1038,6 +1075,20 @@ body.light .fj-print-hint{color:#496477!important}
                 diagnosis += " Le dernier 3MF envoyé apparaît bien dans la liste des fichiers de la X2D."
             elif file_present is False:
                 diagnosis += " Le dernier fichier envoyé n'est plus présent dans la liste de la X2D."
+            # A named job that goes immediately to 'complete' without time,
+            # layer or heat is a failed/unverified remote launch, not a success.
+            if job_matches_start and printer_state == "complete":
+                if ((printer_elapsed is None or printer_elapsed < 2)
+                    and (printer_layer is None or printer_layer == 0)
+                    and not any(value > 0 for value in printer_targets.values())):
+                    diagnosis += (
+                        " ALERTE : ce 3MF est signalé « terminé » sans durée, "
+                        "couche ni chauffe détectable. Le démarrage distant "
+                        "est probablement rejeté ou abandonné immédiatement. "
+                        "Le fichier peut être lancé localement sur la X2D. "
+                        "Les firmwares Bambu récents peuvent exiger une autorisation "
+                        "MQTT signée pour les commandes distantes."
+                    )
             if printer_elapsed is not None:
                 diagnosis += " Durée rapportée par la X2D : " + str(round(printer_elapsed)) + " s."
             if printer_layer is not None:
@@ -1119,6 +1170,10 @@ body.light .fj-print-hint{color:#496477!important}
                         expected_name and result_file and
                         (expected_name in result_file or
                          expected_name.rsplit(".", 1)[0] in result_file))
+                    payload["start_ack"] = (previous.get("start_ack")
+                                             if previous.get("start_ack") in ("native_ok", "relay_only")
+                                             else None)
+                    payload["start_outcome"] = _atelier_remote_start_outcome(status, previous, age)
                     response = jsonify(payload)
         except PrinterError as exc:
             response = jsonify(ok=False, error=str(exc))
