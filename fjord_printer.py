@@ -49,7 +49,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 def _api(path, *, method="GET", payload=None, timeout=9):
-    if path not in ("/status", "/files/list", "/files/upload", "/start"):
+    if path not in ("/status", "/status?IncludeMaterialSystem=true", "/files/list", "/files/upload", "/start"):
         raise PrinterError("Commande d'imprimante non autorisée.")
     base = _connection()
     headers = {"Accept": "application/json", "User-Agent": "Fjord-Atelier-Admin/1"}
@@ -313,6 +313,39 @@ def _status():
             "file":str(current.get("FileName") or "")[:120],
             "features":features,
             "can_start":bool(features & FEATURE_START) and state in ("idle", "complete", "cancelled")}
+
+def _available_ams_sources():
+    """Read-only, native AMS mapping numbers; do not infer tray indexes."""
+    status = _api("/status?IncludeMaterialSystem=true", timeout=10)
+    material_system = ((status.get("JobStatus") or {}).get("MaterialSystem") or {})
+    if not isinstance(material_system, dict):
+        return []
+    units = {str(u.get("Id")): str(u.get("Name") or "")[:60]
+             for u in (material_system.get("Units") or [])[:8] if isinstance(u, dict)}
+    sources = []
+    seen = set()
+    for item in (material_system.get("Sources") or [])[:64]:
+        if not isinstance(item, dict) or item.get("IsEmpty") is True:
+            continue
+        value = item.get("PrintMappingValue")
+        if type(value) is not int or not 0 <= value <= 255 or value in seen:
+            continue
+        spool = item.get("Material") or {}
+        if not isinstance(spool, dict):
+            continue
+        color = str(spool.get("ColorHex") or "").strip().lstrip("#")
+        material = str(spool.get("Type") or "").upper().strip()[:32]
+        if not re.fullmatch(r"[0-9A-Fa-f]{6}", color) or not material:
+            continue
+        name = str(item.get("Name") or "Emplacement")[:65]
+        unit = units.get(str(item.get("UnitId")))
+        if unit and not name.lower().startswith(unit.lower()):
+            name = unit + " · " + name
+        sources.append({"mapping": value, "slot": name, "color": "#" + color.upper(),
+                        "material": material, "name": str(spool.get("Name") or material)[:65]})
+        seen.add(value)
+    return sources
+
 
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
     # Parsed user presets are intentionally not assumed to be machine-ready.
@@ -769,7 +802,8 @@ body.light .fj-print-hint{color:#496477!important}
             # Token is session-bound, short-lived and consumed by start.
             start_nonce = secrets.token_urlsafe(32)
             session["fjord_atelier_start"] = {
-                "path": virtual_path, "nonce": start_nonce, "time": time.time()
+                "path": virtual_path, "nonce": start_nonce, "time": time.time(),
+                "material": str(request.form.get("material", "")).strip().upper()[:32]
             }
             message = "3MF tranché envoyé. Vérifie les matériaux et le plateau avant le démarrage."
             next_page = url_for("fjord_printer_page", selected=virtual_path)
@@ -851,6 +885,20 @@ body.light .fj-print-hint{color:#496477!important}
         response.headers["Cache-Control"] = "private, no-store"
         return response
 
+    @app.get("/api/admin/atelier/ams-assignation")
+    @admin_required
+    def fjord_printer_ams_assignment():
+        """Admin-only live AMS choices, without printer IDs or network credentials."""
+        try:
+            sources = _available_ams_sources()
+            result = jsonify(ok=True, sources=sources,
+                            note="Emplacements déclarés par la X2D. Les valeurs sont relues avant démarrage.")
+        except PrinterError as exc:
+            result = jsonify(ok=False, sources=[], error=str(exc))
+            result.status_code = 503
+        result.headers["Cache-Control"] = "private, no-store"
+        return result
+
     @app.get("/api/admin/atelier/impression-etat")
     @admin_required
     def fjord_printer_atelier_status():
@@ -893,9 +941,25 @@ body.light .fj-print-hint{color:#496477!important}
             listed = _printer_files(_api("/files/list"))
             if not any(item["path"] == path for item in listed):
                 raise PrinterError("Le fichier préparé n’est pas présent sur la X2D.")
-            response = _api("/start", method="POST", payload={
-                "Path": path, "Plate": 1, "UseAms": request.form.get("ams") == "yes"
-            }, timeout=15)
+            use_ams = request.form.get("ams") == "yes"
+            command = {"Path": path, "Plate": 1, "UseAms": use_ams}
+            mapping_text = request.form.get("ams_mapping", "").strip()
+            if mapping_text:
+                if not use_ams or not re.fullmatch(r"\\d{1,3}", mapping_text):
+                    raise PrinterError("Assignation AMS invalide : aucune commande envoyée.")
+                chosen_slot = int(mapping_text)
+                if chosen_slot not in range(256):
+                    raise PrinterError("Emplacement AMS invalide.")
+                candidates = _available_ams_sources()
+                selected = next((source for source in candidates
+                                 if source["mapping"] == chosen_slot), None)
+                if selected is None:
+                    raise PrinterError("La bobine AMS n'est plus disponible : actualise les emplacements.")
+                requested_material = str(pending.get("material") or "").strip().upper()
+                if requested_material and selected["material"] != requested_material:
+                    raise PrinterError("Le matériau de la bobine AMS ne correspond plus au fichier tranché.")
+                command["AmsMapping"] = [chosen_slot]
+            response = _api("/start", method="POST", payload=command, timeout=15)
             if response.get("VirtualPath") not in (None, path):
                 raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
             result = jsonify(
