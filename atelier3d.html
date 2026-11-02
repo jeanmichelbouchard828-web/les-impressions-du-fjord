@@ -3970,6 +3970,8 @@ function fjordHomeView(){
  camera.up.set(0,0,1);
  // Vue d'accueil en perspective inclinée : plateau entier, comme FAST 3D.
  camera.position.set(0,-360,335);
+ // Sur telephone, rapprocher legerement le plateau pour reduire le vide sous la scene.
+ if(window.matchMedia("(max-width:760px) and (orientation:portrait)").matches)camera.position.multiplyScalar(.87);
  camera.lookAt(orbit.target);
  orbit.update();
 }
