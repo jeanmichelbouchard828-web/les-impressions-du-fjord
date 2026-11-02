@@ -921,12 +921,12 @@ body.light .fj-print-hint{color:#496477!important}
                 "progress": status["progress"],
                 "file": status["file"],
                 "can_start": status["can_start"],
-                "time_left_sec": status["time_left_sec"],
-                "elapsed_sec": status["elapsed_sec"],
-                "current_layer": status["current_layer"],
-                "total_layers": status["total_layers"],
-                "substate": status["substate"],
-                "printer_error": status["error"]
+                "time_left_sec": status.get("time_left_sec"),
+                "elapsed_sec": status.get("elapsed_sec"),
+                "current_layer": status.get("current_layer"),
+                "total_layers": status.get("total_layers"),
+                "substate": status.get("substate"),
+                "printer_error": status.get("error")
             })
             previous = session.get("fjord_atelier_recent_start")
             if isinstance(previous, dict):
