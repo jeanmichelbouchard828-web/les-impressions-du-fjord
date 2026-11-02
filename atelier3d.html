@@ -876,6 +876,11 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  #fjordWorkspace .stage .touch-move[aria-pressed="true"]{box-shadow:0 0 0 2px #6cddff!important}
 
  
+/* Compact the camera cube and surrounding buttons without changing their actions. */
+@media(max-width:760px){
+ #fjordWorkspace .fjord-camera-controls{transform:scale(.78)!important;transform-origin:top right!important;right:5px!important;top:7px!important}
+ #fjordWorkspace .mobile-stage-info:not(:empty){right:122px!important;max-width:calc(100% - 130px)!important}
+}
 /* Compact right-side language and theme selectors on phones. */
 @media(max-width:760px){
  body>header .top-preferences{gap:2px!important;min-width:0!important}
