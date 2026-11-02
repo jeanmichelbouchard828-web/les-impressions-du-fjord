@@ -882,7 +882,7 @@ body.light .fj-print-hint{color:#496477!important}
         except (PrinterError, SliceReviewError) as exc:
             return jsonify(ok=False, error=str(exc)), 422
         response = send_file(
-            io.BytesIO(raw), as_attachment=True, download_name="Creation-du-Fjord-X2D-tranche.3mf",
+            io.BytesIO(raw), as_attachment=True, download_name="Creation-du-Fjord-X2D-tranche.gcode.3mf",
             mimetype="model/3mf", max_age=0
         )
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
