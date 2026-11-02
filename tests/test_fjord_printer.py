@@ -283,4 +283,49 @@ class RemotePrintTests(unittest.TestCase):
             self.assertEqual(upload.call_count,1)
             self.assertFalse(any(c.args[0]=="/start" for c in call.call_args_list))
 
+    def test_ams_assignment_uses_live_native_mapping_without_guessing_slot_number(self):
+        import time
+        from fjord_printer import _available_ams_sources
+        def api(path, method="GET", payload=None, timeout=9):
+            if path=="/status?IncludeMaterialSystem=true":
+                return {"JobStatus":{"MaterialSystem":{"Units":[{"Id":"ams0","Name":"AMS 1"}],
+                    "Sources":[{"Name":"Slot 3","UnitId":"ams0","PrintMappingValue":7,
+                      "IsEmpty":False,"Material":{"Type":"PETG","ColorHex":"22AACC","Name":"PETG Basic"}},
+                     {"Name":"Empty","PrintMappingValue":4,"IsEmpty":True}]}}}
+            return fake_api(path,method=method,payload=payload,timeout=timeout)
+        with patch("fjord_printer._api",side_effect=api) as calls:
+            sources=_available_ams_sources()
+            self.assertEqual([(s["mapping"],s["color"]) for s in sources],[(7,"#22AACC")])
+            with self.client.session_transaction() as session:
+                session["fjord_atelier_start"]={"path":"gcode/X2D_test.3mf",
+                   "nonce":"test-one-time-nonce","time":time.time(),"material":"PETG"}
+            reply=self.client.post("/admin/atelier-imprimer/demarrer-atelier",data={
+                "nonce":"test-one-time-nonce","verified":"yes","cleared":"yes",
+                "ams":"yes","ams_mapping":"7"})
+            self.assertEqual(reply.status_code,200)
+            commands=[entry.kwargs["payload"] for entry in calls.call_args_list
+                      if entry.args[0]=="/start"]
+            self.assertEqual(len(commands),1)
+            self.assertEqual(commands[0]["AmsMapping"],[7])
+            self.assertTrue(commands[0]["UseAms"])
+
+    def test_ams_assignment_rejects_wrong_material_and_unavailable_source(self):
+        import time
+        def api(path,method="GET",payload=None,timeout=9):
+            if path=="/status?IncludeMaterialSystem=true":
+                return {"JobStatus":{"MaterialSystem":{"Sources":[
+                    {"Name":"AMS Slot 1","PrintMappingValue":2,
+                     "IsEmpty":False,"Material":{"Type":"PLA","ColorHex":"FF0000"}}]}}}
+            return fake_api(path,method=method,payload=payload,timeout=timeout)
+        with patch("fjord_printer._api",side_effect=api) as calls:
+            for mapping in ("2","5","not-an-int"):
+                with self.client.session_transaction() as session:
+                    session["fjord_atelier_start"]={"path":"gcode/X2D_test.3mf",
+                      "nonce":"test-nonce","time":time.time(),"material":"PETG"}
+                reply=self.client.post("/admin/atelier-imprimer/demarrer-atelier",data={
+                    "nonce":"test-nonce","verified":"yes","cleared":"yes",
+                    "ams":"yes","ams_mapping":mapping})
+                self.assertEqual(reply.status_code,422)
+            self.assertFalse(any(entry.args[0]=="/start" for entry in calls.call_args_list))
+
 if __name__=="__main__": unittest.main()
