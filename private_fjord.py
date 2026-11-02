@@ -601,8 +601,10 @@ if(fjordAutoButton){
  '<p id="fjordStartResult" role="status" aria-live="polite"></p>'+
  '<details id="fjordRemoteStartHelp" class="fjord-remote-start-help" hidden>'+
  '<summary>⚠️ Démarrage distant non confirmé · autre façon d’imprimer</summary>'+
- '<p><strong>Sur téléphone ou ordinateur :</strong> ton 3MF est déjà enregistré sur la X2D. Sur l’écran de l’imprimante, ouvre <strong>Fichiers</strong>, repère le nom affiché au-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Pas besoin de renvoyer le fichier.</p>'+
- '<p><strong>Sur ordinateur :</strong> si le démarrage distant est bloqué, utilise le téléchargement du 3MF tranché et <strong>Bambu Connect</strong> depuis l’Atelier. Cette méthode demande une confirmation dans Bambu Connect.</p>'+
+ '<p><strong>Solution pour imprimer À DISTANCE depuis cet Atelier (mobile ou ordinateur) :</strong> sur la X2D, ouvrir Réglages → LAN uniquement, puis activer <strong>Mode développeur (impression 3D)</strong>. Configurer ensuite OctoEverywhere sur le PC/Docker local en connexion LAN avec l’IP et le code d’accès de la X2D. Le relais OctoEverywhere reste joignable par Internet depuis ton Atelier. Un essai réel est requis pour valider le départ.</p>'+
+ '<p><strong>Compromis obligatoire :</strong> LAN uniquement déconnecte Bambu Cloud et Bambu Handy. Ne l’active pas sans accepter cette perte temporaire. Ne partage jamais l’IP privée ni le code d’accès sur le site public.</p>'+
+ '<p><a href="https://wiki.bambulab.com/en/knowledge-sharing/enable-developer-mode" target="_blank" rel="noopener noreferrer">Guide officiel Bambu : mode développeur</a></p>'+
+ '<p><strong>Solution de secours :</strong> ton 3MF est déjà enregistré sur la X2D. Sur l’écran de l’imprimante, ouvre <strong>Fichiers</strong>, repère le nom affiché au-dessus, vérifie le plateau et l’AMS, puis démarre sous surveillance. Sur PC, Bambu Connect peut aussi lancer le 3MF téléchargé, après ta confirmation.</p>'+
  '<p>Si le fichier imprime localement mais pas depuis l’Atelier, le micrologiciel peut refuser les commandes MQTT non autorisées. Le <strong>mode LAN uniquement + développeur</strong> peut être une solution, mais désactive Bambu Handy et les fonctions cloud. Ne change pas ce réglage sans en accepter les conséquences.</p>'+
  '<small>Le relais peut répondre 200 même si l’imprimante refuse le départ. Aucun essai automatique ne sera effectué.</small></details>'+
  '<p class="fjord-review-note">Une commande acceptée ne prouve pas que la première couche a commencé. Vérifie la X2D.</p>'+
