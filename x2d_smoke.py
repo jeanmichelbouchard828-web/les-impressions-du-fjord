@@ -46,6 +46,7 @@ if __name__ == "__main__":
         "Filament": original_preset("Filament", "stock:filament:PETG"),
     }
     sliced = slice_x2d(test_cube_stl(), presets, verify_sliced_bambu_3mf,
-                       bed_type="Cool Plate SuperTack")
+                       bed_type="Cool Plate SuperTack",
+                       support_mode="tree(auto)", support_plate_only=False)
     assert verify_sliced_bambu_3mf(sliced) == [1]
-    print("X2D Bambu official PETG SuperTack: real 3MF slice succeeded; no printer contacted.")
+    print("X2D Bambu PETG SuperTack + auto-tree supports: real 3MF slice succeeded; no printer contacted.")
