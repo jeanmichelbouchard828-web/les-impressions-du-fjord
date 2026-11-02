@@ -939,10 +939,10 @@ body.light .fj-print-hint{color:#496477!important}
                         printer_layer = layer if type(layer) is int and 0 <= layer <= 1_000_000 else None
                         targets = current_print.get("Temps") or {}
                         if isinstance(targets, dict):
-                            for key in ("BedTarget", "HotendTarget"):
-                                value = targets.get(key)
+                            for temp_key in ("BedTarget", "HotendTarget"):
+                                value = targets.get(temp_key)
                                 if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 500:
-                                    printer_targets[key] = round(value, 1)
+                                    printer_targets[temp_key] = round(value, 1)
                 else:
                     checks[key] = isinstance(result.get("Root"), list)
                     if checks[key] and last_path and recent_start_age is not None:
