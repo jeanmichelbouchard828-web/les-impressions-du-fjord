@@ -575,6 +575,7 @@ if(fjordAutoButton){
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
  const preferenceKey='fjord-x2d-profile-preferences-v1';
  let inventory=null,busy=false,opened=false,prepared=null,transferred=null,printerCanStart=false,printerPoll=null;
+ let expectedJobFile='',confirmedActiveJob=false,printerPollVersion=0;
  const review=panel.querySelector('#fjordSliceReview');
  const transfer=panel.querySelector('#fjordReviewTransfer');
  const slider=panel.querySelector('#fjordReviewLayer');
@@ -663,6 +664,7 @@ if(fjordAutoButton){
  amsSelect.addEventListener('change',updateAmsChoice);
  panel.querySelector('#fjordAmsReload').addEventListener('click',reloadAms);
  function clearPrintScreen(){
+  printerPollVersion++;expectedJobFile='';confirmedActiveJob=false;
   transferred=null;printerCanStart=false;startScreen.hidden=true;
   panel.classList.remove('fjord-print-ready');
   startScreen.classList.remove('fjord-start-sent');
@@ -676,18 +678,27 @@ if(fjordAutoButton){
  }
  async function refreshPrinter(){
   if(!transferred&&!startScreen.classList.contains('fjord-start-sent'))return;
+  const version=++printerPollVersion;
   try{
    const res=await fetch('/api/admin/atelier/impression-etat',{credentials:'same-origin',cache:'no-store'});
    if(!res.ok)throw Error('X2D non joignable.');
    const data=await res.json();
+   if(version!==printerPollVersion||!panel.open)return;
    if(!data.ok)throw Error(data.error||'État indisponible.');
    printerCanStart=data.can_start===true;
    const labels={idle:'Prête (pas de travail actif)',warmingup:'Préparation / chauffe',
     printing:'Impression en cours',paused:'En pause',resuming:'Reprise',
     complete:'Terminée',cancelled:'Annulée',error:'Erreur'};
    const sent=startScreen.classList.contains('fjord-start-sent');
-   const matched=sent&&data.job_matches_start===true;
-   const reported=['warmingup','printing','paused','resuming','complete'].includes(data.state);
+   const reportedName=String(data.file||'').slice(0,120);
+   const expectedName=expectedJobFile.split('/').pop().replace(/\.3mf$/i,'').toLowerCase();
+   // Require BOTH a matching server session and the exact file reference
+   // remembered by this Atelier dialog (old sessions may differ).
+   const localMatch=expectedName.length>=8&&reportedName.toLowerCase().includes(expectedName);
+   const matched=sent&&data.job_matches_start===true&&localMatch;
+   const isRunning=['warmingup','printing','paused','resuming'].includes(data.state);
+   if(matched&&isRunning)confirmedActiveJob=true;
+   const reported=isRunning||(data.state==='complete'&&confirmedActiveJob);
    const pct=(typeof data.progress==='number'&&Number.isFinite(data.progress)&&
     data.progress>=0&&data.progress<=100)?data.progress:null;
    // Previous COMPLETE prints can remain at 100% even when a new start
@@ -698,7 +709,6 @@ if(fjordAutoButton){
    livePercent.textContent=ownProgress
      ?pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %'
      :sent?'Progression de CE fichier non confirmée':'En attente du départ';
-   const reportedName=String(data.file||'').slice(0,120);
    liveState.textContent=matched?
      (labels[data.state]||data.state||'État inconnu')+
       (reportedName?' · '+reportedName:''):
@@ -720,17 +730,27 @@ if(fjordAutoButton){
     if(Number.isFinite(age)&&age>=20){
      info.push('Aucun départ de ce 3MF confirmé après '+Math.round(age)+' s. '+
       'Ne renvoie pas la commande automatiquement. Consulte le diagnostic et l’écran de la X2D.');
-     startMessage.textContent='⚠ Commande reçue par le relais, mais aucun démarrage de ce fichier confirmé. '+
-      'Le 100 % affiché par la X2D peut être un travail précédent.';
-    }else info.push('Commande envoyée : vérification du départ réel en cours.');
+     startMessage.textContent='⚠ DÉMARRAGE NON CONFIRMÉ : la X2D indique une autre tâche. '+
+      'Le succès HTTP concerne seulement la commande, pas une impression.';
+    }else{
+     startMessage.textContent='⏳ Commande envoyée au relais. Aucune activité du nouveau 3MF confirmée.';
+     info.push('Commande envoyée : vérification du départ réel en cours.');
+    }
    }else if(sent&&matched){
-    if(['warmingup','printing','paused','resuming'].includes(data.state))
-     startMessage.textContent='✓ X2D : fichier correspondant détecté · '+
+    if(isRunning){
+     startMessage.textContent='✓ X2D : le fichier transféré est reconnu · '+
       (labels[data.state]||'travail actif')+'.';
-    else if(data.state==='complete')
-     startMessage.textContent='✓ La X2D rapporte ce fichier terminé.';
-    else if(Number.isFinite(age)&&age>=20)
+    }else if(data.state==='complete'&&confirmedActiveJob){
+     startMessage.textContent='✓ La X2D rapporte terminé un travail dont le démarrage a été observé.';
+    }else if(data.state==='complete'){
+     startMessage.textContent='⚠ La X2D annonce terminé sans démarrage observé de ce fichier. '+
+      'Vérifie l’écran avant de considérer l’impression réussie.';
+     info.push('⚠ Aucun état de chauffe ou d’impression observé pour ce fichier.');
+    }else if(Number.isFinite(age)&&age>=20){
+     startMessage.textContent='⚠ Le fichier est reconnu, mais aucun état actif ne confirme son départ.';
      info.push('⚠ Le fichier a été reconnu, mais aucun état d’impression actif.');
+    }
+   }
    }else if(!sent&&reportedName&&data.state==='complete'){
     info.push('Ancienne tâche terminée : sa progression ne concerne pas le nouvel envoi.');
    }else if(!sent){
@@ -738,6 +758,7 @@ if(fjordAutoButton){
    }
    liveNote.textContent=info.join(' · ')||'État réel de la X2D via OctoEverywhere.';
   }catch(error){
+   if(version!==printerPollVersion)return;
    printerCanStart=false;liveState.textContent='⚠ '+String(error.message||error).slice(0,140);
    liveProgress.hidden=true;livePercent.textContent='Progression indisponible';
    liveNote.textContent='Vérifie directement l’écran de la X2D.';
@@ -795,6 +816,7 @@ if(fjordAutoButton){
    const result=await response.json();
    if(!response.ok||!result.ok)throw Error(result.error||'La X2D a refusé le démarrage.');
    transferred=null;printerCanStart=false;
+   expectedJobFile=chosen.file;confirmedActiveJob=false;
    startScreen.classList.add('fjord-start-sent');
    startMessage.textContent='⏳ '+result.message+' · Attente du démarrage réel…';
    stopPrinterPolling();beginPrinterPolling();
@@ -1109,6 +1131,7 @@ if(fjordAutoButton){
    }
    invalidatePreview();
    transferred={file:result.file,nonce:result.nonce};
+   expectedJobFile=result.file;confirmedActiveJob=false;
    startScreen.hidden=false;
    startScreen.classList.remove('fjord-start-sent');
    panel.classList.add('fjord-print-ready');
