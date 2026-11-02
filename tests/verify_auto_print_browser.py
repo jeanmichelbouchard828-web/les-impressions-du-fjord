@@ -456,10 +456,11 @@ try:
   assert mobile.locator("#fjordStartAtelier").is_visible()
   assert mobile.locator("#fjordStartNow").is_disabled()
   assert mobile.evaluate("""() => {
-    const el=document.querySelector('#fjordSharedView');
     const area=document.querySelector('#fjordAutoPrintDialog');
-    return el.getBoundingClientRect().width>0 &&
+    const state=document.querySelector('#fjordStartAtelier');
+    return !state.hidden &&
       area.getBoundingClientRect().width>=innerWidth-3 &&
+      area.getBoundingClientRect().right<=innerWidth+2 &&
       document.documentElement.scrollWidth<=innerWidth+2;
   }"""),"Shared tracking must not cause horizontal scrolling on mobile"
 
