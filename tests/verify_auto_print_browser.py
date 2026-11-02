@@ -247,16 +247,25 @@ try:
       document.querySelector('#projectMenuButton')!==null &&
       document.querySelector('#fjordAdminShortcut')!==null;
   }"""),"Full-height phone plate with compact accessible header"
-  # PRO mobile: first icon is PRINT, without forcing an extra preview slice.
-  assert mobile.locator("#mobileIconBar button").first.get_attribute("id")=="mobileSliceBtn"
-  assert "Imprimer" in mobile.locator("#mobileSliceBtn").inner_text()
-  assert mobile.locator("#mobileSliceBtn").get_attribute("data-i18n") is None
-  mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
-  mobile.wait_for_function("document.querySelector('#fjordAutoPrintDialog')?.open===true")
-  assert not mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"), (
-      "Mobile print action must not open a redundant slicer")
-  mobile.locator("#fjordAutoClose").evaluate("el=>el.click()")
-  # The Bambu preview / layer-construction slicer remains accessible afterward.
+  # PRO mobile: the printer button sits immediately beside the admin gear
+  # in the compact top header, not in the scrollable tools strip.
+  assert mobile.evaluate("""() => {
+   const hdr=document.querySelector('header.fjord-admin-header');
+   const links=hdr.querySelector('.fjord-admin-links');
+   const printer=hdr.querySelector('#mobileSliceBtn');
+   const admin=hdr.querySelector('#fjordAdminShortcut');
+   const p=printer?.getBoundingClientRect(), a=admin?.getBoundingClientRect();
+   return links.children[0]===printer && links.children[1]===admin &&
+     !document.querySelector('#mobileIconBar #mobileSliceBtn') &&
+     printer.getAttribute('aria-label')==='Imprimer sur ma X2D' &&
+     printer.getAttribute('data-i18n')===null &&
+     p.width>=34&&p.width<=37&&a.width>=34&&a.width<=37 &&
+     p.right<=a.left+1&&a.right<=innerWidth+2 &&
+     hdr.getBoundingClientRect().height<=56 &&
+     document.documentElement.scrollWidth<=innerWidth+2;
+  }"""),"Mobile printer icon beside admin gear must be compact and usable"
+  # Detailed slicing remains available later without adding a second
+  # 'Trancher' button to the main mobile tools.
   mobile.locator("#sliceTop").evaluate("el=>el.click()")
   assert mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"), (
       "Detailed slicer must remain available after the new Print entry")
@@ -302,7 +311,14 @@ try:
     });
   }""")
   assert all(q["left"]>=-2 and q["right"]<=392 for q in layout),layout
-  mobile.locator("#fjordPrintShortcut").click()
+  # Print directly from the header: its action must open real Bambu prep,
+  # without invoking the redundant mobile slicer.
+  mobile.locator("#sliceClose").evaluate("el=>el.click()")
+  assert not mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')")
+  mobile.locator("#mobileSliceBtn").evaluate("el=>el.click()")
+  mobile.wait_for_function("document.querySelector('#fjordAutoPrintDialog')?.open===true")
+  assert not mobile.evaluate("document.body.classList.contains('fjord-mobile-slicing')"), (
+      "Header print must not open the extra slicer")
   mobile.wait_for_function("document.querySelector('#fjordAutoForm [name=machine]').value==='1'",timeout=15000)
   mobile.locator('#fjordAutoForm [name=bed_type]').select_option('Textured PEI Plate')
   mobile.locator("#fjordAutoSubmit").evaluate("el=>el.click()")
