@@ -9,7 +9,7 @@ from flask import Flask, render_template_string
 from fjord_printer import (
     _categorize_plugin_log, _safe_virtual_path, _printer_files, _status, _connection, _api, _upload,
     verify_sliced_bambu_3mf, PrinterError, register_printer_admin,
-    _verify_native_start_reply,
+    _verify_native_start_reply, _atelier_remote_start_outcome,
 )
 
 def make_3mf(sliced=True):
@@ -250,6 +250,8 @@ class RemotePrintTests(unittest.TestCase):
             diagnostic = self.client.get("/api/admin/atelier/impression-diagnostic")
         self.assertEqual(state.status_code,200)
         self.assertTrue(state.json["job_matches_start"])
+        self.assertEqual(state.json["start_outcome"],"instant_finish")
+        self.assertEqual(state.json["start_ack"],"relay_only")
         self.assertEqual(state.json["elapsed_sec"],0)
         self.assertEqual(state.json["hotend_target"],0)
         self.assertEqual(state.json["bed_target"],0)
@@ -257,10 +259,31 @@ class RemotePrintTests(unittest.TestCase):
         self.assertIn("Durée rapportée par la X2D : 0 s",diagnostic.json["diagnosis"])
         self.assertIn("Couche rapportée : 0",diagnostic.json["diagnosis"])
         self.assertIn("buse 0",diagnostic.json["diagnosis"])
+        self.assertIn("ALERTE",diagnostic.json["diagnosis"])
         self.assertEqual(diagnostic.json["start_ack"],"relay_only")
         self.assertIn("aucune confirmation native",diagnostic.json["diagnosis"])
         self.assertEqual([call.args[0] for call in calls.call_args_list],
                          ["/status", "/status", "/files/list"])
+
+    def test_remote_start_outcome_does_not_mistake_rejected_job_for_success(self):
+        prior={"path":"gcode/fjord_auto_123456.3mf","start_ack":"relay_only"}
+        base={"file":"fjord_auto_123456","state":"complete",
+              "elapsed_sec":0,"current_layer":0,
+              "hotend_target":0,"bed_target":0}
+        self.assertEqual(_atelier_remote_start_outcome(base,prior,12),"pending")
+        self.assertEqual(_atelier_remote_start_outcome(base,prior,35),"instant_finish")
+        self.assertEqual(_atelier_remote_start_outcome(
+            {**base,"elapsed_sec":300,"current_layer":25},prior,35),"unverified_finish")
+        self.assertEqual(_atelier_remote_start_outcome(
+            {**base,"state":"warmingup"},prior,25),"active")
+        self.assertEqual(_atelier_remote_start_outcome(
+            {**base,"state":"printing"},prior,35),"active")
+        self.assertEqual(_atelier_remote_start_outcome(
+            {**base,"file":"Creation-du-Fjord (2)"},prior,35),"not_started")
+        self.assertEqual(_atelier_remote_start_outcome(
+            {**base,"state":"error","file":""},prior,35),"printer_error")
+        self.assertEqual(_atelier_remote_start_outcome(
+            base,{"path":"gcode/../bad.3mf"},35),"none")
 
     def test_old_completed_job_never_counts_as_new_start(self):
         import time
