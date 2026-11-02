@@ -732,7 +732,16 @@ body.light .fjord-measure-values strong,body.light #fjordMeasureDistanceValue{co
  #fjordWorkspace .stage>canvas{width:100%!important;height:100%!important}
  #fjordWorkspace .fjord-camera-controls{right:6px!important;top:8px!important;gap:5px!important;
   max-width:54px;z-index:29!important}
- #fjordWorkspace .fjord-camera-controls .fjord-orientation-widget{display:none!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-widget{display:block!important;position:relative!important;grid-column:2!important;grid-row:1!important;width:64px!important;min-width:64px!important;height:64px!important;perspective:300px!important;pointer-events:auto!important}
+ #fjordWorkspace .fjord-camera-controls{max-width:none!important;grid-template-columns:41px 64px!important;grid-template-rows:64px auto!important;column-gap:6px!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-rotor{width:60px!important;height:60px!important;margin:-30px 0 0 -30px!important;scale:.8}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face{width:60px!important;min-width:60px!important;height:60px!important;padding:0!important;font-size:9px!important;min-height:60px!important;border-radius:2px!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face.face-front{transform:translateZ(30px)!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face.face-back{transform:rotateY(180deg) translateZ(30px)!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face.face-right{transform:rotateY(90deg) translateZ(30px)!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face.face-left{transform:rotateY(-90deg) translateZ(30px)!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face.face-top{transform:rotateX(90deg) translateZ(30px)!important}
+ #fjordWorkspace .fjord-camera-controls .fjord-orientation-face.face-bottom{transform:rotateX(-90deg) translateZ(30px)!important}
  #fjordWorkspace .fjord-camera-controls button{min-width:41px!important;width:41px!important;
   min-height:41px!important;height:41px!important;padding:7px!important}
  #fjordWorkspace .fjord-camera-controls .fjord-camera-buttons,
