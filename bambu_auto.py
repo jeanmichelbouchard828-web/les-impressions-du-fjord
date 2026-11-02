@@ -19,6 +19,8 @@ LOG = logging.getLogger('fjord.bambu_slicer')
 
 MAX_STL = 8 * 1024 * 1024
 MAX_3MF = 30 * 1024 * 1024
+# Intentional whitelist: never accept arbitrary slicer configuration from a client.
+SUPPORT_MODES = ('off', 'tree(auto)', 'normal(auto)')
 OUTPUT_NAME = 'x2d_tranche.gcode.3mf'
 # UI plate names map to the values of the Bambu Studio curr_bed_type enum.
 # The actual CLI has NO --curr-bed-type flag; choose the bed via process JSON.
@@ -146,13 +148,16 @@ def _log_failure(output: bytes, exit_code: int, output_exists: bool):
     LOG.warning("Bambu slicing failed: exit=%s, file_written=%s, diagnostics=%s",
                 exit_code, bool(output_exists), summary[:1300])
 
-def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured PEI Plate') -> bytes:
+def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured PEI Plate',
+              support_mode: str = 'off', support_plate_only: bool = False) -> bytes:
     """Return verified native sliced 3MF; fail closed before any network transfer.
 
     verifier validates the actual sliced Bambu archive used by manual uploads.
     """
     if bed_type not in BED_TYPES:
         raise AutoSliceError("Type de plateau X2D inconnu : tranchage bloqué.")
+    if support_mode not in SUPPORT_MODES or type(support_plate_only) is not bool:
+        raise AutoSliceError("Configuration des supports automatiques invalide.")
     if not isinstance(stl, bytes) or not 84 <= len(stl) <= MAX_STL:
         raise AutoSliceError("STL vide ou trop volumineux (maximum 8 Mo).")
     # Binary STL: 80-byte header + uint32 triangle count + 50 bytes per triangle.
@@ -172,6 +177,13 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
         machine = cli_preset(presets.get("Imprimante"), "Imprimante")
         process = cli_preset(presets.get("Impression"), "Impression")
         filament = cli_preset(presets.get("Filament"), "Filament")
+        # Bambu Studio loads these process JSON settings before slicing, so
+        # actual support G-code is generated and included in the sliced 3MF.
+        # Match the string-valued Boolean representation of Bambu presets.
+        process["enable_support"] = "0" if support_mode == "off" else "1"
+        if support_mode != "off":
+            process["support_type"] = support_mode
+            process["support_on_build_plate_only"] = "1" if support_plate_only else "0"
         # A bare STL has no stored build-plate choice. Use the exact enum
         # token within the process JSON loaded by Bambu Studio.
         native_bed, temperature_key = BED_TYPES[bed_type]
