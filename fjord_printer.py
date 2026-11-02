@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import math
 import os
 import re
 import secrets
@@ -309,8 +310,18 @@ def _status():
     features = features if type(features) is int else 0
     state = str(job.get("State") or "inconnu").lower()
     current = job.get("CurrentPrint") or {}
-    return {"state":state,"progress":current.get("Progress"),
+    def bounded_number(value, maximum):
+        return (value if type(value) in (int, float) and math.isfinite(value) and
+                0 <= value <= maximum else None)
+    progress = bounded_number(current.get("Progress"), 100)
+    return {"state":state, "progress":progress,
             "file":str(current.get("FileName") or "")[:120],
+            "substate":str(job.get("SubState") or "")[:120],
+            "error":str(job.get("Error") or "")[:160],
+            "time_left_sec":bounded_number(current.get("TimeLeftSec"), 31_536_000),
+            "elapsed_sec":bounded_number(current.get("DurationSec"), 31_536_000),
+            "current_layer":bounded_number(current.get("CurrentLayer"), 1_000_000),
+            "total_layers":bounded_number(current.get("TotalLayers"), 1_000_000),
             "features":features,
             "can_start":bool(features & FEATURE_START) and state in ("idle", "complete", "cancelled")}
 
@@ -909,8 +920,27 @@ body.light .fj-print-hint{color:#496477!important}
                 "state": status["state"],
                 "progress": status["progress"],
                 "file": status["file"],
-                "can_start": status["can_start"]
+                "can_start": status["can_start"],
+                "time_left_sec": status["time_left_sec"],
+                "elapsed_sec": status["elapsed_sec"],
+                "current_layer": status["current_layer"],
+                "total_layers": status["total_layers"],
+                "substate": status["substate"],
+                "printer_error": status["error"]
             })
+            previous = session.get("fjord_atelier_recent_start")
+            if isinstance(previous, dict):
+                age = time.time() - float(previous.get("time", 0))
+                if 0 <= age <= 24 * 3600:
+                    payload = response.get_json()
+                    payload["start_command_age_sec"] = round(age)
+                    result_file = str(status["file"] or "").lower()
+                    expected_name = str(previous.get("path", "")).rsplit("/", 1)[-1].lower()
+                    payload["job_matches_start"] = bool(
+                        expected_name and result_file and
+                        (expected_name in result_file or
+                         expected_name.rsplit(".", 1)[0] in result_file))
+                    response = jsonify(payload)
         except PrinterError as exc:
             response = jsonify(ok=False, error=str(exc))
             response.status_code = 503
@@ -945,7 +975,7 @@ body.light .fj-print-hint{color:#496477!important}
             command = {"Path": path, "Plate": 1, "UseAms": use_ams}
             mapping_text = request.form.get("ams_mapping", "").strip()
             if mapping_text:
-                if not use_ams or not re.fullmatch(r"\\d{1,3}", mapping_text):
+                if not use_ams or not re.fullmatch(r"\d{1,3}", mapping_text):
                     raise PrinterError("Assignation AMS invalide : aucune commande envoyée.")
                 chosen_slot = int(mapping_text)
                 if chosen_slot not in range(256):
@@ -962,9 +992,10 @@ body.light .fj-print-hint{color:#496477!important}
             response = _api("/start", method="POST", payload=command, timeout=15)
             if response.get("VirtualPath") not in (None, path):
                 raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
+            session["fjord_atelier_recent_start"] = {"time": time.time(), "path": path}
             result = jsonify(
                 ok=True,
-                message="Commande de démarrage acceptée. Vérifie le démarrage réel sur ta X2D.",
+                message="Commande de démarrage acceptée. La X2D doit confirmer le départ dans l'état réel.",
                 file=path
             )
             result.headers["Cache-Control"] = "no-store"
