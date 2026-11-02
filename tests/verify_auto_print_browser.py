@@ -132,6 +132,23 @@ try:
   page.locator("#fjordReviewKgRate").fill("50")
   assert "$" in page.locator("#fjordReviewPrice").inner_text()
   assert page.locator("#fjordReviewDownload").is_enabled()
+  assert page.locator("#fjordConnectHandoff").count()==1
+  assert page.locator("#fjordConnectOpen").get_attribute("aria-disabled")=="true"
+  assert page.locator("#fjordConnectOpen").get_attribute("href")=="#"
+  page.locator("#fjordConnectHandoff summary").evaluate("el=>el.click()")
+  # Browser cannot discover downloaded absolute paths. A real local Windows
+  # path generates the official Bambu Connect import-file protocol handoff.
+  page.locator("#fjordConnectLocalPath").fill("C:/Downloads/relative.gcode.3mf")
+  assert page.locator("#fjordConnectOpen").get_attribute("aria-disabled")=="true"
+  page.locator("#fjordConnectLocalPath").fill(r"C:\Users\tester\Downloads\Creation-du-Fjord-X2D-tranche.gcode.3mf")
+  link=page.locator("#fjordConnectOpen").get_attribute("href")
+  assert page.locator("#fjordConnectOpen").get_attribute("aria-disabled") is None
+  assert link=="bambu-connect://import-file?path=C%3A%5CUsers%5Ctester%5CDownloads%5CCreation-du-Fjord-X2D-tranche.gcode.3mf&name=Creation-du-Fjord-X2D-tranche&version=1.0.0",link
+  # No printer operation is permitted by typing a local file location.
+  assert len(transfers)==0 and len(starts)==0
+  page.locator("#fjordConnectLocalPath").fill("")
+  assert page.locator("#fjordConnectOpen").get_attribute("aria-disabled")=="true"
+  assert "Sur mobile" in page.locator("#fjordConnectHandoff").text_content()
   assert page.locator("#fjordTransferProgress").count()==1
   assert page.locator("#fjordTransferStatus").is_hidden(), "No upload should be simulated before user approval"
   assert page.locator("#fjordReviewDiagnostic").is_enabled()
