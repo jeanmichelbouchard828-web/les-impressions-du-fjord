@@ -199,7 +199,7 @@ try:
   assert "Aucun départ" in page.locator("#fjordLiveNote").inner_text()
   assert "Aucun démarrage réel confirmé" in page.locator("#fjordStartResult").inner_text()
   assert page.locator("#fjordRemoteStartHelp").is_visible()
-  assert "sur l’écran de l’imprimante" in page.locator("#fjordRemoteStartHelp").text_content()
+  assert "Sur l’écran de l’imprimante" in page.locator("#fjordRemoteStartHelp").text_content()
   assert "terminé" not in page.locator("#fjordStartResult").inner_text().lower(), "Never show stale completed success"
   # Regression: remote start can report the NEW 3MF as complete without
   # ever entering a physical heating/printing state.
