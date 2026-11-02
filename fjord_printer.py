@@ -447,16 +447,8 @@ def _verify_native_start_reply(reply):
 
 
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
-    # A single owner-only job snapshot lets mobile and desktop show the same
-    # observed printer status, without syncing credentials or one-use nonces.
-    if db is not None:
-        with db() as conn:
-            conn.execute("""CREATE TABLE IF NOT EXISTS fjord_printer_recent_start (
-                slot SMALLINT PRIMARY KEY CHECK (slot = 1),
-                file_path TEXT NOT NULL,
-                start_ack TEXT NOT NULL,
-                sent_at DOUBLE PRECISION NOT NULL
-            )""")
+    # The schema lives with the normal app migrations in app.py.
+    # Admin-only start metadata is shared, but never the one-use nonce.
 
     def latest_start():
         previous = session.get("fjord_atelier_recent_start")
