@@ -1102,7 +1102,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <button type="button" data-open-tools="edit" data-i18n="mobileEdit" aria-expanded="false">✥ Modifier</button>
 <button type="button" data-open-tools="size" data-i18n="mobileSize" aria-expanded="false">📏 Taille</button>
 <button type="button" data-open-tools="generators" data-i18n="mobileGenerate" aria-expanded="false">⚙️ Générer</button>
-<button type="button" data-open-tools="freehand" aria-expanded="false">✎ Main levée</button>
+<button type="button" data-open-tools="freehand" aria-expanded="false" title="Outils de modification et création">✎ Main levée</button>
 <button type="button" data-open-tools="measure" aria-expanded="false">📐 Mesurer</button>
 <button type="button" data-open-tools="paint" aria-expanded="false">🎨 Peinture 3D</button>
 <button type="button" data-open-tools="projects" aria-expanded="false">📁 Projets</button>
@@ -4525,7 +4525,7 @@ function openMobileMenu(kind,trigger){
  if(button){button.setAttribute('aria-expanded','true');$('mobileMenuTitle').textContent=button.textContent}
  mobileMenuBody.scrollTop=0;
  // Place the active tool within reach when a mobile category shares a desktop panel.
- const focusTool=({measure:'#measure',freehand:'#fjordFreehandToggle',projects:'#sceneList'})[kind];
+ const focusTool=({measure:'#fjordMeasureWorkspace',projects:'#sceneList'})[kind];
  if(focusTool){const target=mobileMenuBody.querySelector(focusTool);if(target){const panelRect=mobileMenuBody.getBoundingClientRect(),targetRect=target.getBoundingClientRect();mobileMenuBody.scrollTop+=targetRect.top-panelRect.top-12;}}
  $('mobileMenuClose').focus({preventScroll:true});
 }
