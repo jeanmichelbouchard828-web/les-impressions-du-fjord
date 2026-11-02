@@ -125,17 +125,21 @@ def admin_studio(html, csrf_token):
     button = '<button type="button" id="fjordPrivateImport">📚 Importer de ma bibliothèque</button><button type="button" class="primary" id="fjordPrivateSave">💾 Enregistrer dans ma bibliothèque</button><a href="/admin/modeles">Voir mes modèles</a><a href="/admin/profils-bambu" title="Importer ou consulter les paramètres Bambu Studio">⚙️ Mes profils Bambu</a>'
     html = html.replace('<button id="export" data-i18n="export">', button + '<button id="export" data-i18n="export">', 1)
     # Mobile-only quick quote: reuses the existing save-and-create flow, no duplicate submission.
-    mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission PRO depuis le plateau">💰 Créer une soumission</button>
+    mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission PRO" title="Créer une soumission PRO">💰</button>
 <style>
 #fjordMobileQuote{display:none}
 @media(max-width:760px){
- #fjordMobileQuote{display:flex;position:fixed;z-index:85;right:12px;bottom:calc(15px + env(safe-area-inset-bottom,0px));align-items:center;justify-content:center;gap:7px;min-height:46px;max-width:calc(100vw - 24px);padding:11px 16px;border-radius:999px;border:1px solid #79dfff;background:linear-gradient(115deg,#0875bd,#10a8e6);color:white;box-shadow:0 5px 18px #0009;font-size:14px;font-weight:800;cursor:pointer}
- #fjordMobileQuote:disabled{opacity:.6}
+ #fjordMobileQuote{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:42px;width:42px;height:42px;padding:0;border-radius:11px;border:1px solid #3d7699;background:#17354e;color:#fff;font-size:21px;box-shadow:none;cursor:pointer}
+ #fjordMobileQuote:disabled{opacity:.55}
+ /* The existing quote action remains available to JS, but is not duplicated in the mobile toolbar. */
+ .fjord-admin-core #quote{display:none!important}
 }
 </style>
 <script>
 document.addEventListener("DOMContentLoaded",()=>{
  const quick=document.getElementById("fjordMobileQuote");
+ const toolbar=document.querySelector(".top-preferences");
+ if(quick&&toolbar)toolbar.insertBefore(quick,toolbar.firstChild);
  quick?.addEventListener("click",()=>{if(!quick.disabled)document.getElementById("quote")?.click()});
 });
 </script>'''
