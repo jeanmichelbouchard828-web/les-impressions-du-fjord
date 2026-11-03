@@ -512,6 +512,19 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None
                 data = full_preset(row["settings"], category)
             except (AutoSliceError, TypeError, ValueError):
                 continue
+            # Hide archived machine presets for other printers from the X2D launcher.
+            # Keep originals in the archive for recovery; never silently delete data.
+            if category == "Imprimante":
+                model = data.get("printer_model", "")
+                model = model[0] if isinstance(model, list) and model else model
+                if not isinstance(model, str) or "X2D" not in model.upper():
+                    continue
+            elif category == "Filament":
+                kind = data.get("filament_type", "")
+                kind = kind[0] if isinstance(kind, list) and kind else kind
+                normalized = re.sub(r"[^A-Z0-9]", "", str(kind).upper())
+                if normalized not in {"PLA", "PETG", "PETGCF", "ASA", "TPU"}:
+                    continue
             # Only non-sensitive profile metadata is sent to the administrator.
             def plain(key):
                 value = data.get(key)
