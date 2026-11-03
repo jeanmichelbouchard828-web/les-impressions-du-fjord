@@ -610,7 +610,7 @@ def _fjord_install_completion_tracking():
    c.execute(f"""UPDATE {table} SET completed_at=NOW()
                 WHERE {column}='Terminée' AND completed_at IS NULL""")
    c.execute(f"""CREATE OR REPLACE FUNCTION fjord_track_completion_{table}()
-    RETURNS trigger LANGUAGE plpgsql AS $
+    RETURNS trigger LANGUAGE plpgsql AS $tag$
     BEGIN
       IF NEW.{column}='Terminée' AND (OLD.{column} IS DISTINCT FROM 'Terminée') THEN
         NEW.completed_at=NOW();
@@ -618,7 +618,7 @@ def _fjord_install_completion_tracking():
         NEW.completed_at=NULL;
       END IF;
       RETURN NEW;
-    END $""")
+    END $tag$""")
    c.execute(f"DROP TRIGGER IF EXISTS fjord_completion_{table} ON {table}")
    c.execute(f"""CREATE TRIGGER fjord_completion_{table}
      BEFORE UPDATE OF {column} ON {table}
