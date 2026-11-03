@@ -230,6 +230,17 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 <option value="archive">📦 Archives / anciens essais</option>
 <option value="tous" {% if default_tier == 'tous' %}selected{% endif %}>Tous les profils</option>
 </select></label>
+<label style="min-width:155px">Catégorie
+<select id="fjordBambuCategory" aria-label="Filtrer par catégorie">
+<option value="toutes">Toutes</option><option value="filament">Filaments</option>
+<option value="impression">Impression</option><option value="imprimante">Imprimante</option>
+</select></label>
+<label style="min-width:155px">Matériau
+<select id="fjordBambuMaterial" aria-label="Filtrer par matériau">
+<option value="tous">Tous</option><option value="pla">PLA</option><option value="petg-cf">PETG-CF</option>
+<option value="petg">PETG</option><option value="asa">ASA</option><option value="tpu">TPU</option>
+<option value="autres">Autres</option>
+</select></label>
 <label style="min-width:230px;flex:1">Rechercher un profil
 <input id="fjordBambuSearch" type="search" placeholder="PETG, ASA, 0.12, SIGNATURE..." autocomplete="off">
 </label>
@@ -254,6 +265,8 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 (function(){
  const tier=document.getElementById("fjordBambuTier");
  const query=document.getElementById("fjordBambuSearch");
+ const category=document.getElementById("fjordBambuCategory");
+ const material=document.getElementById("fjordBambuMaterial");
  const output=document.getElementById("fjordBambuFilteredCount");
  const rows=Array.from(document.querySelectorAll(".fjord-bambu-profile-row"));
  function filter(){
@@ -262,12 +275,20 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
    let shown=0;
    rows.forEach(row=>{
      const content=(row.dataset.name+" "+row.dataset.category).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-     const visible=(kind==="tous"||row.dataset.tier===kind)&&(!needle||content.includes(needle));
+     const name=row.dataset.name;
+     const materialName=name.replace(/petg[ _-]*cf/g,"petg-cf");
+     const matchMaterial=material.value==="tous"||
+       (material.value==="autres"&&!/pla|petg|asa|tpu/.test(materialName))||
+       (material.value==="petg"?/petg/.test(materialName)&&!/petg-cf/.test(materialName):materialName.includes(material.value));
+     const visible=(kind==="tous"||row.dataset.tier===kind)&&
+       (category.value==="toutes"||row.dataset.category===category.value)&&
+       matchMaterial&&(!needle||content.includes(needle));
      row.hidden=!visible;if(visible)shown++;
    });
    output.textContent=shown+" profil(s) affiché(s) sur "+rows.length+".";
  }
- tier.addEventListener("change",filter);query.addEventListener("input",filter);filter();
+ tier.addEventListener("change",filter);category.addEventListener("change",filter);
+ material.addEventListener("change",filter);query.addEventListener("input",filter);filter();
 })();
 </script>
 <style>.fjord-bambu-profile-row[hidden]{display:none!important}</style>
