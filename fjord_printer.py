@@ -727,6 +727,7 @@ body.light .fj-print-hint{color:#496477!important}
     <nav class="fj-print-nav" aria-label="Navigation Atelier 3D">
       <a href="/admin/atelier-3d">← Retour à l’Atelier</a>
       <a href="/admin/profils-bambu">⚙️ Mes profils Bambu</a>
+      <a href="/api/admin/atelier/impression-diagnostic" target="_blank" rel="noopener">🔎 Diagnostic X2D</a>
     </nav>
   </section>
 
