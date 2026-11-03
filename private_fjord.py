@@ -565,15 +565,7 @@ if(fjordAutoButton){
  '<span id="fjordTransferPercent">En cours…</span></div>'+
  '<progress id="fjordTransferProgress" max="100" aria-label="Transfert confirmé du 3MF vers la X2D"></progress>'+
  '<small id="fjordTransferHint">Envoi en cours via OctoEverywhere. Le pourcentage réel FTPS n’est pas disponible.</small></div>'+
- '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché (Studio / Connect)</button>'+
- '<details class="fjord-connect-handoff" id="fjordConnectHandoff">'+
- '<summary>☁️ Imprimer via Bambu Connect (ordinateur · Bambu Handy conservé)</summary>'+
- '<p><strong>1.</strong> Depuis ton PC Windows ou Mac, télécharge le 3MF ci-dessus. <strong>2.</strong> Dans les fichiers téléchargés, copie son <em>chemin local complet</em> puis colle-le ici. <strong>3.</strong> Ouvre Bambu Connect, vérifie la X2D, le plateau et la bobine, puis confirme l’impression dans le logiciel Bambu.</p>'+
- '<label for="fjordConnectLocalPath">Chemin complet du fichier sur ton ordinateur<input id="fjordConnectLocalPath" type="text" autocomplete="off" spellcheck="false" placeholder="C:…\\Downloads\\Creation-du-Fjord-X2D-tranche.gcode.3mf" aria-describedby="fjordConnectNote"></label>'+
- '<a id="fjordConnectOpen" href="#" role="button" aria-disabled="true" tabindex="-1">🖨️ Ouvrir le fichier dans Bambu Connect</a>'+
- '<p id="fjordConnectNote" role="status">Copie le chemin complet du 3MF téléchargé sur ce même ordinateur. Aucun fichier ne sera envoyé en cliquant ici avant la confirmation dans Bambu Connect.</p>'+
- '<small>⚠️ Sur mobile, le navigateur ne peut pas ouvrir un fichier sur le PC à ta place. Pour imprimer uniquement depuis le téléphone, il faudra une passerelle PC autorisée. Le lancement direct non signé depuis Railway reste bloqué par certains micrologiciels.</small>'+
- '<a class="fjord-connect-doc-link" href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noopener noreferrer">Documentation officielle Bambu Connect</a></details>'+
+ '<button type="button" id="fjordReviewDownload">⬇ Télécharger le 3MF tranché</button>'+
  '<button type="button" id="fjordReviewDiagnostic">🔎 Diagnostiquer le transfert X2D (journal FTPS)</button>'+
  '<p id="fjordReviewDiagnosticResult" role="status" aria-live="polite" hidden></p>'+
  '<button type="button" id="fjordReviewRedo">↺ Modifier et retrancher</button></section>'+
@@ -1208,37 +1200,6 @@ if(fjordAutoButton){
    diagnosticResult.textContent='⚠ '+String(error.message||error).slice(0,220);
   }finally{diagnosticButton.disabled=false;}
  });
- const connectInput=panel.querySelector('#fjordConnectLocalPath');
- const connectLink=panel.querySelector('#fjordConnectOpen');
- const connectNote=panel.querySelector('#fjordConnectNote');
- function updateBambuConnectLink(){
-  let path=connectInput.value.trim();
-  if(path.length>=2&&path.charCodeAt(0)===34&&path.charCodeAt(path.length-1)===34)
-   path=path.slice(1,-1);
-  // File upload elements intentionally hide absolute paths; only the owner
-  // can supply a trusted local path. Never send this path to Railway.
-  const win=/^[A-Za-z]:/.test(path)&&path.charCodeAt(2)===92;
-  const mac=path.startsWith('/')&&!path.startsWith('//');
-  const valid=(win||mac)&&path.length<=1024&&path.toLowerCase().endsWith('.3mf')&&
-    !Array.from(path).some(char=>char.charCodeAt(0)<32);
-  if(!valid){
-   connectLink.href='#';connectLink.setAttribute('aria-disabled','true');
-   connectLink.tabIndex=-1;
-   connectNote.textContent='Colle le chemin ABSOLU d’un 3MF enregistré sur cet ordinateur (Windows ou Mac). Aucun accès au disque sans ton accord.';
-   return;
-  }
-  const filename=path.replaceAll(String.fromCharCode(92),'/').split('/').pop();
-  const name=filename.replace(/\.gcode\.3mf$/i,'').replace(/\.3mf$/i,'');
-  connectLink.href='bambu-connect://import-file?path='+encodeURIComponent(path)+
-   '&name='+encodeURIComponent(name)+'&version=1.0.0';
-  connectLink.removeAttribute('aria-disabled');connectLink.tabIndex=0;
-  connectNote.textContent='Prêt pour Bambu Connect sur CE PC. La boîte de dialogue Bambu confirmera la X2D, la bobine et le démarrage.';
- }
- connectInput.addEventListener('input',updateBambuConnectLink);
- connectLink.addEventListener('click',event=>{
-  if(connectLink.getAttribute('aria-disabled')==='true')event.preventDefault();
- });
- updateBambuConnectLink();
  const download3mf=panel.querySelector('#fjordReviewDownload');
  download3mf.addEventListener('click',async()=>{
   if(!prepared||busy)return;
