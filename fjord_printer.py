@@ -1234,6 +1234,7 @@ body.light .fj-print-hint{color:#496477!important}
                                              if previous.get("start_ack") in ("native_ok", "relay_only")
                                              else None)
                     payload["start_outcome"] = _atelier_remote_start_outcome(status, previous, age)
+                    payload["confirmed_started"] = bool(payload["start_outcome"] == "confirmed")
                     response = jsonify(payload)
         except PrinterError as exc:
             response = jsonify(ok=False, error=str(exc))
@@ -1303,6 +1304,8 @@ body.light .fj-print-hint{color:#496477!important}
                          "Commande reçue par le relais SANS confirmation native. "
                          "Aucun démarrage réel confirmé."),
                 start_ack=ack_kind,
+                confirmed_started=False,
+                requires_printer_confirmation=True,
                 file=path
             )
             result.headers["Cache-Control"] = "no-store"
