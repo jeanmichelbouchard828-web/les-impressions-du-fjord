@@ -602,17 +602,39 @@ def _sync_octo_progress():
    result["updated"]=bool(changed)
  return result
 
+# Horodatage persistant de fin de production : ne supprime jamais les commandes.
+def _fjord_install_completion_tracking():
+ with db() as c:
+  for table,column in (("requests","status"),("private_quotes","production_status")):
+   c.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ")
+   c.execute(f"""UPDATE {table} SET completed_at=NOW()
+                WHERE {column}='Terminée' AND completed_at IS NULL""")
+   c.execute(f"""CREATE OR REPLACE FUNCTION fjord_track_completion_{table}()
+    RETURNS trigger LANGUAGE plpgsql AS $
+    BEGIN
+      IF NEW.{column}='Terminée' AND (OLD.{column} IS DISTINCT FROM 'Terminée') THEN
+        NEW.completed_at=NOW();
+      ELSIF NEW.{column} IS DISTINCT FROM 'Terminée' THEN
+        NEW.completed_at=NULL;
+      END IF;
+      RETURN NEW;
+    END $""")
+   c.execute(f"DROP TRIGGER IF EXISTS fjord_completion_{table} ON {table}")
+   c.execute(f"""CREATE TRIGGER fjord_completion_{table}
+     BEFORE UPDATE OF {column} ON {table}
+     FOR EACH ROW EXECUTE FUNCTION fjord_track_completion_{table}()""")
+
 @app.get("/api/production-publique")
 def public_production():
  # Uniquement les commandes autorisées; aucun identifiant ou renseignement client.
  with db() as c:
-  rows=c.execute("SELECT status,progress FROM requests WHERE kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
+  rows=c.execute("SELECT status,progress FROM requests WHERE (status!='Terminée' OR completed_at > NOW() - INTERVAL '1 hour') AND kind='Soumission' AND public_progress=TRUE AND status IN ('Demande reçue','Soumission envoyée','En impression','Terminée') ORDER BY id DESC LIMIT 100").fetchall()
  # Soumissions PRO : statut uniquement, sans données client ni montant.
  _sync_octo_progress()
  with db() as c:
   quotes=c.execute("""SELECT q.id,q.public_number,q.production_status,q.production_progress,q.printer_job_name,q.payment_status,
       EXISTS(SELECT 1 FROM fjord_quote_acceptances a WHERE a.quote_id=q.id) AS accepted
-      FROM private_quotes q ORDER BY q.id DESC LIMIT 150""").fetchall()
+      FROM private_quotes q WHERE (q.production_status!='Terminée' OR q.completed_at > NOW() - INTERVAL '1 hour') ORDER BY q.id DESC LIMIT 150""").fetchall()
  groups={"print":[],"wait":[],"done":[]}
  for q in quotes:
   status=q["production_status"]
@@ -945,6 +967,7 @@ def atelier_3d_public():
 # Register admin-only model library and professional quotations.
 from private_fjord import register_private_fjord
 register_private_fjord(app,db,admin_required,verify,csrfinput,csrf,page)
+_fjord_install_completion_tracking()
 
 # Per-quote Stripe Checkout and verified payment notifications.
 from fjord_stripe import register_stripe_payments
