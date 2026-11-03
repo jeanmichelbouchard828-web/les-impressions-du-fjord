@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         'min-height:40px;padding:8px 12px;border-radius:9px;'
         'border:1px solid #67b0d9;background:#11577e;color:#fff;'
         'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
-        '⚙️ Administration</a>'
+        '👤 Mode normal</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + admin_shortcut, 1)
     print_shortcut = (
@@ -277,8 +277,8 @@ document.addEventListener("DOMContentLoaded",()=>{
         html = html.replace(
             '<div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div>',
             '<div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div>'
-            '<span id="fjordAdminModeBanner" role="status" class="fjord-admin-mode-badge" '
-            'aria-label="Mode administrateur actif">🔒 ADMINISTRATEUR</span>', 1)
+            '<a id="fjordAdminModeBanner" href="/atelier-3d" class="fjord-admin-mode-badge" '
+            'aria-label="Mode administrateur actif. Passer en mode normal">🔒 Mode administrateur</a>', 1)
         html = html.replace('</head>',
                             '<link rel="stylesheet" href="/static/atelier_admin_header.css">'
                             '</head>', 1)
@@ -1818,6 +1818,10 @@ def public_studio(html):
     html = html.replace('<div class="top-preferences">',
                         '<div class="top-preferences">' + shortcut, 1)
     style = """<style>
+    #fjordAdminAccess{font-size:13px!important;width:auto!important;max-width:none!important;min-width:116px!important;padding:8px 11px!important;white-space:nowrap!important}
+    #fjordAdminAccess::after{content:none!important}
+    body>header:has(#fjordAdminAccess) .brand{font-size:inherit!important;max-width:none!important}
+    body>header:has(#fjordAdminAccess) .brand::after{content:none!important}
     #estimatePanel details:has(#estimateKg), #estimateBreakdown,
     #sliceMaterialCostValue, #sliceMachineCostValue, #sliceSetupMarkupValue,
     .slice-metrics>span:has(+ #sliceMaterialCostValue),
