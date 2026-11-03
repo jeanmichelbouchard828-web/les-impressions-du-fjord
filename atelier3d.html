@@ -1254,7 +1254,16 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <button type="button" data-shape="icosahedron">Icosaèdre</button>
 <button type="button" data-shape="dodecahedron">Dodécaèdre</button>
 <button type="button" data-shape="egg">Œuf</button>
-</div></div></section><section data-tool-panel="edit"><h3 data-i18n="edit">Modifier</h3><div class="tools">
+</div></div></section><section data-tool-panel="freehand" class="fjord-sketch-tools">
+<h2>✎ Dessiner une pièce</h2>
+<p class="tool-note">Dessine un contour fermé au doigt ou à la souris, puis transforme-le en pièce 3D imprimable.</p>
+<canvas id="fjordSketchCanvas" width="360" height="260" aria-label="Surface de dessin libre" style="width:100%;height:auto;max-width:480px;aspect-ratio:18/13;touch-action:none;background:#f8fbff;border:2px solid var(--border);border-radius:9px;display:block"></canvas>
+<div class="field"><label for="fjordSketchWidth">Largeur du dessin (mm)</label><input id="fjordSketchWidth" type="number" min="5" max="240" step="1" value="80"></div>
+<div class="field"><label for="fjordSketchDepth">Épaisseur (mm)</label><input id="fjordSketchDepth" type="number" min="0.6" max="100" step=".2" value="3"></div>
+<div class="tool-row"><button id="fjordSketchClear" type="button">↺ Effacer</button><button id="fjordSketchCreate" class="primary" type="button">✓ Créer la pièce 3D</button></div>
+<p id="fjordSketchStatus" class="tool-note" role="status" aria-live="polite">Trace un contour d'un seul trait.</p>
+</section>
+<section data-tool-panel="edit"><h3 data-i18n="edit">Modifier</h3><div class="tools">
 <button id="move" class="tool-btn" data-i18n="move" aria-pressed="false">Déplacer</button><button id="rotate" class="tool-btn" data-i18n="rotate" aria-pressed="false">Tourner</button>
 <button id="scale" class="tool-btn" data-i18n="scale" aria-pressed="false">Échelle</button><button id="duplicate" data-i18n="duplicate">Dupliquer</button>
 <button id="remove" data-i18n="remove">Supprimer</button><button id="undo" data-i18n="undo">↶ Annuler</button>
@@ -2050,6 +2059,69 @@ default:throw Error('Unknown shape')
 g.computeBoundingBox();return g
 }
 function makeMesh(g,type,name){const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x5bc6eb,metalness:0.2,roughness:0.5,side:THREE.DoubleSide}));m.userData.type=type;m.name=name;scene.add(m);models.push(m);return m}
+// Dessin libre sur mobile/ordinateur, conversion en contour extrudé fermé.
+(()=>{
+ const canvas=document.getElementById('fjordSketchCanvas'),ctx=canvas?.getContext('2d');
+ if(!ctx)return;
+ const status=document.getElementById('fjordSketchStatus');
+ let points=[],drawing=false,pointer=null;
+ function redraw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#f8fbff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#d9e6f1';ctx.lineWidth=1;
+  for(let x=20;x<canvas.width;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}
+  for(let y=20;y<canvas.height;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}
+  if(points.length){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);
+   points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+   ctx.strokeStyle='#007eb8';ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
+   if(!drawing&&points.length>2){ctx.setLineDash([5,5]);ctx.lineTo(points[0][0],points[0][1]);ctx.stroke();ctx.setLineDash([])}
+  }
+ }
+ function coords(e){const r=canvas.getBoundingClientRect();return [
+  Math.max(0,Math.min(canvas.width,(e.clientX-r.left)*canvas.width/r.width)),
+  Math.max(0,Math.min(canvas.height,(e.clientY-r.top)*canvas.height/r.height))]}
+ canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();
+  drawing=true;pointer=e.pointerId;points=[coords(e)];canvas.setPointerCapture(e.pointerId);redraw()});
+ canvas.addEventListener('pointermove',e=>{if(!drawing||e.pointerId!==pointer)return;e.preventDefault();
+  const p=coords(e),last=points[points.length-1];
+  if(Math.hypot(p[0]-last[0],p[1]-last[1])>=2&&points.length<1500){points.push(p);redraw()}});
+ function finish(e){if(e.pointerId!==pointer)return;drawing=false;pointer=null;redraw();
+  status.textContent=points.length>=3?'Contour prêt : clique sur Créer la pièce 3D.':'Dessine un contour plus grand.'}
+ canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);
+ document.getElementById('fjordSketchClear')?.addEventListener('click',()=>{points=[];drawing=false;redraw();status.textContent='Dessin effacé.'});
+ document.getElementById('fjordSketchCreate')?.addEventListener('click',()=>{
+  if(drawing||points.length<3){status.textContent='Dessine d’abord un contour fermé.';return}
+  const width=Number(document.getElementById('fjordSketchWidth').value),depth=Number(document.getElementById('fjordSketchDepth').value);
+  if(!Number.isFinite(width)||width<5||width>240||!Number.isFinite(depth)||depth<.6||depth>100){
+   status.textContent='Dimensions invalides.';return}
+  const filtered=points.filter((p,i)=>i===0||Math.hypot(p[0]-points[i-1][0],p[1]-points[i-1][1])>=2);
+  if(filtered.length<3){status.textContent='Contour trop petit.';return}
+  const xs=filtered.map(p=>p[0]),ys=filtered.map(p=>p[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  if(maxX-minX<8||maxY-minY<8){status.textContent='Contour trop étroit.';return}
+  const scale=width/(maxX-minX),centerX=(minX+maxX)/2,centerY=(minY+maxY)/2;
+  const polygon=filtered.map(p=>new THREE.Vector2((p[0]-centerX)*scale,(centerY-p[1])*scale));
+  // A self-intersecting contour is not a safe printable solid.
+  function intersect(a,b,c,d){const cross=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);
+   return cross(a,b,c)*cross(a,b,d)<0&&cross(c,d,a)*cross(c,d,b)<0}
+  for(let i=0;i<polygon.length;i++)for(let j=i+2;j<polygon.length;j++){
+   if(i===0&&j===polygon.length-1)continue;
+   if(intersect(polygon[i],polygon[(i+1)%polygon.length],polygon[j],polygon[(j+1)%polygon.length])){
+    status.textContent='Le contour se croise : redessine une forme sans croisement.';return}
+  }
+  try{
+   const shape=new THREE.Shape();shape.moveTo(polygon[0].x,polygon[0].y);
+   polygon.slice(1).forEach(p=>shape.lineTo(p.x,p.y));shape.closePath();
+   const geometry=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:false,steps:1,curveSegments:8});
+   const nonIndexed=geometry.toNonIndexed();geometry.dispose();
+   nonIndexed.computeVertexNormals();
+   remember();const m=makeMesh(nonIndexed,'imported','Dessin personnalisé');
+   pick(m);renderSceneList();
+   status.textContent='Pièce 3D créée ! Tu peux la déplacer, l’enregistrer ou l’exporter.';
+  }catch(error){status.textContent='Impossible de créer cette forme. Simplifie le contour.'}
+ });
+ redraw();
+})();
 function dims(m){m.geometry.computeBoundingBox();const box=m.geometry.boundingBox, size=new THREE.Vector3();box.getSize(size);return [size.x*Math.abs(m.scale.x),size.y*Math.abs(m.scale.y),size.z*Math.abs(m.scale.z)]}
 function basePartColor(m){return m.userData.selectionOriginalColor??m.material.color.getHex()}
 function removeSelectionTint(m){
@@ -4683,7 +4755,7 @@ function openMobileMenu(kind,trigger){
  if(!isCompactEditor())return;
  if(mobileMenuActive===kind){closeMobileMenu();return}
  if(mobileMenuActive)closeMobileMenu();
- const panelKind=({measure:"edit",freehand:"edit",projects:"parts"})[kind]||kind;
+ const panelKind=({measure:"edit",projects:"parts"})[kind]||kind;
  const node=document.querySelector('[data-tool-panel="'+panelKind+'"]');
  if(!node)return;
  mobileMenuReturnFocus=trigger||null;
@@ -4698,7 +4770,7 @@ function openMobileMenu(kind,trigger){
  if(button){button.setAttribute('aria-expanded','true');$('mobileMenuTitle').textContent=button.textContent}
  mobileMenuBody.scrollTop=0;
  // Place the active tool within reach when a mobile category shares a desktop panel.
- const focusTool=({measure:'#fjordMeasureWorkspace',projects:'#sceneList',freehand:'#move'})[kind];
+ const focusTool=({measure:'#fjordMeasureWorkspace',projects:'#sceneList',freehand:'#fjordSketchCanvas'})[kind];
  if(focusTool){const target=mobileMenuBody.querySelector(focusTool);if(target){const panelRect=mobileMenuBody.getBoundingClientRect(),targetRect=target.getBoundingClientRect();mobileMenuBody.scrollTop+=targetRect.top-panelRect.top-12;}}
  $('mobileMenuClose').focus({preventScroll:true});
 }
@@ -4801,7 +4873,7 @@ function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();i
 const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
 const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
 function selectCategory(name){
- const target=({measure:'edit',projects:'parts',freehand:'edit'})[name]||name;
+ const target=({measure:'edit',projects:'parts'})[name]||name;
  const panel=categorySections.find(p=>p.dataset.toolPanel===target);
  if(!panel)return;
  categoryButtons.forEach(b=>{
