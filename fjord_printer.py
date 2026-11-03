@@ -679,13 +679,37 @@ body.light .fj-print-hint{color:#496477!important}
  .fj-print-field-pair{grid-template-columns:1fr}
  .fj-print-card{border-radius:13px;padding:17px 14px}
 }
+/* Compact mobile-first console: retain all explicit safety confirmations. */
+.fj-print-hero{padding:16px 18px;margin-bottom:12px;align-items:center}
+.fj-print-hero p{margin-top:3px}
+.fj-print-nav a{min-height:40px}
+.fj-print-step-bar{margin-bottom:12px}
+.fj-print-step-bar>div{padding:8px 10px}
+.fj-print-card{padding:16px}
+.fj-print-layout,.fj-print-col{gap:12px}
+.fj-print-guide{margin-top:0}
+.fj-print-guide ol{line-height:1.5}
+@media(max-width:540px){
+ .fj-print-hero{padding:13px 14px}
+ .fj-print h1{font-size:24px;margin-bottom:4px}
+ .fj-print-kicker{font-size:10px;margin-bottom:5px}
+ .fj-print-nav{gap:6px}
+ .fj-print-nav a{font-size:12px;padding:8px;flex:1}
+ .fj-print-step-bar{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ .fj-print-step-bar>div{padding:7px 5px;font-size:11px;gap:5px;min-height:38px}
+ .fj-print-step-bar strong{width:22px;height:22px;flex-basis:22px;font-size:12px}
+ .fj-print-card{padding:13px}
+ .fj-print-card h2{font-size:17px}
+ .fj-print-guide{display:none}
+ .fj-print-bottom{font-size:11px}
+}
 </style>
 <div class="fj-print" id="fjordPrintPage">
   <section class="fj-print-hero" aria-labelledby="fjordPrintTitle">
     <div>
       <div class="fj-print-kicker">Les Impressions du Fjord · Atelier privé</div>
       <h1 id="fjordPrintTitle">🖨️ Imprimer sur ma X2D</h1>
-      <p>Une interface simple pour vérifier ton imprimante, transférer une pièce tranchée et lancer ton impression en toute connaissance de cause.</p>
+      <p>Choisis ton fichier, vérifie la X2D et démarre.</p>
     </div>
     <nav class="fj-print-nav" aria-label="Navigation Atelier 3D">
       <a href="/admin/atelier-3d">← Retour à l’Atelier</a>
@@ -695,19 +719,19 @@ body.light .fj-print-hint{color:#496477!important}
 
   <section class="fj-print-card" id="fjordAutoSliceCard" style="margin-bottom:18px" aria-labelledby="fjordAutoSliceTitle">
     <div class="fj-print-step-title"><span class="fj-print-number" aria-hidden="true">★</span>
-      <h2 id="fjordAutoSliceTitle">Tranchage automatique Bambu Studio · X2D</h2></div>
-    <p>Pour une création de l’Atelier, utilise le bouton « Préparer sur ma X2D » directement dans l’Atelier administrateur. Choisis trois profils complets : imprimante X2D, impression et filament. Le serveur tranche, affiche les trajectoires du G-code couche par couche, puis attend ta validation avant de transmettre le 3MF. Le démarrage physique demande une confirmation distincte.</p>
+      <h2 id="fjordAutoSliceTitle">Préparer une pièce dans l’Atelier</h2></div>
+    <p>Pour un STL ou une création 3D, ouvre l’Atelier et choisis « Préparer sur ma X2D ». Pour un 3MF Bambu déjà tranché, envoie-le directement ci-dessous.</p>
     {% if auto_engine_ready %}
-      <div class="fj-print-notice" role="status">Moteur Bambu Studio détecté. La compatibilité réelle dépend des profils sélectionnés et de l'imprimante.</div>
+      <div class="fj-print-notice" role="status">Bambu Studio disponible pour préparer tes modèles.</div>
     {% else %}
       <div class="fj-print-notice error" role="status">Moteur Bambu Studio absent sur ce déploiement Railway : tranchage automatique désactivé jusqu’à son installation et à la validation de profils complets. Tu peux toujours envoyer un 3MF déjà tranché.</div>
     {% endif %}
-    <a class="fj-print-refresh" style="display:inline-block;margin-top:12px" href="/admin/atelier-3d">← Ouvrir ma création dans l'Atelier</a>
+    <a class="fj-print-refresh" style="display:inline-block;margin-top:12px" href="/admin/atelier-3d">Ouvrir l’Atelier 3D</a>
   </section>
   <div class="fj-print-step-bar" aria-label="Étapes d’impression">
-    <div><strong aria-hidden="true">1</strong><span>Trancher dans l’Atelier</span></div>
-    <div><strong aria-hidden="true">2</strong><span>Voir les couches et envoyer</span></div>
-    <div><strong aria-hidden="true">3</strong><span>Confirmer et imprimer</span></div>
+    <div><strong aria-hidden="true">1</strong><span>Préparer</span></div>
+    <div><strong aria-hidden="true">2</strong><span>Envoyer</span></div>
+    <div><strong aria-hidden="true">3</strong><span>Démarrer</span></div>
   </div>
 
   {% for notice in messages %}
@@ -745,9 +769,9 @@ body.light .fj-print-hint{color:#496477!important}
       <section class="fj-print-card" aria-labelledby="fjordUploadTitle">
         <div class="fj-print-step-title">
           <span class="fj-print-number" aria-hidden="true">2</span>
-          <h2 id="fjordUploadTitle">Envoyer un fichier tranché</h2>
+          <h2 id="fjordUploadTitle">1 · Envoyer mon 3MF</h2>
         </div>
-        <p class="fj-print-intro">Choisis un <strong>3MF déjà tranché avec Bambu Studio</strong>. Un simple STL ou le 3MF de modélisation de l’Atelier n’est pas encore prêt pour l’impression.</p>
+        <p class="fj-print-intro">Fichier 3MF tranché avec Bambu Studio seulement.</p>
         <form method="post" action="/admin/atelier-imprimer/envoyer" enctype="multipart/form-data">
           {{csrf_field|safe}}
           <label for="fjordPrintUpload">Mon fichier Bambu Studio (.3mf)
@@ -772,9 +796,9 @@ body.light .fj-print-hint{color:#496477!important}
     <section class="fj-print-card" aria-labelledby="fjordStartTitle">
       <div class="fj-print-step-title">
         <span class="fj-print-number" aria-hidden="true">3</span>
-        <h2 id="fjordStartTitle">Vérifier et démarrer</h2>
+        <h2 id="fjordStartTitle">2 · Démarrer l’impression</h2>
       </div>
-      <p class="fj-print-intro">Sélectionne le fichier présent sur la X2D, puis valide les contrôles avant l’impression.</p>
+      <p class="fj-print-intro">Choisis ton fichier, confirme que le plateau est libre, puis démarre.</p>
       {% if files %}
       <form method="post" action="/admin/atelier-imprimer/demarrer"
         onsubmit="return confirm('Démarrer réellement l’impression sur la X2D ? Vérifie le plateau, la bonne bobine et la plaque tranchée.');">
@@ -796,13 +820,13 @@ body.light .fj-print-hint{color:#496477!important}
           <label class="fj-print-check"><input type="checkbox" name="ams" value="yes" checked>
             <span>Utiliser le système AMS</span></label>
           <label class="fj-print-check"><input type="checkbox" name="verified" value="yes" required>
-            <span>J’ai vérifié les matériaux, les bobines AMS, les températures et le tranchage dans Bambu Studio.</span></label>
+            <span>J’ai vérifié le matériau, l’AMS et le tranchage.</span></label>
           <label class="fj-print-check"><input type="checkbox" name="cleared" value="yes" required>
-            <span>Le plateau est libre, l’imprimante est prête et je peux surveiller le lancement.</span></label>
+            <span>Le plateau est libre et je peux surveiller le lancement.</span></label>
         </div>
         <button class="fj-print-start" type="submit"
           {% if not status or not status.can_start %}disabled{% endif %}>
-          🖨️ Confirmer et démarrer l’impression
+          ▶ Démarrer sur ma X2D
         </button>
       </form>
       {% else %}
