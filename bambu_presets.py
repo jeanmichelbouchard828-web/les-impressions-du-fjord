@@ -155,6 +155,61 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
           signature TEXT NOT NULL UNIQUE,
           imported_at TIMESTAMPTZ DEFAULT NOW())""")
 
+    @app.post("/admin/profils-bambu/nettoyer")
+    @admin_required
+    def bambu_cleanup_profiles():
+        """One-click owner-approved cleanup; snapshot before deletion in one transaction."""
+        verify()
+        from bambu_auto import full_preset, AutoSliceError
+        removed = []
+        with db() as c:
+            c.execute("""CREATE TABLE IF NOT EXISTS bambu_user_presets_cleanup_backup(
+              backup_id BIGSERIAL PRIMARY KEY, cleanup_at TIMESTAMPTZ DEFAULT NOW(),
+              original_id BIGINT NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL,
+              source_file TEXT NOT NULL, internal_path TEXT NOT NULL,
+              settings TEXT NOT NULL, signature TEXT NOT NULL, imported_at TIMESTAMPTZ
+            )""")
+            rows = c.execute("""SELECT id,name,category,source_file,internal_path,
+                                     settings,signature,imported_at
+                                FROM bambu_user_presets FOR UPDATE""").fetchall()
+            for row in rows:
+                category = row["category"]
+                keep = False
+                try:
+                    data = full_preset(row["settings"], category)
+                    if category == "Imprimante":
+                        model = data.get("printer_model", "")
+                        if isinstance(model, list):
+                            model = model[0] if model else ""
+                        keep = "X2D" in str(model).upper()
+                    elif category == "Filament":
+                        kind = data.get("filament_type", "")
+                        if isinstance(kind, list):
+                            kind = kind[0] if kind else ""
+                        normalized = re.sub(r"[^A-Z0-9]", "", str(kind).upper())
+                        keep = normalized in {"PLA", "PETG", "PETGCF", "ASA", "TPU"}
+                    elif category == "Impression":
+                        # Keep valid print-quality profiles: they are needed by X2D slicing.
+                        keep = True
+                except (AutoSliceError, TypeError, ValueError, KeyError):
+                    keep = False
+                if not keep:
+                    removed.append(row)
+            if removed:
+                payload = json.dumps([dict(row, imported_at=row["imported_at"].isoformat()
+                                     if row["imported_at"] else None) for row in removed],
+                                     ensure_ascii=False)
+                c.execute("""INSERT INTO bambu_user_presets_cleanup_backup
+                  (original_id,name,category,source_file,internal_path,settings,signature,imported_at)
+                  SELECT x.id,x.name,x.category,x.source_file,x.internal_path,
+                         x.settings,x.signature,x.imported_at
+                  FROM jsonb_to_recordset(%s::jsonb)
+                  AS x(id BIGINT,name TEXT,category TEXT,source_file TEXT,internal_path TEXT,
+                       settings TEXT,signature TEXT,imported_at TIMESTAMPTZ)""", (payload,))
+                c.execute("DELETE FROM bambu_user_presets WHERE id=ANY(%s)",
+                          ([row["id"] for row in removed],))
+        return redirect(url_for("bambu_preset_library", cleaned=len(removed)))
+
     @app.route("/admin/profils-bambu", methods=["GET", "POST"])
     @admin_required
     def bambu_preset_library():
@@ -217,6 +272,12 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
  <p class="muted small">Jusqu'à 15 fichiers à la fois, 8 Mo par fichier et 10 Mo au total par envoi. Tu peux recommencer autant de fois que nécessaire. Les doublons identiques sont ignorés.</p>
 </form>
 {% if message %}<p role="status" class="card">{{message}}</p>{% endif %}
+<form method="post" action="/admin/profils-bambu/nettoyer" onsubmit="return confirm('Nettoyer les profils incompatibles ? Une sauvegarde interne sera conservée avant suppression. Les profils d’impression valides resteront disponibles.');">
+{{csrf_field|safe}}
+<button type="submit">🧹 Nettoyer les profils incompatibles</button>
+<p class="muted small">Garde les imprimantes X2D, les filaments PLA, PETG, PETG-CF, ASA et TPU et les profils d'impression complets. Sauvegarde les profils retirés dans une table d'archives.</p>
+</form>
+{% if request.args.get('cleaned') is not none %}<p role="status" class="card">{{request.args.get('cleaned')|int}} profil(s) retiré(s), sauvegarde interne conservée.</p>{% endif %}
 <h2>Mes profils classés</h2>
 <p>Ce classement facilite le choix : <strong>aucun profil d'imprimante ou ancien essai n'est effacé automatiquement.</strong> Les profils essentiels et alternatifs restent <strong>à vérifier dans Bambu Studio</strong> avant toute impression.</p>
 <p><strong>Essentiels : {{tiers.essentiel}}</strong> · Alternatives : {{tiers.alternative}} · Archives : {{tiers.archive}}</p>
