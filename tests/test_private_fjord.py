@@ -102,7 +102,7 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn('/static/atelier_admin_header.css', admin)
         self.assertIn('class="fjord-admin-links"', admin)
         self.assertIn('id="fjordAdminModeBanner"', admin)
-        self.assertIn('🔒 ADMINISTRATEUR', admin)
+        self.assertIn('🔒 Mode administrateur', admin)
         self.assertIn('id="fjordPublicAtelierShortcut" href="/atelier-3d"', admin)
         self.assertNotIn('fjordAdminModeBanner', public)
         self.assertIn('function fjordSaveStudioModel(forQuote,button)', admin)
