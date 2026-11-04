@@ -1,0 +1,35 @@
+# Non-production Blueprint for Les Impressions du Fjord.
+# Import this file explicitly in Render after reviewing its monthly charges.
+# It deliberately creates NEW resources and never modifies Railway.
+# DO NOT reuse this preview database as the final production database.
+services:
+  - type: web
+    name: fjord-render-apercu-20261104
+    runtime: docker
+    repo: https://github.com/jeanmichelbouchard828-web/les-impressions-du-fjord
+    branch: migration/render-fjord-20261104
+    region: oregon
+    plan: 1c-2g
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fjord-render-apercu-db-20261104
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FJORD_PREVIEW_MODE
+        value: "1"
+      - key: PORT
+        value: "8080"
+
+databases:
+  - name: fjord-render-apercu-db-20261104
+    databaseName: fjord_render_apercu
+    user: fjord_render_apercu
+    plan: 0.1c-256mb
+    region: oregon
+    postgresMajorVersion: "18"
+    ipAllowList: []
