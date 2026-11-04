@@ -7,6 +7,8 @@ import psycopg
 from psycopg.rows import dict_row
 from werkzeug.utils import secure_filename
 app=Flask(__name__)
+from fjord_preview_guard import install_preview_guard
+install_preview_guard(app)
 # Actual server-side slicing / layer toolpaths. The resulting generic G-code
 # is NOT downloadable or intended for direct use on a Bambu X2D printer.
 from real_slicer import slicer_bp
