@@ -114,6 +114,10 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
     def fjord_connect_bridge_page():
         state = bridge_state(db)
         code = session.pop("fjord_connect_pair_code", "")
+        with db() as conn:
+            last_handoff = conn.execute("""SELECT id,file_name,handed_at
+                FROM fjord_connect_jobs WHERE state='handed_to_connect'
+                ORDER BY handed_at DESC NULLS LAST LIMIT 1""").fetchone()
         return page("Pont Bambu Connect", r"""
 <section class="card" style="max-width:850px;margin:auto">
  <h1>🖨️ Pont vers Bambu Connect</h1>
@@ -121,13 +125,35 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
  <p><strong>État :</strong> {% if state.online %}PC connecté{% elif state.paired %}PC associé, hors ligne{% else %}aucun PC associé{% endif %}</p>
  {% if state.age is not none %}<p class="small muted">Dernier contact : {{state.age}} s</p>{% endif %}
  <p><a class="btn" href="/admin/atelier-pont/bridge.zip">Télécharger le pont Windows (ZIP)</a></p>
+ <p><strong>Windows dit qu’aucune application n’ouvre le lien bambu-connect ?</strong> Installe ou réinstalle <a href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noopener noreferrer">Bambu Connect depuis le site officiel Bambu Lab</a>, puis ouvre l’application une fois.</p>
+ {% if last_handoff %}<div class="alert"><strong>Dernier 3MF transmis : {{last_handoff.file_name}}</strong><p>Si Windows n’avait pas Bambu Connect, installe-le d’abord, puis réimporte ce même 3MF ici. Cela n’envoie pas encore l’impression.</p><form method="post" action="/admin/atelier-pont/reessayer">{{csrf|safe}}<button type="submit">↻ Réimporter ce 3MF dans Bambu Connect</button></form></div>{% endif %}
  <form method="post" action="/admin/atelier-pont/code">{{csrf|safe}}<button>Associer ce PC</button></form>
  {% if code %}<div class="alert"><strong>Code à usage unique (10 minutes) :</strong><br><code style="font-size:22px;user-select:all">{{code}}</code><p>Entre ce code dans le script PowerShell téléchargé. Ne le partage pas.</p></div>{% endif %}
  <form method="post" action="/admin/atelier-pont/revoquer" onsubmit="return confirm('Dissocier tous les PC?');">{{csrf|safe}}<button style="background:#9e4545;color:white">Dissocier tous les PC</button></form>
  <ol><li>Télécharge le ZIP et extrais son contenu sur le PC où Bambu Connect est installé.</li><li>Double-clique sur <strong>Lancer_Pont_Bambu_Connect.cmd</strong>, puis colle le code d’association affiché ici.</li><li>Laisse la fenêtre ouverte. Lors d’un lancement depuis le site, Bambu Connect s’ouvrira sur le PC pour confirmer l’imprimante et l’envoi.</li></ol>
  <p class="small muted">Aucun code d’accès imprimante ni clé de signature Bambu n’est stocké sur Render. Ce pont ne démarre jamais seul une impression.</p>
  <p><a href="/admin/atelier-imprimer">← Retour à l’impression X2D</a></p>
-</section>""", state=state, code=code, csrf=csrfinput())
+</section>""", state=state, code=code, csrf=csrfinput(), last_handoff=last_handoff)
+
+    @app.post("/admin/atelier-pont/reessayer")
+    @admin_required
+    def fjord_connect_retry_handoff():
+        verify()
+        bridge = bridge_state(db)
+        if not bridge["online"]:
+            return page("Pont Bambu Connect", "<h1>PC hors ligne</h1><p>Ouvre le pont Windows, puis réessaie.</p><p><a href='/admin/atelier-pont'>Retour au pont</a></p>")
+        with db() as conn:
+            old = conn.execute("""SELECT file_path,file_name,material,file_data
+                FROM fjord_connect_jobs WHERE state='handed_to_connect'
+                ORDER BY handed_at DESC NULLS LAST LIMIT 1""").fetchone()
+        if not old:
+            return page("Pont Bambu Connect", "<h1>Aucun transfert à réessayer</h1><p><a href='/admin/atelier-pont'>Retour au pont</a></p>")
+        retry_id = secrets.token_urlsafe(24)
+        store_file(db, retry_id, old["file_path"], old["file_name"],
+                   old["material"], bytes(old["file_data"]))
+        if not queue_file(db, retry_id):
+            return page("Pont Bambu Connect", "<h1>Réessai impossible</h1><p>Retourne au pont et renvoie le fichier.</p><p><a href='/admin/atelier-pont'>Retour au pont</a></p>")
+        return page("Réessai Bambu Connect", "<section class='card' style='max-width:760px;margin:auto'><h1>✓ 3MF remis dans la file du PC</h1><p>Bambu Connect va tenter d’ouvrir le fichier sur le PC connecté. Confirme l’imprimante et l’envoi dans l’application. L’impression ne démarre pas sans cette confirmation.</p><p><a class='btn' href='/admin/atelier-pont'>Retour au pont Bambu Connect</a></p><p><a href='/admin/atelier-3d'>Retour à l’Atelier</a></p></section>")
 
     @app.post("/admin/atelier-pont/code")
     @admin_required
@@ -169,7 +195,8 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
             "2. Dans l’administration du site, ouvre Pont Bambu Connect et clique sur Associer ce PC.\r\n"
             "3. Double-clique sur Lancer_Pont_Bambu_Connect.cmd et colle le code affiché.\r\n"
             "4. Laisse la fenêtre ouverte.\r\n\r\n"
-            "Le PC doit avoir Bambu Connect installé. Lorsqu’un fichier arrive, confirme le choix de l’imprimante et l’envoi dans Bambu Connect.\r\n"
+            "Le PC doit avoir Bambu Connect installé. Si Windows dit qu’aucune application n’ouvre bambu-connect://, installe Bambu Connect depuis https://wiki.bambulab.com/en/software/bambu-connect puis ouvre-le une fois.\r\n"
+            "Lorsqu’un fichier arrive, confirme le choix de l’imprimante et l’envoi dans Bambu Connect.\r\n"
         )
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for filename in ("fjord_bambu_connect_bridge.ps1", "Lancer_Pont_Bambu_Connect.cmd"):
