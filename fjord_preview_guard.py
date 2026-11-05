@@ -52,8 +52,7 @@ def install_preview_guard(app):
             or path.startswith("/payer/")
             or path == "/admin"
             or path.startswith("/admin/")
-            or path == "/api"
-            or path.startswith("/api/")
+            or (path == "/api" or path.startswith("/api/")) and path != "/api/public/visitors"
             or path == "/stripe"
             or path.startswith("/stripe/")
         )
