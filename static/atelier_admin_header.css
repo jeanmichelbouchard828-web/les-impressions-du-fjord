@@ -313,3 +313,16 @@ header.fjord-admin-header{
  .fjord-admin-header #fjordAdminShortcut::after{content:"📋";font-size:18px!important}
  .fjord-admin-header #fjordPrintShortcut::after{content:"🖨️";font-size:18px!important}
 }
+
+/* Camera shortcut added to the private Atelier header. */
+@media(max-width:760px){
+ .fjord-admin-header .fjord-admin-links{
+  flex:0 0 111px!important;width:111px!important;min-width:111px!important;
+  max-width:111px!important;gap:3px!important
+ }
+ .fjord-admin-header #fjordCameraShortcut{
+  box-sizing:border-box;width:35px!important;min-width:35px!important;max-width:35px!important;
+  height:35px!important;min-height:35px!important;padding:0!important;font-size:0!important
+ }
+ .fjord-admin-header #fjordCameraShortcut::after{content:"📷";font-size:18px!important}
+}
