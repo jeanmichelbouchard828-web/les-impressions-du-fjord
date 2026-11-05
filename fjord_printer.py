@@ -733,6 +733,7 @@ body.light .fj-print-hint{color:#496477!important}
       <a href="/admin/atelier-3d">← Retour à l’Atelier</a>
       <a href="/admin/profils-bambu">⚙️ Mes profils Bambu</a>
       <a href="/api/admin/atelier/impression-diagnostic" target="_blank" rel="noopener">🔎 Diagnostic X2D</a>
+      <a href="/admin/atelier-pont">🔗 Pont Bambu Connect</a>
     </nav>
   </section>
 
@@ -994,6 +995,18 @@ body.light .fj-print-hint{color:#496477!important}
                 raise PrinterError("X2D occupée ou indisponible : aucune transmission.")
             virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
             _upload(virtual_path, staged)
+            bridge_job_id = ""
+            if db is not None:
+                bridge_job_id = secrets.token_urlsafe(24)
+                try:
+                    from fjord_bambu_connect import store_file
+                    store_file(db, bridge_job_id, virtual_path,
+                               virtual_path.rsplit("/", 1)[-1],
+                               str(request.form.get("material", "")).strip().upper()[:32],
+                               staged)
+                except Exception as exc:
+                    app.logger.exception("Préparation du pont Bambu Connect indisponible.")
+                    raise PrinterError("Le 3MF est transféré, mais le pont Bambu Connect n'a pas pu préparer le fichier. Vérifie le pont puis réessaie.") from exc
             session.pop("fjord_last_upload_diagnostic", None)
             consume_staged(token)
             # Trust only the exact uploaded path returned by the printer.
@@ -1001,7 +1014,8 @@ body.light .fj-print-hint{color:#496477!important}
             start_nonce = secrets.token_urlsafe(32)
             session["fjord_atelier_start"] = {
                 "path": virtual_path, "nonce": start_nonce, "time": time.time(),
-                "material": str(request.form.get("material", "")).strip().upper()[:32]
+                "material": str(request.form.get("material", "")).strip().upper()[:32],
+                "bridge_job_id": bridge_job_id
             }
             message = "3MF tranché envoyé. Vérifie les matériaux et le plateau avant le démarrage."
             next_page = url_for("fjord_printer_page", selected=virtual_path)
@@ -1131,6 +1145,12 @@ body.light .fj-print-hint{color:#496477!important}
                 diagnosis += (
                     " La commande a obtenu une réponse 200 du relais, mais aucune "
                     "confirmation native de démarrage n'a été transmise."
+                )
+            elif acknowledgement == "bambu_connect_handoff":
+                diagnosis += (
+                    " Le fichier a été remis au pont Windows pour Bambu Connect. "
+                    "La confirmation doit être faite dans l'application; aucune "
+                    "impression n'est déclarée avant le retour d'état réel de la X2D."
                 )
             elif acknowledgement == "native_ok":
                 diagnosis += (
@@ -1274,7 +1294,7 @@ body.light .fj-print-hint{color:#496477!important}
                         (expected_name in result_file or
                          expected_name.rsplit(".", 1)[0] in result_file))
                     payload["start_ack"] = (previous.get("start_ack")
-                                             if previous.get("start_ack") in ("native_ok", "relay_only")
+                                             if previous.get("start_ack") in ("native_ok", "relay_only", "bambu_connect_handoff")
                                              else None)
                     payload["start_outcome"] = _atelier_remote_start_outcome(status, previous, age)
                     response = jsonify(payload)
@@ -1326,6 +1346,24 @@ body.light .fj-print-hint{color:#496477!important}
                 if requested_material and selected["material"] != requested_material:
                     raise PrinterError("Le matériau de la bobine AMS ne correspond plus au fichier tranché.")
                 command["AmsMapping"] = [chosen_slot]
+            if db is not None:
+                from fjord_bambu_connect import bridge_state, queue_file
+                bridge = bridge_state(db)
+                if bridge["paired"]:
+                    if not bridge["online"]:
+                        raise PrinterError("Le PC Bambu Connect est hors ligne. Ouvre le pont Windows avant de lancer.")
+                    bridge_job_id = str(pending.get("bridge_job_id") or "")
+                    if not bridge_job_id or not queue_file(db, bridge_job_id):
+                        raise PrinterError("Le fichier n'est plus en attente pour Bambu Connect. Renvoie le 3MF depuis l'Atelier.")
+                    remember_start(path, "bambu_connect_handoff")
+                    result = jsonify(
+                        ok=True,
+                        message="Fichier remis au PC. Bambu Connect va s'ouvrir : confirme la X2D et le lancement dans l'application.",
+                        start_ack="bambu_connect_handoff",
+                        file=path
+                    )
+                    result.headers["Cache-Control"] = "no-store"
+                    return result
             response = _api("/start", method="POST", payload=command, timeout=15)
             if response.get("VirtualPath") not in (None, path):
                 raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
