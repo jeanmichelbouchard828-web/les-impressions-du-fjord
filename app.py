@@ -683,14 +683,18 @@ def public_production():
 
 @app.get("/soutenir")
 def fjord_support():
- # Lien Stripe Payment Link configuré séparément des paiements de soumission.
+ # Les dons peuvent être faits par Stripe ou par virement Interac.
  link=os.environ.get("STRIPE_DONATION_URL","").strip()
  valid=bool(re.fullmatch(r"https://(?:buy|donate)\.stripe\.com/[A-Za-z0-9_/?=&-]+",link))
+ with db() as c:
+  setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+ recipient=(setting["value"].strip() if setting and setting["value"] else "")
  body="""<section class="fjord-support-panel"><div class="eyebrow">Un petit geste, un grand merci</div><h1>❤️ Soutenir Les Impressions du Fjord</h1><p>Vous aimez nos créations et souhaitez encourager notre atelier d'impression 3D? Votre soutien volontaire nous aide à développer de nouveaux projets.</p>
- {% if valid %}<a class="fjord-donation-link" href="{{link}}" target="_blank" rel="noopener noreferrer">❤️ Faire un don sécurisé avec Stripe ↗</a><p class="small">Paiement traité par Stripe. Les dons sont indépendants des commandes et ne constituent pas des reçus officiels de dons de bienfaisance.</p>
- {% else %}<p class="alert">Les dons en ligne seront disponibles prochainement. Merci pour votre soutien! 💙</p>{% endif %}
+ {% if valid %}<a class="fjord-donation-link" href="{{link}}" target="_blank" rel="noopener noreferrer">❤️ Faire un don sécurisé avec Stripe ↗</a><p class="small">Paiement traité par Stripe. Les dons sont indépendants des commandes et ne constituent pas des reçus officiels de dons de bienfaisance.</p>{% endif %}
+ {% if recipient %}<div class="fjord-donation-interac"><h2>Virement Interac</h2><p>Envoyez le montant de votre choix à <strong>{{recipient}}</strong> depuis votre application bancaire. Ajoutez « Don atelier Fjord » en note.</p></div>{% endif %}
+ {% if not valid and not recipient %}<p class="alert">Les dons en ligne seront disponibles prochainement. Merci pour votre soutien! 💙</p>{% endif %}
  <p><a href="/">← Retour à l'accueil</a></p></section>"""
- return page("Soutenir notre atelier",body,valid=valid,link=link)
+ return page("Soutenir notre atelier",body,valid=valid,link=link,recipient=recipient)
 
 @app.get("/")
 def home():
