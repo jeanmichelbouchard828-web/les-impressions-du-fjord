@@ -6,10 +6,7 @@ function ConvertTo-UrlPart([string]$Value) {
 }
 
 $defaultSite = 'https://fjord-render-apercu-20261104.onrender.com'
-$siteInput = Read-Host "Adresse Render du site (Entrée = $defaultSite)"
-if ([string]::IsNullOrWhiteSpace($siteInput)) { $siteInput = $defaultSite }
-$site = $siteInput.Trim().TrimEnd('/')
-if ($site -notmatch '^https://[A-Za-z0-9.-]+(?::[0-9]+)?$') { throw 'Adresse HTTPS invalide.' }
+$site = $defaultSite
 $root = Join-Path $env:LOCALAPPDATA 'LesImpressionsDuFjord\BambuConnectBridge'
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 $tokenFile = Join-Path $root 'token.dpapi'
