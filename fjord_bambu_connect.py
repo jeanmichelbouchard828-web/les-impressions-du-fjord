@@ -61,7 +61,7 @@ def store_file(db, job_id, file_path, file_name, material, raw):
     if not safe_name.lower().endswith(".3mf"):
         safe_name += ".3mf"
     with db() as conn:
-        conn.execute("DELETE FROM fjord_connect_jobs WHERE created_at < %s AND state IN ('handed_to_connect','expired')",
+        conn.execute("DELETE FROM fjord_connect_jobs WHERE created_at < %s",
                      (time.time() - 7 * 86400,))
         conn.execute("""INSERT INTO fjord_connect_jobs
             (id,file_path,file_name,material,file_data,state,created_at)
@@ -123,7 +123,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
  <form method="post" action="/admin/atelier-pont/code">{{csrf|safe}}<button>Associer ce PC</button></form>
  {% if code %}<div class="alert"><strong>Code à usage unique (10 minutes) :</strong><br><code style="font-size:22px;user-select:all">{{code}}</code><p>Entre ce code dans le script PowerShell téléchargé. Ne le partage pas.</p></div>{% endif %}
  <form method="post" action="/admin/atelier-pont/revoquer" onsubmit="return confirm('Dissocier tous les PC?');">{{csrf|safe}}<button style="background:#9e4545;color:white">Dissocier tous les PC</button></form>
- <ol><li>Télécharge le script sur le PC Windows où Bambu Connect est installé.</li><li>Ouvre PowerShell, exécute le script et colle le code d’association.</li><li>Laisse la fenêtre ouverte. Lors d’un lancement depuis le site, Bambu Connect s’ouvrira sur le PC; confirme l’imprimante et l’envoi dans l’application.</li></ol>
+ <ol><li>Télécharge le script sur le PC Windows où Bambu Connect est installé.</li><li>Dans PowerShell, lance <code>powershell -NoProfile -ExecutionPolicy Bypass -File .\fjord_bambu_connect_bridge.ps1</code>, puis colle le code d’association.</li><li>Laisse la fenêtre ouverte. Lors d’un lancement depuis le site, Bambu Connect s’ouvrira sur le PC; confirme l’imprimante et l’envoi dans l’application.</li></ol>
  <p class="small muted">Aucun code d’accès imprimante ni clé de signature Bambu n’est stocké sur Render. Ce pont ne démarre jamais seul une impression.</p>
  <p><a href="/admin/atelier-imprimer">← Retour à l’impression X2D</a></p>
 </section>""", state=state, code=code, csrf=csrfinput())
@@ -172,6 +172,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
             if not pairing:
                 abort(401)
             token = secrets.token_urlsafe(48)
+            conn.execute("UPDATE fjord_connect_tokens SET revoked=TRUE WHERE revoked=FALSE")
             conn.execute("""INSERT INTO fjord_connect_tokens(token_hash,device_name,paired_at,last_seen)
                 VALUES(%s,%s,%s,%s)""", (_digest(token), name or "Windows PC", time.time(), time.time()))
         return jsonify(ok=True, token=token, poll_seconds=5)
@@ -183,10 +184,12 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
             conn.execute("""UPDATE fjord_connect_jobs SET state='queued',claimed_at=NULL
                 WHERE state='claimed' AND claimed_at < %s""", (time.time() - 90,))
             job = conn.execute("""SELECT id,file_name,material,created_at FROM fjord_connect_jobs
-                WHERE state='queued' ORDER BY queued_at,id LIMIT 1""").fetchone()
+                WHERE state='queued' ORDER BY queued_at,id LIMIT 1 FOR UPDATE SKIP LOCKED""").fetchone()
             if job:
-                conn.execute("""UPDATE fjord_connect_jobs SET state='claimed',claimed_at=%s
-                    WHERE id=%s AND state='queued'""", (time.time(), job["id"]))
+                claimed = conn.execute("""UPDATE fjord_connect_jobs SET state='claimed',claimed_at=%s
+                    WHERE id=%s AND state='queued' RETURNING id""", (time.time(), job["id"])).fetchone()
+                if not claimed:
+                    job = None
         response = jsonify(ok=True, job=job)
         response.headers["Cache-Control"] = "no-store"
         return response
