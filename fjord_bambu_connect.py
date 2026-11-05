@@ -130,6 +130,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
  <p><a class="btn" href="/admin/atelier-pont/bridge.zip">Télécharger le pont Windows (ZIP)</a></p>
  <p><strong>Windows dit qu’aucune application n’ouvre le lien bambu-connect ?</strong> Installe ou réinstalle <a href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noopener noreferrer">Bambu Connect depuis le site officiel Bambu Lab</a>, puis ouvre l’application une fois.</p>
  {% if last_handoff %}<div class="alert"><strong>Dernier 3MF transmis : {{last_handoff.file_name}}</strong><p>Si Windows n’avait pas Bambu Connect, installe-le d’abord, puis réimporte ce même 3MF ici. Cela n’envoie pas encore l’impression.</p><form method="post" action="/admin/atelier-pont/reessayer">{{csrf|safe}}<button type="submit">↻ Réimporter ce 3MF dans Bambu Connect</button></form></div>{% endif %}
+ <p><a href="/admin/atelier-pont/diagnostic-3mf">🔎 Diagnostiquer le contenu du dernier 3MF</a></p>
  <form method="post" action="/admin/atelier-pont/code">{{csrf|safe}}<button>Générer le code d’association</button></form>
  {% if code %}<div class="alert"><strong>Code d’association (valide 10 minutes) — copie-le :</strong><br><code style="font-size:22px;user-select:all">{{code}}</code><p>Le code apparaît ici sur la page. Colle-le dans la fenêtre PowerShell quand le script te le demande. Ne le partage pas.</p></div>{% endif %}
  <form method="post" action="/admin/atelier-pont/revoquer" onsubmit="return confirm('Dissocier tous les PC?');">{{csrf|safe}}<button style="background:#9e4545;color:white">Dissocier tous les PC</button></form>
@@ -138,6 +139,27 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
  <p><a href="/admin/atelier-imprimer">← Retour à l’impression X2D</a></p>
 </section>""", state=state, code=code, csrf=csrfinput(), last_handoff=last_handoff)
 
+    @app.get("/admin/atelier-pont/diagnostic-3mf")
+    @admin_required
+    def fjord_connect_diagnose_3mf():
+        with db() as conn:
+            job = conn.execute("""SELECT file_name,file_data,state,created_at
+                FROM fjord_connect_jobs ORDER BY created_at DESC LIMIT 1""").fetchone()
+        if not job:
+            return jsonify(ok=False, error="Aucun fichier stocké."), 404
+        raw = bytes(job["file_data"])
+        result = {"ok": True, "file_name": job["file_name"], "state": job["state"],
+                  "bytes": len(raw), "valid_zip": False, "gcode_entries": [], "entry_count": 0}
+        try:
+            with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                names = archive.namelist()
+                result["valid_zip"] = True
+                result["entry_count"] = len(names)
+                result["gcode_entries"] = [name for name in names if "gcode" in name.lower()][:40]
+                result["metadata_entries"] = [name for name in names if name.lower().startswith("metadata/")][:20]
+        except zipfile.BadZipFile:
+            result["zip_error"] = "Le fichier n’est pas une archive 3MF lisible."
+        return jsonify(result)
     @app.post("/admin/atelier-pont/reessayer")
     @admin_required
     def fjord_connect_retry_handoff():
