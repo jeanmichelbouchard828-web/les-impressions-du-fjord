@@ -5,14 +5,6 @@ function ConvertTo-UrlPart([string]$Value) {
     return [System.Uri]::EscapeDataString($Value)
 }
 
-function Test-BambuConnectProtocol {
-    $commandPath = 'Registry::HKEY_CLASSES_ROOT\bambu-connect\shell\open\command'
-    $entry = Get-Item -LiteralPath $commandPath -ErrorAction SilentlyContinue
-    if ($null -eq $entry) { return $false }
-    $command = [string]$entry.GetValue('')
-    return -not [string]::IsNullOrWhiteSpace($command)
-}
-
 $defaultSite = 'https://fjord-render-apercu-20261104.onrender.com'
 $siteInput = Read-Host "Adresse Render du site (Entrée = $defaultSite)"
 if ([string]::IsNullOrWhiteSpace($siteInput)) { $siteInput = $defaultSite }
@@ -22,13 +14,7 @@ $root = Join-Path $env:LOCALAPPDATA 'LesImpressionsDuFjord\BambuConnectBridge'
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 $tokenFile = Join-Path $root 'token.dpapi'
  $siteFile = Join-Path $root 'site.txt'
-$savedSite = if (Test-Path -LiteralPath $siteFile) { (Get-Content -LiteralPath $siteFile -Raw).Trim() } else { '' }
-if ((Test-Path -LiteralPath $tokenFile) -and ($savedSite -eq $site)) {
-    $secure = ConvertTo-SecureString (Get-Content -LiteralPath $tokenFile -Raw)
-    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try { $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
-    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
-} else {
+function New-BridgeToken {
     $code = Read-Host 'Code à usage unique généré dans Admin > Pont Bambu Connect'
     $pairBody = @{ code = $code.Trim(); device_name = $env:COMPUTERNAME } | ConvertTo-Json -Compress
     $pair = Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/pair" -ContentType 'application/json' -Body $pairBody
@@ -36,7 +22,27 @@ if ((Test-Path -LiteralPath $tokenFile) -and ($savedSite -eq $site)) {
     $secure = ConvertTo-SecureString $pair.token -AsPlainText -Force
     Set-Content -LiteralPath $tokenFile -Value (ConvertFrom-SecureString $secure) -Encoding ascii
     Set-Content -LiteralPath $siteFile -Value $site -Encoding ascii
-    $token = $pair.token
+    return [string]$pair.token
+}
+
+$savedSite = if (Test-Path -LiteralPath $siteFile) { (Get-Content -LiteralPath $siteFile -Raw).Trim() } else { '' }
+$token = $null
+if ((Test-Path -LiteralPath $tokenFile) -and ($savedSite -eq $site)) {
+    try {
+        $encryptedToken = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
+        if ([string]::IsNullOrWhiteSpace($encryptedToken)) { throw 'Jeton local vide.' }
+        $secure = ConvertTo-SecureString $encryptedToken -ErrorAction Stop
+        $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try { $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
+        finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+        if ([string]::IsNullOrWhiteSpace($token)) { throw 'Jeton local invalide.' }
+    } catch {
+        Write-Host 'Le jeton enregistré sur ce PC est illisible; une nouvelle association est nécessaire.' -ForegroundColor Yellow
+        Remove-Item -LiteralPath $tokenFile -Force -ErrorAction SilentlyContinue
+        $token = New-BridgeToken
+    }
+} else {
+    $token = New-BridgeToken
 }
 $headers = @{ Authorization = "Bearer $token" }
 Write-Host 'Pont associé. Garde cette fenêtre PowerShell ouverte.' -ForegroundColor Green
@@ -60,29 +66,16 @@ while ($true) {
         Invoke-WebRequest -Method Get -Uri "$site/api/fjord-print-bridge/file/$($job.id)" -Headers $headers -OutFile $filePath -TimeoutSec 120
         if ((Get-Item -LiteralPath $filePath).Length -lt 100) { throw 'Le 3MF téléchargé est incomplet.' }
 
-        if (-not (Test-BambuConnectProtocol)) {
-            throw 'Bambu Connect ne semble pas installé ou son lien Windows n’est pas associé. Installe ou réinstalle Bambu Connect depuis le site officiel Bambu Lab, lance-le une fois, puis renvoie le 3MF depuis le site.'
-        }
         $uri = 'bambu-connect://import-file?path=' + (ConvertTo-UrlPart $filePath) +
                '&name=' + (ConvertTo-UrlPart ([string]$job.file_name)) + '&version=1.0.0'
-        try {
-            Start-Process -FilePath $uri -ErrorAction Stop | Out-Null
-        } catch {
-            throw 'Windows n’a pas pu ouvrir Bambu Connect. Installe ou réinstalle l’application officielle, puis renvoie le 3MF.'
-        }
-        Start-Sleep -Seconds 2
+        Start-Process $uri
         Set-Content -LiteralPath $seenPath -Value ([string]$job.id) -Encoding ascii
         Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/ack/$($job.id)" -Headers $headers -ContentType 'application/json' -Body '{}' -TimeoutSec 20 | Out-Null
-        Write-Host "Bambu Connect a été ouvert pour importer : $($job.file_name)" -ForegroundColor Cyan
+        Write-Host "Fichier remis à Bambu Connect : $($job.file_name)" -ForegroundColor Cyan
         Write-Host 'Confirme l’imprimante, le matériau et le lancement dans Bambu Connect.' -ForegroundColor Yellow
     }
     catch {
-        if (-not (Test-BambuConnectProtocol)) {
-            Write-Host 'BLOQUÉ : Bambu Connect est absent ou son lien Windows bambu-connect:// n’est pas enregistré.' -ForegroundColor Red
-            Write-Host 'Installe ou réinstalle Bambu Connect depuis le site officiel Bambu Lab, ouvre-le une fois, puis renvoie le 3MF depuis le site.' -ForegroundColor Yellow
-        } else {
-            Write-Host 'Le pont n’a pas confirmé l’ouverture de Bambu Connect. Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
-        }
+        Write-Host 'Pont en attente ou erreur temporaire. Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
         Start-Sleep -Seconds 10
     }
 }
