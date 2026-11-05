@@ -7,6 +7,21 @@ function ConvertTo-UrlPart {
     return [System.Uri]::EscapeDataString($Value)
 }
 
+function New-BridgeToken {
+    $code = Read-Host 'Enter the one-time code from Admin > Pont Bambu Connect'
+    $pairBody = @{ code = $code.Trim(); device_name = $env:COMPUTERNAME } | ConvertTo-Json -Compress
+    $pair = Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/pair" -ContentType 'application/json' -Body $pairBody
+    if (-not $pair.ok -or -not $pair.token) {
+        throw 'Pairing failed. Generate a fresh code on the site and run the bridge again.'
+    }
+    $newToken = [string]$pair.token
+    $secure = ConvertTo-SecureString $newToken -AsPlainText -Force
+    $encrypted = ConvertFrom-SecureString $secure
+    Set-Content -LiteralPath $tokenFile -Value $encrypted -Encoding ascii
+    Set-Content -LiteralPath $siteFile -Value $site -Encoding ascii
+    return $newToken
+}
+
 $site = 'https://fjord-render-apercu-20261104.onrender.com'
 $root = Join-Path $env:LOCALAPPDATA 'LesImpressionsDuFjord\BambuConnectBridge'
 New-Item -ItemType Directory -Force -Path $root | Out-Null
@@ -32,21 +47,11 @@ if ((Test-Path -LiteralPath $tokenFile) -and (Test-Path -LiteralPath $siteFile))
 }
 
 if ([string]::IsNullOrWhiteSpace($token)) {
-    $code = Read-Host 'Enter the one-time pairing code from Admin > Pont Bambu Connect'
-    $pairBody = @{ code = $code.Trim(); device_name = $env:COMPUTERNAME } | ConvertTo-Json -Compress
-    $pair = Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/pair" -ContentType 'application/json' -Body $pairBody
-    if (-not $pair.ok -or -not $pair.token) {
-        throw 'Association failed. Generate a new code on the site and run this file again.'
-    }
-    $token = [string]$pair.token
-    $secureToken = ConvertTo-SecureString $token -AsPlainText -Force
-    $encryptedToken = ConvertFrom-SecureString $secureToken
-    Set-Content -LiteralPath $tokenFile -Value $encryptedToken -Encoding ascii
-    Set-Content -LiteralPath $siteFile -Value $site -Encoding ascii
+    $token = New-BridgeToken
 }
 
 $headers = @{ Authorization = "Bearer $token" }
-Write-Host 'Bridge connected. Keep this window open.' -ForegroundColor Green
+Write-Host 'Bridge helper started. Checking server authorization...' -ForegroundColor Green
 Write-Host 'When a file arrives, confirm the printer and print in Bambu Connect.'
 
 while ($true) {
@@ -94,7 +99,16 @@ while ($true) {
         Write-Host 'Bambu Connect opened for the new file. Confirm the print in the app.' -ForegroundColor Cyan
     }
     catch {
-        Write-Host ("Bridge error: {0}" -f $_.Exception.Message) -ForegroundColor Red
+        $errorMessage = $_.Exception.Message
+        if ($errorMessage -match '401|Unauthorized') {
+            Write-Host 'Render refused the saved token. Pair this PC again with a fresh one-time code.' -ForegroundColor Yellow
+            Remove-Item -LiteralPath $tokenFile -Force -ErrorAction SilentlyContinue
+            $token = New-BridgeToken
+            $headers = @{ Authorization = "Bearer $token" }
+            Write-Host 'Pairing renewed. Checking the bridge again...' -ForegroundColor Green
+            continue
+        }
+        Write-Host ("Bridge error: {0}" -f $errorMessage) -ForegroundColor Red
         Start-Sleep -Seconds 10
     }
 }
