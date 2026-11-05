@@ -856,7 +856,7 @@ body.light .fj-print-hint{color:#496477!important}
       {% else %}
       <div class="fj-print-empty">Aucun fichier 3MF trouvé sur l’imprimante, ou impossible de consulter sa bibliothèque. Envoie un fichier compatible, puis clique sur « Actualiser ».</div>
       {% endif %}
-      <p class="fj-print-hint">OctoEverywhere doit accepter la commande. Une confirmation d’envoi ne garantit pas que la première couche a commencé.</p>
+      <p class="fj-print-hint">Si le pont Windows est connecté, le fichier sera remis à Bambu Connect : confirme l’imprimante et le lancement dans l’application. Sinon, le site utilisera le relais OctoEverywhere. Dans les deux cas, vérifie l’état réel de la X2D.</p>
     </section>
   </div>
   <p class="fj-print-bottom">Important : les profils sauvegardés dans l’Atelier ne sont pas encore un moteur de tranchage Bambu. L’impression directe d’un modèle créé dans l’Atelier nécessitera une intégration de tranchage compatible et vérifiée.</p>
