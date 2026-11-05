@@ -22,8 +22,12 @@ def assert_preview_isolated(database_url: str):
     parsed = urlsplit(database_url)
     dbname = unquote(parsed.path.lstrip("/")).lower()
     host = (parsed.hostname or "").lower()
+    # Render private DNS for this disposable, isolated Postgres instance.
+    # Explicit allow-list avoids silently accepting Railway or SNIC databases.
+    private_preview_host = "dpg-dblt2em417fc73bfjd70-a"
+    trusted_preview_host = (host == private_preview_host or host.endswith(".render.com"))
     if (parsed.scheme not in ("postgres", "postgresql")
-            or not host.endswith(".render.com")
+            or not trusted_preview_host
             or not dbname.startswith("fjord_render_apercu")):
         raise RuntimeError("PREVIEW REFUSED: isolated Render PostgreSQL required.")
     forbidden = (
