@@ -43,6 +43,8 @@ with db() as c:
 
 @app.before_request
 def fjord_track_visit():
+ if os.environ.get("FJORD_PREVIEW_MODE") == "1":
+  return
  if request.method != "GET" or request.path.startswith(("/admin","/api","/static","/atelier","/favicon","/gallery-photo","/galerie/photo")):
   return
  from flask import g
@@ -67,6 +69,8 @@ def fjord_set_visitor_cookie(response):
 
 @app.context_processor
 def fjord_visitor_count():
+ if os.environ.get("FJORD_PREVIEW_MODE") == "1":
+  return {"fjord_visitors":None}
  try:
   with db() as c:
    count=c.execute("SELECT COUNT(*) AS n FROM site_visitors").fetchone()["n"]
