@@ -179,6 +179,15 @@ document.addEventListener("DOMContentLoaded",()=>{
         'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
         '🖨️ Imprimer sur ma X2D</a>'
     )
+    camera_shortcut = (
+        '<a id="fjordCameraShortcut" href="/admin/imprimante-camera" '
+        'title="Voir la caméra X2D en direct" '
+        'style="display:inline-flex;align-items:center;justify-content:center;'
+        'min-height:40px;padding:8px 12px;border-radius:9px;'
+        'border:1px solid #71bde7;background:#164f71;color:#fff;'
+        'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
+        '📷 Caméra X2D</a>'
+    )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + print_shortcut, 1)
     # Shorten the two long library labels without changing their IDs/actions.
     html = html.replace('📚 Importer de ma bibliothèque</button>',
@@ -223,7 +232,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
-                            admin_shortcut + print_shortcut +
+                            admin_shortcut + print_shortcut + camera_shortcut +
                             '</div><div class="top-preferences">', 1)
         # Visible on desktop and mobile; delegates to the existing protected
         # save-model-and-create-quote workflow (does not auto-create a quote).
