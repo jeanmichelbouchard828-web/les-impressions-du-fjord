@@ -1409,7 +1409,18 @@ body.light .fj-print-hint{color:#496477!important}
             safe_name = re.sub(r"[^A-Za-z0-9_-]", "_", upload.filename.rsplit(".",1)[0])[:44] or "piece"
             virtual_path = "gcode/fjord_" + secrets.token_hex(5) + "_" + safe_name + ".3mf"
             _upload(virtual_path, raw)
-            flash("Fichier tranché envoyé. Sélectionne-le dans la liste puis confirme manuellement l'impression.")
+            bridge_job_id = ""
+            if db is not None:
+                bridge_job_id = secrets.token_urlsafe(24)
+                from fjord_bambu_connect import store_file
+                store_file(db, bridge_job_id, virtual_path,
+                           virtual_path.rsplit("/", 1)[-1], "", raw)
+                pending_jobs = session.get("fjord_print_bridge_jobs", {})
+                if not isinstance(pending_jobs, dict):
+                    pending_jobs = {}
+                pending_jobs[virtual_path] = bridge_job_id
+                session["fjord_print_bridge_jobs"] = dict(list(pending_jobs.items())[-12:])
+            flash("Fichier tranché envoyé. Sélectionne-le puis confirme le démarrage. Si le pont Windows est connecté, Bambu Connect s’ouvrira sur son PC.")
             return redirect(url_for("fjord_printer_page", selected=virtual_path))
         except PrinterError as exc:
             flash(str(exc))
@@ -1436,11 +1447,28 @@ body.light .fj-print-hint{color:#496477!important}
             if not any(item["path"] == path for item in listed):
                 raise PrinterError("Fichier absent de l'imprimante. Aucune commande envoyée.")
             command = {"Path":path,"Plate":1,"UseAms":request.form.get("ams")=="yes"}
+            if db is not None:
+                from fjord_bambu_connect import bridge_state, queue_file
+                bridge = bridge_state(db)
+                if bridge["paired"]:
+                    if not bridge["online"]:
+                        raise PrinterError("Le PC Bambu Connect est associé, mais hors ligne. Ouvre le pont Windows avant de démarrer.")
+                    pending_jobs = session.get("fjord_print_bridge_jobs", {})
+                    bridge_job_id = (pending_jobs.get(path) if isinstance(pending_jobs, dict) else None)
+                    if not bridge_job_id:
+                        raise PrinterError("Pour démarrer ce fichier depuis le site avec Bambu Connect, renvoie d’abord son 3MF depuis cet écran.")
+                    if not queue_file(db, str(bridge_job_id)):
+                        raise PrinterError("Le fichier n’est plus en attente pour Bambu Connect. Renvoie le 3MF depuis cet écran.")
+                    pending_jobs.pop(path, None)
+                    session["fjord_print_bridge_jobs"] = pending_jobs
+                    remember_start(path, "bambu_connect_handoff")
+                    flash("✓ Fichier remis au PC connecté. Bambu Connect va s’ouvrir : confirme la X2D et le lancement dans l’application.")
+                    return redirect(url_for("fjord_printer_page", selected=path))
             response = _api("/start",method="POST",payload=command,timeout=15)
             # A transport acknowledgement is not proof the printer is actually printing.
             if response.get("VirtualPath") not in (None,path):
                 raise PrinterError("La confirmation du fichier démarré ne correspond pas.")
-            flash("Commande de démarrage acceptée. Surveille la X2D et confirme le lancement réel sur l'écran ou la caméra.")
+            flash("Commande remise au relais. Surveille la X2D : une réponse du relais ne confirme pas le démarrage réel.")
         except PrinterError as exc:
             flash(str(exc))
         return redirect(url_for("fjord_printer_page"))
