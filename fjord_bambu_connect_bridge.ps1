@@ -1,4 +1,5 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ProgressPreference = 'SilentlyContinue'
 
 function ConvertTo-UrlPart([string]$Value) {
@@ -77,7 +78,10 @@ while ($true) {
         Write-Host 'Confirme l’imprimante, le matériau et le lancement dans Bambu Connect.' -ForegroundColor Yellow
     }
     catch {
-        Write-Host 'Pont en attente ou erreur temporaire. Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
+        $detail = $_.Exception.Message
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) { $detail = $_.ErrorDetails.Message }
+        Write-Host ("Erreur du pont : {0}" -f $detail) -ForegroundColor Red
+        Write-Host 'Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
         Start-Sleep -Seconds 10
     }
 }
