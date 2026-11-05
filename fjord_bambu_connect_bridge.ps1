@@ -61,7 +61,7 @@ while ($true) {
         }
 
         $randomName = [System.IO.Path]::GetRandomFileName()
-        $fileName = $randomName + '.gcode.3mf'
+        $fileName = "{0}.gcode.3mf" -f $randomName
         $filePath = Join-Path -Path $root -ChildPath $fileName
         Invoke-WebRequest -Method Get -Uri "$site/api/fjord-print-bridge/file/$($job.id)" -Headers $headers -OutFile $filePath -TimeoutSec 120
         if ((Get-Item -LiteralPath $filePath).Length -lt 100) { throw 'Le 3MF téléchargé est incomplet.' }
