@@ -3440,20 +3440,21 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     <h2>Méthode de paiement</h2>
     {% if stripe_ready %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Paiement sécurisé Stripe</div>
-      <a class="fj-checkout-action" href="{{url_for('fjord_stripe_checkout',token=token)}}">Payer maintenant par carte ↗</a>
+      <a class="fj-checkout-action" href="{{url_for('fjord_stripe_checkout',token=token)}}">Payer par carte avec Stripe ↗</a>
       <p class="fj-checkout-explain">Le montant exact de cette soumission est calculé automatiquement. Le statut Payée est confirmé par Stripe.</p>
     {% elif square_url %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — {{payment_provider}}</div>
       <a class="fj-checkout-action" href="{{square_url}}" target="_blank" rel="noopener noreferrer">Payer maintenant en ligne ↗</a>
       <p class="fj-checkout-explain">Paiement sur la caisse officielle de {{payment_provider}}. Vérifiez le montant avant de confirmer.</p>
-    {% else %}
-      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
-      <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Payer avec Interac — instructions</button>
-      <p class="fj-checkout-explain">Vous avez reçu une demande de fonds officielle Interac? Ouvrez le courriel reçu de votre banque pour autoriser le montant prérempli. Ce site ne peut pas générer cette demande automatiquement.</p>
     {% endif %}
-    {% if recipient and not stripe_ready and not square_url %}
+    {% if recipient %}
+      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
+      <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Choisir Interac — voir les instructions</button>
+      <p class="fj-checkout-explain">Vous pouvez payer cette soumission par virement Interac. Les renseignements ci-dessous sont remplis pour le montant et la référence de cette soumission.</p>
+    {% endif %}
+    {% if recipient %}
     <details id="fjInteracOptions" class="fj-checkout-alt">
-      <summary>{% if square_url %}Payer plutôt par virement Interac{% else %}Je n'ai pas reçu de demande Interac{% endif %}</summary>
+      <summary>Instructions de virement Interac</summary>
       <div class="fj-checkout-alt-body">
         <p>Si aucune demande de fonds n'a été envoyée, vous pouvez effectuer un virement Interac depuis votre propre application bancaire. Les renseignements sont ci-dessous.</p>
         <ol><li>Ouvrez votre application bancaire habituelle.</li>
