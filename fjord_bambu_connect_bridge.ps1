@@ -5,6 +5,14 @@ function ConvertTo-UrlPart([string]$Value) {
     return [System.Uri]::EscapeDataString($Value)
 }
 
+function Test-BambuConnectProtocol {
+    $commandPath = 'Registry::HKEY_CLASSES_ROOT\bambu-connect\shell\open\command'
+    $entry = Get-Item -LiteralPath $commandPath -ErrorAction SilentlyContinue
+    if ($null -eq $entry) { return $false }
+    $command = [string]$entry.GetValue('')
+    return -not [string]::IsNullOrWhiteSpace($command)
+}
+
 $defaultSite = 'https://fjord-render-apercu-20261104.onrender.com'
 $siteInput = Read-Host "Adresse Render du site (Entrée = $defaultSite)"
 if ([string]::IsNullOrWhiteSpace($siteInput)) { $siteInput = $defaultSite }
@@ -52,16 +60,29 @@ while ($true) {
         Invoke-WebRequest -Method Get -Uri "$site/api/fjord-print-bridge/file/$($job.id)" -Headers $headers -OutFile $filePath -TimeoutSec 120
         if ((Get-Item -LiteralPath $filePath).Length -lt 100) { throw 'Le 3MF téléchargé est incomplet.' }
 
+        if (-not (Test-BambuConnectProtocol)) {
+            throw 'Bambu Connect ne semble pas installé ou son lien Windows n’est pas associé. Installe ou réinstalle Bambu Connect depuis le site officiel Bambu Lab, lance-le une fois, puis renvoie le 3MF depuis le site.'
+        }
         $uri = 'bambu-connect://import-file?path=' + (ConvertTo-UrlPart $filePath) +
                '&name=' + (ConvertTo-UrlPart ([string]$job.file_name)) + '&version=1.0.0'
-        Start-Process $uri
+        try {
+            Start-Process -FilePath $uri -ErrorAction Stop | Out-Null
+        } catch {
+            throw 'Windows n’a pas pu ouvrir Bambu Connect. Installe ou réinstalle l’application officielle, puis renvoie le 3MF.'
+        }
+        Start-Sleep -Seconds 2
         Set-Content -LiteralPath $seenPath -Value ([string]$job.id) -Encoding ascii
         Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/ack/$($job.id)" -Headers $headers -ContentType 'application/json' -Body '{}' -TimeoutSec 20 | Out-Null
-        Write-Host "Fichier remis à Bambu Connect : $($job.file_name)" -ForegroundColor Cyan
+        Write-Host "Bambu Connect a été ouvert pour importer : $($job.file_name)" -ForegroundColor Cyan
         Write-Host 'Confirme l’imprimante, le matériau et le lancement dans Bambu Connect.' -ForegroundColor Yellow
     }
     catch {
-        Write-Host 'Pont en attente ou erreur temporaire. Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
+        if (-not (Test-BambuConnectProtocol)) {
+            Write-Host 'BLOQUÉ : Bambu Connect est absent ou son lien Windows bambu-connect:// n’est pas enregistré.' -ForegroundColor Red
+            Write-Host 'Installe ou réinstalle Bambu Connect depuis le site officiel Bambu Lab, ouvre-le une fois, puis renvoie le 3MF depuis le site.' -ForegroundColor Yellow
+        } else {
+            Write-Host 'Le pont n’a pas confirmé l’ouverture de Bambu Connect. Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
+        }
         Start-Sleep -Seconds 10
     }
 }
