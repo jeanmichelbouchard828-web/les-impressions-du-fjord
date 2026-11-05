@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from flask import Flask
-from fjord_preview_guard import install_preview_guard
+from fjord_preview_guard import assert_preview_isolated, install_preview_guard
 
 
 class PreviewSafetyTests(unittest.TestCase):
@@ -42,6 +42,34 @@ class PreviewSafetyTests(unittest.TestCase):
                 response = getattr(self.client, method)(path)
                 self.assertEqual(response.status_code, 503, (path, method))
                 self.assertEqual(response.json["preview"], True)
+
+    def test_preview_database_must_be_isolated_render_database(self):
+        valid = "postgresql://fjord_user:demo@dpg-example.oregon-postgres.render.com/fjord_render_apercu"
+        with patch.dict(os.environ, {"FJORD_PREVIEW_MODE": "1"}, clear=True):
+            assert_preview_isolated(valid)
+            for unsafe in (
+                "postgresql://user:pass@postgres.railway.internal/railway",
+                "postgresql://user:pass@proxy.rlwy.net/railway",
+                "postgresql://user:pass@dpg-example.oregon-postgres.render.com/production",
+                "postgresql://user:pass@evilrender.com/fjord_render_apercu",
+            ):
+                with self.subTest(unsafe=unsafe):
+                    with self.assertRaises(RuntimeError):
+                        assert_preview_isolated(unsafe)
+
+    def test_preview_refuses_live_integrations(self):
+        valid = "postgresql://fjord_user:demo@dpg-example.oregon-postgres.render.com/fjord_render_apercu"
+        for secret in (
+            "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+            "OCTOEVERYWHERE_CONNECTION_URL",
+            "OCTOEVERYWHERE_AUTH_BEARER_TOKEN",
+            "OCTOEVERYWHERE_AUTH_BASIC_PASSWORD",
+            "ADMIN_SETUP_TOKEN",
+        ):
+            with self.subTest(secret=secret):
+                with patch.dict(os.environ, {"FJORD_PREVIEW_MODE": "1", secret: "demo"}, clear=True):
+                    with self.assertRaises(RuntimeError):
+                        assert_preview_isolated(valid)
 
     def test_production_mode_unaffected(self):
         with patch.dict(os.environ, {"FJORD_PREVIEW_MODE": "0"}):
