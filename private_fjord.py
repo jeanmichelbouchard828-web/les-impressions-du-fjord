@@ -144,26 +144,9 @@ def admin_studio(html, csrf_token):
 document.addEventListener("DOMContentLoaded",()=>{
  const bar=document.getElementById("mobileIconBar");
  const textBtn=bar?.querySelector('[data-open-tools="text"]');
- // Private Atelier PRO only: keep this original button id for existing
- // editor bindings, but move the printer icon BESIDE the admin gear in header.
- // No duplicate print/slice control is left in the mobile tools strip.
- const printBtn=bar?.querySelector("#mobileSliceBtn");
- const links=document.querySelector("header.fjord-admin-header .fjord-admin-links");
- if(printBtn&&links){
-  printBtn.removeAttribute("data-i18n");
-  printBtn.classList.add("fjord-mobile-print");
-  printBtn.textContent="🖨️";
-  printBtn.title="Imprimer sur ma X2D";
-  printBtn.setAttribute("aria-label","Imprimer sur ma X2D");
-  printBtn.removeAttribute("aria-pressed");
-  links.prepend(printBtn);
-  // The old mobile button's slicer listener must not run on this print icon.
-  printBtn.addEventListener("click",event=>{
-   event.preventDefault();
-   event.stopImmediatePropagation();
-   document.getElementById("fjordPrintShortcut")?.click();
-  },true);
- }
+ // Keep one print shortcut in the admin header; remove the old duplicate
+ // mobile slicer icon because slicing remains available in the Slice workspace.
+ bar?.querySelector("#mobileSliceBtn")?.remove();
  const quote=document.getElementById("fjordMobileQuote");
  const move=document.getElementById("fjordMobileMove");
  if(bar&&textBtn&&quote&&move){textBtn.after(quote,move);document.querySelectorAll("#mobileIconBar #fjordMobileQuote, #mobileIconBar #fjordMobileMove").forEach(b=>b.style.removeProperty("display"))}
@@ -179,12 +162,12 @@ document.addEventListener("DOMContentLoaded",()=>{
     # collapsible "Projet" menu. This HTML is served only to authenticated admins.
     admin_shortcut = (
         '<a id="fjordAdminShortcut" href="/admin" '
-        'title="Retour au tableau de bord administrateur" '
+        'title="Ouvrir le tableau de bord administrateur" '
         'style="display:inline-flex;align-items:center;justify-content:center;'
         'min-height:40px;padding:8px 12px;border-radius:9px;'
         'border:1px solid #67b0d9;background:#11577e;color:#fff;'
         'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
-        '👤 Mode normal</a>'
+        '📋 Tableau de bord</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + admin_shortcut, 1)
     print_shortcut = (
@@ -240,7 +223,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
-                            admin_shortcut +
+                            admin_shortcut + print_shortcut +
                             '</div><div class="top-preferences">', 1)
         # Visible on desktop and mobile; delegates to the existing protected
         # save-model-and-create-quote workflow (does not auto-create a quote).
@@ -257,12 +240,10 @@ document.addEventListener("DOMContentLoaded",()=>{
         # Print controls belong to the Slice panel, not the crowded header.
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
-            + print_shortcut
             + '<button type="button" id="fjordQuoteFromSlice" class="fjord-quote-from-slice">💰 Créer une soumission PRO</button>'
             + '<button type="button" hidden id="fjordAutoPrintLauncher" '
               'title="Préparer le tranchage Bambu Studio sur ma X2D"></button>'
-            + '<p>Aperçu du plateau ci-dessus : estimation. '
-              'Pour préparer le vrai G-code Bambu, clique sur Imprimer sur ma X2D, '
+            + '<p>Aperçu du plateau ci-dessus : estimation. Le bouton Imprimer sur ma X2D reste dans l’en-tête; '
               'examine les couches et confirme l’envoi avant le démarrage.</p>'
             + '</div>'
         )
