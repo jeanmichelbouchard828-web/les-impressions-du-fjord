@@ -3448,9 +3448,8 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     {% if recipient %}
       <details class="fj-checkout-interac" style="border:1px solid var(--fj-border);border-radius:12px;padding:14px 16px;margin:0 0 16px">
         <summary style="cursor:pointer;font-weight:700">Virement Interac — afficher les instructions</summary>
-        <p class="fj-checkout-explain">Dans les services bancaires en ligne ou mobiles de votre institution, envoyez <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> et inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception du virement.</p>
-        <ol class="fj-checkout-explain"><li>Ouvrez une session dans vos services bancaires.</li><li>Choisissez l’envoi d’un Virement Interac et sélectionnez ou ajoutez le destinataire.</li><li>Entrez le montant exact ci-dessus et la référence de la soumission en note.</li><li>Vérifiez le nom du destinataire affiché par votre banque, puis confirmez.</li></ol>
-        <p class="fj-checkout-explain">Les écrans varient selon l’institution financière. <a href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Voir les instructions officielles d’Interac ↗</a></p>
+        <p class="fj-checkout-explain">Dans votre application bancaire, envoyez le montant exact de <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> et inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception du virement.</p>
+        <p class="fj-checkout-explain">La marche à suivre peut varier selon votre banque. <a href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Consulter les instructions officielles d’Interac ↗</a></p>
       </details>
     {% endif %}
     {% if stripe_ready %}
