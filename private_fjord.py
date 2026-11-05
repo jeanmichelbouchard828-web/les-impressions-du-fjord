@@ -3449,55 +3449,12 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     {% endif %}
     {% if recipient %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
-      <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Choisir Interac — voir les instructions</button>
-      <p class="fj-checkout-explain">Vous pouvez payer cette soumission par virement Interac. Les renseignements ci-dessous sont remplis pour le montant et la référence de cette soumission.</p>
-    {% endif %}
-    {% if recipient %}
-    <details id="fjInteracOptions" class="fj-checkout-alt">
-      <summary>Instructions de virement Interac</summary>
-      <div class="fj-checkout-alt-body">
-        <p>Si aucune demande de fonds n'a été envoyée, vous pouvez effectuer un virement Interac depuis votre propre application bancaire. Les renseignements sont ci-dessous.</p>
-        <ol><li>Ouvrez votre application bancaire habituelle.</li>
-        <li>Choisissez « Virement Interac », puis « Envoyer ».</li>
-        <li>Vérifiez le destinataire, inscrivez le montant et la référence, puis autorisez le paiement.</li></ol>
-        <div class="fj-checkout-field"><span>Courriel du destinataire<strong id="payEmail">{{recipient}}</strong></span><button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
-        <div class="fj-checkout-field"><span>Montant<strong id="payAmount">{{amount}}</strong></span><button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
-        <div class="fj-checkout-field"><span>Référence<strong id="payRef">{{reference}}</strong></span><button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
-        <button type="button" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
-        <span id="fjordPaymentFeedback" class="fj-checkout-status" role="status" aria-live="polite"></span>
-      </div>
-    </details>
+      <p class="fj-checkout-explain">Le virement Interac est disponible. La demande de paiement est gérée séparément par BMO.</p>
     {% endif %}
     <p class="fj-checkout-footnote">Ne payez pas deux fois la même soumission. Le paiement est confirmé après réception par l'entreprise, et non par un clic sur cette page. Besoin d'aide? Mentionnez la référence {{reference}}.</p>
   </section>
 </main>
-<script>
-function fjordShowInterac(){
- const options=document.getElementById('fjInteracOptions');
- if(options){options.open=true;options.scrollIntoView({block:'nearest',behavior:'smooth'});}
-}
-async function fjordCopyText(text,button){
- const feedback=document.getElementById('fjordPaymentFeedback');
- try{
-  await navigator.clipboard.writeText(text);
-  if(feedback)feedback.textContent='✓ Copié. Ouvrez votre application bancaire pour poursuivre.';
-  const previous=button.textContent;button.textContent='✓ Copié';
-  setTimeout(()=>button.textContent=previous,2200);
- }catch(e){
-  if(feedback)feedback.textContent='Copie automatique indisponible. Sélectionnez le renseignement ci-dessus.';
- }
-}
-function fjordCopy(id,button){
- const el=document.getElementById(id);
- if(el)fjordCopyText(el.textContent.trim(),button);
-}
-function fjordCopyAll(button){
- const email=document.getElementById('payEmail')?.textContent.trim()||'';
- const amount=document.getElementById('payAmount')?.textContent.trim()||'';
- const reference=document.getElementById('payRef')?.textContent.trim()||'';
- fjordCopyText('Les Impressions du Fjord\nCourriel Interac : '+email+'\nMontant : '+amount+'\nRéférence : '+reference,button);
-}
-</script>""",amount=_money(total),reference=reference,
+""",amount=_money(total),reference=reference,
     quote_description=q.get("title") or "Impression 3D personnalisée",
     recipient=recipient,square_url=square_url,payment_provider=payment_provider,stripe_ready=stripe_ready,token=token))
         response.headers["Cache-Control"]="no-store"
