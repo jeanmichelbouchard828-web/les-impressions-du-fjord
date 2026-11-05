@@ -208,7 +208,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
             bundle.writestr("LISEZ-MOI.txt", instructions.encode("utf-8"))
         archive.seek(0)
         response = send_file(archive, as_attachment=True,
-                             download_name="Pont_Bambu_Connect_Windows_CORRIGE_20261105.zip",
+                             download_name="Pont_Bambu_Connect_Windows_CORRIGE_V2_20261105.zip",
                              mimetype="application/zip", max_age=0)
         response.headers["Cache-Control"] = "private, no-store"
         return response
