@@ -13,6 +13,7 @@ import json
 import re
 import secrets
 import time
+import zipfile
 
 from flask import abort, jsonify, redirect, request, send_file, session
 
@@ -119,11 +120,11 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
  <p>Ce pont permet au site Render de remettre le 3MF au PC Windows. Bambu Connect ouvre ensuite le fichier et garde la confirmation finale d'impression.</p>
  <p><strong>État :</strong> {% if state.online %}PC connecté{% elif state.paired %}PC associé, hors ligne{% else %}aucun PC associé{% endif %}</p>
  {% if state.age is not none %}<p class="small muted">Dernier contact : {{state.age}} s</p>{% endif %}
- <p><a class="btn" href="/admin/atelier-pont/bridge.ps1">Télécharger le pont Windows (.ps1)</a></p>
+ <p><a class="btn" href="/admin/atelier-pont/bridge.zip">Télécharger le pont Windows (ZIP)</a></p>
  <form method="post" action="/admin/atelier-pont/code">{{csrf|safe}}<button>Associer ce PC</button></form>
  {% if code %}<div class="alert"><strong>Code à usage unique (10 minutes) :</strong><br><code style="font-size:22px;user-select:all">{{code}}</code><p>Entre ce code dans le script PowerShell téléchargé. Ne le partage pas.</p></div>{% endif %}
  <form method="post" action="/admin/atelier-pont/revoquer" onsubmit="return confirm('Dissocier tous les PC?');">{{csrf|safe}}<button style="background:#9e4545;color:white">Dissocier tous les PC</button></form>
- <ol><li>Télécharge le script sur le PC Windows où Bambu Connect est installé.</li><li>Dans PowerShell, lance <code>powershell -NoProfile -ExecutionPolicy Bypass -File .\fjord_bambu_connect_bridge.ps1</code>, puis colle le code d’association.</li><li>Laisse la fenêtre ouverte. Lors d’un lancement depuis le site, Bambu Connect s’ouvrira sur le PC; confirme l’imprimante et l’envoi dans l’application.</li></ol>
+ <ol><li>Télécharge le ZIP et extrais son contenu sur le PC où Bambu Connect est installé.</li><li>Double-clique sur <strong>Lancer_Pont_Bambu_Connect.cmd</strong>, puis colle le code d’association affiché ici.</li><li>Laisse la fenêtre ouverte. Lors d’un lancement depuis le site, Bambu Connect s’ouvrira sur le PC pour confirmer l’imprimante et l’envoi.</li></ol>
  <p class="small muted">Aucun code d’accès imprimante ni clé de signature Bambu n’est stocké sur Render. Ce pont ne démarre jamais seul une impression.</p>
  <p><a href="/admin/atelier-imprimer">← Retour à l’impression X2D</a></p>
 </section>""", state=state, code=code, csrf=csrfinput())
@@ -155,6 +156,32 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
         return send_file(os.path.join(os.path.dirname(__file__), "fjord_bambu_connect_bridge.ps1"),
                          as_attachment=True, download_name="fjord_bambu_connect_bridge.ps1",
                          mimetype="text/plain", max_age=0)
+
+    @app.get("/admin/atelier-pont/bridge.zip")
+    @admin_required
+    def fjord_connect_bridge_bundle():
+        import os
+        archive = io.BytesIO()
+        base = os.path.dirname(__file__)
+        instructions = (
+            "PONT BAMBU CONNECT — INSTALLATION SIMPLE\r\n\r\n"
+            "1. Extrais tous les fichiers de ce ZIP dans un dossier.\r\n"
+            "2. Dans l’administration du site, ouvre Pont Bambu Connect et clique sur Associer ce PC.\r\n"
+            "3. Double-clique sur Lancer_Pont_Bambu_Connect.cmd et colle le code affiché.\r\n"
+            "4. Laisse la fenêtre ouverte.\r\n\r\n"
+            "Le PC doit avoir Bambu Connect installé. Lorsqu’un fichier arrive, confirme le choix de l’imprimante et l’envoi dans Bambu Connect.\r\n"
+        )
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            for filename in ("fjord_bambu_connect_bridge.ps1", "Lancer_Pont_Bambu_Connect.cmd"):
+                with open(os.path.join(base, filename), "rb") as source:
+                    bundle.writestr(filename, source.read())
+            bundle.writestr("LISEZ-MOI.txt", instructions.encode("utf-8"))
+        archive.seek(0)
+        response = send_file(archive, as_attachment=True,
+                             download_name="Pont_Bambu_Connect_Windows.zip",
+                             mimetype="application/zip", max_age=0)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
 
     @app.post("/api/fjord-print-bridge/pair")
     def fjord_connect_pair():
