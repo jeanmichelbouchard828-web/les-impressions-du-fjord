@@ -3446,10 +3446,10 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     </dl>
     <h2>Méthode de paiement</h2>
     {% if recipient %}
-      <details class="fj-checkout-interac" style="border:1px solid var(--fj-border);border-radius:12px;padding:14px 16px;margin:0 0 16px">
-        <summary style="cursor:pointer;font-weight:700">Virement Interac — afficher les instructions</summary>
-        <p class="fj-checkout-explain">Dans votre application bancaire, envoyez le montant exact de <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> et inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception du virement.</p>
-        <p class="fj-checkout-explain">La marche à suivre peut varier selon votre banque. <a href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Consulter les instructions officielles d’Interac ↗</a></p>
+      <details class="fj-checkout-interac" style="background:#172334;color:#f5f7fb;border:1px solid #34485f;border-radius:14px;padding:12px 16px;margin:0 0 16px">
+        <summary style="cursor:pointer;font-weight:800;color:#ffd447"><svg aria-hidden="true" focusable="false" width="38" height="27" viewBox="0 0 38 27" style="vertical-align:middle;margin-right:9px"><rect x="1" y="1" width="36" height="25" rx="4" fill="#26394f" stroke="#ffd447" stroke-width="2"/><rect x="1" y="7" width="36" height="5" fill="#ffd447"/><rect x="6" y="16" width="8" height="6" rx="1" fill="#d6deea"/><path d="M20 18h11M20 21h7" stroke="#d6deea" stroke-width="1.5" stroke-linecap="round"/></svg>Virement Interac — afficher les instructions</summary>
+        <p class="fj-checkout-explain" style="color:#edf2f7">Envoyez exactement <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> dans votre application bancaire. Inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception.</p>
+        <p class="fj-checkout-explain" style="color:#c5d0dd">Les étapes varient selon la banque. <a style="color:#ffd447" href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Instructions officielles ↗</a></p>
       </details>
     {% endif %}
     {% if stripe_ready %}
