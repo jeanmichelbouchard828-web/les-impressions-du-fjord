@@ -6,8 +6,35 @@ write methods, payment links, administration and machine APIs; /health remains
 available for the hosting health check.
 """
 import os
+from urllib.parse import unquote, urlsplit
 
 from flask import jsonify, request
+
+
+def assert_preview_isolated(database_url: str):
+    """Reject Railway/prod and suspicious credentials before app.py creates tables.
+
+    The preview *must* use its own temporary Render PostgreSQL database.
+    No production Stripe, printer, or owner setup credentials are allowed.
+    """
+    if os.environ.get("FJORD_PREVIEW_MODE") != "1":
+        return
+    parsed = urlsplit(database_url)
+    dbname = unquote(parsed.path.lstrip("/")).lower()
+    host = (parsed.hostname or "").lower()
+    if (parsed.scheme not in ("postgres", "postgresql")
+            or not host.endswith(".render.com")
+            or not dbname.startswith("fjord_render_apercu")):
+        raise RuntimeError("PREVIEW REFUSED: isolated Render PostgreSQL required.")
+    forbidden = (
+        "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+        "OCTOEVERYWHERE_CONNECTION_URL",
+        "OCTOEVERYWHERE_AUTH_BEARER_TOKEN",
+        "OCTOEVERYWHERE_AUTH_BASIC_PASSWORD",
+        "ADMIN_SETUP_TOKEN",
+    )
+    if any(os.environ.get(name) for name in forbidden):
+        raise RuntimeError("PREVIEW REFUSED: production credentials present.")
 
 
 def install_preview_guard(app):
