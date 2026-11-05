@@ -32,14 +32,16 @@ def init():
   )""")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
 init()
-# Compteur de visiteurs uniques (navigateur, pas nombre de pages vues).
-# Aucun nom, adresse IP ou agent utilisateur n'est enregistré.
-with db() as c:
- c.execute("CREATE TABLE IF NOT EXISTS site_visitors (visitor_hash TEXT PRIMARY KEY, first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW())")
+# Compteur historique conservé; présence estimée dans une fenêtre de 5 min.
+# Seul un hachage de cookie aléatoire est conservé, pas l'adresse IP.
+from fjord_visitors import initialize as initialize_visitors, observe as observe_visitor, site_stats
+initialize_visitors(db)
 
 @app.before_request
 def fjord_track_visit():
- if request.method != "GET" or request.path.startswith(("/admin","/api","/static","/atelier","/favicon","/gallery-photo","/galerie/photo")):
+ if os.environ.get("FJORD_PREVIEW_MODE") == "1":
+  return
+ if request.method != "GET" or request.path.startswith(("/admin","/api","/static","/favicon","/gallery-photo","/galerie/photo","/health")):
   return
  from flask import g
  token=request.cookies.get("fjord_visitor")
@@ -47,9 +49,7 @@ def fjord_track_visit():
   token=secrets.token_hex(16)
   g.fjord_new_visitor_token=token
  try:
-  digest=hashlib.sha256(token.encode()).hexdigest()
-  with db() as c:
-   c.execute("INSERT INTO site_visitors(visitor_hash) VALUES (%s) ON CONFLICT DO NOTHING",(digest,))
+  observe_visitor(db,token)
  except Exception:
   app.logger.exception("Compteur de visiteurs indisponible")
 
@@ -61,14 +61,33 @@ def fjord_set_visitor_cookie(response):
   response.set_cookie("fjord_visitor",token,max_age=365*24*3600,secure=True,httponly=True,samesite="Lax")
  return response
 
+@app.get("/api/public/visitors")
+def fjord_visitors_public_stats():
+ """Expose aggregated totals only, never cookie hashes or timestamps."""
+ if os.environ.get("FJORD_PREVIEW_MODE") != "1":
+  token=request.cookies.get("fjord_visitor")
+  if token:
+   try:
+    observe_visitor(db,token)
+   except Exception:
+    app.logger.exception("Actualisation présence indisponible")
+ try:
+  snapshot=site_stats(db)
+ except Exception:
+  app.logger.exception("Statistiques de visites indisponibles")
+  snapshot=None
+ if snapshot is None:
+  return jsonify(error="Statistiques temporairement indisponibles"),503,{"Cache-Control":"no-store"}
+ return jsonify(snapshot),200,{"Cache-Control":"no-store"}
+
 @app.context_processor
 def fjord_visitor_count():
  try:
-  with db() as c:
-   count=c.execute("SELECT COUNT(*) AS n FROM site_visitors").fetchone()["n"]
-  return {"fjord_visitors":count}
+  snapshot=site_stats(db)
  except Exception:
-  return {"fjord_visitors":None}
+  snapshot=None
+ return {"fjord_visitors":snapshot["total"] if snapshot else None,
+         "fjord_online_visitors":snapshot["online"] if snapshot else None}
 
 # Migration additive : progression renseignée par l'administrateur, jamais simulée.
 with db() as c:
