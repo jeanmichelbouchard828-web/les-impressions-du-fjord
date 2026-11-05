@@ -3449,7 +3449,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     {% endif %}
     {% if recipient %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
-      <p class="fj-checkout-explain">Le virement Interac est disponible. La demande de paiement est gérée séparément par BMO.</p>
+      <p class="fj-checkout-explain">Dans votre application bancaire, envoyez {{amount}} à <strong>{{recipient}}</strong> et inscrivez <strong>{{reference}}</strong> en note. La soumission sera marquée payée après réception du virement.</p>
     {% endif %}
     <p class="fj-checkout-footnote">Ne payez pas deux fois la même soumission. Le paiement est confirmé après réception par l'entreprise, et non par un clic sur cette page. Besoin d'aide? Mentionnez la référence {{reference}}.</p>
   </section>
