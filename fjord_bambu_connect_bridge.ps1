@@ -80,6 +80,16 @@ while ($true) {
     catch {
         $detail = $_.Exception.Message
         if ($_.ErrorDetails -and $_.ErrorDetails.Message) { $detail = $_.ErrorDetails.Message }
+        $statusCode = 0
+        try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { }
+        if ($statusCode -eq 401) {
+            Write-Host 'Le serveur a refusé le jeton enregistré. Génère un nouveau code sur la page Pont Bambu Connect; cette fenêtre PowerShell va te le demander.' -ForegroundColor Yellow
+            Remove-Item -LiteralPath $tokenFile -Force -ErrorAction SilentlyContinue
+            $token = New-BridgeToken
+            $headers = @{ Authorization = "Bearer $token" }
+            Write-Host 'Nouvelle association réussie. Reprise de la surveillance.' -ForegroundColor Green
+            continue
+        }
         Write-Host ("Erreur du pont : {0}" -f $detail) -ForegroundColor Red
         Write-Host 'Nouvelle tentative dans 10 secondes.' -ForegroundColor DarkYellow
         Start-Sleep -Seconds 10
