@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from flask import abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, send_file, session, url_for
+from flask import Response, abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, send_file, session, url_for
 
 MAX_SLICED_3MF = 30 * 1024 * 1024
 MAX_ZIP_ENTRIES = 2500
@@ -456,6 +456,73 @@ def _verify_native_start_reply(reply):
 
 
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
+    # Private, read-only camera snapshots proxied through the server so printer
+    # credentials never reach the browser. OctoEverywhere supports Bambu webcams.
+    def webcam_snapshot():
+        base = _connection()
+        headers = {"Accept": "image/jpeg", "User-Agent": "Fjord-Atelier-Admin/1"}
+        bearer = os.environ.get("OCTOEVERYWHERE_AUTH_BEARER_TOKEN", "").strip()
+        basic_user = os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_USER", "").strip()
+        basic_pass = os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_PASSWORD", "")
+        if bearer:
+            headers["Authorization"] = "Bearer " + bearer
+        elif basic_user and basic_pass:
+            credentials = (basic_user + ":" + basic_pass).encode("utf-8")
+            headers["Authorization"] = "Basic " + base64.b64encode(credentials).decode("ascii")
+        req = urllib.request.Request(
+            base + "/octoeverywhere-command-api/webcam/snapshot",
+            headers=headers, method="GET")
+        try:
+            with urllib.request.build_opener(_NoRedirect).open(req, timeout=12) as resp:
+                content_type = resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                if content_type != "image/jpeg":
+                    raise PrinterError("La caméra n'a pas retourné d'image JPEG.")
+                image = resp.read(5 * 1024 * 1024 + 1)
+        except PrinterError:
+            raise
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise PrinterError("La caméra X2D ne répond pas par OctoEverywhere.") from exc
+        if not image or len(image) > 5 * 1024 * 1024:
+            raise PrinterError("L'image de la caméra est vide ou trop volumineuse.")
+        return image
+
+    @app.get("/admin/imprimante-camera")
+    @admin_required
+    def admin_printer_camera():
+        return page("Caméra X2D", """
+        <section class="card" style="max-width:1000px;margin:auto">
+          <p><a href="/admin">← Retour à l’administration</a></p>
+          <h1>📷 Caméra de l’imprimante X2D</h1>
+          <p>Vue à distance via OctoEverywhere. L’image se rafraîchit automatiquement environ toutes les 2 secondes.</p>
+          <div id="fjord-camera-status" role="status" style="padding:10px;border-radius:10px;background:#263746;margin:12px 0">Connexion à la caméra…</div>
+          <div style="background:#05090d;border-radius:12px;overflow:hidden;text-align:center;min-height:240px;display:grid;place-items:center">
+            <img id="fjord-camera-image" src="/admin/imprimante-camera/snapshot" alt="Vue en direct de l’imprimante X2D" style="display:block;width:100%;height:auto;max-height:75vh;object-fit:contain">
+          </div>
+          <p style="opacity:.8">Si l’image reste noire ou ne se charge pas, vérifie que le PC/pont OctoEverywhere et la caméra de la X2D sont en ligne.</p>
+        </section>
+        <script>
+        (() => {
+          const img = document.getElementById("fjord-camera-image");
+          const status = document.getElementById("fjord-camera-status");
+          const update = () => { img.src = "/admin/imprimante-camera/snapshot?t=" + Date.now(); };
+          img.onload = () => { status.textContent = "✅ Caméra connectée · actualisation automatique"; status.style.background = "#14513e"; };
+          img.onerror = () => { status.textContent = "⚠️ Image indisponible · nouvelle tentative automatique"; status.style.background = "#6a3b26"; };
+          window.setInterval(update, 2200);
+        })();
+        </script>
+        """)
+
+    @app.get("/admin/imprimante-camera/snapshot")
+    @admin_required
+    def admin_printer_camera_snapshot():
+        try:
+            image = webcam_snapshot()
+        except PrinterError as exc:
+            return Response(str(exc), status=503, content_type="text/plain; charset=utf-8",
+                            headers={"Cache-Control": "no-store"})
+        return Response(image, status=200, content_type="image/jpeg",
+                        headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
+
     # The schema lives with the normal app migrations in app.py.
     # Admin-only start metadata is shared, but never the one-use nonce.
 
