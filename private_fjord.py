@@ -3445,6 +3445,14 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
       <div class="fj-checkout-row fj-checkout-total"><dt>Montant CAD</dt><dd>{{amount}}</dd></div>
     </dl>
     <h2>Méthode de paiement</h2>
+    {% if recipient %}
+      <details class="fj-checkout-interac" style="border:1px solid var(--fj-border);border-radius:12px;padding:14px 16px;margin:0 0 16px">
+        <summary style="cursor:pointer;font-weight:700">Virement Interac — afficher les instructions</summary>
+        <p class="fj-checkout-explain">Dans les services bancaires en ligne ou mobiles de votre institution, envoyez <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> et inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception du virement.</p>
+        <ol class="fj-checkout-explain"><li>Ouvrez une session dans vos services bancaires.</li><li>Choisissez l’envoi d’un Virement Interac et sélectionnez ou ajoutez le destinataire.</li><li>Entrez le montant exact ci-dessus et la référence de la soumission en note.</li><li>Vérifiez le nom du destinataire affiché par votre banque, puis confirmez.</li></ol>
+        <p class="fj-checkout-explain">Les écrans varient selon l’institution financière. <a href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Voir les instructions officielles d’Interac ↗</a></p>
+      </details>
+    {% endif %}
     {% if stripe_ready %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Paiement sécurisé Stripe</div>
       <a class="fj-checkout-action" href="{{url_for('fjord_stripe_checkout',token=token)}}">Payer par carte avec Stripe ↗</a>
@@ -3453,12 +3461,6 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — {{payment_provider}}</div>
       <a class="fj-checkout-action" href="{{square_url}}" target="_blank" rel="noopener noreferrer">Payer maintenant en ligne ↗</a>
       <p class="fj-checkout-explain">Paiement sur la caisse officielle de {{payment_provider}}. Vérifiez le montant avant de confirmer.</p>
-    {% endif %}
-    {% if recipient %}
-      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
-      <p class="fj-checkout-explain">Dans les services bancaires en ligne ou mobiles de votre institution, envoyez <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> et inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception du virement.</p>
-      <ol class="fj-checkout-explain"><li>Ouvrez une session dans vos services bancaires.</li><li>Choisissez l’envoi d’un Virement Interac et sélectionnez ou ajoutez le destinataire.</li><li>Entrez le montant exact ci-dessus et la référence de la soumission en note.</li><li>Vérifiez le nom du destinataire affiché par votre banque, puis confirmez.</li></ol>
-      <p class="fj-checkout-explain">Les écrans varient selon l’institution financière. <a href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Voir les instructions officielles d’Interac ↗</a></p>
     {% endif %}
     <p class="fj-checkout-footnote">Ne payez pas deux fois la même soumission. Le paiement est confirmé après réception par l'entreprise, et non par un clic sur cette page. Besoin d'aide? Mentionnez la référence {{reference}}.</p>
   </section>
