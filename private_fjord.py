@@ -776,14 +776,17 @@ if(fjordAutoButton){
    livePercent.textContent=ownProgress
      ?pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %'
      :sent?'Progression de CE fichier non confirmée':'En attente du départ';
-   liveState.textContent=matched?
-     (data.state==='complete'&&!confirmedActiveJob?'Fin signalée (non vérifiée)':
-      (labels[data.state]||data.state||'État inconnu'))+
-      (reportedName?' · '+reportedName:''):
-     (reportedName?'Dernière tâche connue : '+reportedName+
-      ' · '+(labels[data.state]||data.state||'État inconnu'):
-      (labels[data.state]||data.state||'État inconnu'))+
-      (data.substate?' · '+data.substate:'');
+   const handoffWaiting=sent&&!matched&&data.start_ack==='bambu_connect_handoff';
+   liveState.textContent=handoffWaiting
+     ?'En attente de Bambu Connect sur le PC'
+     :matched?
+       (data.state==='complete'&&!confirmedActiveJob?'Fin signalée (non vérifiée)':
+        (labels[data.state]||data.state||'État inconnu'))+
+        (reportedName?' · '+reportedName:''):
+       (reportedName?'Dernière tâche connue : '+reportedName+
+        ' · '+(labels[data.state]||data.state||'État inconnu'):
+        (labels[data.state]||data.state||'État inconnu'))+
+       (data.substate?' · '+data.substate:'');
    const info=[];
    if(ownProgress&&data.total_layers>0&&data.current_layer!=null)
     info.push('Couche '+data.current_layer+' / '+data.total_layers);
@@ -819,7 +822,11 @@ if(fjordAutoButton){
        'Le relais a reçu la commande, mais la X2D n’a pas démarré le nouveau fichier.';
     }
    }
-   if(sent&&!matched){
+   if(handoffWaiting){
+    info.unshift('⏳ La demande est remise au PC. Confirme l’imprimante et le lancement dans Bambu Connect.');
+    if(reportedName)info.push('La tâche « '+reportedName+' » affichée par la X2D est ancienne et ne concerne pas ce 3MF.');
+    startMessage.textContent='📨 3MF remis à Bambu Connect. Confirme l’envoi à la X2D dans l’application sur le PC.';
+   }else if(sent&&!matched){
     if(reportedName)info.unshift('⚠ La X2D rapporte « '+reportedName+
       ' » : ce n’est pas le fichier récemment envoyé.');
     else info.unshift('⚠ La X2D ne rapporte aucun fichier correspondant au dernier envoi.');
