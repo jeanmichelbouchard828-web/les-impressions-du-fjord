@@ -125,7 +125,7 @@ def admin_studio(html, csrf_token):
     button = '<button type="button" id="fjordPrivateImport">📚 Importer de ma bibliothèque</button><button type="button" class="primary" id="fjordPrivateSave">💾 Enregistrer dans ma bibliothèque</button><a href="/admin/modeles">Voir mes modèles</a><a href="/admin/profils-bambu" title="Importer ou consulter les paramètres Bambu Studio">⚙️ Mes profils Bambu</a>'
     html = html.replace('<button id="export" data-i18n="export">', button + '<button id="export" data-i18n="export">', 1)
     # Mobile-only quick quote: reuses the existing save-and-create flow, no duplicate submission.
-    mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission PRO" title="Créer une soumission PRO">💰</button>
+    mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission" title="Créer une soumission">💰</button>
 <button type="button" id="fjordMobileMove" aria-label="Déplacer la pièce" title="Déplacer la pièce" aria-pressed="false">✥</button>
 <style>
 #fjordMobileQuote,#fjordMobileMove{display:none}
@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         )
         html = html[:menu.start(2)] + compact + html[menu.end(2):]
         html = html.replace('<button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>',
-                            '<button id="quote" class="primary" title="Créer une soumission depuis le plateau">💰 Soumission PRO</button>', 1)
+                            '<button id="quote" class="primary" title="Créer une soumission depuis le plateau">💰 Créer une soumission</button>', 1)
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
@@ -227,7 +227,7 @@ document.addEventListener("DOMContentLoaded",()=>{
                             '</div><div class="top-preferences">', 1)
         # Visible on desktop and mobile; delegates to the existing protected
         # save-model-and-create-quote workflow (does not auto-create a quote).
-        html = html.replace('</body>', '''<button type="button" id="fjordStudioQuoteShortcut" aria-label="Créer une soumission PRO depuis le plateau">💰 Créer une soumission</button>
+        html = html.replace('</body>', '''<button type="button" id="fjordStudioQuoteShortcut" aria-label="Créer une soumission depuis le plateau">💰 Créer une soumission</button>
 <style>
 #fjordStudioQuoteShortcut{display:flex;position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:8500;align-items:center;justify-content:center;min-height:46px;max-width:calc(100vw - 24px);padding:10px 18px;border:1px solid #7bdcff;border-radius:999px;background:linear-gradient(120deg,#0575b4,#14a4dd);box-shadow:0 5px 22px #00182dbb;color:#fff;font-size:14px;font-weight:800;cursor:pointer}
 #fjordStudioQuoteShortcut:focus-visible{outline:3px solid #fff;outline-offset:3px}
@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         # Print controls belong to the Slice panel, not the crowded header.
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
-            + '<button type="button" id="fjordQuoteFromSlice" class="fjord-quote-from-slice">💰 Créer une soumission PRO</button>'
+            + '<button type="button" id="fjordQuoteFromSlice" class="fjord-quote-from-slice">💰 Créer une soumission</button>'
             + '<button type="button" hidden id="fjordAutoPrintLauncher" '
               'title="Préparer le tranchage Bambu Studio sur ma X2D"></button>'
             + '<p>Aperçu du plateau ci-dessus : estimation. Le bouton Imprimer sur ma X2D reste dans l’en-tête; '
