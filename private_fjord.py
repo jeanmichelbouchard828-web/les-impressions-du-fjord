@@ -3449,7 +3449,9 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     {% endif %}
     {% if recipient %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
-      <p class="fj-checkout-explain">Dans votre application bancaire, envoyez {{amount}} à <strong>{{recipient}}</strong> et inscrivez <strong>{{reference}}</strong> en note. La soumission sera marquée payée après réception du virement.</p>
+      <p class="fj-checkout-explain">Dans les services bancaires en ligne ou mobiles de votre institution, envoyez <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> et inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception du virement.</p>
+      <ol class="fj-checkout-explain"><li>Ouvrez une session dans vos services bancaires.</li><li>Choisissez l’envoi d’un Virement Interac et sélectionnez ou ajoutez le destinataire.</li><li>Entrez le montant exact ci-dessus et la référence de la soumission en note.</li><li>Vérifiez le nom du destinataire affiché par votre banque, puis confirmez.</li></ol>
+      <p class="fj-checkout-explain">Les écrans varient selon l’institution financière. <a href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Voir les instructions officielles d’Interac ↗</a></p>
     {% endif %}
     <p class="fj-checkout-footnote">Ne payez pas deux fois la même soumission. Le paiement est confirmé après réception par l'entreprise, et non par un clic sur cette page. Besoin d'aide? Mentionnez la référence {{reference}}.</p>
   </section>
