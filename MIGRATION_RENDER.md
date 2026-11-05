@@ -9,18 +9,33 @@ arrêter, écraser, supprimer ou redéployer sur Railway pendant ces tests.
 
 - Site Render : `fjord-render-apercu-20261104`, Docker, branche
   `migration/render-fjord-20261104`, déploiement automatique désactivé.
-- PostgreSQL Render : `fjord-render-apercu-db-20261104`, **nouvelle base vide**
-  distincte de la base Railway et de la base SNIC.
+- PostgreSQL Render : `fjord-render-apercu-db-20261104`, **nouvelle base
+  gratuite et temporaire vide**, distincte des bases Railway et SNIC. Son
+  expiration après 30 jours et l'absence de sauvegardes la rendent impropre
+  à la production : **aucune information client réelle ne doit y entrer**.
 - Fichier de configuration : `render.preview.yaml` (spécifique au test).
 - Région envisagée : Oregon. Confirmer la conformité de traitement des données
   clients et l'incidence sur la latence avant le transfert réel.
-- Coûts potentiels : service `1c-2g` et PostgreSQL `0.1c-256mb` sont des
-  forfaits payants. **Ne pas provisionner sans approbation des frais et de
-  l'espace de travail Render.** Les prix affichés lors de la création priment.
+- Coût de cette préproduction : site Web Render Starter
+  `0.5c-512mb` (~7 USD/mois) + PostgreSQL Render `free` (0 USD pendant
+  l'essai). Vérifier le tarif affiché, les limites et toute consommation
+  additionnelle avant la création; l'espace Render nécessite une confirmation.
+- Conteneur `Dockerfile.render-lite` : sans PrusaSlicer ni Bambu Studio. Le
+  site, le suivi et l'atelier public se chargent; le tranchage automatique
+  et les véritables envois X2D ne sont **pas disponibles** sur cette préproduction.
+  Il faudra une passerelle locale sécurisée vers le PC Windows avant de
+  considérer cette architecture équivalente au Docker complet.
+- La **production économique visée** utilise PostgreSQL Railway déjà payé.
+  Cela requiert un endpoint réseau sécurisé de Railway vers Render, le
+  chiffrage TLS, une gestion prudente des secrets et peut occasionner de
+  l'egress payant. **Ne jamais utiliser la base Railway dans la préproduction.**
 
 ## Protections de la préproduction
 
 1. `FJORD_PREVIEW_MODE=1` et une base **Render isolée** sont obligatoires.
+   Avant la moindre requête SQL, la préproduction refuse toute base extérieure
+   à Render et exige un nom de base commençant par `fjord_render_apercu`.
+   Elle refuse aussi les secrets Stripe, OctoEverywhere et d'initialisation admin.
    Le code de la branche de migration refuse les méthodes d'écriture ainsi que
    l'accès aux API, à l'administration, aux liens de paiement et aux webhooks
    Stripe. Il laisse les pages publiques et `/health` consultables.
@@ -37,8 +52,8 @@ arrêter, écraser, supprimer ou redéployer sur Railway pendant ces tests.
 
 ## Contrôles de réception de la préproduction
 
-- [ ] Le conteneur Docker se construit avec PrusaSlicer et Bambu Studio;
-      les profils X2D d'origine sont vérifiés.
+- [ ] Le conteneur Docker **léger** se construit sans PrusaSlicer ni Bambu Studio.
+      Les dépendances X2D sont volontairement indisponibles en préproduction.
 - [ ] `/health` répond 200 et les pages publiques s'affichent sur PC/mobile.
 - [ ] `POST /contact`, les routes `/admin`, `/api`,
       `/payer/stripe/*`, `/stripe/webhook` sont interdites en préproduction.
