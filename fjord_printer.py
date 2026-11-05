@@ -1241,11 +1241,16 @@ body.light .fj-print-hint{color:#496477!important}
         if (isinstance(prior, dict) and
             0 <= time.time() - float(prior.get("at", 0)) < 3600):
             previous_hint = str(prior.get("hint", ""))[:420]
+        ignore_stale_error = (
+            isinstance(previous_start, dict)
+            and previous_start.get("start_ack") == "bambu_connect_handoff"
+            and job_matches_start is False
+        )
         response = jsonify(ok=True, status_ok=checks["status"], files_ok=checks["files"],
                            diagnosis=diagnosis, details=details,
                            last_upload=previous_hint,
                            printer_state=printer_state,
-                           printer_error=printer_error,
+                           printer_error=None if ignore_stale_error else printer_error,
                            recent_start_age_sec=recent_start_age,
                            start_ack=(previous_start.get("start_ack")
                                       if isinstance(previous_start, dict) else None),
