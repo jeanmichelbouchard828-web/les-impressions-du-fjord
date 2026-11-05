@@ -10,7 +10,9 @@ if ($site -notmatch '^https://[A-Za-z0-9.-]+(?::[0-9]+)?$') { throw 'Adresse HTT
 $root = Join-Path $env:LOCALAPPDATA 'LesImpressionsDuFjord\BambuConnectBridge'
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 $tokenFile = Join-Path $root 'token.dpapi'
-if (Test-Path -LiteralPath $tokenFile) {
+ $siteFile = Join-Path $root 'site.txt'
+$savedSite = if (Test-Path -LiteralPath $siteFile) { (Get-Content -LiteralPath $siteFile -Raw).Trim() } else { '' }
+if ((Test-Path -LiteralPath $tokenFile) -and ($savedSite -eq $site)) {
     $secure = ConvertTo-SecureString (Get-Content -LiteralPath $tokenFile -Raw)
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try { $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
@@ -22,6 +24,7 @@ if (Test-Path -LiteralPath $tokenFile) {
     if (-not $pair.ok -or -not $pair.token) { throw 'Association refusée. Génère un nouveau code dans le site et réessaie.' }
     $secure = ConvertTo-SecureString $pair.token -AsPlainText -Force
     Set-Content -LiteralPath $tokenFile -Value (ConvertFrom-SecureString $secure) -Encoding ascii
+    Set-Content -LiteralPath $siteFile -Value $site -Encoding ascii
     $token = $pair.token
 }
 $headers = @{ Authorization = "Bearer $token" }
@@ -37,6 +40,7 @@ while ($true) {
         $seenPath = Join-Path $root 'last-job.txt'
         $alreadyOpened = (Test-Path $seenPath) -and ((Get-Content -LiteralPath $seenPath -Raw).Trim() -eq [string]$job.id)
         if ($alreadyOpened) {
+            try { Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/ack/$($job.id)" -Headers $headers -ContentType 'application/json' -Body '{}' -TimeoutSec 20 | Out-Null } catch { }
             Start-Sleep -Seconds 5
             continue
         }
