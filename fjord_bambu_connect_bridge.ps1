@@ -60,7 +60,9 @@ while ($true) {
             continue
         }
 
-        $filePath = Join-Path $root ([IO.Path]::GetRandomFileName() + '.gcode.3mf')
+        $randomName = [System.IO.Path]::GetRandomFileName()
+        $fileName = $randomName + '.gcode.3mf'
+        $filePath = Join-Path -Path $root -ChildPath $fileName
         Invoke-WebRequest -Method Get -Uri "$site/api/fjord-print-bridge/file/$($job.id)" -Headers $headers -OutFile $filePath -TimeoutSec 120
         if ((Get-Item -LiteralPath $filePath).Length -lt 100) { throw 'Le 3MF téléchargé est incomplet.' }
 
@@ -69,8 +71,9 @@ while ($true) {
             $connectName = $connectName -replace '(?i)\.3mf$', ''
             $connectName += '.gcode.3mf'
         }
-        $uri = 'bambu-connect://import-file?path=' + (ConvertTo-UrlPart $filePath) +
-               '&name=' + (ConvertTo-UrlPart $connectName) + '&version=1.0.0'
+        $encodedPath = ConvertTo-UrlPart $filePath
+        $encodedName = ConvertTo-UrlPart $connectName
+        $uri = "bambu-connect://import-file?path=$encodedPath&name=$encodedName&version=1.0.0"
         Start-Process $uri
         Set-Content -LiteralPath $seenPath -Value ([string]$job.id) -Encoding ascii
         Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/ack/$($job.id)" -Headers $headers -ContentType 'application/json' -Body '{}' -TimeoutSec 20 | Out-Null
