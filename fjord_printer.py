@@ -361,6 +361,10 @@ def _atelier_remote_start_outcome(status, previous, age):
     reported = str(status.get("file") or "").lower()
     matches = bool(reported and (expected in reported or expected[:-4] in reported))
     state = str(status.get("state") or "").lower()
+    # Bambu Connect handoff waits for an explicit confirmation in the desktop app.
+    # An unrelated old printer error is not evidence that this handoff failed.
+    if previous.get("start_ack") == "bambu_connect_handoff" and not matches:
+        return "handoff_pending"
     if matches and state in ("printing", "warmingup", "resuming", "paused"):
         return "active"
     if age < 20:
@@ -1148,9 +1152,9 @@ body.light .fj-print-hint{color:#496477!important}
                 )
             elif acknowledgement == "bambu_connect_handoff":
                 diagnosis += (
-                    " Le fichier a été remis au pont Windows pour Bambu Connect. "
-                    "La confirmation doit être faite dans l'application; aucune "
-                    "impression n'est déclarée avant le retour d'état réel de la X2D."
+                    " Le 3MF a été remis au pont Windows. Confirme son envoi dans "
+                    "Bambu Connect. L'état d'une ancienne tâche X2D ne permet pas "
+                    "de conclure que ce nouveau fichier a échoué."
                 )
             elif acknowledgement == "native_ok":
                 diagnosis += (
@@ -1177,11 +1181,18 @@ body.light .fj-print-hint{color:#496477!important}
                         "de la X2D et les refus éventuels de commande MQTT."
                     )
                 elif printer_state in ("idle", "cancelled", "error"):
-                    diagnosis += (
-                        " La commande reçue par le relais n'a pas déclenché de nouveau "
-                        "travail confirmé : le départ réel n'est pas confirmé. "
-                        "État X2D « " + printer_state + " »."
-                    )
+                    if acknowledgement == "bambu_connect_handoff":
+                        diagnosis += (
+                            " L'état « " + printer_state + " » concerne une tâche X2D "
+                            "qui ne correspond pas au 3MF remis au PC; il est ignoré. "
+                            "En attente de la confirmation dans Bambu Connect."
+                        )
+                    else:
+                        diagnosis += (
+                            " La commande reçue par le relais n'a pas déclenché de nouveau "
+                            "travail confirmé : le départ réel n'est pas confirmé. "
+                            "État X2D « " + printer_state + " »."
+                        )
                 else:
                     diagnosis += (
                         " La X2D ne signale pas de travail correspondant au fichier "
@@ -1208,20 +1219,23 @@ body.light .fj-print-hint{color:#496477!important}
                         "Les firmwares Bambu récents peuvent exiger une autorisation "
                         "MQTT signée pour les commandes distantes."
                     )
-            if printer_elapsed is not None:
-                diagnosis += " Durée rapportée par la X2D : " + str(round(printer_elapsed)) + " s."
-            if printer_layer is not None:
-                diagnosis += " Couche rapportée : " + str(printer_layer) + "."
-            if printer_targets:
-                diagnosis += " Températures cibles rapportées : " + ", ".join(
-                    label + " " + str(printer_targets[key]) + " °C"
-                    for key, label in (("HotendTarget", "buse"), ("BedTarget", "plateau"))
-                    if key in printer_targets
-                ) + "."
-            if printer_substate:
-                diagnosis += " Sous-état : " + printer_substate
-            if printer_error:
-                diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
+            handoff_waiting = (acknowledgement == "bambu_connect_handoff"
+                               and not job_matches_start)
+            if not handoff_waiting:
+                if printer_elapsed is not None:
+                    diagnosis += " Durée rapportée par la X2D : " + str(round(printer_elapsed)) + " s."
+                if printer_layer is not None:
+                    diagnosis += " Couche rapportée : " + str(printer_layer) + "."
+                if printer_targets:
+                    diagnosis += " Températures cibles rapportées : " + ", ".join(
+                        label + " " + str(printer_targets[key]) + " °C"
+                        for key, label in (("HotendTarget", "buse"), ("BedTarget", "plateau"))
+                        if key in printer_targets
+                    ) + "."
+                if printer_substate:
+                    diagnosis += " Sous-état : " + printer_substate
+                if printer_error:
+                    diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
         prior = session.get("fjord_last_upload_diagnostic")
         previous_hint = ""
         if (isinstance(prior, dict) and
@@ -1297,6 +1311,9 @@ body.light .fj-print-hint{color:#496477!important}
                                              if previous.get("start_ack") in ("native_ok", "relay_only", "bambu_connect_handoff")
                                              else None)
                     payload["start_outcome"] = _atelier_remote_start_outcome(status, previous, age)
+                    if (previous.get("start_ack") == "bambu_connect_handoff"
+                        and payload["job_matches_start"] is not True):
+                        payload["printer_error"] = None
                     response = jsonify(payload)
         except PrinterError as exc:
             response = jsonify(ok=False, error=str(exc))
