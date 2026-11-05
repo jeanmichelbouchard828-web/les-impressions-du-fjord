@@ -320,6 +320,11 @@ def _status():
     features = result.get("Features")
     features = features if type(features) is int else 0
     state = str(job.get("State") or "inconnu").lower()
+    error = str(job.get("Error") or "")[:160]
+    # Bambu firmware reports a user-cancelled task as an error. Treat only this
+    # exact cancellation message as idle-ready; other printer errors stay blocked.
+    if state == "error" and error.strip().casefold() == "error: the task was canceled.":
+        state = "cancelled"
     current = job.get("CurrentPrint") or {}
     def bounded_number(value, maximum):
         return (value if type(value) in (int, float) and math.isfinite(value) and
@@ -329,7 +334,7 @@ def _status():
     return {"state":state, "progress":progress,
             "file":str(current.get("FileName") or "")[:120],
             "substate":str(job.get("SubState") or "")[:120],
-            "error":str(job.get("Error") or "")[:160],
+            "error":error,
             "time_left_sec":bounded_number(current.get("TimeLeftSec"), 31_536_000),
             "elapsed_sec":bounded_number(current.get("DurationSec"), 31_536_000),
             "hotend_actual":bounded_number(temps.get("HotendActual"), 500),
