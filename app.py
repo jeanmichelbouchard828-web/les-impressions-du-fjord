@@ -1003,3 +1003,5 @@ register_bambu_preset_library(app,db,admin_required,verify,csrfinput,page)
 # Private X2D print console (OctoEverywhere capabilities verified at runtime).
 from fjord_printer import register_printer_admin
 register_printer_admin(app,admin_required,verify,csrfinput,page,db=db)
+from fjord_bambu_connect import register_bridge as register_bambu_connect_bridge
+register_bambu_connect_bridge(app,db,admin_required,verify,csrfinput,page)
