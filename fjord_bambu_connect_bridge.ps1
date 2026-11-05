@@ -73,7 +73,8 @@ while ($true) {
         }
         $encodedPath = ConvertTo-UrlPart $filePath
         $encodedName = ConvertTo-UrlPart $connectName
-        $uri = 'bambu-connect://import-file?path={0}&name={1}&version=1.0.0' -f $encodedPath, $encodedName
+        $ampersand = [string][char]38
+        $uri = [string]::Concat('bambu-connect://import-file?path=', $encodedPath, $ampersand, 'name=', $encodedName, $ampersand, 'version=1.0.0')
         Start-Process $uri
         Set-Content -LiteralPath $seenPath -Value ([string]$job.id) -Encoding ascii
         Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/ack/$($job.id)" -Headers $headers -ContentType 'application/json' -Body '{}' -TimeoutSec 20 | Out-Null
