@@ -45,13 +45,16 @@ class PreviewSafetyTests(unittest.TestCase):
 
     def test_preview_database_must_be_isolated_render_database(self):
         valid = "postgresql://fjord_user:demo@dpg-example.oregon-postgres.render.com/fjord_render_apercu"
+        private_valid = "postgresql://fjord_user:demo@dpg-dblt2em417fc73bfjd70-a/fjord_render_apercu_db_20261104"
         with patch.dict(os.environ, {"FJORD_PREVIEW_MODE": "1"}, clear=True):
             assert_preview_isolated(valid)
+            assert_preview_isolated(private_valid)
             for unsafe in (
                 "postgresql://user:pass@postgres.railway.internal/railway",
                 "postgresql://user:pass@proxy.rlwy.net/railway",
                 "postgresql://user:pass@dpg-example.oregon-postgres.render.com/production",
                 "postgresql://user:pass@evilrender.com/fjord_render_apercu",
+                "postgresql://user:pass@dpg-dblmo8hsrm7s73f34530-a/fjord_render_apercu",
             ):
                 with self.subTest(unsafe=unsafe):
                     with self.assertRaises(RuntimeError):
