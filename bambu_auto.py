@@ -226,6 +226,7 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
                 "--load-settings", "{};{}".format(files[0], files[1]),
                 "--load-filaments", str(files[2]),
                 "--slice", "0",
+                "--min-save",
                 "--outputdir", str(output_dir),
                 "--export-3mf", OUTPUT_NAME,
                 str(input_file),
