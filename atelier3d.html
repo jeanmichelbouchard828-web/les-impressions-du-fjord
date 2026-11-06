@@ -2363,6 +2363,13 @@ window.fjordScheduleAutosave=()=>{
   catch(error){console.warn('Brouillon local non enregistré',error);fjordShowDraft('⚠ Sauvegarde locale indisponible dans ce navigateur')}
  },1100);
 };
+function fjordFlushDraft(){
+ if(!fjordAutosaveEnabled)return;
+ clearTimeout(fjordAutosaveTimer);
+ fjordDraftWrite(fjordDraftSnapshot()).catch(error=>console.warn('Brouillon local non enregistré',error));
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')fjordFlushDraft()});
+window.addEventListener('pagehide',fjordFlushDraft);
 function fjordOfferDraftRecovery(draft){
  const box=document.createElement('div');box.style.cssText='position:fixed;z-index:12001;left:12px;bottom:58px;max-width:min(520px,calc(100vw - 24px));padding:15px;border:1px solid #65bdd7;border-radius:13px;background:#102b3c;color:#eef9ff;box-shadow:0 12px 40px #0008;font:14px system-ui';
  const date=draft.savedAt?new Date(draft.savedAt).toLocaleString():'date inconnue';
