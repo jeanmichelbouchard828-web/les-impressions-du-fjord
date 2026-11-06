@@ -2195,13 +2195,15 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                      FROM private_quotes ORDER BY id DESC""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         def quote_stage(q):
-            if q["payment_status"]=="Payée":return "payees"
-            if q.get("production_status")=="Terminée":return "terminees"
-            if q.get("production_status")=="En production":return "production"
-            if q["accepted_at"]:return "acceptees"
-            return "attente"
+            if q["payment_status"]!="Payée":return "attente_paiement"
+            return "terminees" if int(q.get("production_progress") or 0)>=100 else "production"
         stages={q["id"]:quote_stage(q) for q in quotes}
-        counters={k:sum(stage==k for stage in stages.values()) for k in ("attente","acceptees","payees","production","terminees")}
+        counters={
+            "attente_paiement":sum(q["payment_status"]!="Payée" for q in quotes),
+            "payees":sum(q["payment_status"]=="Payée" for q in quotes),
+            "production":sum(stages[q["id"]]=="production" for q in quotes),
+            "terminees":sum(stages[q["id"]]=="terminees" for q in quotes),
+        }
         interac_email=payment_setting["value"] if payment_setting else ""
         quote_totals={q["id"]:_quote_amounts(q)[3] for q in quotes}
         square_active={q["id"]:bool(_active_square_url(q)) for q in quotes}
@@ -2225,6 +2227,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 <style>
 .fj-status-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:15px 0 22px}
 .fj-quote-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}.fj-quote-tab{background:#102b43;border:1px solid #3288b7;color:#eafaff;padding:13px 18px;border-radius:12px;cursor:pointer;font:inherit;font-weight:750}.fj-quote-tab strong{display:inline-block;margin-left:8px;color:#8ce8ff}.fj-quote-tab.active{background:linear-gradient(110deg,#075b99,#148dcc);outline:2px solid #7ee7ff}.fj-quote-tab[aria-selected="true"]{box-shadow:0 0 0 1px #7ee7ff inset}.fj-status-board[hidden]{display:none!important}
+.fj-overall-state{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:14px 0;padding:11px 13px;border:1px solid #277bb1;border-radius:10px;background:#0d2b43}.fj-overall-state>span{font-size:13px;color:#bdd8e8}.fj-overall-state>strong{color:#a9edff;font-size:15px}
 .fj-status-btn{border:1px solid #548da7;border-radius:12px;background:#16364b;color:#e9faff;padding:13px 10px;text-align:left;cursor:pointer}
 .fj-status-btn strong{display:block;font-size:24px;margin-top:5px}
 .fj-status-btn.active{outline:2px solid #7ee7ff;background:#21506a}
@@ -2456,26 +2459,22 @@ body.light .fj-quote-total strong{color:#07608e}
 </div>
 <p id="fjQuoteViewHint" class="fj-help">Les soumissions payées sont rangées dans l’historique. Les soumissions à traiter restent visibles ici.</p>
 <div class="fj-status-board" id="fjActiveFilters">
-<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length - counters.payees}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="attente">⏳ En attente <strong>{{counters.attente}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="acceptees">✓ Acceptées <strong>{{counters.acceptees}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="attente_paiement">⏳ En attente de paiement <strong>{{counters.attente_paiement}}</strong></button>
+</div>
+<div class="fj-status-board" id="fjPaidFilters" hidden>
+<button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong>{{counters.payees}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong>{{counters.terminees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"{% if stages[q.id]=='payees' %} hidden{% endif %}><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}"{% if q.payment_status=='Payée' %} hidden{% endif %}><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
 <div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
 {% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester le paiement ↗</a>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True,_scheme='https')}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
 <label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
-<label>État de fabrication
-<select form="fjord-save-global" name="production_status_{{q.id}}">
-<option value="À traiter" {% if q.production_status=='À traiter' %}selected{% endif %}>À traiter</option>
-<option value="En production" {% if q.production_status=='En production' %}selected{% endif %}>🖨️ En production</option>
-<option value="Terminée" {% if q.production_status=='Terminée' %}selected{% endif %}>📦 Terminée</option>
-</select></label></div>
-<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span></div>
+<div class="fj-overall-state"><span>État de la commande</span><strong>{% if q.payment_status!='Payée' %}⏳ En attente de paiement{% elif q.production_progress|int >= 100 %}✅ Terminé{% else %}🖨️ En production{% endif %}</strong><input type="hidden" form="fjord-save-global" name="production_status_{{q.id}}" value="{% if q.payment_status!='Payée' %}À traiter{% elif q.production_progress|int >= 100 %}Terminée{% else %}En production{% endif %}"></div>
+<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span><span class="fj-help">Terminé automatiquement quand le paiement est confirmé et l’avancement atteint 100 %.</span></div>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
 {% if interac_email %}<details class="fj-interac-quote"><summary><span class="fj-interac-mark"><b>INTERAC</b> ↗</span> Instructions de virement · {{q.public_number or ('FJ-%05d'|format(q.id))}}</summary><div class="fj-interac-quote-body"><p>À envoyer à : <strong>{{interac_email}}</strong></p><p>Montant exact : <strong>{{money(quote_totals[q.id])}}</strong></p><p>Référence à inscrire : <strong>{{q.public_number or ('FJ-%05d'|format(q.id))}}</strong></p><p>Dans l’application bancaire, choisir <strong>Virement Interac → Envoyer</strong>, inscrire ces renseignements et confirmer le virement. Vérifie le dépôt dans BMO avant de marquer la soumission comme payée.</p><a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">↗ Voir la page de paiement du client (Interac et Stripe)</a></div></details>{% endif %}
 <div class="fj-payment-form">
@@ -2859,14 +2858,15 @@ const fjQuoteSearch=document.getElementById('fjQuoteSearch');
 const fjActiveTab=document.getElementById('fjActiveTab');
 const fjHistoryTab=document.getElementById('fjHistoryTab');
 const fjActiveFilters=document.getElementById('fjActiveFilters');
+const fjPaidFilters=document.getElementById('fjPaidFilters');
 const fjQuoteViewHint=document.getElementById('fjQuoteViewHint');
-let fjSelectedStage='all',fjHistoryMode=false;
+let fjSelectedStage='attente_paiement',fjHistoryMode=false;
 function fjFilterQuoteCards(){
  const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
  for(const card of document.querySelectorAll('.fj-quote-card')){
   const content=[card.querySelector('h3')?.textContent,card.querySelector('.fj-quote-summary')?.textContent,card.querySelector('.eyebrow')?.textContent].join(' ').toLocaleLowerCase('fr');
-  const inTab=fjHistoryMode ? card.dataset.stage==='payees' : card.dataset.stage!=='payees';
-  const inStage=fjHistoryMode || fjSelectedStage==='all' || card.dataset.stage===fjSelectedStage;
+  const inTab=fjHistoryMode ? card.dataset.paid==='yes' : card.dataset.paid!=='yes';
+  const inStage=fjSelectedStage==='all' || card.dataset.stage===fjSelectedStage;
   card.hidden=!inTab || !inStage || Boolean(query && !content.includes(query));
  }
  if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode));
@@ -2874,16 +2874,18 @@ function fjFilterQuoteCards(){
  if(fjActiveTab)fjActiveTab.classList.toggle('active',!fjHistoryMode);
  if(fjHistoryTab)fjHistoryTab.classList.toggle('active',fjHistoryMode);
  if(fjActiveFilters)fjActiveFilters.hidden=fjHistoryMode;
+ if(fjPaidFilters)fjPaidFilters.hidden=!fjHistoryMode;
  if(fjQuoteViewHint)fjQuoteViewHint.textContent=fjHistoryMode
-   ?'Historique des paiements confirmés. Les soumissions payées sont conservées ici pour consultation.'
-   :'Les soumissions payées sont rangées dans l’historique. Les soumissions à traiter restent visibles ici.';
+   ?'Les soumissions payées sont séparées selon leur avancement : en production ou terminées à 100 %.'
+   :'Les soumissions en attente de paiement restent ici. Une commande payée passe dans l’onglet Payées.';
 }
 fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
-fjActiveTab?.addEventListener('click',()=>{fjHistoryMode=false;fjSelectedStage='all';document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));fjFilterQuoteCards()});
-fjHistoryTab?.addEventListener('click',()=>{fjHistoryMode=true;fjFilterQuoteCards()});
+fjActiveTab?.addEventListener('click',()=>{fjHistoryMode=false;fjSelectedStage='attente_paiement';document.querySelectorAll('#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage===fjSelectedStage));fjFilterQuoteCards()});
+fjHistoryTab?.addEventListener('click',()=>{fjHistoryMode=true;fjSelectedStage='all';document.querySelectorAll('#fjPaidFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));fjFilterQuoteCards()});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
- fjHistoryMode=false;fjSelectedStage=button.dataset.stage;
- document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
+ fjHistoryMode=Boolean(button.closest('#fjPaidFilters'));
+ fjSelectedStage=button.dataset.stage;
+ document.querySelectorAll(fjHistoryMode?'#fjPaidFilters .fj-status-btn':'#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  fjFilterQuoteCards();
 }));
 fjFilterQuoteCards();
@@ -2933,9 +2935,12 @@ fjFilterQuoteCards();
                 if payment not in ("En attente","Paiement partiel","Payée"):abort(400,"Statut du paiement invalide.")
                 if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400,"Progression invalide : entre 0 et 100 %.")
                 progress=int(raw)
-                if production=="Terminée":progress=100
-                elif production=="À traiter":progress=0
-                elif progress==100:production="Terminée"
+                # Statut global dérivé: impayé, production payée, ou terminé seulement
+                # si le paiement est confirmé et l'avancement atteint 100 %.
+                if payment=="Payée":
+                    production="Terminée" if progress>=100 else "En production"
+                else:
+                    production="À traiter"
                 primary=request.form.get("preview_color"+suffix,"")
                 secondary=request.form.get("preview_secondary"+suffix,"")
                 preview=None
