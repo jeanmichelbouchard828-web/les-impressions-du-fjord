@@ -2293,6 +2293,96 @@ fjordBedTabs?.addEventListener('click',event=>{
  const tab=event.target.closest('[data-bed-index]');
  if(tab)fjordSelectBed(Number(tab.dataset.bedIndex));
 });
+
+/* Brouillon local automatique : chaque plateau est conservé dans IndexedDB.
+   Les gros projets restent dans le navigateur et ne sont jamais envoyés au serveur. */
+const FJORD_DRAFT_DB='fjord-atelier-local-v1',FJORD_DRAFT_KEY='atelier-draft';
+let fjordAutosaveEnabled=false,fjordAutosaveTimer=0,fjordDraftDbPromise=null;
+const fjordDraftNotice=document.createElement('div');
+fjordDraftNotice.id='fjordDraftNotice';
+fjordDraftNotice.setAttribute('role','status');
+fjordDraftNotice.style.cssText='position:fixed;z-index:12000;left:12px;bottom:12px;max-width:min(520px,calc(100vw - 24px));padding:10px 12px;border:1px solid #4f8ba8;border-radius:11px;background:#102b3c;color:#eaf7ff;box-shadow:0 8px 28px #0006;font:600 13px system-ui;display:none';
+document.body.appendChild(fjordDraftNotice);
+function fjordDraftDb(){
+ if(!('indexedDB' in window))return Promise.reject(new Error('IndexedDB indisponible'));
+ if(!fjordDraftDbPromise)fjordDraftDbPromise=new Promise((resolve,reject)=>{
+  const request=indexedDB.open(FJORD_DRAFT_DB,1);
+  request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('drafts'))request.result.createObjectStore('drafts')};
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error||new Error('Ouverture du brouillon impossible'));
+ });
+ return fjordDraftDbPromise;
+}
+function fjordDraftRead(){
+ return fjordDraftDb().then(db=>new Promise((resolve,reject)=>{
+  const request=db.transaction('drafts','readonly').objectStore('drafts').get(FJORD_DRAFT_KEY);
+  request.onsuccess=()=>resolve(request.result||null);request.onerror=()=>reject(request.error);
+ }));
+}
+function fjordDraftWrite(value){
+ return fjordDraftDb().then(db=>new Promise((resolve,reject)=>{
+  const tx=db.transaction('drafts','readwrite');tx.objectStore('drafts').put(value,FJORD_DRAFT_KEY);
+  tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Écriture annulée'));
+ }));
+}
+function fjordDraftSnapshot(){
+ fjordBeds[fjordActiveBed]=serialize();
+ return {version:2,activeBed:fjordActiveBed,beds:fjordBeds.map(bed=>JSON.parse(JSON.stringify(bed))),savedAt:new Date().toISOString()};
+}
+function fjordRebuildBedTabs(){
+ fjordBedTabs.querySelectorAll('[data-bed-index]').forEach(tab=>tab.remove());
+ fjordBeds.forEach((_,index)=>{
+  const tab=document.createElement('button');tab.type='button';tab.className='fjord-bed-tab';
+  tab.dataset.bedIndex=String(index);tab.setAttribute('role','tab');tab.setAttribute('aria-selected',String(index===fjordActiveBed));
+  tab.classList.toggle('active',index===fjordActiveBed);tab.textContent='⬡ Plateau '+(index+1);
+  fjordBedTabs.insertBefore(tab,fjordAddBed);
+ });
+}
+function fjordApplyProject(data){
+ let beds,active=0;
+ if(data?.version===2&&Array.isArray(data.beds)&&data.beds.length>=1&&data.beds.length<=12&&data.beds.every(b=>b?.version===1&&Array.isArray(b.objects))){
+  beds=data.beds;active=Number.isInteger(data.activeBed)?Math.min(Math.max(data.activeBed,0),beds.length-1):0;
+ }else if(data?.version===1&&Array.isArray(data.objects)){beds=[data];active=0}
+ else throw Error('Projet incompatible ou endommagé');
+ fjordAutosaveEnabled=false;
+ stopGeneratorPreview();hideCutPreview();clearMeasureLine();
+ fjordBeds.splice(0,fjordBeds.length,...beds);fjordActiveBed=active;
+ fjordRebuildBedTabs();restore(fjordBeds[fjordActiveBed]);
+ undoStack.length=0;redoStack.length=0;
+ fjordAutosaveEnabled=true;window.fjordScheduleAutosave?.();
+}
+function fjordShowDraft(message){
+ fjordDraftNotice.textContent=message;fjordDraftNotice.style.display='block';
+}
+window.fjordScheduleAutosave=()=>{
+ if(!fjordAutosaveEnabled)return;
+ clearTimeout(fjordAutosaveTimer);
+ fjordShowDraft('Enregistrement automatique du brouillon…');
+ fjordAutosaveTimer=setTimeout(async()=>{
+  try{await fjordDraftWrite(fjordDraftSnapshot());fjordShowDraft('✓ Brouillon enregistré sur cet appareil')}
+  catch(error){console.warn('Brouillon local non enregistré',error);fjordShowDraft('⚠ Sauvegarde locale indisponible dans ce navigateur')}
+ },1100);
+};
+function fjordOfferDraftRecovery(draft){
+ const box=document.createElement('div');box.style.cssText='position:fixed;z-index:12001;left:12px;bottom:58px;max-width:min(520px,calc(100vw - 24px));padding:15px;border:1px solid #65bdd7;border-radius:13px;background:#102b3c;color:#eef9ff;box-shadow:0 12px 40px #0008;font:14px system-ui';
+ const date=draft.savedAt?new Date(draft.savedAt).toLocaleString():'date inconnue';
+ const text=document.createElement('div');text.textContent='Un brouillon de l’Atelier a été retrouvé ('+date+'). Veux-tu le récupérer ?';box.appendChild(text);
+ const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:12px';
+ const restoreButton=document.createElement('button');restoreButton.type='button';restoreButton.textContent='Récupérer le brouillon';
+ const continueButton=document.createElement('button');continueButton.type='button';continueButton.textContent='Continuer sans le charger';
+ [restoreButton,continueButton].forEach(button=>{button.style.cssText='padding:9px 12px;border:1px solid #4f8ba8;border-radius:9px;background:#203b4d;color:white;font-weight:700;cursor:pointer';actions.appendChild(button)});
+ restoreButton.addEventListener('click',()=>{try{fjordApplyProject(draft);box.remove();fjordShowDraft('✓ Brouillon récupéré et sauvegardé localement')}catch(error){console.warn(error);text.textContent='Le brouillon est illisible; il reste conservé dans ce navigateur.'}});
+ continueButton.addEventListener('click',()=>{box.remove();fjordAutosaveEnabled=true;fjordShowDraft('Brouillon précédent conservé. Les nouveaux changements seront enregistrés ici.');});
+ box.appendChild(actions);document.body.appendChild(box);
+}
+(async()=>{
+ try{
+  const draft=await fjordDraftRead();
+  if(draft&&draft.version===2&&Array.isArray(draft.beds))fjordOfferDraftRecovery(draft);
+  else{fjordAutosaveEnabled=true;fjordShowDraft('✓ Sauvegarde automatique locale prête');}
+ }catch(error){console.warn('Sauvegarde locale indisponible',error);fjordShowDraft('⚠ Sauvegarde automatique indisponible dans ce navigateur');}
+})();
+
 function remember(){
  undoStack.push(JSON.stringify(serialize()));
  if(undoStack.length>15)undoStack.shift();
@@ -2349,7 +2439,7 @@ function togglePartSelection(m){
  }
  sync();
 }
-function sync(){window.fjordPaint?.syncText?.();if(sliceActive){if(models.length)sliceUpdateAll();else sliceClose()}if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
+function sync(){window.fjordPaint?.syncText?.();if(sliceActive){if(models.length)sliceUpdateAll();else sliceClose()}if(!$('estimatePanel').hidden)updateEstimate();if(cutPreviewActive)updateCutPreview();renderSceneList();window.fjordScheduleAutosave?.();const ids=['name','sx','sy','sz','px','py','pz','rx','ry','rz'];ids.forEach(id=>$(id).disabled=!selected);if(!selected){ids.forEach(id=>$(id).value='');return}
 $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((id,i)=>$(id).value=d[i].toFixed(2));['px','py','pz'].forEach((id,i)=>$(id).value=selected.position.getComponent(i).toFixed(2));['rx','ry','rz'].forEach((id,i)=>$(id).value=(selected.rotation.toArray()[i]*180/Math.PI).toFixed(1))}
 /* Palette AMS réelle, par l'API OctoEverywhere, sans accès direct à l'imprimante.
    Toute la sélection et la recoloration restent locales au projet. */
@@ -2949,9 +3039,9 @@ $('name').addEventListener('change',e=>{if(!selected)return;remember();selected.
  sync()}));
 ['rx','ry','rz'].forEach((id,i)=>$(id).addEventListener('change',e=>{if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v)){sync();return}remember();const r=[selected.rotation.x,selected.rotation.y,selected.rotation.z];r[i]=THREE.MathUtils.degToRad(v);selected.rotation.set(...r);sync()}));
 function download(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
-$('save').addEventListener('click',()=>{download(new Blob([JSON.stringify(serialize())],{type:'application/json'}),'Projet-3D-du-Fjord.json');say('saved')});
+$('save').addEventListener('click',()=>{download(new Blob([JSON.stringify(fjordDraftSnapshot())],{type:'application/json'}),'Projet-3D-du-Fjord.json');say('saved')});
 $('open').addEventListener('click',()=>$('projectFile').click());
-$('projectFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());restore(data);undoStack=[];say('loaded')}catch(err){console.warn(err);say('invalid')}e.target.value=''});
+$('projectFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());fjordApplyProject(data);say('loaded')}catch(err){console.warn(err);say('invalid')}e.target.value=''});
 // Shared importer for local files AND private library downloads.
 // Imports never erase parts already on the bed. "Ouvrir projet" remains a deliberate replace.
 function fjordReportImportError(context,error){
