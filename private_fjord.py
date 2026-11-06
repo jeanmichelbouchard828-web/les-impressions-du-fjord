@@ -2222,7 +2222,28 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @app.get("/admin/soumissions-pro")
     @admin_required
     def fjord_quotes():
+        restored_mathieu_quote=False
         with db() as c:
+            # Restore FJ-00002 from its archived PDF only if no matching tracker row exists.
+            # Never overwrite payment, acceptance, contact, or production data on an existing quote.
+            existing_mathieu=c.execute("""SELECT id,public_number FROM private_quotes
+                WHERE public_number=%s
+                   OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))
+                ORDER BY CASE WHEN public_number=%s THEN 0 ELSE 1 END,id DESC LIMIT 1""",
+                ("FJ-00002","Mathieu rivard","porte can motoneige","FJ-00002")).fetchone()
+            if not existing_mathieu:
+                c.execute("SELECT pg_advisory_xact_lock(7342026, 8)")
+                c.execute("""INSERT INTO private_quotes
+                    (customer,email,phone,title,description,material,quantity,unit_price,
+                     shipping,apply_taxes,military_discount,payment_token,payment_status,
+                     production_status,production_progress,public_number,created)
+                    VALUES (%s,NULL,NULL,%s,%s,%s,1,%s,0,FALSE,FALSE,%s,'En attente',
+                            'À traiter',0,%s,%s)
+                    ON CONFLICT DO NOTHING""",
+                    ("Mathieu rivard","porte can motoneige","", "PETG",20.50,
+                     secrets.token_urlsafe(32),"FJ-00002",
+                     datetime.datetime(2026,10,31,12,0,tzinfo=datetime.timezone.utc)))
+                restored_mathieu_quote=True
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,model_id,customer,email,title,description,material,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
                      apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
@@ -2232,6 +2253,8 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                      live_url,live_token,live_enabled,live_expires
                      FROM private_quotes ORDER BY id DESC""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        if restored_mathieu_quote:
+            flash("FJ-00002 a été rétablie à partir du PDF. Le suivi repart en attente d’acceptation; l’ancien historique de paiement et d’acceptation n’était pas dans le PDF.")
         acceptance_valid={q["id"]:bool(q.get("accepted_hash") and
                               q["accepted_hash"]==_quote_acceptance_digest(q)) for q in quotes}
         def quote_stage(q):
