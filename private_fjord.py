@@ -2570,6 +2570,7 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong data-stage-count="terminees">{{counters.terminees}}</strong></button>
 <button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong data-stage-count="all">{{counters.payees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
+<p id="fj-quotes-empty" class="fj-help" role="status" hidden>Aucune soumission ne correspond à cette recherche dans cet onglet. Efface la recherche ou choisis un autre onglet.</p>
 <div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Supprimer la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}" title="Supprimer cette soumission">🗑️</button></form></div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
@@ -2954,6 +2955,7 @@ const fjActiveFilters=document.getElementById('fjActiveFilters');
 const fjPaidFilters=document.getElementById('fjPaidFilters');
 const fjQuoteViewHint=document.getElementById('fjQuoteViewHint');
 const fjQuoteSyncStatus=document.getElementById('fjQuoteSyncStatus');
+const fjQuotesEmpty=document.getElementById('fj-quotes-empty');
 let fjSelectedStage='all-active',fjHistoryMode=false;
 function fjFilterQuoteCards(){
  const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
@@ -2963,6 +2965,8 @@ function fjFilterQuoteCards(){
   const inStage=fjSelectedStage==='all' || (fjSelectedStage==='all-active' && card.dataset.paid!=='yes') || card.dataset.stage===fjSelectedStage;
   card.hidden=!inTab || !inStage || Boolean(query && !content.includes(query));
  }
+ const hasVisibleCard=[...document.querySelectorAll('.fj-quote-card')].some(card=>!card.hidden);
+ if(fjQuotesEmpty)fjQuotesEmpty.hidden=hasVisibleCard;
  if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode));
  if(fjHistoryTab)fjHistoryTab.setAttribute('aria-selected',String(fjHistoryMode));
  if(fjActiveTab)fjActiveTab.classList.toggle('active',!fjHistoryMode);
@@ -3011,8 +3015,18 @@ async function fjRefreshTracker(){
 fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
 fjRefreshTracker();setInterval(fjRefreshTracker,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)fjRefreshTracker()});
-fjActiveTab?.addEventListener('click',()=>{fjHistoryMode=false;fjSelectedStage='all-active';document.querySelectorAll('#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage===fjSelectedStage));fjFilterQuoteCards()});
-fjHistoryTab?.addEventListener('click',()=>{fjHistoryMode=true;fjSelectedStage='all';document.querySelectorAll('#fjPaidFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));fjFilterQuoteCards()});
+fjActiveTab?.addEventListener('click',()=>{
+ fjHistoryMode=false;fjSelectedStage='all-active';
+ if(fjQuoteSearch)fjQuoteSearch.value='';
+ document.querySelectorAll('#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage===fjSelectedStage));
+ fjFilterQuoteCards();
+});
+fjHistoryTab?.addEventListener('click',()=>{
+ fjHistoryMode=true;fjSelectedStage='all';
+ if(fjQuoteSearch)fjQuoteSearch.value='';
+ document.querySelectorAll('#fjPaidFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));
+ fjFilterQuoteCards();
+});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
  fjHistoryMode=Boolean(button.closest('#fjPaidFilters'));
  fjSelectedStage=button.dataset.stage;
