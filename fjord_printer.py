@@ -35,13 +35,13 @@ def _connection():
         parsed = urllib.parse.urlsplit(base)
         hostname, port, username, password = parsed.hostname, parsed.port, parsed.username, parsed.password
     except ValueError as exc:
-        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Railway.") from exc
+        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Render.") from exc
     if (parsed.scheme != "https" or not hostname or
         not hostname.endswith(".octoeverywhere.com") or
         hostname == ".octoeverywhere.com" or
         username or password or port is not None or
         parsed.path not in ("", "/") or parsed.query or parsed.fragment):
-        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Railway.")
+        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Render.")
     return base
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -626,7 +626,7 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None
             "engine_ready": bool(cli_location()),
             "profiles": available_presets(),
             "message": ("Bambu Studio disponible" if cli_location() else
-                        "Moteur Bambu Studio à installer et valider sur Railway"),
+                        "Moteur Bambu Studio à installer et valider sur Render"),
         })
         response.headers["Cache-Control"] = "no-store"
         return response
@@ -815,7 +815,7 @@ body.light .fj-print-hint{color:#496477!important}
     {% if auto_engine_ready %}
       <div class="fj-print-notice" role="status">Bambu Studio disponible pour préparer tes modèles.</div>
     {% else %}
-      <div class="fj-print-notice error" role="status">Moteur Bambu Studio absent sur ce déploiement Railway : tranchage automatique désactivé jusqu’à son installation et à la validation de profils complets. Tu peux toujours envoyer un 3MF déjà tranché.</div>
+      <div class="fj-print-notice error" role="status">Moteur Bambu Studio absent sur ce déploiement Render : tranchage automatique désactivé jusqu’à son installation et à la validation de profils complets. Tu peux toujours envoyer un 3MF déjà tranché.</div>
     {% endif %}
     <a class="fj-print-refresh" style="display:inline-block;margin-top:12px" href="/admin/atelier-3d">Ouvrir l’Atelier 3D</a>
   </section>
@@ -869,6 +869,10 @@ body.light .fj-print-hint{color:#496477!important}
             <input id="fjordPrintUpload" type="file" name="sliced_file" accept=".3mf" required>
           </label>
           <div id="fjordPrintFileName" class="fj-print-chip" role="status">Aucun fichier sélectionné</div>
+          <div id="fjordUploadProgress" hidden aria-live="polite" style="display:grid;gap:7px">
+            <progress max="100" value="0" style="width:100%;height:12px;accent-color:#49bda2"></progress>
+            <div id="fjordUploadStatus" class="fj-print-notice" role="status" style="margin:0">Prêt à envoyer.</div>
+          </div>
           <button type="submit" {% if not status %}disabled{% endif %}>📤 Envoyer à la X2D</button>
         </form>
         <p class="fj-print-hint">Maximum 30 Mo. L’envoi ne déclenche jamais automatiquement l’impression.</p>
@@ -932,12 +936,50 @@ body.light .fj-print-hint{color:#496477!important}
 (function(){
  const upload=document.getElementById('fjordPrintUpload');
  const label=document.getElementById('fjordPrintFileName');
+ const form=upload?.form,progressBox=document.getElementById('fjordUploadProgress');
+ const progress=progressBox?.querySelector('progress'),status=document.getElementById('fjordUploadStatus');
+ const submit=form?.querySelector('button[type="submit"]');
  if(upload && label){
    upload.addEventListener('change',()=>{
      const file=upload.files && upload.files[0];
-     label.textContent=file ? file.name : 'Aucun fichier sélectionné';
+     label.textContent=file ? file.name+' · '+(file.size/1048576).toFixed(1)+' Mo' : 'Aucun fichier sélectionné';
    });
  }
+ if(!form||!upload||!progressBox||!progress||!status)return;
+ form.addEventListener('submit',event=>{
+   event.preventDefault();
+   if(!upload.files?.length)return;
+   progressBox.hidden=false;progress.value=0;status.classList.remove('error');
+   status.textContent='Envoi du fichier au site : 0 %';
+   if(submit){submit.disabled=true;submit.textContent='⏳ Envoi en cours…'}
+   const xhr=new XMLHttpRequest();xhr.open('POST',form.action,true);
+   xhr.setRequestHeader('Accept','application/json');
+   xhr.upload.addEventListener('progress',event=>{
+     if(!event.lengthComputable)return;
+     const percent=Math.min(100,Math.round(event.loaded/event.total*100));
+     progress.value=percent;
+     status.textContent=percent<100?'Envoi du fichier au site : '+percent+' %':'Fichier reçu. Vérification du 3MF et transfert vers la X2D en cours…';
+   });
+   xhr.addEventListener('load',()=>{
+     let result={};try{result=JSON.parse(xhr.responseText||'{}')}catch(_){}
+     if(xhr.status>=200&&xhr.status<300&&result.ok&&result.next){
+       progress.value=100;status.textContent='✓ Fichier transféré. Ouverture de l’écran de confirmation…';
+       window.location.assign(result.next);return;
+     }
+     status.classList.add('error');
+     status.textContent=result.error||'Le transfert a échoué (HTTP '+xhr.status+'). Aucun démarrage n’a été confirmé.';
+     if(submit){submit.disabled=false;submit.textContent='↻ Réessayer l’envoi'}
+   });
+   xhr.addEventListener('error',()=>{
+     status.classList.add('error');status.textContent='Connexion interrompue. Actualise l’état de la X2D avant de réessayer.';
+     if(submit){submit.disabled=false;submit.textContent='↻ Réessayer l’envoi'}
+   });
+   xhr.addEventListener('timeout',()=>{
+     status.classList.add('error');status.textContent='Le délai d’envoi est dépassé. Actualise l’état de la X2D avant de réessayer.';
+     if(submit){submit.disabled=false;submit.textContent='↻ Réessayer l’envoi'}
+   });
+   xhr.timeout=120000;xhr.send(new FormData(form));
+ });
 })();
 </script>
 """,csrf_field=csrfinput(),nonce=token,status=status,files=files,error=error,
@@ -954,7 +996,7 @@ body.light .fj-print-hint{color:#496477!important}
         verify()
         try:
             if not cli_location():
-                raise AutoSliceError("Moteur Bambu Studio absent sur Railway. Aucun fichier envoyé.")
+                raise AutoSliceError("Moteur Bambu Studio absent sur Render. Aucun fichier envoyé.")
             upload = request.files.get("stl")
             if upload is None or not str(upload.filename or "").lower().endswith(".stl"):
                 raise AutoSliceError("Fichier STL invalide.")
