@@ -2272,7 +2272,7 @@ body.light .fj-library-item small,body.light .fj-library-dialog .fj-help{color:#
 body.light .fj-reset-button{color:#126185;border-color:#318cb7}
 body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{color:#fff}
 @media(max-width:540px){.fj-quote-actions button{width:100%}}
-.fj-payment-form{max-width:360px;margin:12px 0 6px}
+.fj-interac-quote{margin:12px 0;border:1px solid #d39e18;border-radius:12px;background:#142334;color:#f5f7fb;overflow:hidden}.fj-interac-quote summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;color:#ffd447;font-weight:850}.fj-interac-mark{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;background:#ffd447;color:#101820;font-size:13px;letter-spacing:.03em;white-space:nowrap}.fj-interac-mark b{font-weight:950}.fj-interac-quote-body{padding:2px 14px 14px;font-size:13px;line-height:1.55;color:#e6edf4}.fj-interac-quote-body p{margin:7px 0}.fj-interac-quote-body strong{color:#fff}.fj-interac-quote-body a{color:#ffd447}..fj-payment-form{max-width:360px;margin:12px 0 6px}
 .fj-square-settings{margin:14px 0;padding:15px;border:1px solid #4bb8dd;border-radius:13px}
 .fj-square-settings label{font-weight:700}
 .fj-square-settings input[type=url]{width:100%;max-width:100%;box-sizing:border-box}
@@ -2477,7 +2477,7 @@ body.light .fj-quote-total strong{color:#07608e}
 </select></label></div>
 <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span></div>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
-
+{% if interac_email %}<details class="fj-interac-quote"><summary><span class="fj-interac-mark"><b>INTERAC</b> ↗</span> Instructions de virement · {{q.public_number or ('FJ-%05d'|format(q.id))}}</summary><div class="fj-interac-quote-body"><p>À envoyer à : <strong>{{interac_email}}</strong></p><p>Montant exact : <strong>{{money(quote_totals[q.id])}}</strong></p><p>Référence à inscrire : <strong>{{q.public_number or ('FJ-%05d'|format(q.id))}}</strong></p><p>Dans l’application bancaire, choisir <strong>Virement Interac → Envoyer</strong>, inscrire ces renseignements et confirmer le virement. Vérifie le dépôt dans BMO avant de marquer la soumission comme payée.</p><a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">↗ Voir la page de paiement du client (Interac et Stripe)</a></div></details>{% endif %}
 <div class="fj-payment-form">
 <label for="fj-payment-{{q.id}}">Statut du paiement</label>
 <select id="fj-payment-{{q.id}}" form="fjord-save-global" name="payment_status_{{q.id}}" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
@@ -3476,10 +3476,18 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     </dl>
     <h2>Méthode de paiement</h2>
     {% if recipient %}
-      <details class="fj-checkout-interac" style="background:#172334;color:#f5f7fb;border:1px solid #34485f;border-radius:14px;padding:12px 16px;margin:0 0 16px">
-        <summary style="cursor:pointer;font-weight:800;color:#ffd447"><svg aria-hidden="true" focusable="false" width="38" height="27" viewBox="0 0 38 27" style="vertical-align:middle;margin-right:9px"><rect x="1" y="1" width="36" height="25" rx="4" fill="#26394f" stroke="#ffd447" stroke-width="2"/><rect x="1" y="7" width="36" height="5" fill="#ffd447"/><rect x="6" y="16" width="8" height="6" rx="1" fill="#d6deea"/><path d="M20 18h11M20 21h7" stroke="#d6deea" stroke-width="1.5" stroke-linecap="round"/></svg>Virement Interac — afficher les instructions</summary>
-        <p class="fj-checkout-explain" style="color:#edf2f7">Envoyez exactement <strong>{{amount}}</strong> à <strong>{{recipient}}</strong> dans votre application bancaire. Inscrivez la référence <strong>{{reference}}</strong> en note. Le paiement sera confirmé après réception.</p>
-        <p class="fj-checkout-explain" style="color:#c5d0dd">Les étapes varient selon la banque. <a style="color:#ffd447" href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Instructions officielles ↗</a></p>
+      <details class="fj-checkout-interac" style="background:#172334;color:#f5f7fb;border:1px solid #d7a91c;border-radius:14px;padding:12px 16px;margin:0 0 16px">
+        <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;font-weight:800;color:#ffd447">
+          <span style="display:inline-flex;align-items:center;gap:9px"><span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:30px;border-radius:7px;background:#ffd447;color:#132033;font-weight:950;font-size:12px;letter-spacing:-.04em">INTERAC<span style="font-size:18px;margin-left:1px">↗</span></span><span>Virement Interac</span></span>
+          <span style="font-size:13px;color:#f5d975">Afficher les instructions ▾</span>
+        </summary>
+        <div style="padding-top:10px;font-size:14px;line-height:1.55;color:#edf2f7">
+          <p style="margin:5px 0 9px">Dans votre application bancaire, choisissez <strong>Virement Interac → Envoyer</strong>, puis entrez :</p>
+          <p style="margin:5px 0">Destinataire : <strong>{{recipient}}</strong></p>
+          <p style="margin:5px 0">Montant exact : <strong>{{amount}}</strong></p>
+          <p style="margin:5px 0">Note / référence : <strong>{{reference}}</strong></p>
+          <p style="margin:9px 0;color:#c5d0dd">Confirmez le virement dans votre banque. Le paiement est marqué comme reçu après vérification du dépôt. <a style="color:#ffd447" href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Instructions officielles ↗</a></p>
+        </div>
       </details>
     {% endif %}
     {% if stripe_ready %}
