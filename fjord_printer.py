@@ -1551,9 +1551,17 @@ body.light .fj-print-hint{color:#496477!important}
                     pending_jobs = {}
                 pending_jobs[virtual_path] = bridge_job_id
                 session["fjord_print_bridge_jobs"] = dict(list(pending_jobs.items())[-12:])
-            flash("Fichier tranché envoyé. Sélectionne-le puis confirme le démarrage. Si le pont Windows est connecté, Bambu Connect s’ouvrira sur son PC.")
-            return redirect(url_for("fjord_printer_page", selected=virtual_path))
+            message = "Fichier tranché envoyé. Sélectionne-le puis confirme le démarrage. Si le pont Windows est connecté, Bambu Connect s’ouvrira sur son PC."
+            next_page = url_for("fjord_printer_page", selected=virtual_path)
+            if request.accept_mimetypes.best == "application/json":
+                response = jsonify(ok=True, file=virtual_path, next=next_page, message=message)
+                response.headers["Cache-Control"] = "no-store"
+                return response
+            flash(message)
+            return redirect(next_page)
         except PrinterError as exc:
+            if request.accept_mimetypes.best == "application/json":
+                return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
             return redirect(url_for("fjord_printer_page"))
 
