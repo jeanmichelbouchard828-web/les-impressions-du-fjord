@@ -2335,8 +2335,8 @@ body.light .fj-top-panel,body.light .fj-card-section{border-color:#aed0df}
 body.light .fj-square-section>summary{background:#e1f2f8}
 @media(max-width:700px){
 .fj-two{grid-template-columns:1fr}
-.fj-status-board{flex-wrap:nowrap;overflow-x:auto;padding-bottom:9px;scroll-snap-type:x proximity}
-.fj-status-btn{flex:0 0 auto;scroll-snap-align:start}
+.fj-status-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:visible;padding:0;margin:10px 0 14px}
+.fj-status-btn{width:100%;min-width:0;min-height:54px;flex:initial;scroll-snap-align:none;line-height:1.25;white-space:normal}
 .fj-quick-actions{display:grid;grid-template-columns:1fr}
 .fj-quick-actions .btn{justify-content:center}
 .fj-quote-card{padding:13px}
@@ -2500,9 +2500,9 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <button type="button" class="fj-status-btn active" data-stage="attente_paiement">⏳ En attente de paiement <strong>{{counters.attente_paiement}}</strong></button>
 </div>
 <div class="fj-status-board" id="fjPaidFilters" hidden>
-<button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong>{{counters.payees}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong>{{counters.terminees}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong>{{counters.payees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
 <div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}"{% if q.payment_status=='Payée' %} hidden{% endif %}><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
