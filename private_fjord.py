@@ -3682,8 +3682,9 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"))
         payment_available=bool(token and (active_square_url or
                                (interac_setting and interac_setting["value"]) or stripe_ready))
-        # Tous les QR/boutons PDF passent par la page protégée qui exige l'acceptation.
-        payment_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if payment_available else None
+        # Le PDF ouvre l'écran d'acceptation; l'acceptation enregistrée redirige
+        # ensuite automatiquement vers la page de paiement Interac/Stripe.
+        payment_url=accept_url if payment_available else None
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -3802,15 +3803,15 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"OPTIONS DE PAIEMENT APRÈS ACCEPTATION")
+            pdf.drawString(52,top-24,"ACCEPTATION ET PAIEMENT")
             pdf.setFont("Helvetica",10)
-            pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
-            pdf.drawString(52,top-58,"Référence : {}".format(display_number))
+            pdf.drawString(52,top-42,"Total de la soumission : "+_money(total).replace(" $"," CAD"))
+            pdf.drawString(52,top-58,"Après acceptation, choisissez Interac ou Stripe.")
             pdf.setFillColor(cyan)
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"ACCEPTER AVANT DE PAYER")
+            pdf.drawCentredString(222,bottom+18,"ACCEPTER LA SOUMISSION")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
@@ -3825,14 +3826,6 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             except Exception:
                 # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
                 pass
-        if accept_url:
-            # L'aperçu de la pièce reste dans le PDF sous forme d'image.
-            # Ne pas créer de lien "voir en 3D" qui change de page.
-            pdf.setFillColor(cyan)
-            pdf.roundRect(39,14,315,27,6,stroke=0,fill=1)
-            pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
-            pdf.linkURL(accept_url,(39,14,354,41),relative=1)
         pdf.restoreState()
         w,h=legal
         pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
