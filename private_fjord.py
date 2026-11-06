@@ -3337,7 +3337,11 @@ fjFilterQuoteCards();
         with db() as c:
             q=c.execute("SELECT * FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
             accepted=c.execute("SELECT signer,accepted_at,quote_hash FROM fjord_quote_acceptances WHERE quote_id=%s",(q["id"],)).fetchone() if q else None
+            interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
+        payment_available=bool((interac_setting and interac_setting["value"]) or
+                               _active_square_url(q) or
+                               (os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET")))
         snapshot=quote_snapshot(q)
         digest=hashlib.sha256(snapshot.encode()).hexdigest()
         changed=bool(accepted and accepted["quote_hash"]!=digest)
@@ -3357,14 +3361,11 @@ fjFilterQuoteCards();
                      (quote_id,signer,quote_snapshot,quote_hash,terms_version,ip_hash,user_agent)
                      VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(quote_id) DO NOTHING""",
                      (q["id"],signer,snapshot,digest,"QC-2026-10",iphash,(request.user_agent.string or "")[:350]))
-                # Après acceptation, les options Interac/Stripe sont accessibles sur la page de paiement.
-                return redirect(url_for("fjord_payment_page",token=token))
+                # Après acceptation, ouvrir le paiement si un moyen est configuré.
+                if payment_available:
+                    return redirect(url_for("fjord_payment_page",token=token))
+                return redirect(url_for("fjord_accept_quote",token=token))
         subtotal,gst,qst,total=_quote_amounts(q)
-        with db() as c:
-            interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
-        payment_available=bool((interac_setting and interac_setting["value"]) or
-                               _active_square_url(q) or
-                               (os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET")))
         response=make_response(page("Acceptation de soumission",'''<section class="tracking-panel">
 <h1 style="font-size:clamp(1.5rem,4vw,2.5rem);overflow-wrap:anywhere">Acceptation de la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}</h1>
 <p><strong>Projet :</strong> {{q.title}}</p><p>{{q.description}}</p>
@@ -3445,10 +3446,10 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
                                (q["id"],)).fetchone() if q else None
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
-        if not accepted or accepted["quote_hash"]!=_quote_acceptance_digest(q):
-            return redirect(url_for("fjord_accept_quote",token=token))
         if q.get("payment_status")=="Payée":
             return page("Soumission déjà payée",'<section class="card" style="max-width:700px;margin:30px auto;padding:24px"><h1>✓ Paiement déjà confirmé</h1><p>Cette soumission est marquée payée. Communiquez avec Les Impressions du Fjord si vous croyez qu’il s’agit d’une erreur.</p></section>')
+        if not accepted or accepted["quote_hash"]!=_quote_acceptance_digest(q):
+            return redirect(url_for("fjord_accept_quote",token=token))
         square_url=_active_square_url(q)
         payment_provider=_payment_link_provider(square_url)
         recipient=setting["value"] if setting and setting["value"] else ""
