@@ -2758,16 +2758,16 @@ body.light .fj-overall-state,body.light .fj-quote-card .fj-acceptance-state{back
 <p id="fjQuoteViewHint" class="fj-help">Le tracker suit automatiquement l’acceptation, le paiement et la production, sur ordinateur comme sur téléphone.</p>
 <p id="fjQuoteSyncStatus" class="fj-help" role="status" aria-live="polite" style="margin:4px 0;color:#9fd5e9">⏳ Vérification des statuts…</p>
 <div class="fj-status-board" id="fjActiveFilters">
-<button type="button" class="fj-status-btn active" data-stage="all-active">📋 Toutes à traiter <strong data-stage-count="all-active">{{counters.actives}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="all-active">Toutes <strong data-stage-count="all-active">{{counters.actives}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="attente_acceptation">✉️ À accepter <strong data-stage-count="attente_acceptation">{{counters.attente_acceptation}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="attente_paiement">💳 Acceptées · en attente de paiement <strong data-stage-count="attente_paiement">{{counters.attente_paiement}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="attente_paiement">À payer <strong data-stage-count="attente_paiement">{{counters.attente_paiement}}</strong></button>
 </div>
 <div class="fj-status-board" id="fjPaidFilters" hidden>
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong data-stage-count="production">{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong data-stage-count="terminees">{{counters.terminees}}</strong></button>
-<button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong data-stage-count="all">{{counters.payees}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong data-stage-count="all">{{counters.payees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
-<p id="fj-quotes-empty" class="fj-help" role="status" hidden>Aucune soumission ne correspond à cette recherche dans cet onglet. Efface la recherche ou choisis un autre onglet.</p>
+<p id="fj-quotes-empty" class="fj-help" role="status" hidden>Aucune soumission à afficher pour le moment.</p>
 <div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-deleted="{{'yes' if q.deleted_at else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' or q.deleted_at %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div>{% if q.deleted_at %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/restaurer" class="fj-quote-delete-form" onsubmit="return confirm('Restaurer cette soumission ?');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Restaurer la soumission" title="Restaurer">↩️</button></form>{% else %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Déplacer cette soumission dans la corbeille ? Elle pourra être restaurée.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Mettre la soumission à la corbeille" title="Mettre à la corbeille">🗑️</button></form>{% endif %}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
@@ -3228,7 +3228,8 @@ const fjQuoteSyncStatus=document.getElementById('fjQuoteSyncStatus');
 const fjQuotesEmpty=document.getElementById('fj-quotes-empty');
 let fjSelectedStage='all-active',fjHistoryMode=false,fjTrashMode=false;
 function fjFilterQuoteCards(){
- const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
+ const rawQuery=(fjQuoteSearch?.value||'').trim();
+ const query=rawQuery.toLocaleLowerCase('fr');
  for(const card of document.querySelectorAll('.fj-quote-card')){
   const content=[card.querySelector('h3')?.textContent,card.querySelector('.fj-quote-summary')?.textContent,card.querySelector('.eyebrow')?.textContent].join(' ').toLocaleLowerCase('fr');
   const inTab=fjTrashMode ? card.dataset.deleted==='yes' : card.dataset.deleted!=='yes' && (fjHistoryMode ? card.dataset.paid==='yes' : card.dataset.paid!=='yes');
@@ -3236,7 +3237,12 @@ function fjFilterQuoteCards(){
   card.hidden=!inTab || !inStage || Boolean(query && !content.includes(query));
  }
  const hasVisibleCard=[...document.querySelectorAll('.fj-quote-card')].some(card=>!card.hidden);
- if(fjQuotesEmpty)fjQuotesEmpty.hidden=hasVisibleCard;
+ if(fjQuotesEmpty){
+  let message=fjTrashMode?'La corbeille est vide.':fjHistoryMode?'Aucune soumission payée pour le moment.':fjSelectedStage==='attente_acceptation'?'Aucune soumission en attente d’acceptation.':fjSelectedStage==='attente_paiement'?'Aucune soumission en attente de paiement.':'Aucune soumission à traiter pour le moment.';
+  if(query)message='Aucun résultat pour « '+rawQuery+' ». Essaie un autre nom, numéro FJ ou nom de pièce.';
+  fjQuotesEmpty.textContent=message;
+  fjQuotesEmpty.hidden=hasVisibleCard;
+ }
  if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode&&!fjTrashMode));
  if(fjHistoryTab)fjHistoryTab.setAttribute('aria-selected',String(fjHistoryMode&&!fjTrashMode));
  if(fjTrashTab)fjTrashTab.setAttribute('aria-selected',String(fjTrashMode));
@@ -3246,10 +3252,10 @@ function fjFilterQuoteCards(){
  if(fjActiveFilters)fjActiveFilters.hidden=fjHistoryMode||fjTrashMode;
  if(fjPaidFilters)fjPaidFilters.hidden=!fjHistoryMode||fjTrashMode;
  if(fjQuoteViewHint)fjQuoteViewHint.textContent=fjTrashMode
-   ?'Les soumissions supprimées restent ici jusqu’à leur restauration.'
+   ?'Soumissions supprimées. Tu peux les restaurer ici.'
    :fjHistoryMode
-   ?'Les soumissions payées sont séparées selon leur avancement : en production ou terminées à 100 %.'
-   :'Les demandes en attente d’acceptation et de paiement restent ici; une soumission payée passe dans l’onglet Payées.';
+   ?'Soumissions payées : en production ou terminées.'
+   :'Soumissions à accepter ou à payer.';
 }
 async function fjRefreshTracker(){
  if(document.hidden)return;
