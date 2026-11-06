@@ -2367,7 +2367,45 @@ body.light .fj-quote-card{background:#f2f9ff!important;border-color:#92c7e7!impo
 body.light .fj-quote-card h3{color:#133e5c}
 body.light .fj-quote-total{background:#e3f5ff}
 body.light .fj-quote-total strong{color:#07608e}
-@media(max-width:650px){.fj-pro-hero{padding:17px}.fj-quote-card{padding:14px}}
+@media(max-width:650px){
+.fj-pro-hero{padding:13px 15px;margin-bottom:12px;border-radius:12px}
+.fj-pro-hero .fjord-pro-label{font-size:9px;letter-spacing:.14em}
+.fj-pro-hero h2{font-size:21px;margin:5px 0}
+.fj-pro-hero p{font-size:12px}
+.fj-head{align-items:flex-start;gap:8px}
+.fj-head h1{font-size:25px;margin:4px 0;width:100%}
+.fj-head>a{font-size:13px}
+.fj-quote-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 8px}
+.fj-quote-tab{min-height:54px;padding:8px 7px;font-size:14px;line-height:1.2}
+.fj-quote-tab strong{display:block;margin:4px 0 0;font-size:17px}
+.fj-status-board{gap:7px;margin:10px 0 14px}
+.fj-status-btn{min-height:48px;padding:10px 12px;font-size:13px}
+.fj-status-btn strong{font-size:16px}
+.fj-search-label{margin:10px 0 14px}
+.fj-search-label input{min-height:48px}
+#fj-quotes-grid{gap:10px}
+.fj-quote-card{padding:12px!important;border-radius:12px!important}
+.fj-quote-card h3{font-size:19px;margin:5px 0}
+.fj-quote-summary{font-size:14px;margin:5px 0 9px}
+.fj-quote-total{padding:10px;margin:9px 0;border-radius:9px}
+.fj-quote-total strong{font-size:21px}
+.fj-quick-actions{gap:7px;margin:9px 0}
+.fj-quick-actions .btn,.fj-quick-actions a{min-height:46px}
+.fj-overall-state{margin:9px 0;padding:9px 10px}
+.fj-overall-state>strong{font-size:14px}
+.fj-interac-quote summary{padding:10px;font-size:13px}
+.fj-interac-quote-body{padding:2px 10px 11px}
+.fj-advanced>summary{padding:12px;font-size:13px}
+.fj-advanced>div,.fj-advanced>section,.fj-advanced>form,.fj-advanced>p,.fj-advanced>.fj-bmo-details{margin:9px!important}
+.fj-advanced input,.fj-advanced select{font-size:16px}
+.fj-top-panel>summary{padding:12px 13px}
+.fj-library-dialog{max-height:82dvh}
+main:has(#fjord-save-global){padding-bottom:100px}
+#fjord-save-global{position:fixed;z-index:100;left:0;right:0;bottom:0;width:100%;max-width:none;margin:0;padding:9px 12px calc(9px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:9px;background:#071a2df2;border-top:1px solid #3288b7;box-shadow:0 -8px 24px #0006;backdrop-filter:blur(10px)}
+#fjord-save-global button{flex:1;min-height:48px;margin:0;font-size:15px}
+#fjord-save-global>span{display:none}
+#fjord-save-feedback{max-width:45%;margin:0;font-size:11px;line-height:1.3}
+}
 </style>
 <section class="fj-pro-hero" aria-label="Les Impressions du Fjord"><div class="fjord-pro-label">IMPRESSION 3D SUR MESURE · SAGUENAY</div><h2>🏔️ LES IMPRESSIONS <span>DU FJORD</span></h2><p>Soumissions · Aperçus 3D · Paiements sécurisés</p></section>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
