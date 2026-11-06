@@ -2449,12 +2449,15 @@ body.light .fj-quote-total strong{color:#07608e}
  <p id="fjord-octo-bind-result" role="status"></p>
 </div>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
-<p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
-<div class="fj-status-board">
-<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length}}</strong></button>
+<div class="fj-quote-tabs" role="tablist" aria-label="Soumissions actives et historique">
+<button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📋 À traiter <strong>{{quotes|length - counters.payees}}</strong></button>
+<button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">🗄️ Historique payé <strong>{{counters.payees}}</strong></button>
+</div>
+<p id="fjQuoteViewHint" class="fj-help">Les soumissions payées sont rangées dans l’historique. Les soumissions à traiter restent visibles ici.</p>
+<div class="fj-status-board" id="fjActiveFilters">
+<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length - counters.payees}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="attente">⏳ En attente <strong>{{counters.attente}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="acceptees">✓ Acceptées <strong>{{counters.acceptees}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="payees">💳 Payées <strong>{{counters.payees}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
@@ -2852,20 +2855,37 @@ document.querySelectorAll('[data-bmo-copy]').forEach(button=>button.addEventList
  catch(e){if(feedback)feedback.textContent='Copie automatique indisponible : utilise les boutons Copier de chaque champ.';}
 }));
 const fjQuoteSearch=document.getElementById('fjQuoteSearch');
-let fjSelectedStage='all';
+const fjActiveTab=document.getElementById('fjActiveTab');
+const fjHistoryTab=document.getElementById('fjHistoryTab');
+const fjActiveFilters=document.getElementById('fjActiveFilters');
+const fjQuoteViewHint=document.getElementById('fjQuoteViewHint');
+let fjSelectedStage='all',fjHistoryMode=false;
 function fjFilterQuoteCards(){
  const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
  for(const card of document.querySelectorAll('.fj-quote-card')){
   const content=[card.querySelector('h3')?.textContent,card.querySelector('.fj-quote-summary')?.textContent,card.querySelector('.eyebrow')?.textContent].join(' ').toLocaleLowerCase('fr');
-  card.hidden=(fjSelectedStage!=='all' && card.dataset.stage!==fjSelectedStage) || Boolean(query && !content.includes(query));
+  const inTab=fjHistoryMode ? card.dataset.stage==='payees' : card.dataset.stage!=='payees';
+  const inStage=fjHistoryMode || fjSelectedStage==='all' || card.dataset.stage===fjSelectedStage;
+  card.hidden=!inTab || !inStage || Boolean(query && !content.includes(query));
  }
+ if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode));
+ if(fjHistoryTab)fjHistoryTab.setAttribute('aria-selected',String(fjHistoryMode));
+ if(fjActiveTab)fjActiveTab.classList.toggle('active',!fjHistoryMode);
+ if(fjHistoryTab)fjHistoryTab.classList.toggle('active',fjHistoryMode);
+ if(fjActiveFilters)fjActiveFilters.hidden=fjHistoryMode;
+ if(fjQuoteViewHint)fjQuoteViewHint.textContent=fjHistoryMode
+   ?'Historique des paiements confirmés. Les soumissions payées sont conservées ici pour consultation.'
+   :'Les soumissions payées sont rangées dans l’historique. Les soumissions à traiter restent visibles ici.';
 }
 fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
+fjActiveTab?.addEventListener('click',()=>{fjHistoryMode=false;fjSelectedStage='all';document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));fjFilterQuoteCards()});
+fjHistoryTab?.addEventListener('click',()=>{fjHistoryMode=true;fjFilterQuoteCards()});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
- fjSelectedStage=button.dataset.stage;
+ fjHistoryMode=false;fjSelectedStage=button.dataset.stage;
  document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  fjFilterQuoteCards();
 }));
+fjFilterQuoteCards();
 </script>""",models=models,quotes=quotes,quote_totals=quote_totals,square_active=square_active,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
           from_atelier=from_atelier,atelier_model=atelier_model,atelier_material=atelier_material,
