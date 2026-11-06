@@ -2183,7 +2183,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             c.execute("UPDATE private_quotes SET printer_job_name=NULL WHERE printer_job_name=%s AND id<>%s",(filename,ident))
             c.execute("UPDATE private_quotes SET printer_job_name=%s WHERE id=%s",(filename,ident))
         state=_sync_octo_progress()
-        return {"ok":True,"message":"Impression associée à "+(row["public_number"] or "FJ-{:05d}".format(ident))+".","progress":state.get("progress")}
+        display_number=row["public_number"] or "FJ-{:05d}".format(ident)
+        if not state.get("matched") or state.get("id")!=ident:
+            return {"ok":False,"error":"Le nom du fichier a été associé, mais le suivi n’a pas confirmé cette soumission. Actualise le suivi; si le problème persiste, vérifie le nom du fichier détecté."},409
+        return {"ok":True,"message":"Impression associée à "+display_number+". La progression se met à jour automatiquement.","progress":state.get("progress")}
 
     @app.get("/admin/api/progression-auto")
     @admin_required
@@ -2471,7 +2474,7 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
 <p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
 <details class="fj-top-panel" {% if from_atelier or incoming %}open{% endif %}><summary>➕ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
-{% if from_atelier %}<p class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF. <a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin:8px 0 0;padding:8px 12px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750">✏️ Retourner modifier dans l’Atelier</a>{% if atelier_colors=='3mf' %} Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %} Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</p>{% endif %}
+{% if from_atelier %}<div class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.<a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:flex;box-sizing:border-box;align-items:center;justify-content:center;width:fit-content;max-width:100%;min-height:44px;margin:12px 0;padding:10px 16px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere">✏️ Retourner modifier dans l’Atelier</a><div>{% if atelier_colors=='3mf' %}Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %}Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</div></div>{% endif %}
 <form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
 <input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
 <div class="fj-two">
@@ -3626,7 +3629,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
     {% if recipient %}
       <details class="fj-checkout-interac" style="background:#172334;color:#f5f7fb;border:1px solid #d7a91c;border-radius:14px;padding:12px 16px;margin:0 0 16px">
         <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;font-weight:800;color:#ffd447">
-          <span style="display:inline-flex;align-items:center;gap:9px"><span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:30px;border-radius:7px;background:#ffd447;color:#132033;font-weight:950;font-size:12px;letter-spacing:-.04em">INTERAC<span style="font-size:18px;margin-left:1px">↗</span></span><span>Virement Interac</span></span>
+          <span style="display:inline-flex;align-items:center;gap:9px"><span aria-hidden="true" style="display:inline-flex;flex:0 0 72px;box-sizing:border-box;align-items:center;justify-content:center;width:72px;min-width:72px;height:30px;padding:0 5px;border-radius:7px;background:#ffd447;color:#132033;font-weight:950;font-size:11px;letter-spacing:-.035em;white-space:nowrap;overflow:visible">INTERAC<span style="font-size:16px;margin-left:1px">↗</span></span><span>Virement Interac</span></span>
           <span style="font-size:13px;color:#f5d975">Afficher les instructions ▾</span>
         </summary>
         <div style="padding-top:10px;font-size:14px;line-height:1.55;color:#edf2f7">
