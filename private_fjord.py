@@ -2514,78 +2514,50 @@ body.light .fj-quote-tab strong,body.light .fj-status-btn strong{background:#e2f
  .fj-quote-card{padding:13px!important}
  #fjQuoteViewHint{font-size:12px}
 }
+/* Refonte globale de Soumissions PRO : suivi d’abord, outils ensuite */
+.fj-pro-hero{padding:clamp(20px,3vw,34px);margin-bottom:18px;border-radius:20px}
+.fj-pro-hero .fjord-pro-label{font-size:12px}
+.fj-pro-hero h2{font-size:clamp(27px,4vw,40px);margin:9px 0}
+.fj-head{align-items:center;margin:14px 0 8px}
+.fj-head h1{font-size:clamp(32px,5vw,52px);line-height:1.08}
+.fj-head>a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid #286b93;border-radius:10px;background:#0c2941}
+.fj-head+p{max-width:78ch;margin:8px 0 18px;color:#bad0df;font-size:14px}
+.fj-tracker-shell{margin:18px 0 26px}
+.fj-tools-section{margin:24px 0 34px;padding:clamp(14px,2vw,22px);border:1px solid #285c7c;border-radius:18px;background:linear-gradient(145deg,#0b1f32,#081726)}
+.fj-tools-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 14px}
+.fj-tools-heading .eyebrow{font-size:11px;letter-spacing:.14em}
+.fj-tools-heading h2{margin:4px 0;font-size:clamp(22px,3vw,30px)}
+.fj-tools-heading p{margin:4px 0;color:#b3c8d7;font-size:14px}
+.fj-tools-section>.fj-top-panel{margin:10px 0;border-radius:13px}
+.fj-tools-section>.fj-top-panel>summary{min-height:54px;display:flex;align-items:center;gap:8px;padding:13px 16px;font-size:16px}
+.fj-tools-section>.fj-top-panel>summary small{margin-left:auto;text-align:right}
+.fj-tools-section>.fj-top-panel[open]>summary{border-bottom:1px solid #2b7199}
+.fj-tools-section>.fj-top-panel .fj-card{padding:clamp(16px,2.4vw,24px)}
+.fj-tracker-shell .fj-quote-tab,.fj-status-btn{transition:background .15s,border-color .15s,box-shadow .15s}
+.fj-quote-card{height:100%}
+.fj-quote-card .fj-quick-actions{border-bottom:1px solid #244d69;padding-bottom:12px}
+.fj-quote-card .fj-acceptance-state{padding:8px 10px;border-radius:8px;background:#0a1c2d}
+body.light .fj-tools-section{background:linear-gradient(145deg,#f2f9fd,#e6f2f8);border-color:#b1d4e5}
+body.light .fj-tools-heading p{color:#425c6e}
+body.light .fj-head>a{background:#e9f6fc;border-color:#afd2e3;color:#15516f}
+body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
+@media(max-width:700px){
+ .fj-pro-hero{padding:18px 16px;border-radius:15px}
+ .fj-head{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+ .fj-head h1{grid-column:1/-1;margin:8px 0;font-size:32px}
+ .fj-head>a{font-size:13px;padding:8px}
+ .fj-head+p{font-size:13px;line-height:1.5}
+ .fj-tools-section{margin:18px 0 28px;padding:12px;border-radius:14px}
+ .fj-tools-heading{margin-bottom:10px}
+ .fj-tools-heading h2{font-size:22px}
+ .fj-tools-section>.fj-top-panel>summary{min-height:50px;padding:11px 12px;font-size:14px}
+ .fj-tools-section>.fj-top-panel>summary small{font-size:11px}
+}
 </style>
 <section class="fj-pro-hero" aria-label="Les Impressions du Fjord"><div class="fjord-pro-label">IMPRESSION 3D SUR MESURE · SAGUENAY</div><h2>🏔️ LES IMPRESSIONS <span>DU FJORD</span></h2><p>Soumissions · Aperçus 3D · Paiements sécurisés</p></section>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
 <div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
 <p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
-<details class="fj-top-panel" {% if from_atelier or incoming %}open{% endif %}><summary>➕ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
-{% if from_atelier %}<div class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.<a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:flex;box-sizing:border-box;align-items:center;justify-content:center;width:fit-content;max-width:100%;min-height:44px;margin:12px 0;padding:10px 16px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere">✏️ Retourner modifier dans l’Atelier</a><div>{% if atelier_colors=='3mf' %}Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %}Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</div></div>{% endif %}
-<form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
-<input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
-<div class="fj-two">
-<label>Nom du client<input name="customer" maxlength="120" value="{{incoming.name if incoming else ''}}" required></label>
-<label>Adresse courriel<input type="email" name="email" maxlength="180" value="{{incoming.email if incoming else ''}}"></label>
-<label>Téléphone<input name="phone" maxlength="40" value="{{incoming.phone if incoming else ''}}"></label>
-<label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else (atelier_model.name if from_atelier else '')}}" required></label>
-<label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
-<label>Couleur principale de l'aperçu<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
-<label>Couleur des autres pièces (STL multiparties)<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
-<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else atelier_material) %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
-</div>
-<div class="fj-import-panel">
-<h3>🧊 Importer un modèle et calculer son prix</h3>
-<div class="fj-library-actions"><button type="button" id="fjPickLibrary">📚 Choisir dans ma bibliothèque 3D</button>
-<span class="fj-help">Utilise un STL ou 3MF déjà enregistré, sans le téléverser à nouveau.</span></div>
-<dialog id="fjLibraryDialog" class="fj-library-dialog" aria-labelledby="fjLibraryHeading">
-<div class="fj-library-header"><h3 id="fjLibraryHeading">📚 Mes modèles 3D</h3><button type="button" id="fjLibraryClose">✕ Fermer</button></div>
-<label for="fjLibrarySearch">Rechercher une pièce par nom ou fichier</label>
-<input id="fjLibrarySearch" class="fj-library-search" type="search" placeholder="Ex. support, engrenage, 3MF…" autocomplete="off">
-<p id="fjLibraryStatus" role="status" class="fj-help" aria-live="polite"></p>
-<div id="fjLibraryGrid" class="fj-library-grid"></div>
-</dialog>
-<label>Choisir un fichier STL ou 3MF déjà créé<input type="file" id="fjUpload" accept=".stl,.3mf"></label>
-<div class="fj-two">
-<label>Hauteur de couche<select id="fjLayer"><option value="0.08" {% if atelier_layer=='0.08' %}selected{% endif %}>0,08 mm — très fin</option><option value="0.12" {% if atelier_layer=='0.12' %}selected{% endif %}>0,12 mm — qualité</option><option value="0.2" {% if atelier_layer=='0.2' %}selected{% endif %}>0,20 mm — standard</option><option value="0.28" {% if atelier_layer=='0.28' %}selected{% endif %}>0,28 mm — rapide</option></select></label>
-<label>Remplissage<select id="fjInfill"><option value="10">10 %</option><option value="15">15 %</option><option value="18" selected>18 %</option><option value="20">20 %</option><option value="30">30 %</option><option value="40">40 %</option><option value="50">50 %</option><option value="75">75 %</option><option value="100">100 %</option></select></label>
-</div>
-<p role="status" id="fjEstimateStatus" class="fj-help">Sélectionne un modèle ou importe un fichier pour estimer le poids, le temps et le prix automatiquement.</p>
-<div class="fj-preview-box" id="fjPreviewBox" hidden><img id="fjPreview" class="fj-model-photo" alt="Aperçu 3D généré de la pièce"><p class="fj-help">Aperçu automatique de la pièce, également ajouté à la soumission PDF.</p></div>
-<p class="fj-help">Le modèle importé est conservé dans ta bibliothèque privée. Le tranchage est une estimation générique (buse 0,4 mm), pas un profil d'impression X2D. Vérifie le prix avec Bambu Studio avant de l'envoyer.</p>
-</div>
-<label>Ou ajouter une photo 3D personnalisée<input type="file" name="preview" accept="image/jpeg,image/png,image/webp"></label>
-<label>Description du travail<textarea name="description" maxlength="2500" placeholder="Couleur, finition, dimensions, inclusions…">{{incoming.description if incoming else ''}}</textarea></label>
-<div class="fj-two">
-<label>Quantité<input type="number" name="quantity" min="1" max="10000" step="1" value="1" required></label>
-<label>Poids prévu par unité (g)<input type="number" name="grams" min="0" max="100000" step="0.01" value="50" required></label>
-<label>Durée d'impression par unité (h)<input type="number" name="hours" min="0" max="1000" step="0.01" value="3" required></label>
-<label>Coût filament ($ CA/kg)<input type="number" name="filament_kg" min="0" max="10000" step="0.01" value="32"></label>
-<label>Coût machine ($ CA/h)<input type="number" name="machine_hour" min="0" max="10000" step="0.01" value="3"></label>
-<label>Préparation par unité ($ CA)<input type="number" name="setup_cost" min="0" max="10000" step="0.01" value="8"></label>
-<label>Majoration sur les coûts (%)<input type="number" name="markup" min="0" max="500" step="0.1" value="25"></label>
-<label>Prix de vente par unité ($ CA) — facultatif<input type="number" name="override_price" min="0" max="100000" step="0.01" placeholder="Calcul automatique"></label>
-<label>Livraison / frais fixes ($ CA)<input type="number" name="shipping" min="0" max="100000" step="0.01" value="0"></label>
-</div>
-<label class="fj-military-discount"><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="military_discount" value="yes">🎖️ Rabais militaire — 5 % sur les articles (avant les taxes, hors livraison)</label>
-<label><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="apply_taxes" value="yes">Appliquer TPS (5 %) et TVQ (9,975 %) — seulement si l'entreprise doit les percevoir</label>
-<div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
-<p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
-<div class="fj-quote-actions"><button type="submit" id="fjSaveQuote">Créer la soumission</button>
-<button type="button" id="fjResetQuote" class="fj-reset-button">↺ Réinitialiser le formulaire</button></div></form></div></details>
-
-<details class="fj-top-panel"><summary>⚙️ Paramètres généraux <small>Interac et logo PDF</small></summary><div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
-<p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
-<div class="fj-interac-settings">
-<label>Courriel pour recevoir les virements Interac
-<input form="fjord-save-global" type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
-<p class="fj-help">Laisse ce champ vide pour masquer le paiement Interac. Assure-toi que cette adresse accepte les virements; idéalement, active le dépôt automatique auprès de ta banque. Le paiement reste à effectuer par le client dans son application bancaire, et le site ne confirme pas sa réception.</p>
-</div>
-</div>
-<div class="card fj-card"><h2>Logo sur les soumissions</h2>
-<p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
-<form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
-<label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
-<button type="submit">Mettre à jour le logo PDF</button></form></div></details>
 <section class="fj-tracker-shell" aria-labelledby="soumissions-enregistrees">
 <h2 id="soumissions-enregistrees">Suivi des soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
@@ -2679,6 +2651,77 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 {% endif %}
 </details></div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
+</section>
+<section class="fj-tools-section" aria-label="Création et paramètres des soumissions">
+<div class="fj-tools-heading"><div><span class="eyebrow">Outils d’administration</span><h2>Créer ou configurer une soumission</h2><p>Les formulaires restent repliés jusqu’à ce que tu en aies besoin.</p></div></div>
+
+<details class="fj-top-panel" {% if from_atelier or incoming %}open{% endif %}><summary>➕ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
+{% if from_atelier %}<div class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.<a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:flex;box-sizing:border-box;align-items:center;justify-content:center;width:fit-content;max-width:100%;min-height:44px;margin:12px 0;padding:10px 16px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere">✏️ Retourner modifier dans l’Atelier</a><div>{% if atelier_colors=='3mf' %}Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %}Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</div></div>{% endif %}
+<form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
+<input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
+<div class="fj-two">
+<label>Nom du client<input name="customer" maxlength="120" value="{{incoming.name if incoming else ''}}" required></label>
+<label>Adresse courriel<input type="email" name="email" maxlength="180" value="{{incoming.email if incoming else ''}}"></label>
+<label>Téléphone<input name="phone" maxlength="40" value="{{incoming.phone if incoming else ''}}"></label>
+<label>Objet / nom de la pièce<input name="title" maxlength="160" value="{{'Impression 3D - demande #' ~ incoming.id if incoming else (atelier_model.name if from_atelier else '')}}" required></label>
+<label>Modèle de ma bibliothèque<select name="model_id" id="fjModel"><option value="">Aucun / soumission manuelle</option>{% for m in models %}<option value="{{m.id}}" data-preview="{{'/admin/modeles/apercu/' ~ m.id if m.has_preview else ''}}" {% if chosen==m.id|string %}selected{% endif %}>{{m.name}}</option>{% endfor %}</select></label>
+<label>Couleur principale de l'aperçu<input type="color" name="preview_color" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Couleur des autres pièces (STL multiparties)<input type="color" name="preview_secondary" value="#111111" aria-label="Couleur secondaire"></label>
+<label>Matériau<select name="material" id="fjMaterial">{% for m in materials %}<option value="{{m}}" {% if m==(incoming.material if incoming and incoming.material in materials else atelier_material) %}selected{% endif %}>{{m}}</option>{% endfor %}</select></label>
+</div>
+<div class="fj-import-panel">
+<h3>🧊 Importer un modèle et calculer son prix</h3>
+<div class="fj-library-actions"><button type="button" id="fjPickLibrary">📚 Choisir dans ma bibliothèque 3D</button>
+<span class="fj-help">Utilise un STL ou 3MF déjà enregistré, sans le téléverser à nouveau.</span></div>
+<dialog id="fjLibraryDialog" class="fj-library-dialog" aria-labelledby="fjLibraryHeading">
+<div class="fj-library-header"><h3 id="fjLibraryHeading">📚 Mes modèles 3D</h3><button type="button" id="fjLibraryClose">✕ Fermer</button></div>
+<label for="fjLibrarySearch">Rechercher une pièce par nom ou fichier</label>
+<input id="fjLibrarySearch" class="fj-library-search" type="search" placeholder="Ex. support, engrenage, 3MF…" autocomplete="off">
+<p id="fjLibraryStatus" role="status" class="fj-help" aria-live="polite"></p>
+<div id="fjLibraryGrid" class="fj-library-grid"></div>
+</dialog>
+<label>Choisir un fichier STL ou 3MF déjà créé<input type="file" id="fjUpload" accept=".stl,.3mf"></label>
+<div class="fj-two">
+<label>Hauteur de couche<select id="fjLayer"><option value="0.08" {% if atelier_layer=='0.08' %}selected{% endif %}>0,08 mm — très fin</option><option value="0.12" {% if atelier_layer=='0.12' %}selected{% endif %}>0,12 mm — qualité</option><option value="0.2" {% if atelier_layer=='0.2' %}selected{% endif %}>0,20 mm — standard</option><option value="0.28" {% if atelier_layer=='0.28' %}selected{% endif %}>0,28 mm — rapide</option></select></label>
+<label>Remplissage<select id="fjInfill"><option value="10">10 %</option><option value="15">15 %</option><option value="18" selected>18 %</option><option value="20">20 %</option><option value="30">30 %</option><option value="40">40 %</option><option value="50">50 %</option><option value="75">75 %</option><option value="100">100 %</option></select></label>
+</div>
+<p role="status" id="fjEstimateStatus" class="fj-help">Sélectionne un modèle ou importe un fichier pour estimer le poids, le temps et le prix automatiquement.</p>
+<div class="fj-preview-box" id="fjPreviewBox" hidden><img id="fjPreview" class="fj-model-photo" alt="Aperçu 3D généré de la pièce"><p class="fj-help">Aperçu automatique de la pièce, également ajouté à la soumission PDF.</p></div>
+<p class="fj-help">Le modèle importé est conservé dans ta bibliothèque privée. Le tranchage est une estimation générique (buse 0,4 mm), pas un profil d'impression X2D. Vérifie le prix avec Bambu Studio avant de l'envoyer.</p>
+</div>
+<label>Ou ajouter une photo 3D personnalisée<input type="file" name="preview" accept="image/jpeg,image/png,image/webp"></label>
+<label>Description du travail<textarea name="description" maxlength="2500" placeholder="Couleur, finition, dimensions, inclusions…">{{incoming.description if incoming else ''}}</textarea></label>
+<div class="fj-two">
+<label>Quantité<input type="number" name="quantity" min="1" max="10000" step="1" value="1" required></label>
+<label>Poids prévu par unité (g)<input type="number" name="grams" min="0" max="100000" step="0.01" value="50" required></label>
+<label>Durée d'impression par unité (h)<input type="number" name="hours" min="0" max="1000" step="0.01" value="3" required></label>
+<label>Coût filament ($ CA/kg)<input type="number" name="filament_kg" min="0" max="10000" step="0.01" value="32"></label>
+<label>Coût machine ($ CA/h)<input type="number" name="machine_hour" min="0" max="10000" step="0.01" value="3"></label>
+<label>Préparation par unité ($ CA)<input type="number" name="setup_cost" min="0" max="10000" step="0.01" value="8"></label>
+<label>Majoration sur les coûts (%)<input type="number" name="markup" min="0" max="500" step="0.1" value="25"></label>
+<label>Prix de vente par unité ($ CA) — facultatif<input type="number" name="override_price" min="0" max="100000" step="0.01" placeholder="Calcul automatique"></label>
+<label>Livraison / frais fixes ($ CA)<input type="number" name="shipping" min="0" max="100000" step="0.01" value="0"></label>
+</div>
+<label class="fj-military-discount"><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="military_discount" value="yes">🎖️ Rabais militaire — 5 % sur les articles (avant les taxes, hors livraison)</label>
+<label><input style="display:inline;width:auto;margin-right:8px" type="checkbox" name="apply_taxes" value="yes">Appliquer TPS (5 %) et TVQ (9,975 %) — seulement si l'entreprise doit les percevoir</label>
+<div class="fj-summary"><span>Prix final prévu, taxes incluses si sélectionnées</span><strong id="fjTotal">—</strong><p id="fjBreakdown" class="fj-help"></p></div>
+<p class="fj-help">Le calcul est indicatif tant que le poids et la durée ne sont pas validés dans le trancheur. Aucun taux privé n'est ajouté au PDF du client.</p>
+<div class="fj-quote-actions"><button type="submit" id="fjSaveQuote">Créer la soumission</button>
+<button type="button" id="fjResetQuote" class="fj-reset-button">↺ Réinitialiser le formulaire</button></div></form></div></details>
+
+<details class="fj-top-panel"><summary>⚙️ Paramètres généraux <small>Interac et logo PDF</small></summary><div class="card fj-card"><h2>💸 Paiement par virement Interac</h2>
+<p>Ajoute l'adresse courriel associée à tes virements Interac. Une fois configurée, chaque PDF contiendra un bouton et un code QR menant à une page de paiement avec le montant exact et le numéro de soumission.</p>
+<div class="fj-interac-settings">
+<label>Courriel pour recevoir les virements Interac
+<input form="fjord-save-global" type="email" name="interac_email" maxlength="180" value="{{interac_email}}" placeholder="Adresse liée à ton dépôt automatique"></label>
+<p class="fj-help">Laisse ce champ vide pour masquer le paiement Interac. Assure-toi que cette adresse accepte les virements; idéalement, active le dépôt automatique auprès de ta banque. Le paiement reste à effectuer par le client dans son application bancaire, et le site ne confirme pas sa réception.</p>
+</div>
+</div>
+<div class="card fj-card"><h2>Logo sur les soumissions</h2>
+<p>Le logo officiel des Impressions du Fjord sera utilisé sur chaque PDF.</p>
+<form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
+<label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
+<button type="submit">Mettre à jour le logo PDF</button></form></div></details>
 </section>
 <script>
 (function(){
