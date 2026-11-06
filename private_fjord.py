@@ -1835,6 +1835,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
                      payment_status TEXT NOT NULL DEFAULT 'En attente'""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_url TEXT")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_amount_cents BIGINT")
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
@@ -2153,14 +2154,63 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         flash("Modèle supprimé de la bibliothèque.")
         return redirect("/admin/modeles")
 
+    @app.post("/admin/soumissions-pro/recuperer-mathieu")
+    @admin_required
+    def fjord_quote_recover_mathieu():
+        verify()
+        with db() as c:
+            c.execute("SELECT pg_advisory_xact_lock(7342026, 8)")
+            quote=c.execute("""SELECT id,public_number,deleted_at FROM private_quotes
+                WHERE public_number=%s OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))
+                ORDER BY CASE WHEN public_number=%s THEN 0 ELSE 1 END,id DESC LIMIT 1 FOR UPDATE""",
+                ("FJ-00002","Mathieu rivard","porte can motoneige","FJ-00002")).fetchone()
+            if quote:
+                c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s",(quote["id"],))
+                if not quote.get("public_number"):
+                    c.execute("UPDATE private_quotes SET public_number=%s WHERE id=%s",("FJ-00002",quote["id"]))
+                recovered_existing=True
+            else:
+                created=c.execute("""INSERT INTO private_quotes
+                    (customer,email,phone,title,description,material,quantity,unit_price,
+                     shipping,apply_taxes,military_discount,payment_token,payment_status,
+                     production_status,production_progress,public_number,created)
+                    VALUES (%s,NULL,NULL,%s,%s,%s,1,%s,0,FALSE,FALSE,%s,'En attente',
+                            'À traiter',0,%s,%s)
+                    ON CONFLICT DO NOTHING RETURNING id""",
+                    ("Mathieu rivard","porte can motoneige","", "PETG",20.50,
+                     secrets.token_urlsafe(32),"FJ-00002",
+                     datetime.datetime(2026,10,31,12,0,tzinfo=datetime.timezone.utc))).fetchone()
+                if created:
+                    recovered_existing=False
+                else:
+                    quote=c.execute("SELECT id FROM private_quotes WHERE public_number=%s FOR UPDATE",("FJ-00002",)).fetchone()
+                    if not quote:abort(409,"La soumission n’a pas pu être rétablie.")
+                    c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s",(quote["id"],))
+                    recovered_existing=True
+        if recovered_existing:
+            flash("FJ-00002 de Mathieu a été retrouvée et remise dans le tracker. Son statut de paiement existant a été conservé.")
+        else:
+            flash("FJ-00002 de Mathieu a été recréée depuis le PDF : 20,50 $ CAD, PETG, en attente d’acceptation. L’ancien historique n’était pas dans le PDF.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
     @app.post("/admin/soumissions-pro/<int:quote_id>/supprimer")
     @admin_required
     def fjord_quote_delete(quote_id):
         verify()
         with db() as c:
-            deleted=c.execute("DELETE FROM private_quotes WHERE id=%s RETURNING id",(quote_id,)).fetchone()
+            deleted=c.execute("UPDATE private_quotes SET deleted_at=NOW() WHERE id=%s AND deleted_at IS NULL RETURNING id",(quote_id,)).fetchone()
         if not deleted:abort(404)
-        flash("Soumission supprimée.")
+        flash("Soumission déplacée dans la corbeille. Tu peux la restaurer plus tard.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/restaurer")
+    @admin_required
+    def fjord_quote_restore(quote_id):
+        verify()
+        with db() as c:
+            restored=c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s AND deleted_at IS NOT NULL RETURNING id",(quote_id,)).fetchone()
+        if not restored:abort(404)
+        flash("Soumission restaurée dans le tracker.")
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/api/associer-impression")
@@ -2203,7 +2253,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             rows=c.execute("""SELECT q.*,a.quote_hash AS accepted_hash
                 FROM private_quotes q
                 LEFT JOIN fjord_quote_acceptances a ON a.quote_id=q.id
-                ORDER BY q.id DESC""").fetchall()
+                WHERE q.deleted_at IS NULL ORDER BY q.id DESC""").fetchall()
         items=[]
         for q in rows:
             accepted=bool(q.get("accepted_hash") and
@@ -2222,39 +2272,16 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
     @app.get("/admin/soumissions-pro")
     @admin_required
     def fjord_quotes():
-        restored_mathieu_quote=False
         with db() as c:
-            # Restore FJ-00002 from its archived PDF only if no matching tracker row exists.
-            # Never overwrite payment, acceptance, contact, or production data on an existing quote.
-            existing_mathieu=c.execute("""SELECT id,public_number FROM private_quotes
-                WHERE public_number=%s
-                   OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))
-                ORDER BY CASE WHEN public_number=%s THEN 0 ELSE 1 END,id DESC LIMIT 1""",
-                ("FJ-00002","Mathieu rivard","porte can motoneige","FJ-00002")).fetchone()
-            if not existing_mathieu:
-                c.execute("SELECT pg_advisory_xact_lock(7342026, 8)")
-                c.execute("""INSERT INTO private_quotes
-                    (customer,email,phone,title,description,material,quantity,unit_price,
-                     shipping,apply_taxes,military_discount,payment_token,payment_status,
-                     production_status,production_progress,public_number,created)
-                    VALUES (%s,NULL,NULL,%s,%s,%s,1,%s,0,FALSE,FALSE,%s,'En attente',
-                            'À traiter',0,%s,%s)
-                    ON CONFLICT DO NOTHING""",
-                    ("Mathieu rivard","porte can motoneige","", "PETG",20.50,
-                     secrets.token_urlsafe(32),"FJ-00002",
-                     datetime.datetime(2026,10,31,12,0,tzinfo=datetime.timezone.utc)))
-                restored_mathieu_quote=True
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
             quotes=c.execute("""SELECT id,model_id,customer,email,title,description,material,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
                      apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      (SELECT quote_hash FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_hash,
-                     live_url,live_token,live_enabled,live_expires
+                     live_url,live_token,live_enabled,live_expires,deleted_at
                      FROM private_quotes ORDER BY id DESC""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
-        if restored_mathieu_quote:
-            flash("FJ-00002 a été rétablie à partir du PDF. Le suivi repart en attente d’acceptation; l’ancien historique de paiement et d’acceptation n’était pas dans le PDF.")
         acceptance_valid={q["id"]:bool(q.get("accepted_hash") and
                               q["accepted_hash"]==_quote_acceptance_digest(q)) for q in quotes}
         def quote_stage(q):
@@ -2265,13 +2292,15 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             if not acceptance_valid[q["id"]]:return "attente_acceptation"
             return "attente_paiement"
         stages={q["id"]:quote_stage(q) for q in quotes}
+        active_quotes=[q for q in quotes if not q.get("deleted_at")]
         counters={
-            "attente_acceptation":sum(stages[q["id"]]=="attente_acceptation" for q in quotes),
-            "attente_paiement":sum(stages[q["id"]]=="attente_paiement" for q in quotes),
-            "actives":sum(q["payment_status"]!="Payée" for q in quotes),
-            "payees":sum(q["payment_status"]=="Payée" for q in quotes),
-            "production":sum(stages[q["id"]]=="production" for q in quotes),
-            "terminees":sum(stages[q["id"]]=="terminees" for q in quotes),
+            "attente_acceptation":sum(stages[q["id"]]=="attente_acceptation" for q in active_quotes),
+            "attente_paiement":sum(stages[q["id"]]=="attente_paiement" for q in active_quotes),
+            "actives":sum(q["payment_status"]!="Payée" for q in active_quotes),
+            "payees":sum(q["payment_status"]=="Payée" for q in active_quotes),
+            "production":sum(stages[q["id"]]=="production" for q in active_quotes),
+            "terminees":sum(stages[q["id"]]=="terminees" for q in active_quotes),
+            "corbeille":sum(bool(q.get("deleted_at")) for q in quotes),
         }
         interac_email=payment_setting["value"] if payment_setting else ""
         quote_totals={q["id"]:_quote_amounts(q)[3] for q in quotes}
@@ -2310,6 +2339,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-two label{min-width:0}.fj-two input,.fj-two select{max-width:100%}
 .fj-help{font-size:13px;color:#b4d1e1}
 .fj-summary{background:#132e43;border:1px solid #58bce8;border-radius:12px;padding:20px}
+.fj-recover-mathieu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;border:1px solid #48b7dc;border-radius:12px;background:#0e2b42}.fj-recover-mathieu button{padding:10px 14px;background:#117eb0;color:#fff;border:1px solid #6bdbff;border-radius:9px;font-weight:800;cursor:pointer}.fj-recover-mathieu span{font-size:13px;color:#b8d6e6}
+@media(min-width:651px){.fj-quote-tabs{float:left;width:205px;display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:14px 16px 12px 0;position:sticky;top:12px;z-index:2}.fj-quote-tab{text-align:left}.fj-quote-tab strong{float:right}#fjQuoteViewHint,#fjQuoteSyncStatus,#fjActiveFilters,#fjPaidFilters,.fj-search-label,#fj-quotes-empty,#fj-quotes-grid{margin-left:222px}}
+.fj-recover-mathieu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;border:1px solid #48b7dc;border-radius:12px;background:#0e2b42}.fj-recover-mathieu button{padding:10px 14px;background:#117eb0;color:#fff;border:1px solid #6bdbff;border-radius:9px;font-weight:800;cursor:pointer}.fj-recover-mathieu span{font-size:13px;color:#b8d6e6}
+@media(min-width:651px){.fj-quote-tabs{float:left;width:205px;display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:14px 16px 12px 0;position:sticky;top:12px;z-index:2}.fj-quote-tab{text-align:left}.fj-quote-tab strong{float:right}#fjQuoteViewHint,#fjQuoteSyncStatus,#fjActiveFilters,#fjPaidFilters,.fj-search-label,#fj-quotes-empty,#fj-quotes-grid{margin-left:222px}}
 .fj-summary strong{display:block;font-size:30px;color:#7ee7ff}
 .fj-summary p{margin:5px 0}.fj-card{margin:18px 0}
 .fj-octo-association[hidden]{display:none!important}
@@ -2530,6 +2563,7 @@ body.light .fj-quote-tab strong,body.light .fj-status-btn strong{background:#e2f
  .fj-quote-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0 7px}
  .fj-quote-tab{min-height:48px;padding:8px 6px;font-size:13px;line-height:1.2}
  .fj-quote-tab strong{font-size:14px}
+ #fjTrashTab{grid-column:1/-1}
  #fjActiveFilters,#fjPaidFilters{display:grid;grid-template-columns:1fr;gap:7px}
  .fj-status-btn{min-height:44px;justify-content:space-between;padding:9px 12px;text-align:left}
  .fj-status-btn strong{min-width:24px;height:24px}
@@ -2596,9 +2630,11 @@ body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
  <p id="fjord-octo-bind-result" role="status" aria-live="polite"></p>
 </div>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
-<div class="fj-quote-tabs" role="tablist" aria-label="Soumissions actives et historique">
-<button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📄 Soumissions à traiter <strong data-active-count>{{counters.actives}}</strong></button>
+<form method="post" action="/admin/soumissions-pro/recuperer-mathieu" class="fj-recover-mathieu">{{csrf|safe}}<button type="submit">🧾 Retrouver FJ-00002 · Mathieu</button><span>Restaure aussi la soumission si elle est dans la corbeille.</span></form>
+<div class="fj-quote-tabs" role="tablist" aria-label="Soumissions">
+<button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📄 À traiter <strong data-active-count>{{counters.actives}}</strong></button>
 <button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">💳 Payées <strong>{{counters.payees}}</strong></button>
+<button type="button" class="fj-quote-tab" id="fjTrashTab" role="tab" aria-selected="false">🗑️ Corbeille <strong>{{counters.corbeille}}</strong></button>
 </div>
 <p id="fjQuoteViewHint" class="fj-help">Le tracker suit automatiquement l’acceptation, le paiement et la production, sur ordinateur comme sur téléphone.</p>
 <p id="fjQuoteSyncStatus" class="fj-help" role="status" aria-live="polite" style="margin:4px 0;color:#9fd5e9">⏳ Vérification des statuts…</p>
@@ -2613,7 +2649,7 @@ body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
 <button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong data-stage-count="all">{{counters.payees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
 <p id="fj-quotes-empty" class="fj-help" role="status" hidden>Aucune soumission ne correspond à cette recherche dans cet onglet. Efface la recherche ou choisis un autre onglet.</p>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Supprimer la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}" title="Supprimer cette soumission">🗑️</button></form></div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-deleted="{{'yes' if q.deleted_at else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' or q.deleted_at %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div>{% if q.deleted_at %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/restaurer" class="fj-quote-delete-form" onsubmit="return confirm('Restaurer cette soumission ?');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Restaurer la soumission" title="Restaurer">↩️</button></form>{% else %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Déplacer cette soumission dans la corbeille ? Elle pourra être restaurée.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Mettre la soumission à la corbeille" title="Mettre à la corbeille">🗑️</button></form>{% endif %}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
 <div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
@@ -3065,29 +3101,34 @@ document.querySelectorAll('[data-bmo-copy]').forEach(button=>button.addEventList
 const fjQuoteSearch=document.getElementById('fjQuoteSearch');
 const fjActiveTab=document.getElementById('fjActiveTab');
 const fjHistoryTab=document.getElementById('fjHistoryTab');
+const fjTrashTab=document.getElementById('fjTrashTab');
 const fjActiveFilters=document.getElementById('fjActiveFilters');
 const fjPaidFilters=document.getElementById('fjPaidFilters');
 const fjQuoteViewHint=document.getElementById('fjQuoteViewHint');
 const fjQuoteSyncStatus=document.getElementById('fjQuoteSyncStatus');
 const fjQuotesEmpty=document.getElementById('fj-quotes-empty');
-let fjSelectedStage='all-active',fjHistoryMode=false;
+let fjSelectedStage='all-active',fjHistoryMode=false,fjTrashMode=false;
 function fjFilterQuoteCards(){
  const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
  for(const card of document.querySelectorAll('.fj-quote-card')){
   const content=[card.querySelector('h3')?.textContent,card.querySelector('.fj-quote-summary')?.textContent,card.querySelector('.eyebrow')?.textContent].join(' ').toLocaleLowerCase('fr');
-  const inTab=fjHistoryMode ? card.dataset.paid==='yes' : card.dataset.paid!=='yes';
-  const inStage=fjSelectedStage==='all' || (fjSelectedStage==='all-active' && card.dataset.paid!=='yes') || card.dataset.stage===fjSelectedStage;
+  const inTab=fjTrashMode ? card.dataset.deleted==='yes' : card.dataset.deleted!=='yes' && (fjHistoryMode ? card.dataset.paid==='yes' : card.dataset.paid!=='yes');
+  const inStage=fjTrashMode || fjSelectedStage==='all' || (fjSelectedStage==='all-active' && card.dataset.paid!=='yes') || card.dataset.stage===fjSelectedStage;
   card.hidden=!inTab || !inStage || Boolean(query && !content.includes(query));
  }
  const hasVisibleCard=[...document.querySelectorAll('.fj-quote-card')].some(card=>!card.hidden);
  if(fjQuotesEmpty)fjQuotesEmpty.hidden=hasVisibleCard;
- if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode));
- if(fjHistoryTab)fjHistoryTab.setAttribute('aria-selected',String(fjHistoryMode));
- if(fjActiveTab)fjActiveTab.classList.toggle('active',!fjHistoryMode);
- if(fjHistoryTab)fjHistoryTab.classList.toggle('active',fjHistoryMode);
- if(fjActiveFilters)fjActiveFilters.hidden=fjHistoryMode;
- if(fjPaidFilters)fjPaidFilters.hidden=!fjHistoryMode;
- if(fjQuoteViewHint)fjQuoteViewHint.textContent=fjHistoryMode
+ if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode&&!fjTrashMode));
+ if(fjHistoryTab)fjHistoryTab.setAttribute('aria-selected',String(fjHistoryMode&&!fjTrashMode));
+ if(fjTrashTab)fjTrashTab.setAttribute('aria-selected',String(fjTrashMode));
+ if(fjActiveTab)fjActiveTab.classList.toggle('active',!fjHistoryMode&&!fjTrashMode);
+ if(fjHistoryTab)fjHistoryTab.classList.toggle('active',fjHistoryMode&&!fjTrashMode);
+ if(fjTrashTab)fjTrashTab.classList.toggle('active',fjTrashMode);
+ if(fjActiveFilters)fjActiveFilters.hidden=fjHistoryMode||fjTrashMode;
+ if(fjPaidFilters)fjPaidFilters.hidden=!fjHistoryMode||fjTrashMode;
+ if(fjQuoteViewHint)fjQuoteViewHint.textContent=fjTrashMode
+   ?'Les soumissions supprimées restent ici jusqu’à leur restauration.'
+   :fjHistoryMode
    ?'Les soumissions payées sont séparées selon leur avancement : en production ou terminées à 100 %.'
    :'Les demandes en attente d’acceptation et de paiement restent ici; une soumission payée passe dans l’onglet Payées.';
 }
@@ -3130,19 +3171,24 @@ fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
 fjRefreshTracker();setInterval(fjRefreshTracker,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)fjRefreshTracker()});
 fjActiveTab?.addEventListener('click',()=>{
- fjHistoryMode=false;fjSelectedStage='all-active';
+ fjHistoryMode=false;fjTrashMode=false;fjSelectedStage='all-active';
  if(fjQuoteSearch)fjQuoteSearch.value='';
  document.querySelectorAll('#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage===fjSelectedStage));
  fjFilterQuoteCards();
 });
 fjHistoryTab?.addEventListener('click',()=>{
- fjHistoryMode=true;fjSelectedStage='all';
+ fjHistoryMode=true;fjTrashMode=false;fjSelectedStage='all';
  if(fjQuoteSearch)fjQuoteSearch.value='';
  document.querySelectorAll('#fjPaidFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));
  fjFilterQuoteCards();
 });
+fjTrashTab?.addEventListener('click',()=>{
+ fjHistoryMode=false;fjTrashMode=true;fjSelectedStage='all';
+ if(fjQuoteSearch)fjQuoteSearch.value='';
+ fjFilterQuoteCards();
+});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
- fjHistoryMode=Boolean(button.closest('#fjPaidFilters'));
+ fjTrashMode=false;fjHistoryMode=Boolean(button.closest('#fjPaidFilters'));
  fjSelectedStage=button.dataset.stage;
  document.querySelectorAll(fjHistoryMode?'#fjPaidFilters .fj-status-btn':'#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  fjFilterQuoteCards();
