@@ -3613,10 +3613,11 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         token=_quote_payment_token(db,q)
         accept_url=url_for("fjord_accept_quote",token=token,_external=True,_scheme="https") if token else None
         active_square_url=_active_square_url(q)
-        interac_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if token and interac_setting and interac_setting["value"] else None
         stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"))
-        stripe_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if stripe_ready and token else None
-        payment_url=stripe_url or active_square_url or interac_url
+        payment_available=bool(token and (active_square_url or
+                               (interac_setting and interac_setting["value"]) or stripe_ready))
+        # Tous les QR/boutons PDF passent par la page protégée qui exige l'acceptation.
+        payment_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if payment_available else None
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -3735,7 +3736,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"PAYER EN LIGNE PAR CARTE" if active_square_url else "MODALITÉS DE PAIEMENT INTERAC")
+            pdf.drawString(52,top-24,"OPTIONS DE PAIEMENT APRÈS ACCEPTATION")
             pdf.setFont("Helvetica",10)
             pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
             pdf.drawString(52,top-58,"Référence : {}".format(display_number))
@@ -3743,7 +3744,7 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"PAYER MAINTENANT PAR CARTE" if active_square_url else "VOIR LES OPTIONS DE PAIEMENT")
+            pdf.drawCentredString(222,bottom+18,"ACCEPTER AVANT DE PAYER")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
