@@ -2192,7 +2192,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
                      live_url,live_token,live_enabled,live_expires
-                     FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
+                     FROM private_quotes ORDER BY id DESC""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         def quote_stage(q):
             if q["payment_status"]=="Payée":return "payees"
