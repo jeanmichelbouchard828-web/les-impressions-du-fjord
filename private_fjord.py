@@ -2468,6 +2468,52 @@ main:has(#fjord-save-global){padding-bottom:100px}
 #fjord-save-global>span{display:none}
 #fjord-save-feedback{max-width:45%;margin:0;font-size:11px;line-height:1.3}
 }
+/* Tableau de suivi : sections nettes et priorités faciles à repérer */
+.fj-tracker-shell{margin:24px 0 32px;padding:clamp(14px,2vw,24px);border:1px solid #247bb6;border-radius:18px;background:linear-gradient(145deg,#0c2238,#081a2c);box-shadow:0 12px 28px #0003}
+#soumissions-enregistrees{margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid #28516b;font-size:clamp(24px,3vw,32px);line-height:1.15}
+#fjord-auto-progress{display:flex;align-items:center;min-height:38px;margin:0 0 12px;padding:7px 11px;border:1px solid #275a78;border-radius:9px;background:#0a1d30;font-size:13px}
+#fjord-octo-association{margin:12px 0 16px!important;padding:14px!important;border-radius:12px!important}
+#fjord-octo-association h3{font-size:18px}
+#fjord-octo-association .fj-octo-help{margin:7px 0 10px;font-size:14px}
+#fjord-save-global{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;padding:0 0 13px;border:0;border-bottom:1px solid #28516b}
+#fjord-save-global button{min-height:46px;padding:11px 18px}
+#fjord-save-global .fj-help{margin:0}
+#fjord-save-feedback{flex-basis:100%;margin:0}
+.fj-quote-tabs{display:flex;gap:9px;margin:15px 0 8px}
+.fj-quote-tab{display:flex;flex:1;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:10px 14px}
+.fj-quote-tab strong{margin:0!important;padding:2px 8px;border-radius:999px;background:#071a2d;color:#a6ecff!important;font-size:15px}
+#fjQuoteViewHint{margin:8px 0;color:#bdd5e5;line-height:1.45}
+#fjQuoteSyncStatus{display:inline-flex;align-items:center;min-height:28px;padding:3px 9px;border:1px solid #27516b;border-radius:999px;background:#0a1d30;font-size:12px}
+.fj-status-board{gap:8px;margin:12px 0}
+.fj-status-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;text-align:center;font-size:14px;font-weight:750}
+.fj-status-btn strong{display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;margin:0!important;border-radius:999px;background:#071a2d;color:#a6ecff;font-size:15px}
+#fj-quotes-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,410px),1fr));gap:12px}
+.fj-quote-card{padding:18px!important}
+.fj-quote-card[data-stage="attente_acceptation"]{border-left:4px solid #f0b83c!important}
+.fj-quote-card[data-stage="attente_paiement"]{border-left:4px solid #43c8ef!important}
+.fj-quote-card[data-stage="production"]{border-left:4px solid #9c85ec!important}
+.fj-quote-card[data-stage="terminees"]{border-left:4px solid #42c77a!important}
+#fj-quotes-empty{margin:12px 0;padding:16px;border:1px dashed #39799b;border-radius:12px;background:#0a1d30}
+body.light .fj-tracker-shell{background:linear-gradient(145deg,#f1f9fd,#e6f3fa);border-color:#9bc9df;box-shadow:0 8px 20px #17476312}
+body.light #soumissions-enregistrees{border-color:#bfd9e7}
+body.light #fjord-auto-progress,body.light #fjQuoteSyncStatus,body.light #fj-quotes-empty{background:#f7fbfd;border-color:#b8d6e4;color:#36596e}
+body.light .fj-quote-tab strong,body.light .fj-status-btn strong{background:#e2f3fa;color:#075f90!important}
+@media(max-width:650px){
+ .fj-tracker-shell{margin:16px 0 26px;padding:12px;border-radius:13px}
+ #soumissions-enregistrees{font-size:24px;margin-bottom:10px}
+ #fjord-auto-progress{font-size:12px}
+ #fjord-save-global{gap:7px;padding-bottom:10px}
+ #fjord-save-global button{width:100%;min-height:46px}
+ .fj-quote-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0 7px}
+ .fj-quote-tab{min-height:48px;padding:8px 6px;font-size:13px;line-height:1.2}
+ .fj-quote-tab strong{font-size:14px}
+ #fjActiveFilters,#fjPaidFilters{display:grid;grid-template-columns:1fr;gap:7px}
+ .fj-status-btn{min-height:44px;justify-content:space-between;padding:9px 12px;text-align:left}
+ .fj-status-btn strong{min-width:24px;height:24px}
+ #fj-quotes-grid{grid-template-columns:1fr;gap:9px}
+ .fj-quote-card{padding:13px!important}
+ #fjQuoteViewHint{font-size:12px}
+}
 </style>
 <section class="fj-pro-hero" aria-label="Les Impressions du Fjord"><div class="fjord-pro-label">IMPRESSION 3D SUR MESURE · SAGUENAY</div><h2>🏔️ LES IMPRESSIONS <span>DU FJORD</span></h2><p>Soumissions · Aperçus 3D · Paiements sécurisés</p></section>
 <div class="eyebrow">Visible uniquement par l'administrateur</div>
@@ -2540,7 +2586,8 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
 <button type="submit">Mettre à jour le logo PDF</button></form></div></details>
-<h2 id="soumissions-enregistrees">Mes soumissions</h2>
+<section class="fj-tracker-shell" aria-labelledby="soumissions-enregistrees">
+<h2 id="soumissions-enregistrees">Suivi des soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
 <div id="fjord-octo-association" class="card fj-octo-association" hidden>
  <div class="fj-octo-association-head"><h3>🔗 Associer l’impression détectée</h3><span class="fj-octo-badge">Suivi automatique</span></div>
@@ -2632,6 +2679,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 {% endif %}
 </details></div>
 {% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
+</section>
 <script>
 (function(){
  const f=document.getElementById("fjQuote"),o=document.getElementById("fjTotal"),d=document.getElementById("fjBreakdown");
