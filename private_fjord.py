@@ -2216,14 +2216,14 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             items.append({"id":q["id"],"accepted":accepted,
                           "paid":q["payment_status"]=="Payée",
                           "stage":stage,"progress":int(q.get("production_progress") or 0)})
-        return jsonify({"ok":True,"quotes":items}),200,{"Cache-Control":"no-store"}
+        return {"ok":True,"quotes":items},200,{"Cache-Control":"no-store"}
 
     @app.get("/admin/soumissions-pro")
     @admin_required
     def fjord_quotes():
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
-            quotes=c.execute("""SELECT id,model_id,customer,email,title,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
+            quotes=c.execute("""SELECT id,model_id,customer,email,title,description,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
                      apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
