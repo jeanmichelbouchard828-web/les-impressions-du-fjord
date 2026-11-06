@@ -2452,7 +2452,7 @@ body.light .fj-quote-total strong{color:#07608e}
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
 <div class="fj-quote-tabs" role="tablist" aria-label="Soumissions actives et historique">
 <button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📋 À traiter <strong>{{quotes|length - counters.payees}}</strong></button>
-<button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">🗄️ Historique payé <strong>{{counters.payees}}</strong></button>
+<button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">💳 Payées <strong>{{counters.payees}}</strong></button>
 </div>
 <p id="fjQuoteViewHint" class="fj-help">Les soumissions payées sont rangées dans l’historique. Les soumissions à traiter restent visibles ici.</p>
 <div class="fj-status-board" id="fjActiveFilters">
@@ -2462,7 +2462,7 @@ body.light .fj-quote-total strong{color:#07608e}
 <button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"{% if stages[q.id]=='payees' %} hidden{% endif %}><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
 <div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
