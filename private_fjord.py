@@ -2888,6 +2888,19 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
  document.querySelectorAll(fjHistoryMode?'#fjPaidFilters .fj-status-btn':'#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  fjFilterQuoteCards();
 }));
+document.querySelectorAll('.fj-quote-card').forEach(card=>{
+ const id=card.dataset.quoteId;
+ const payment=document.getElementById('fj-payment-'+id);
+ const progress=document.querySelector('[name="production_progress_'+id+'"]');
+ const badge=card.querySelector('.fj-overall-state strong');
+ const refreshBadge=()=>{
+  if(!badge||!payment)return;
+  badge.textContent=payment.value!=='Payée'?'⏳ En attente de paiement':
+   (Number(progress?.value||0)>=100?'✅ Terminé':'🖨️ En production');
+ };
+ payment?.addEventListener('change',refreshBadge);
+ progress?.addEventListener('input',refreshBadge);
+});
 fjFilterQuoteCards();
 </script>""",models=models,quotes=quotes,quote_totals=quote_totals,square_active=square_active,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
