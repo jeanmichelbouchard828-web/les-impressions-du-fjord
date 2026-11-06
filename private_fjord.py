@@ -2273,6 +2273,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-status-btn strong{display:block;font-size:24px;margin-top:5px}
 .fj-status-btn.active{outline:2px solid #7ee7ff;background:#21506a}
 .fj-quote-card[hidden]{display:none!important}
+.fj-quote-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.fj-quote-delete-form{margin:0!important;max-width:none}
+.fj-quote-delete{display:inline-flex;align-items:center;justify-content:center;width:42px;min-width:42px;height:42px;padding:0;border:1px solid #d66a72;border-radius:10px;background:#762a34;color:#fff;font-size:18px;cursor:pointer}
+.fj-quote-delete:hover{background:#9a3541}
 .fj-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .fj-two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .fj-two label{min-width:0}.fj-two input,.fj-two select{max-width:100%}
@@ -2547,7 +2551,7 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong data-stage-count="terminees">{{counters.terminees}}</strong></button>
 <button type="button" class="fj-status-btn active" data-stage="all">💳 Toutes les soumissions payées <strong data-stage-count="all">{{counters.payees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' %} hidden{% endif %}><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Supprimer la soumission {{q.public_number or ('FJ-%05d'|format(q.id))}}" title="Supprimer cette soumission">🗑️</button></form></div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
 <div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
 <p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
 <div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
@@ -2603,7 +2607,6 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 <label>Autres pièces<input form="fjord-save-global" type="color" name="preview_secondary_{{q.id}}" value="#111111" aria-label="Couleur secondaire"></label>
 </div>{% endif %}
 
-<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
 {% if interac_email or square_active[q.id] %}
 <a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Tester le paiement du client</a>
 {% endif %}
