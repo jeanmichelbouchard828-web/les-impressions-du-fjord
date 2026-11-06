@@ -2932,7 +2932,7 @@ fjFilterQuoteCards();
             c.execute("SELECT pg_advisory_xact_lock(7342026,4)")
             interac=request.form.get("interac_email","").strip().lower()[:180]
             if interac and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",interac):abort(400,"Adresse Interac invalide : vérifie le courriel.")
-            rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC LIMIT 150").fetchall()
+            rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC").fetchall()
             changes=[]
             for q in rows:
                 suffix="_"+str(q["id"])
