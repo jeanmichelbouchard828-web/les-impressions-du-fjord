@@ -2205,14 +2205,12 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         for q in rows:
             accepted=bool(q.get("accepted_hash") and
                           q["accepted_hash"]==_quote_acceptance_digest(q))
-            if not accepted:
+            if q["payment_status"]=="Payée":
+                stage="terminees" if int(q.get("production_progress") or 0)>=100 else "production"
+            elif not accepted:
                 stage="attente_acceptation"
-            elif q["payment_status"]!="Payée":
-                stage="attente_paiement"
-            elif int(q.get("production_progress") or 0)>=100:
-                stage="terminees"
             else:
-                stage="production"
+                stage="attente_paiement"
             items.append({"id":q["id"],"accepted":accepted,
                           "paid":q["payment_status"]=="Payée",
                           "stage":stage,"progress":int(q.get("production_progress") or 0)})
@@ -2231,11 +2229,15 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
                      live_url,live_token,live_enabled,live_expires
                      FROM private_quotes ORDER BY id DESC""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        acceptance_valid={q["id"]:bool(q.get("accepted_hash") and
+                              q["accepted_hash"]==_quote_acceptance_digest(q)) for q in quotes}
         def quote_stage(q):
-            if not q.get("accepted_hash") or q["accepted_hash"]!=_quote_acceptance_digest(q):
-                return "attente_acceptation"
-            if q["payment_status"]!="Payée":return "attente_paiement"
-            return "terminees" if int(q.get("production_progress") or 0)>=100 else "production"
+            # Toute soumission payée appartient à l'historique, même si son
+            # acceptation électronique n'a pas été enregistrée dans l'ancien flux.
+            if q["payment_status"]=="Payée":
+                return "terminees" if int(q.get("production_progress") or 0)>=100 else "production"
+            if not acceptance_valid[q["id"]]:return "attente_acceptation"
+            return "attente_paiement"
         stages={q["id"]:quote_stage(q) for q in quotes}
         counters={
             "attente_acceptation":sum(stages[q["id"]]=="attente_acceptation" for q in quotes),
@@ -2284,6 +2286,18 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
 .fj-summary{background:#132e43;border:1px solid #58bce8;border-radius:12px;padding:20px}
 .fj-summary strong{display:block;font-size:30px;color:#7ee7ff}
 .fj-summary p{margin:5px 0}.fj-card{margin:18px 0}
+.fj-octo-association[hidden]{display:none!important}
+.fj-octo-association{margin:12px 0 18px!important;border-color:#35bce9!important;background:linear-gradient(145deg,#12334d,#0b2438)!important}
+.fj-octo-association-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.fj-octo-association-head h3{margin:0}
+.fj-octo-badge{padding:5px 9px;border:1px solid #55bedc;border-radius:999px;color:#a8edff;font-size:12px;font-weight:750}
+.fj-octo-help{margin:10px 0 14px;color:#c7dceb}
+.fj-octo-filename{padding:10px 12px;margin:0 0 14px;border:1px solid #426d87;border-radius:9px;background:#091a2b;color:#9be7ff;font-weight:700;overflow-wrap:anywhere}
+.fj-octo-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.fj-octo-controls label{min-width:0}.fj-octo-controls select{margin-bottom:0}
+#fjord-octo-bind{min-height:46px;white-space:normal}
+#fjord-octo-bind-result{min-height:1.4em;margin:10px 0 0;color:#bfeeff}
+@media(max-width:650px){.fj-octo-controls{grid-template-columns:1fr}.fj-octo-controls button{width:100%;min-height:50px}}
 .fj-preview-box{max-width:460px;margin:14px 0;padding:12px;background:#eaf4fa;border-radius:12px}
 .fj-preview-box[hidden]{display:none!important}
 .fj-preview-box .fj-help{color:#32546a!important}
@@ -2525,15 +2539,16 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <button type="submit">Mettre à jour le logo PDF</button></form></div></details>
 <h2 id="soumissions-enregistrees">Mes soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
-<div id="fjord-octo-association" class="card" style="display:none;margin:12px 0">
- <h3>🔗 Associer l'impression en cours</h3>
- <p id="fjord-octo-filename" class="fj-help"></p>
- <label>Soumission correspondante
+<div id="fjord-octo-association" class="card fj-octo-association" hidden>
+ <div class="fj-octo-association-head"><h3>🔗 Associer l’impression détectée</h3><span class="fj-octo-badge">Suivi automatique</span></div>
+ <p class="fj-octo-help">Le travail actif n’est pas encore relié à une soumission. Choisis la commande correspondante pour que sa progression se mette à jour automatiquement.</p>
+ <div id="fjord-octo-filename" class="fj-octo-filename" role="status" aria-live="polite"></div>
+ <div class="fj-octo-controls"><label for="fjord-octo-quote">Soumission à suivre
  <select id="fjord-octo-quote"><option value="">Choisir une soumission…</option>
- {% for q in quotes %}<option value="{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}} — {{q.customer}}</option>{% endfor %}
+ {% for q in quotes %}<option value="{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.customer}} — {{q.title}} · {% if q.payment_status=='Payée' %}payée{% else %}paiement en attente{% endif %}</option>{% endfor %}
  </select></label>
- <button type="button" id="fjord-octo-bind">Associer cette impression</button>
- <p id="fjord-octo-bind-result" role="status"></p>
+ <button type="button" id="fjord-octo-bind">🔗 Associer et activer le suivi</button></div>
+ <p id="fjord-octo-bind-result" role="status" aria-live="polite"></p>
 </div>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
 <div class="fj-quote-tabs" role="tablist" aria-label="Soumissions actives et historique">
@@ -2558,7 +2573,7 @@ main:has(#fjord-save-global){padding-bottom:100px}
 {% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester le paiement ↗</a>{% endif %}
 {% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True,_scheme='https')}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
 <label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
-<p class="fj-help fj-acceptance-state" data-acceptance-state="{{q.id}}">{% if stages[q.id]=='attente_acceptation' %}✉️ En attente de l’acceptation du client{% else %}✓ Soumission acceptée{% if q.accepted_at %} · {{q.accepted_at.strftime('%d-%m-%Y %H:%M')}}{% endif %}{% endif %}</p>
+<p class="fj-help fj-acceptance-state" data-acceptance-state="{{q.id}}">{% if acceptance_valid[q.id] %}✓ Soumission acceptée{% if q.accepted_at %} · {{q.accepted_at.strftime('%d-%m-%Y %H:%M')}}{% endif %}{% elif q.payment_status=='Payée' %}💳 Paiement confirmé{% else %}✉️ En attente de l’acceptation du client{% endif %}</p>
 <div class="fj-overall-state"><span>État de la commande</span><strong data-overall-state="{{q.id}}">{% if stages[q.id]=='attente_acceptation' %}✉️ En attente d’acceptation{% elif q.payment_status!='Payée' %}💳 En attente de paiement{% elif q.production_progress|int >= 100 %}✅ Terminé{% else %}🖨️ En production{% endif %}</strong><input type="hidden" form="fjord-save-global" name="production_status_{{q.id}}" value="{% if q.payment_status!='Payée' %}À traiter{% elif q.production_progress|int >= 100 %}Terminée{% else %}En production{% endif %}"></div>
 <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span><span class="fj-help">Terminé automatiquement quand le paiement est confirmé et l’avancement atteint 100 %.</span></div>
 {% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
@@ -2864,7 +2879,8 @@ quoteSave?.addEventListener('submit',async event=>{
    if(label)label.textContent='🖨️ '+data.reason;
    const bindBox=document.getElementById('fjord-octo-association');
    if(bindBox){
-    bindBox.style.display=(data.connected && !data.matched && data.filename)?'block':'none';
+    const activeJob=['printing','warmingup','resuming','paused'].includes(data.state);
+    bindBox.hidden=!(data.connected && activeJob && !data.matched && data.filename);
     document.getElementById('fjord-octo-filename').textContent=data.filename?'Travail détecté : '+data.filename:'';
    }
    if(data.matched && Number.isInteger(data.id)){
@@ -2896,7 +2912,8 @@ quoteSave?.addEventListener('submit',async event=>{
    const resp=await fetch('/admin/api/associer-impression',{method:'POST',body:payload,credentials:'same-origin'});
    const result=await resp.json();
    if(!resp.ok||!result.ok)throw Error(result.error||'Association impossible');
-   feedback.textContent='✓ '+result.message;
+   feedback.textContent='✓ '+result.message+' La progression sera actualisée automatiquement.';
+   document.getElementById('fjord-octo-quote').value='';
    await checkPrinter();
   }catch(e){feedback.textContent='⚠ '+String(e.message||e)}
   finally{bind.disabled=false}
@@ -2965,7 +2982,7 @@ async function fjRefreshTracker(){
    if(item.accepted)counts.all++;
    if(item.stage in counts)counts[item.stage]++;
    const acceptance=card.querySelector('[data-acceptance-state]');
-   if(acceptance)acceptance.textContent=item.accepted?'✓ Soumission acceptée':'✉️ En attente de l’acceptation du client';
+   if(acceptance)acceptance.textContent=item.accepted?'✓ Soumission acceptée':item.paid?'💳 Paiement confirmé':'✉️ En attente de l’acceptation du client';
    const overall=card.querySelector('[data-overall-state]');
    if(overall)overall.textContent=item.stage==='attente_acceptation'?'✉️ En attente d’acceptation':item.stage==='attente_paiement'?'💳 En attente de paiement':item.stage==='production'?'🖨️ En production':'✅ Terminé';
   }
