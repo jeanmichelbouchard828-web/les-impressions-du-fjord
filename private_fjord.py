@@ -2559,6 +2559,7 @@ main:has(#fjord-save-global){padding-bottom:100px}
 <button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">💳 Payées <strong>{{counters.payees}}</strong></button>
 </div>
 <p id="fjQuoteViewHint" class="fj-help">Le tracker suit automatiquement l’acceptation, le paiement et la production, sur ordinateur comme sur téléphone.</p>
+<p id="fjQuoteSyncStatus" class="fj-help" role="status" aria-live="polite" style="margin:4px 0;color:#9fd5e9">⏳ Vérification des statuts…</p>
 <div class="fj-status-board" id="fjActiveFilters">
 <button type="button" class="fj-status-btn active" data-stage="all-active">📋 Toutes à traiter <strong data-stage-count="all-active">{{counters.actives}}</strong></button>
 <button type="button" class="fj-status-btn" data-stage="attente_acceptation">✉️ À accepter <strong data-stage-count="attente_acceptation">{{counters.attente_acceptation}}</strong></button>
@@ -2952,6 +2953,7 @@ const fjHistoryTab=document.getElementById('fjHistoryTab');
 const fjActiveFilters=document.getElementById('fjActiveFilters');
 const fjPaidFilters=document.getElementById('fjPaidFilters');
 const fjQuoteViewHint=document.getElementById('fjQuoteViewHint');
+const fjQuoteSyncStatus=document.getElementById('fjQuoteSyncStatus');
 let fjSelectedStage='all-active',fjHistoryMode=false;
 function fjFilterQuoteCards(){
  const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
@@ -2975,7 +2977,10 @@ async function fjRefreshTracker(){
  if(document.hidden)return;
  try{
   const response=await fetch('/admin/api/soumissions-pro-etat',{cache:'no-store',credentials:'same-origin'});
-  if(!response.ok)return;
+  if(!response.ok){
+   if(fjQuoteSyncStatus){fjQuoteSyncStatus.textContent='⚠️ Actualisation indisponible pour le moment. Les chiffres affichés peuvent être périmés.';fjQuoteSyncStatus.style.color='#ffd36a'}
+   return;
+  }
   const data=await response.json();
   const counts={attente_acceptation:0,attente_paiement:0,production:0,terminees:0,all:0};
   for(const item of data.quotes||[]){
@@ -2998,7 +3003,10 @@ async function fjRefreshTracker(){
    el.textContent=stage==='all-active'?activeCount:stage==='all'?paidCount:(counts[stage]||0);
   });
   fjFilterQuoteCards();
- }catch(error){}
+  if(fjQuoteSyncStatus){const time=new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});fjQuoteSyncStatus.textContent='✓ Suivi actualisé à '+time;fjQuoteSyncStatus.style.color='#9fd5e9'}
+ }catch(error){
+  if(fjQuoteSyncStatus){fjQuoteSyncStatus.textContent='⚠️ Impossible d’actualiser le suivi. Les chiffres affichés peuvent être périmés.';fjQuoteSyncStatus.style.color='#ffd36a'}
+ }
 }
 fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
 fjRefreshTracker();setInterval(fjRefreshTracker,30000);
