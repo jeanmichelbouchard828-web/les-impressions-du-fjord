@@ -572,50 +572,60 @@ def atelier_ams_filaments():
  return response
 
 def _octo_job_matches(configured,reported):
- def norm(v):
-  return str(v or "").replace(chr(92),"/").split("/")[-1].rsplit(".",1)[0].strip().casefold()
+ def norm(value):
+  name=str(value or "").replace(chr(92),"/").split("/")[-1].strip().casefold()
+  # Bambu et Octo peuvent rapporter un fichier avec plusieurs suffixes.
+  for suffix in (".gcode.3mf",".bgcode.3mf",".gcode",".bgcode",".3mf",".stl"):
+   if name.endswith(suffix):
+    name=name[:-len(suffix)]
+    break
+  return name.strip()
  expected,actual=norm(configured),norm(reported)
  if not expected or not actual:return False
  if expected==actual:return True
- # Permettre uniquement un préfixe de soumission explicite FJ-00002_.
- # Ne jamais retirer un préfixe arbitraire qui pourrait créer une collision.
+ # Autorise seulement un préfixe public explicite « FJ-00002_ ».
  match=re.fullmatch(r"fj-\d{5}_(.+)",expected)
  return bool(match and match.group(1)==actual)
 
 def _sync_octo_progress():
- """Persist a confirmed live OctoEverywhere job against one unambiguous quote."""
+ """Relie sans ambiguïté le travail OctoEverywhere à une soumission."""
  live=_octo_live_status()
  result={"connected":live is not None,"reason":_octo_cache["reason"],
          "state":live["state"] if live else None,"filename":live["filename"] if live else "",
          "matched":False,"number":None,"progress":None,"updated":False}
  if not live or live["state"] not in ("printing","warmingup","resuming","paused","complete"):
   return result
- filename=live["filename"]
- if not filename or (live["progress"] is None and live["state"]!="complete"):
-  result["reason"]="OctoEverywhere ne donne pas de nom de travail ou de pourcentage."
+ filename=live.get("filename") or ""
+ if not filename:
+  result["reason"]="OctoEverywhere ne donne pas le nom du travail actif."
   return result
  reported=str(filename).replace(chr(92),"/").split("/")[-1]
- raw=re.sub(r"(?i)(?:\.gcode)?\.(?:3mf|gcode|stl)$","",reported).casefold()
- match=re.match(r"^(fj-[0-9]{1,8})(?:[_\s-]|$)",raw)
+ raw=re.sub(r"(?i)\.gcode\.3mf$|\.bgcode\.3mf$|\.(?:3mf|gcode|bgcode|stl)$","",reported)
+ number_match=re.match(r"^(fj-[0-9]{1,8})(?:[_\s-]|$)",raw.casefold())
  with db() as c:
   quotes=c.execute("""SELECT id,public_number,printer_job_name,production_status,production_progress
                       FROM private_quotes ORDER BY id DESC LIMIT 300""").fetchall()
-  candidates=[]
-  if match:
-   number=match.group(1).upper()
+  # Une association manuelle est la source prioritaire, y compris pour les
+  # noms de fichiers génériques de Bambu Studio.
+  candidates=[q for q in quotes if _octo_job_matches(q["printer_job_name"],filename)]
+  if not candidates and number_match:
+   number=number_match.group(1).upper()
    candidates=[q for q in quotes if (q["public_number"] or "FJ-{:05d}".format(q["id"]))==number]
-  else:
-   candidates=[q for q in quotes if _octo_job_matches(q["printer_job_name"],filename)]
   if len(candidates)!=1:
    result["reason"]=("Aucune soumission associée au nom du travail de l'imprimante."
                      if not candidates else "Plusieurs soumissions utilisent le même nom de travail.")
    return result
   q=candidates[0]
   number=q["public_number"] or "FJ-{:05d}".format(q["id"])
-  progress=100 if live["state"]=="complete" else live["progress"]
-  result.update({"matched":True,"id":q["id"],"status":"Terminée" if live["state"]=="complete" else "En production","number":number,
-                 "progress":max(progress,int(q["production_progress"] or 0)),
-                 "reason":"Progression reçue pour "+number+"."})
+  progress=100 if live["state"]=="complete" else live.get("progress")
+  status="Terminée" if live["state"]=="complete" else "En production"
+  existing=int(q["production_progress"] or 0)
+  result.update({"matched":True,"id":q["id"],"status":status,"number":number,
+                 "progress":max(int(progress),existing) if progress is not None else existing})
+  if progress is None:
+   result["reason"]="Impression associée à "+number+"; progression en attente."
+   return result
+  result["reason"]="Progression reçue pour "+number+"."
   if q["production_status"]!="Terminée":
    changed=c.execute("""UPDATE private_quotes SET
                  production_progress=GREATEST(production_progress,%s),
