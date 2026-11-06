@@ -1840,6 +1840,36 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_amount_cents BIGINT")
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
                      ON private_quotes(payment_token)""")
+        # One-time repair on deployment: make FJ-00002 visible without relying
+        # on a browser page load. The migration marker prevents later restarts
+        # from resurrecting a quote deliberately moved to the trash.
+        c.execute("SELECT pg_advisory_xact_lock(7342026, 8)")
+        marker=c.execute("SELECT value FROM settings WHERE key=%s",
+                         ("fjord_mathieu_quote_restore_v1",)).fetchone()
+        if not marker:
+            existing=c.execute("""SELECT id,public_number FROM private_quotes
+                WHERE public_number=%s OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))
+                ORDER BY CASE WHEN public_number=%s THEN 0 ELSE 1 END,id DESC LIMIT 1""",
+                ("FJ-00002","Mathieu rivard","porte can motoneige","FJ-00002")).fetchone()
+            if existing:
+                c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s",(existing["id"],))
+                if not existing.get("public_number"):
+                    c.execute("UPDATE private_quotes SET public_number=%s WHERE id=%s",
+                              ("FJ-00002",existing["id"]))
+            else:
+                c.execute("""INSERT INTO private_quotes
+                    (customer,email,phone,title,description,material,quantity,unit_price,
+                     shipping,apply_taxes,military_discount,payment_token,payment_status,
+                     production_status,production_progress,public_number,created)
+                    VALUES (%s,NULL,NULL,%s,%s,%s,1,%s,0,FALSE,FALSE,%s,'En attente',
+                            'À traiter',0,%s,%s)
+                    ON CONFLICT DO NOTHING""",
+                    ("Mathieu rivard","porte can motoneige","", "PETG",20.50,
+                     secrets.token_urlsafe(32),"FJ-00002",
+                     datetime.datetime(2026,10,31,12,0,tzinfo=datetime.timezone.utc)))
+            c.execute("""INSERT INTO settings(key,value) VALUES(%s,%s)
+                         ON CONFLICT(key) DO NOTHING""",
+                      ("fjord_mathieu_quote_restore_v1","done"))
 
     def _save_model(deduplicate=False):
         name = request.form.get("name", "").strip()[:120]
