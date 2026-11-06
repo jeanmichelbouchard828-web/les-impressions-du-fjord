@@ -1025,14 +1025,13 @@ body.light .fj-print-hint{color:#496477!important}
    const copy=labels[outcome]||labels.pending;
    title.textContent=copy[0];message.textContent=copy[1];
    const file=String(data.shared_job.file||'').split('/').pop();
-   const progress=Number(data.progress);
-   bar.hidden=outcome!=='active'||!Number.isFinite(progress);
+   const progress=data.progress;
+   bar.hidden=outcome!=='active'||typeof progress!=='number'||!Number.isFinite(progress);
    if(!bar.hidden)bar.value=Math.max(0,Math.min(100,progress));
    const layer=Number.isFinite(Number(data.current_layer))&&Number(data.current_layer)>0
     ?' · Couche '+data.current_layer+(Number(data.total_layers)>0?' / '+data.total_layers:''):'';
    details.textContent=(file?'Fichier : '+file:'')+(outcome==='active'&&Number.isFinite(progress)?' · '+Math.round(progress)+' %':'')+layer;
    if(outcome==='printer_error'&&data.printer_error)details.textContent+=' · '+String(data.printer_error).slice(0,180);
-   if(outcome==='active'&&Number.isFinite(progress)&&progress>=100)title.textContent='Impression terminée selon la X2D';
   }catch(error){
    box.hidden=false;title.textContent='État en direct indisponible';
    message.textContent='Je n’ai pas pu relire la X2D. Clique sur « Actualiser » pour vérifier à nouveau.';
