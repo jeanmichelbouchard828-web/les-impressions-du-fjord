@@ -805,6 +805,7 @@ body.light .fj-print-hint{color:#496477!important}
       <a href="/admin/profils-bambu">⚙️ Mes profils Bambu</a>
       <a href="/api/admin/atelier/impression-diagnostic" target="_blank" rel="noopener">🔎 Diagnostic X2D</a>
       <a href="/admin/atelier-pont">🔗 Pont Bambu Connect</a>
+      <a href="/admin/imprimante-camera">📷 Caméra X2D en direct</a>
     </nav>
   </section>
 
@@ -852,6 +853,12 @@ body.light .fj-print-hint{color:#496477!important}
         {% else %}
           <p>La connexion doit être disponible pour transférer ou démarrer un fichier.</p>
         {% endif %}
+      </div>
+      <div id="fjordStartMonitor" hidden role="status" aria-live="polite" style="grid-column:1/-1;padding:13px 15px;border:1px solid #4b8caa;border-radius:11px;background:#163a4b;color:#e9f8ff;line-height:1.5">
+        <strong id="fjordStartMonitorTitle">Vérification du démarrage</strong>
+        <p id="fjordStartMonitorMessage" style="margin:5px 0 0;color:inherit"></p>
+        <progress id="fjordStartMonitorProgress" max="100" value="0" hidden style="width:100%;max-width:none;height:10px;accent-color:#49bda2"></progress>
+        <small id="fjordStartMonitorDetails" style="display:block;margin-top:5px"></small>
       </div>
       <a class="fj-print-refresh" href="/admin/atelier-imprimer">↻ Actualiser</a>
     </section>
@@ -980,6 +987,60 @@ body.light .fj-print-hint{color:#496477!important}
    });
    xhr.timeout=120000;xhr.send(new FormData(form));
  });
+})();
+</script>
+<script>
+(() => {
+ const box=document.getElementById('fjordStartMonitor');
+ const title=document.getElementById('fjordStartMonitorTitle');
+ const message=document.getElementById('fjordStartMonitorMessage');
+ const details=document.getElementById('fjordStartMonitorDetails');
+ const bar=document.getElementById('fjordStartMonitorProgress');
+ if(!box||!title||!message||!details||!bar)return;
+ let busy=false,stopped=false;
+ const labels={
+  handoff_pending:['En attente de Bambu Connect','Le fichier a été remis au PC, mais la X2D ne confirme pas encore son démarrage. Dans Bambu Connect, termine l’importation, sélectionne la X2D et confirme l’impression.'],
+  pending:['Vérification du départ en cours','La commande a été envoyée. Le démarrage réel n’est pas encore confirmé par la X2D.'],
+  active:['Impression confirmée sur la X2D','La X2D signale maintenant ce fichier comme tâche active.'],
+  instant_finish:['Départ non confirmé','La X2D affiche la tâche comme terminée sans durée, couche ni chauffe suffisante. Le démarrage n’est pas confirmé.'],
+  unverified_finish:['État final à vérifier','La tâche n’est plus active, mais les données de la X2D ne permettent pas de confirmer clairement le résultat.'],
+  printer_error:['Erreur signalée par la X2D','La X2D signale une erreur. Consulte son écran avant de renvoyer une commande.'],
+  not_started:['Impression non démarrée','Aucun démarrage correspondant n’a été observé sur la X2D.'],
+  none:['Aucun nouveau départ à vérifier','Aucune commande récente n’est en cours de vérification.']
+ };
+ const stop=()=>{stopped=true};
+ async function refresh(){
+  if(busy||stopped)return;
+  busy=true;
+  try{
+   const response=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{cache:'no-store',credentials:'same-origin'});
+   if(!response.ok)throw new Error('État indisponible');
+   const data=await response.json();
+   const age=Number(data.start_command_age_sec);
+   if(!data.ok||!data.shared_job||!Number.isFinite(age)||age>600){
+    box.hidden=true;stop();return;
+   }
+   box.hidden=false;
+   const outcome=data.start_outcome||'pending';
+   const copy=labels[outcome]||labels.pending;
+   title.textContent=copy[0];message.textContent=copy[1];
+   const file=String(data.shared_job.file||'').split('/').pop();
+   const progress=Number(data.progress);
+   bar.hidden=outcome!=='active'||!Number.isFinite(progress);
+   if(!bar.hidden)bar.value=Math.max(0,Math.min(100,progress));
+   const layer=Number.isFinite(Number(data.current_layer))&&Number(data.current_layer)>0
+    ?' · Couche '+data.current_layer+(Number(data.total_layers)>0?' / '+data.total_layers:''):'';
+   details.textContent=(file?'Fichier : '+file:'')+(outcome==='active'&&Number.isFinite(progress)?' · '+Math.round(progress)+' %':'')+layer;
+   if(outcome==='printer_error'&&data.printer_error)details.textContent+=' · '+String(data.printer_error).slice(0,180);
+   if(outcome==='active'&&Number.isFinite(progress)&&progress>=100)title.textContent='Impression terminée selon la X2D';
+  }catch(error){
+   box.hidden=false;title.textContent='État en direct indisponible';
+   message.textContent='Je n’ai pas pu relire la X2D. Clique sur « Actualiser » pour vérifier à nouveau.';
+  }finally{busy=false}
+ }
+ refresh();
+ const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refresh()},8000);
+ window.setTimeout(()=>{window.clearInterval(timer)},600000);
 })();
 </script>
 """,csrf_field=csrfinput(),nonce=token,status=status,files=files,error=error,
