@@ -3046,6 +3046,8 @@ document.querySelectorAll('.fj-quote-card').forEach(card=>{
  payment?.addEventListener('change',refreshBadge);
  progress?.addEventListener('input',refreshBadge);
 });
+if(fjQuoteSearch)fjQuoteSearch.value='';
+fjHistoryMode=false;fjSelectedStage='all-active';
 fjFilterQuoteCards();
 </script>""",models=models,quotes=quotes,quote_totals=quote_totals,square_active=square_active,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
