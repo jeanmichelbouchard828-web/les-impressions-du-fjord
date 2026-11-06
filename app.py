@@ -964,31 +964,71 @@ def login():
 @admin_required
 def admin():
  with db() as c:
-  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 200").fetchall()
+  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 12").fetchall()
+  reqs_count=c.execute("SELECT COUNT(*) AS total FROM requests").fetchone()["total"]
   gallery=c.execute("SELECT id,title,category FROM gallery ORDER BY id DESC").fetchall()
-  quotes_stats=c.execute("""SELECT COUNT(*) FILTER (WHERE payment_status <> 'Payée') AS unpaid,
-      COUNT(*) FILTER (WHERE payment_status = 'Payée') AS paid FROM private_quotes""").fetchone()
+  quotes_stats=c.execute("""SELECT COUNT(*) FILTER (WHERE payment_status <> 'Payée' AND deleted_at IS NULL) AS unpaid,
+      COUNT(*) FILTER (WHERE payment_status = 'Payée' AND deleted_at IS NULL) AS paid FROM private_quotes""").fetchone()
  from fjord_bambu_connect import bridge_state as _bridge_state
  bridge=_bridge_state(db)
  return page("Administration",'''<style>
-.admin-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}
-.admin-control-card{background:linear-gradient(145deg,#123550,#0b2237);border:1px solid #30769e;border-radius:15px;padding:18px}
-.admin-control-card h2{font-size:18px;margin:0 0 8px}.admin-control-card strong{font-size:28px;color:#8ce8ff}
-.admin-shortcuts{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 28px}
-.admin-control-card p{margin:6px 0}
+.admin-dashboard{max-width:1500px;margin:0 auto;padding:clamp(12px,2.4vw,30px)}
+.admin-dashboard *{box-sizing:border-box}
+.admin-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 24px}
+.admin-hero .eyebrow{color:#82d8f5;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.admin-hero h1{font-size:clamp(30px,4vw,48px);line-height:1.05;margin:7px 0}
+.admin-hero p{max-width:690px;margin:0;color:#b7cad9}
+.admin-clock{color:#b5d7e7;font-size:13px}
+.admin-control-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}
+.admin-control-card{display:flex;flex-direction:column;min-width:0;min-height:226px;padding:19px;border:1px solid #286488;border-radius:16px;background:linear-gradient(155deg,#123550,#0a2238);box-shadow:0 10px 26px #00132430}
+.admin-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.admin-control-card h2{font-size:16px;line-height:1.3;margin:0;color:#eff8ff}
+.admin-icon{display:grid;place-items:center;flex:0 0 38px;height:38px;border:1px solid #397b9b;border-radius:11px;background:#0d2c45;font-size:19px}
+.admin-control-card p{margin:6px 0;color:#bdd1df;line-height:1.5}
+.admin-metric{font-size:34px;line-height:1.1;font-weight:850;color:#76e2ff;margin:2px 0}
+.admin-metric-label{color:#b7cad9;font-size:13px}
+.admin-mini-metric{font-size:15px;color:#e5f4ff;margin-top:12px}
+.admin-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:15px}
+.admin-card-actions a,.admin-shortcuts a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border:1px solid #377e9f;border-radius:10px;background:#123c59;color:#dff7ff;text-decoration:none;font-weight:750;font-size:13px}
+.admin-card-actions a:hover,.admin-shortcuts a:hover{background:#175477;border-color:#65ceee}
+.admin-card-actions a.primary{background:#0d82b8;border-color:#5ed6f7;color:#fff}
+.admin-status{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border-radius:999px;background:#102a3d;border:1px solid #3a6075;color:#c4d8e3;font-size:12px;font-weight:800}
+.admin-shortcut-panel{margin:20px 0 30px;padding:17px;border:1px solid #284c64;border-radius:16px;background:#0c2438}
+.admin-shortcut-panel h2{margin:0 0 12px;font-size:16px}
+.admin-shortcuts{display:flex;gap:9px;flex-wrap:wrap}
+.admin-shortcuts form{margin:0}
+.admin-shortcuts button{min-height:40px;padding:9px 13px;border:1px solid #5297b4;border-radius:10px;background:#173a53;color:#eefaff;font-weight:750;cursor:pointer}
+.admin-shortcuts button:hover{background:#204f6c}
+.admin-requests-section{margin-top:28px}
+.admin-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.admin-section-head h2{font-size:24px;margin:0}
+.admin-section-head p{font-size:13px;color:#b6cbd9;margin:4px 0 0}
+.admin-request-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.admin-request-card{min-width:0;margin:0;padding:18px;border:1px solid #284e68;border-radius:15px;background:linear-gradient(155deg,#102c43,#0b2135)}
+.admin-request-card h3{margin:6px 0;font-size:18px;overflow-wrap:anywhere}
+.admin-request-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#a9c7d8;font-size:12px}
+.admin-request-card p{line-height:1.5;overflow-wrap:anywhere}
+.admin-request-card form{margin:14px 0 0}
+.admin-request-card form label{font-size:13px}
+.admin-request-card select,.admin-request-card input{max-width:100%}
+.admin-empty{padding:24px;border:1px dashed #37617a;border-radius:14px;background:#0c2438;color:#bdd1df}
+@media(max-width:1050px){.admin-control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.admin-dashboard{padding:10px}.admin-hero{margin-bottom:16px}.admin-hero h1{font-size:32px}.admin-control-grid{grid-template-columns:1fr;gap:10px;margin:14px 0}.admin-control-card{min-height:0;padding:16px}.admin-card-actions a{flex:1 1 auto}.admin-shortcut-panel{padding:14px}.admin-shortcuts{display:grid;grid-template-columns:1fr 1fr}.admin-shortcuts a,.admin-shortcuts form,.admin-shortcuts button{width:100%;text-align:center}.admin-shortcuts form{grid-column:1/-1}.admin-request-grid{grid-template-columns:1fr;gap:10px}.admin-request-card{padding:14px}.admin-section-head h2{font-size:21px}}
 </style>
-<h1>Centre de contrôle</h1>
-<p class="muted">Tes opérations importantes, l’imprimante et les soumissions en un seul endroit.</p>
-<div class="admin-control-grid">
-<article class="admin-control-card"><h2>🖨️ Imprimante X2D</h2><div id="fjord-admin-printer-status" role="status">Lecture de l’état…</div><p><a href="/admin/atelier-imprimer">Ouvrir le contrôle d’impression →</a></p><p><a href="/admin/imprimante-camera">📷 Voir la caméra en direct</a></p></article>
-<article class="admin-control-card"><h2>🔌 Pont Bambu Connect</h2><strong>{% if bridge.online %}En ligne{% elif bridge.paired %}Hors ligne{% else %}À associer{% endif %}</strong><p>{% if bridge.age is not none %}Dernier contact il y a {{bridge.age}} s{% elif bridge.paired %}PC associé, en attente du prochain contact{% else %}Associe le PC Windows pour transmettre les fichiers{% endif %}</p><p><a href="/admin/atelier-pont">Gérer le pont →</a></p></article>
-<article class="admin-control-card"><h2>📄 Soumissions PRO</h2><strong>{{quotes_stats.unpaid}}</strong><p>soumission(s) à traiter ou à payer</p><p><strong>{{quotes_stats.paid}}</strong> payée(s) dans l’historique</p><p><a href="/admin/soumissions-pro#soumissions-enregistrees">Ouvrir les soumissions →</a></p></article>
-<article class="admin-control-card"><h2>📥 Demandes récentes</h2><strong>{{reqs|length}}</strong><p>dernières demandes affichées ci-dessous</p><p><a href="/admin/soumissions-pro">Créer ou préparer une soumission →</a></p></article>
-</div>
-<div class="admin-shortcuts"><a class="btn" href="/admin/atelier-3d">✦ Ouvrir mon Atelier 3D</a><a class="btn" href="/admin/modeles">📚 Mes modèles 3D</a><a class="btn" href="/admin/profils-bambu">⚙️ Mes profils Bambu</a><a class="btn" href="/admin/new">➕ Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div>
-<h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div><script>
+<main class="admin-dashboard">
+<header class="admin-hero"><div><div class="eyebrow">Espace privé · Les Impressions du Fjord</div><h1>Centre de contrôle</h1><p>Imprimante, commandes et outils essentiels regroupés au même endroit.</p></div><div class="admin-clock" id="adminLocalClock" aria-live="off"></div></header>
+<section class="admin-control-grid" aria-label="État des opérations">
+<article class="admin-control-card"><div class="admin-card-top"><h2>Imprimante X2D</h2><span class="admin-icon" aria-hidden="true">🖨️</span></div><div id="fjord-admin-printer-status" role="status">Lecture de l’état…</div><div class="admin-card-actions"><a class="primary" href="/admin/atelier-imprimer">Ouvrir le contrôle</a><a href="/admin/imprimante-camera">Voir la caméra</a></div></article>
+<article class="admin-control-card"><div class="admin-card-top"><h2>Pont Bambu Connect</h2><span class="admin-icon" aria-hidden="true">🔌</span></div><div class="admin-status">{% if bridge.online %}● En ligne{% elif bridge.paired %}● Hors ligne{% else %}● À associer{% endif %}</div><p>{% if bridge.age is not none %}Dernier contact il y a {{bridge.age}} s{% elif bridge.paired %}PC associé, en attente du prochain contact{% else %}Associe le PC Windows pour transmettre les fichiers{% endif %}</p><div class="admin-card-actions"><a href="/admin/atelier-pont">Gérer le pont</a></div></article>
+<article class="admin-control-card"><div class="admin-card-top"><h2>Soumissions PRO</h2><span class="admin-icon" aria-hidden="true">📄</span></div><div class="admin-metric">{{quotes_stats.unpaid}}</div><div class="admin-metric-label">à traiter ou à payer</div><div class="admin-mini-metric"><strong>{{quotes_stats.paid}}</strong> payée(s) dans l’historique</div><div class="admin-card-actions"><a class="primary" href="/admin/soumissions-pro#soumissions-enregistrees">Gérer les soumissions</a></div></article>
+<article class="admin-control-card"><div class="admin-card-top"><h2>Demandes récentes</h2><span class="admin-icon" aria-hidden="true">📥</span></div><div class="admin-metric">{{reqs_count}}</div><div class="admin-metric-label">demande(s) au total</div><p>Les 12 dernières sont listées plus bas.</p><div class="admin-card-actions"><a href="#admin-requests">Voir les demandes</a></div></article>
+</section>
+<section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
+<section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div></div>
+<div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
 (async function(){const box=document.getElementById('fjord-admin-printer-status');if(!box)return;try{const r=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const s=await r.json();if(!s.ok)throw Error();const state=String(s.state||'inconnu').replace(/_/g,' ');const parts=[({'printing':'En impression','paused':'En pause','idle':'Prête','finished':'Terminée','failed':'Erreur'}[s.state]||state),s.file?'Fichier : '+s.file:'Aucun fichier en cours'];if(typeof s.progress==='number')parts.push(Math.round(s.progress)+' %');box.textContent=parts.join(' · ');}catch(_){box.textContent='État non disponible. Ouvre le contrôle X2D pour actualiser.'}})();
-</script>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput(),bridge=bridge,quotes_stats=quotes_stats)
+(function(){const el=document.getElementById('adminLocalClock');if(!el)return;const update=()=>{el.textContent=new Intl.DateTimeFormat('fr-CA',{dateStyle:'full',timeStyle:'short'}).format(new Date())};update();setInterval(update,60000)})();
+</script>'''
 @app.post("/admin/status/<int:id>")
 @admin_required
 def status(id):
