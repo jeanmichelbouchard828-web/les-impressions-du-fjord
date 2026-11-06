@@ -1084,7 +1084,44 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 </style>
 <script src="/static/fjord_measure_circle.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
-</head><body>
+<style id="fjord-studio-professional">
+:root{--studio-navy:#071321;--studio-panel:#0d2135;--studio-raised:#112c45;--studio-edge:#284b65;--studio-text:#eef7ff;--studio-muted:#b7c9d8;--studio-cyan:#29b8eb}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:radial-gradient(ellipse at 80% 0%,#17507844,transparent 42%),linear-gradient(160deg,#071321,#091b2d 60%,#071321);color:var(--studio-text)}
+header{position:relative;z-index:120;min-height:76px;padding:11px clamp(10px,2vw,26px);background:#07182bef;border-bottom:1px solid #20587a;box-shadow:0 8px 24px #00101f66;backdrop-filter:blur(16px)}
+header .brand{font-size:18px;font-weight:850;letter-spacing:.01em}
+header .subtitle{margin-top:3px;color:#b7c9d8}
+.top-actions,.top-preferences{gap:7px}
+.top-actions a,.top-actions button,.top-preferences select{min-height:40px;border:1px solid #315f7c;border-radius:10px;background:#0b2238;color:#e6f4ff}
+.top-actions button.primary{background:linear-gradient(120deg,#087ab3,#18a3d0);border-color:#55c8ec;color:#fff}
+.fjord-menubar{position:sticky;top:0;z-index:105;min-height:48px;padding:5px clamp(8px,1.5vw,20px);background:#0a1c2eeb;border-bottom:1px solid #284b65;backdrop-filter:blur(14px)}
+.fjord-menubar summary{font-size:13px;font-weight:750}
+.fjord-menu-options{background:#10283c;border-color:#315d78;border-radius:12px;box-shadow:0 16px 36px #0008}
+.fjord-menu-options button,.tools button,.fjord-workspace-nav button{border-radius:10px}
+.shell{background:#071523}
+.sidebar{background:#0b1d30;border-color:#223f57}
+.sidebar.right{border-color:#223f57}
+.sidebar h2,.sidebar h3{color:#e9f7ff}
+.sidebar input,.sidebar textarea,.sidebar select{background:#081a2a;border-color:#345f7b;border-radius:10px}
+.tools button{background:#102c44;border-color:#315d78;color:#eaf7ff;font-weight:700}
+.tools button:hover,.fjord-workspace-nav button:hover{border-color:#49c9f2}
+#viewport,.viewport,.canvas-wrap{border:1px solid #2a6386;background:radial-gradient(circle at 50% 38%,#0f3450,#081827 75%)}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #72e3ff;outline-offset:2px}
+body.light{background:#f3f8fc;color:#173047}
+body.light header{background:#f9fcffef;border-color:#d0e0eb}
+body.light .fjord-menubar,body.light .sidebar{background:#edf5f9;border-color:#ccdae5;color:#173047}
+body.light .sidebar h2,body.light .sidebar h3{color:#173047}
+body.light .top-actions a,body.light .top-actions button,body.light .top-preferences select,body.light .tools button{background:#fff;color:#21465f;border-color:#b5cedc}
+body.light .fjord-menubar summary{color:#21465f}
+body.light .fjord-menu-options{background:#fff}
+@media(max-width:760px){
+ header{gap:8px}
+ header .brand{font-size:16px}
+ .fjord-menubar{top:0;scrollbar-width:thin}
+ .fjord-menu-brand{position:sticky;left:0;background:inherit}
+ .shell{min-height:calc(100dvh - 118px)}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+</style></head><body>
 <header>
 <div><div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div><div class="subtitle" data-i18n="tagline">Les impressions du Fjord · Création 3D</div></div>
 <div id="projectMenu" class="project-menu"><button type="button" id="projectMenuButton" aria-expanded="false" data-i18n="mobileProject">📁 Projet</button><div class="top-actions">
