@@ -2652,11 +2652,81 @@ body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
  .fj-tools-section>.fj-top-panel>summary{min-height:50px;padding:11px 12px;font-size:14px}
  .fj-tools-section>.fj-top-panel>summary small{font-size:11px}
 }
+/* Interface PRO : suivi d’abord, création en second plan */
+.fj-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:0 0 18px;padding:4px 0 20px;border-bottom:1px solid #234861}
+.fj-title-block{max-width:760px}.fj-title-block .eyebrow{font-size:11px;letter-spacing:.16em;color:#64c9ed}
+.fj-title-block h1{margin:7px 0 8px;font-size:clamp(34px,5vw,54px);line-height:1.04;letter-spacing:-.045em;color:#f4faff}
+.fj-title-block h1 span{color:#57d0f2}.fj-title-block p{max-width:68ch;margin:0;color:#b7c9d8;font-size:15px}
+.fj-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.fj-head-actions>a:not(.btn){display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid #294f68;border-radius:11px;background:#0b2034;color:#c8e8f5;font-size:13px;font-weight:750;text-decoration:none}
+.fj-head-actions>a:hover{border-color:#4bbbdc}.fj-head-actions .fj-primary-action{min-height:44px;white-space:nowrap}
+.fj-private-note{display:flex;align-items:flex-start;gap:10px;margin:0 0 22px;padding:12px 15px;border:1px solid #274d66;border-radius:12px;background:#0b1c2d}
+.fj-private-note p{margin:0;color:#b9cbd9;font-size:13px;line-height:1.45}
+.fj-tracker-shell{margin:20px 0 28px;padding:clamp(14px,2.2vw,26px);border:1px solid #28506b;border-radius:20px;background:linear-gradient(145deg,#0b1f32,#081726);box-shadow:0 16px 40px #0003}
+#soumissions-enregistrees{margin:0 0 8px;padding:0;border:0;font-size:clamp(23px,3vw,30px)}
+#fjord-auto-progress{display:inline-flex;width:auto;min-height:32px;margin:0 0 12px;padding:5px 10px;border:1px solid #294d65;border-radius:999px;background:#081a2a;color:#b8d8e8;font-size:12px}
+#fjord-save-global{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 16px;padding:0 0 15px;border:0;border-bottom:1px solid #24475f}
+#fjord-save-global button{min-height:44px;padding:10px 17px}#fjord-save-global .fj-help{margin:0}#fjord-save-feedback{flex-basis:100%;margin:0}
+.fj-recovery{margin:4px 0 14px;border:1px solid #284a60;border-radius:11px;background:#091a2a}
+.fj-recovery>summary{padding:10px 13px;color:#b8d0df;font-size:13px;font-weight:700;cursor:pointer}
+.fj-recovery>div{padding:0 13px 12px}.fj-recovery p{margin:2px 0 10px;font-size:13px;color:#a9c1d0}
+.fj-recover-mathieu{margin:0;padding:0;border:0;background:none}.fj-recover-mathieu button{min-height:38px;padding:8px 12px}
+.fj-quote-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0 9px}
+.fj-quote-tab{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:50px;padding:10px 12px;border:1px solid #2b5976;border-radius:12px;background:#102b42;color:#d9effa;font-weight:750}
+.fj-quote-tab.active{border-color:#56c9ed;background:linear-gradient(120deg,#075587,#087eaf);color:#fff;box-shadow:0 0 0 2px #39c4ed2b}
+.fj-quote-tab strong{display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;margin:0;padding:0 7px;border-radius:999px;background:#061a2b;color:#8ee5ff;font-size:14px}
+#fjQuoteViewHint{margin:8px 0 4px;color:#abc4d4;font-size:13px}#fjQuoteSyncStatus{margin:4px 0 10px!important}
+#fjActiveFilters,#fjPaidFilters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.fj-status-btn{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;min-height:46px;padding:9px 12px;border:1px solid #2a5674;border-radius:11px;background:#102a40;color:#dceef8;text-align:left;font-size:13px;font-weight:700;white-space:normal}
+.fj-status-btn.active{border-color:#55c9ed;background:#0b6391;color:#fff;box-shadow:inset 0 0 0 1px #4bbfe8}
+.fj-status-btn strong{display:inline-flex;flex:none;align-items:center;justify-content:center;min-width:24px;height:24px;margin:0;padding:0 6px;border-radius:999px;background:#071a2b;color:#9de9ff;font-size:13px}
+.fj-search-label{display:block;max-width:620px;margin:14px 0 12px;color:#d9eaf3;font-size:14px;font-weight:750}.fj-search-label input{min-height:46px;margin:7px 0 0}
+#fj-quotes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:14px;margin:0}
+.fj-quote-card{height:100%;padding:18px!important;border:1px solid #294f6a!important;border-radius:16px!important;background:linear-gradient(145deg,#10283d,#091b2d)!important;box-shadow:0 9px 24px #0003}
+.fj-quote-card[data-stage="attente_acceptation"]{border-left:4px solid #edbd4b!important}.fj-quote-card[data-stage="attente_paiement"]{border-left:4px solid #45c3e8!important}.fj-quote-card[data-stage="production"]{border-left:4px solid #9a8be9!important}.fj-quote-card[data-stage="terminees"]{border-left:4px solid #47c987!important}
+.fj-quote-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.fj-quote-card>.eyebrow{color:#70d8f6;font-weight:800}
+.fj-quote-delete{width:38px;height:38px;padding:0;border:1px solid #365a70;border-radius:10px;background:#0a1d2e;color:#c6deeb}
+.fj-quote-card h3{margin:4px 0;color:#f4faff;font-size:22px}.fj-quote-summary{margin:4px 0 12px;color:#bacddd}
+.fj-quote-total{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;padding:13px 15px;border:1px solid #286b8b;border-radius:12px;background:linear-gradient(120deg,#102c42,#0d3953)}
+.fj-quote-total span{color:#c3d8e5;font-size:13px}.fj-quote-total strong{color:#a2ebff;font-size:25px}
+.fj-quick-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 14px;padding-bottom:13px;border-bottom:1px solid #25465d}
+.fj-quick-actions .btn{min-height:40px;padding:8px 12px;font-size:13px}
+.fj-acceptance-state{margin:10px 0!important;padding:9px 11px;border:1px solid #284b64;border-radius:10px;background:#091b2b;color:#c5dce9}
+.fj-overall-state{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:12px;border:1px solid #2a5876;border-radius:11px;background:#0c263c}
+.fj-overall-state>span{color:#aec5d4;font-size:13px}.fj-overall-state>strong{color:#8ee6ff;font-size:15px;text-align:right}
+.fj-payment-form{max-width:100%;margin:12px 0}.fj-payment-form select{max-width:400px}.fj-advanced{margin-top:12px}
+.fj-tools-section{margin:28px 0 34px;padding:clamp(14px,2vw,22px);border:1px solid #28506b;border-radius:18px;background:#091a2a}
+.fj-tools-heading{margin-bottom:16px}.fj-tools-section>.fj-top-panel{background:#0b2033;border:1px solid #2b5672}.fj-tools-section>.fj-top-panel>summary{background:#102b42}.fj-top-panel>summary,.fj-card-section>summary{min-height:50px}
+body.light .fj-private-note,body.light .fj-recovery{background:#f4f9fc;border-color:#c7dce8}
+body.light .fj-private-note p,body.light .fj-recovery p{color:#466173}
+body.light .fj-quote-tab{background:#f3f8fb;color:#2d5268;border-color:#c5dce7}body.light .fj-quote-tab.active{background:#087aae;color:#fff;border-color:#54c9e9}
+body.light .fj-quote-tab strong,body.light .fj-status-btn strong{background:#e3f1f7;color:#075f90}
+body.light .fj-status-btn{background:#f2f8fb;color:#31566d;border-color:#c4dbe6}body.light .fj-status-btn.active{background:#087aae;color:#fff;border-color:#1686b5}
+body.light .fj-quote-card{background:linear-gradient(145deg,#fff,#f2f8fc)!important;border-color:#c7dce7!important}
+body.light .fj-quote-card h3{color:#15394f}body.light .fj-quote-summary{color:#466173}
+body.light .fj-quote-total{background:#e7f5fb;border-color:#b8dbe9}body.light .fj-quote-total span{color:#31566d}body.light .fj-quote-total strong{color:#0875a6}
+body.light .fj-overall-state,body.light .fj-quote-card .fj-acceptance-state{background:#eff7fa;border-color:#c5dce7;color:#31566d}
+@media(max-width:760px){
+ .fj-head{display:block;padding-bottom:15px}.fj-title-block{margin-bottom:13px}.fj-title-block h1{font-size:35px}.fj-title-block p{font-size:14px}
+ .fj-head-actions{justify-content:flex-start}.fj-head-actions>a{flex:1 1 auto}
+ .fj-private-note{margin-bottom:16px}.fj-tracker-shell{margin:15px 0 22px;padding:13px;border-radius:15px}
+ .fj-quote-tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0 8px}
+ .fj-quote-tab{min-height:54px;flex-direction:column;gap:2px;padding:7px 4px;font-size:12px;line-height:1.15;text-align:center}
+ .fj-quote-tab strong{height:20px;min-width:20px;font-size:12px}
+ #fjActiveFilters,#fjPaidFilters{grid-template-columns:1fr;gap:6px}.fj-status-btn{min-height:44px;font-size:13px}
+ #fj-quotes-grid{grid-template-columns:minmax(0,1fr);gap:10px}.fj-quote-card{padding:14px!important}.fj-quote-card h3{font-size:20px}
+ .fj-quote-total{padding:11px 12px}.fj-quote-total strong{font-size:23px}
+ .fj-quick-actions{display:grid;grid-template-columns:1fr}.fj-quick-actions .btn{justify-content:center}
+ .fj-tools-section{margin-top:20px;padding:12px}.fj-tools-heading h2{font-size:23px}.fj-recovery{margin:0 0 12px}
+ #fjord-save-global{gap:7px}#fjord-save-global button{width:auto;min-width:190px;min-height:46px}
+ #fjord-save-global>span{display:block;flex-basis:100%;font-size:12px}#fjord-save-feedback{max-width:100%;flex-basis:100%}
+ .fj-tools-section>.fj-top-panel>summary{padding:12px}.fj-tools-section>.fj-top-panel>summary small{display:block;margin-left:auto;font-size:11px}
+}
+@media(max-width:430px){.fj-head-actions>a{width:100%}.fj-quote-tabs{grid-template-columns:1fr}
+ .fj-quote-tab{flex-direction:row;justify-content:space-between;min-height:45px;padding:8px 11px;font-size:13px}.fj-quote-tab strong{height:23px;min-width:23px}}
 </style>
-<section class="fj-pro-hero" aria-label="Les Impressions du Fjord"><div class="fjord-pro-label">IMPRESSION 3D SUR MESURE · SAGUENAY</div><h2>🏔️ LES IMPRESSIONS <span>DU FJORD</span></h2><p>Soumissions · Aperçus 3D · Paiements sécurisés</p></section>
-<div class="eyebrow">Visible uniquement par l'administrateur</div>
-<div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
-<p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
+<div class="fj-head"><div class="fj-title-block"><div class="eyebrow">ESPACE ADMINISTRATEUR · SUIVI DES COMMANDES</div><h1>Soumissions <span>PRO</span></h1><p>De la création du devis à la livraison, retrouve ici le statut, le paiement et la production de chaque commande.</p></div><div class="fj-head-actions"><a class="btn fj-primary-action" href="#fj-new-quote">＋ Nouvelle soumission</a><a href="/admin/modeles">📚 Modèles 3D</a><a href="/admin">← Administration</a></div></div>
+<div class="fj-private-note"><span>🔒</span><p>Les coûts internes et les majorations restent privés. Le PDF client affiche seulement les détails de la pièce, le prix et les taxes applicables.</p></div>
 <section class="fj-tracker-shell" aria-labelledby="soumissions-enregistrees">
 <h2 id="soumissions-enregistrees">Suivi des soumissions</h2>
 <p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
@@ -2672,7 +2742,7 @@ body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
  <p id="fjord-octo-bind-result" role="status" aria-live="polite"></p>
 </div>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
-<form method="post" action="/admin/soumissions-pro/recuperer-mathieu" class="fj-recover-mathieu">{{csrf|safe}}<button type="submit">🧾 Retrouver FJ-00002 · Mathieu</button><span>Restaure aussi la soumission si elle est dans la corbeille.</span></form>
+<details class="fj-recovery"><summary>Récupération d’une soumission archivée</summary><div><p>Cette action remet la soumission de Mathieu dans le suivi et la retire de la corbeille.</p><form method="post" action="/admin/soumissions-pro/recuperer-mathieu" class="fj-recover-mathieu">{{csrf|safe}}<button type="submit">Restaurer FJ-00002 · Mathieu</button></form></div></details>
 <div class="fj-quote-tabs" role="tablist" aria-label="Soumissions">
 <button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📄 À traiter <strong data-active-count>{{counters.actives}}</strong></button>
 <button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">💳 Payées <strong>{{counters.payees}}</strong></button>
@@ -2701,7 +2771,7 @@ body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
 <p class="fj-help fj-acceptance-state" data-acceptance-state="{{q.id}}">{% if acceptance_valid[q.id] %}✓ Soumission acceptée{% if q.accepted_at %} · {{q.accepted_at.strftime('%d-%m-%Y %H:%M')}}{% endif %}{% elif q.payment_status=='Payée' %}💳 Paiement confirmé{% else %}✉️ En attente de l’acceptation du client{% endif %}</p>
 <div class="fj-overall-state"><span>État de la commande</span><strong data-overall-state="{{q.id}}">{% if stages[q.id]=='attente_acceptation' %}✉️ En attente d’acceptation{% elif q.payment_status!='Payée' %}💳 En attente de paiement{% elif q.production_progress|int >= 100 %}✅ Terminé{% else %}🖨️ En production{% endif %}</strong><input type="hidden" form="fjord-save-global" name="production_status_{{q.id}}" value="{% if q.payment_status!='Payée' %}À traiter{% elif q.production_progress|int >= 100 %}Terminée{% else %}En production{% endif %}"></div>
 <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span><span class="fj-help">Terminé automatiquement quand le paiement est confirmé et l’avancement atteint 100 %.</span></div>
-{% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
+
 
 <div class="fj-payment-form">
 <label for="fj-payment-{{q.id}}">Statut du paiement</label>
@@ -2756,7 +2826,7 @@ de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imp
 <section class="fj-tools-section" aria-label="Création et paramètres des soumissions">
 <div class="fj-tools-heading"><div><span class="eyebrow">Outils d’administration</span><h2>Créer ou configurer une soumission</h2><p>Les formulaires restent repliés jusqu’à ce que tu en aies besoin.</p></div></div>
 
-<details class="fj-top-panel" {% if from_atelier or incoming %}open{% endif %}><summary>➕ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
+<details class="fj-top-panel" id="fj-new-quote" {% if from_atelier or incoming %}open{% endif %}><summary>＋ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
 {% if from_atelier %}<div class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.<a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:flex;box-sizing:border-box;align-items:center;justify-content:center;width:fit-content;max-width:100%;min-height:44px;margin:12px 0;padding:10px 16px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere">✏️ Retourner modifier dans l’Atelier</a><div>{% if atelier_colors=='3mf' %}Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %}Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</div></div>{% endif %}
 <form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
 <input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
