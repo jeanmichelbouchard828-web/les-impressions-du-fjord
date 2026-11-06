@@ -2371,15 +2371,26 @@ function fjordFlushDraft(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')fjordFlushDraft()});
 window.addEventListener('pagehide',fjordFlushDraft);
 function fjordOfferDraftRecovery(draft){
- const box=document.createElement('div');box.style.cssText='position:fixed;z-index:12001;left:12px;bottom:58px;max-width:min(520px,calc(100vw - 24px));padding:15px;border:1px solid #65bdd7;border-radius:13px;background:#102b3c;color:#eef9ff;box-shadow:0 12px 40px #0008;font:14px system-ui';
+ const style=document.createElement('style');
+ style.textContent=`
+ #fjordDraftRecovery{position:fixed;z-index:12001;left:12px;bottom:58px;width:min(520px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:min(65vh,420px);overflow:auto;padding:15px;border:1px solid #65bdd7;border-radius:13px;background:#102b3c;color:#eef9ff;box-shadow:0 12px 40px #0008;font:14px/1.5 system-ui}
+ #fjordDraftRecoveryActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+ #fjordDraftRecovery button{min-height:44px;padding:10px 14px;border:1px solid #4f8ba8;border-radius:9px;background:#203b4d;color:white;font:700 14px system-ui;cursor:pointer;touch-action:manipulation}
+ @media(max-width:700px){
+  #fjordDraftRecovery{left:max(10px,env(safe-area-inset-left))!important;right:max(10px,env(safe-area-inset-right))!important;bottom:calc(env(safe-area-inset-bottom) + 12px)!important;width:auto!important;max-width:none!important;max-height:min(52dvh,390px);padding:16px;font-size:15px}
+  #fjordDraftRecoveryActions{display:grid!important;grid-template-columns:1fr;gap:10px}
+  #fjordDraftRecovery button{width:100%;min-height:50px;font-size:15px}
+ }`;
+ document.head.appendChild(style);
+ const box=document.createElement('div');box.id='fjordDraftRecovery';box.setAttribute('role','dialog');
  const date=draft.savedAt?new Date(draft.savedAt).toLocaleString():'date inconnue';
- const text=document.createElement('div');text.textContent='Un brouillon de l’Atelier a été retrouvé ('+date+'). Veux-tu le récupérer ?';box.appendChild(text);
- const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:12px';
+ const text=document.createElement('div');text.id='fjordDraftRecoveryText';text.textContent='Un brouillon de l’Atelier a été retrouvé ('+date+'). Veux-tu le récupérer ?';box.setAttribute('aria-labelledby',text.id);box.appendChild(text);
+ const actions=document.createElement('div');actions.id='fjordDraftRecoveryActions';
  const restoreButton=document.createElement('button');restoreButton.type='button';restoreButton.textContent='Récupérer le brouillon';
  const continueButton=document.createElement('button');continueButton.type='button';continueButton.textContent='Continuer sans le charger';
- [restoreButton,continueButton].forEach(button=>{button.style.cssText='padding:9px 12px;border:1px solid #4f8ba8;border-radius:9px;background:#203b4d;color:white;font-weight:700;cursor:pointer';actions.appendChild(button)});
- restoreButton.addEventListener('click',()=>{try{fjordApplyProject(draft);box.remove();fjordShowDraft('✓ Brouillon récupéré et sauvegardé localement')}catch(error){console.warn(error);text.textContent='Le brouillon est illisible; il reste conservé dans ce navigateur.'}});
- continueButton.addEventListener('click',()=>{box.remove();fjordAutosaveEnabled=true;fjordShowDraft('Brouillon précédent conservé. Les nouveaux changements seront enregistrés ici.');});
+ [restoreButton,continueButton].forEach(button=>actions.appendChild(button));
+ restoreButton.addEventListener('click',()=>{try{fjordApplyProject(draft);box.remove();style.remove();fjordShowDraft('✓ Brouillon récupéré et sauvegardé localement')}catch(error){console.warn(error);text.textContent='Le brouillon est illisible; il reste conservé dans ce navigateur.'}});
+ continueButton.addEventListener('click',()=>{box.remove();style.remove();fjordAutosaveEnabled=true;fjordShowDraft('Brouillon précédent conservé. Les nouveaux changements seront enregistrés ici.');});
  box.appendChild(actions);document.body.appendChild(box);
 }
 (async()=>{
