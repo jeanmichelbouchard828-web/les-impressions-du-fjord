@@ -1121,6 +1121,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <span class="fjord-menu-separator"></span>
 <button class="fjord-menu-icon" type="button" data-fjord-target="undo" title="Annuler" aria-label="Annuler">↶</button>
 <button class="fjord-menu-icon" type="button" data-fjord-target="redo" title="Rétablir" aria-label="Rétablir">↷</button>
+<button class="fjord-menu-icon fjord-fullscreen-button" type="button" data-fjord-fullscreen="toggle" title="Passer en plein écran" aria-label="Passer en plein écran" aria-pressed="false">⛶</button>
 </nav>
 <div class="fjord-bed-tabs" id="fjordBedTabs" role="tablist" aria-label="Plateaux de travail"><button type="button" role="tab" aria-selected="true" class="fjord-bed-tab" data-bed-index="0">⬡ Plateau 1</button><button type="button" class="fjord-add-bed" id="fjordAddBed" title="Ajouter un plateau" aria-label="Ajouter un plateau">+</button></div>
 <div class="fjord-fast-tools" aria-label="Outils rapides">
@@ -1189,6 +1190,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
 <button type="button" data-open-tools="projects" aria-expanded="false">📁 Projets</button>
 <button type="button" data-open-tools="cut" data-i18n="mobileCut" aria-expanded="false">✂️ Couper</button>
 <button type="button" id="mobileSliceBtn" data-i18n="slicePreview">▥ Trancher</button>
+<button type="button" class="fjord-fullscreen-button fjord-fullscreen-mobile" data-fjord-fullscreen="toggle" title="Passer en plein écran" aria-label="Passer en plein écran" aria-pressed="false">⛶ Plein écran</button>
 <button type="button" data-open-tools="views" data-i18n="mobileViews" aria-expanded="false">👁 Vues</button>
 <button type="button" data-open-tools="parts" data-i18n="mobileParts" aria-expanded="false">🧩 Pièces</button>
 <button type="button" data-open-tools="properties" data-i18n="mobileProperties" aria-expanded="false">📐 Réglages</button>
@@ -5110,6 +5112,46 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  document.getElementById('fjordPaintLaunch')?.addEventListener('click',launch);
  document.getElementById('fjordPaintOpenAms')?.addEventListener('click',launch);
  document.querySelector('[data-fjord-panel="paint"]')?.addEventListener('click',launch);
+})();
+</script>
+<script>
+(()=>{
+ const buttons=[...document.querySelectorAll('[data-fjord-fullscreen="toggle"]')];
+ const language=document.getElementById('language');
+ const labels={
+  fr:{enter:'Passer en plein écran',exit:'Quitter le plein écran',unsupported:'Ce navigateur ne permet pas le plein écran pour cette page.'},
+  en:{enter:'Enter full screen',exit:'Exit full screen',unsupported:'This browser does not support full screen for this page.'}
+ };
+ const update=()=>{
+  const english=(language?.value||document.documentElement.lang||'fr').toLowerCase().startsWith('en');
+  const words=english?labels.en:labels.fr;
+  const active=Boolean(document.fullscreenElement);
+  const label=active?words.exit:words.enter;
+  buttons.forEach(button=>{
+   button.setAttribute('aria-label',label);
+   button.title=label;
+   button.setAttribute('aria-pressed',String(active));
+   if(button.classList.contains('fjord-fullscreen-mobile')){
+    button.textContent=active?'⛶ '+(english?'Exit full screen':'Quitter plein écran'):'⛶ '+(english?'Full screen':'Plein écran');
+   }
+  });
+ };
+ buttons.forEach(button=>button.addEventListener('click',async()=>{
+  try{
+   if(document.fullscreenElement) await document.exitFullscreen();
+   else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+   else{
+    const english=(language?.value||document.documentElement.lang||'fr').toLowerCase().startsWith('en');
+    window.alert(english?labels.en.unsupported:labels.fr.unsupported);
+   }
+  }catch(error){
+   const english=(language?.value||document.documentElement.lang||'fr').toLowerCase().startsWith('en');
+   window.alert(english?labels.en.unsupported:labels.fr.unsupported);
+  }
+ }));
+ document.addEventListener('fullscreenchange',update);
+ language?.addEventListener('change',update);
+ update();
 })();
 </script>
 </html>
