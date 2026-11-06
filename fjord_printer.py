@@ -299,12 +299,12 @@ def verify_sliced_bambu_3mf(raw):
             names = [name.replace("\\", "/") for name in archive.namelist()]
             if any(name.startswith("/") or ".." in name.split("/") for name in names):
                 raise PrinterError("Chemin dangereux détecté dans le fichier 3MF.")
-            if "3D/3dmodel.model" not in names:
-                raise PrinterError("Projet 3MF non reconnu : géométrie absente.")
+            # BambuStudio --min-save outputs a valid sliced package without
+            # model geometry; the native plate G-code is the required payload.
             plates = [int(m.group(1)) for n in names
                       if (m := re.fullmatch(r"Metadata/plate_(\d{1,3})\.gcode", n))]
             if not plates:
-                raise PrinterError("Ce 3MF contient un modèle, mais aucune plaque tranchée Bambu. Ouvre-le dans Bambu Studio et fais « Trancher » avant l'envoi.")
+                raise PrinterError("Ce 3MF ne contient aucune plaque Bambu tranchée. Ouvre-le dans Bambu Studio, fais « Trancher », puis exporte le fichier tranché.")
             if 1 not in plates:
                 raise PrinterError("Le fichier n'a pas de plaque 1 tranchée.")
             plate = archive.getinfo("Metadata/plate_1.gcode")
