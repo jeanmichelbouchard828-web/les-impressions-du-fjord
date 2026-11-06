@@ -221,7 +221,7 @@ FJORD_VISITOR_STYLE="""<style>.fjord-visitor-counter{display:inline-flex;gap:7px
 FJORD_DONATION_STYLE="""<style>.fjord-donation-link{display:inline-flex;align-items:center;justify-content:center;padding:10px 17px;margin:12px 8px 12px 0;border:1px solid #62d6ff;border-radius:28px;background:linear-gradient(110deg,#07558a,#099ed3);color:#fff!important;font-weight:800;box-shadow:0 4px 18px #0397da55}.fjord-donation-link:hover{filter:brightness(1.12)}.fjord-support-panel{max-width:660px;margin:25px auto;padding:28px;border:1px solid #2b9bd1;border-radius:20px;background:linear-gradient(140deg,#102e49,#081c30);text-align:center}.fjord-support-panel h1{font-size:clamp(30px,5vw,48px)}.fjord-support-panel p{color:#d1eafb}.fjord-support-panel .fjord-donation-link{font-size:18px;margin-top:16px}</style>"""
 BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+FJORD_FINISHING+FJORD_VISITOR_STYLE+FJORD_DONATION_STYLE+"""<style>
 @media(max-width:650px){
- header nav{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+ header nav{width:100%;display:none;flex-wrap:wrap;gap:8px;align-items:center}
  header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
  main{padding:18px 12px 60px}
  .fj-quote-card{min-width:0}
