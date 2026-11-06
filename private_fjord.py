@@ -2724,6 +2724,13 @@ body.light .fj-overall-state,body.light .fj-quote-card .fj-acceptance-state{back
 }
 @media(max-width:430px){.fj-head-actions>a{width:100%}.fj-quote-tabs{grid-template-columns:1fr}
  .fj-quote-tab{flex-direction:row;justify-content:space-between;min-height:45px;padding:8px 11px;font-size:13px}.fj-quote-tab strong{height:23px;min-width:23px}}
+</style><style id="fjord-pro-float-fix">
+@media(min-width:651px){
+ .fj-tracker-shell .fj-quote-tabs{float:none!important;clear:both!important;position:static!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:stretch!important;margin:16px 0 9px!important}
+ .fj-tracker-shell #fjQuoteViewHint,.fj-tracker-shell #fjQuoteSyncStatus,.fj-tracker-shell #fjActiveFilters,.fj-tracker-shell #fjPaidFilters,.fj-tracker-shell .fj-search-label,.fj-tracker-shell #fj-quotes-empty,.fj-tracker-shell #fj-quotes-grid{float:none!important;clear:both!important;margin-left:0!important}
+ .fj-tracker-shell #fjQuoteViewHint,.fj-tracker-shell #fjQuoteSyncStatus,.fj-tracker-shell #fjActiveFilters,.fj-tracker-shell #fjPaidFilters,.fj-tracker-shell #fj-quotes-empty,.fj-tracker-shell #fj-quotes-grid{width:100%!important;max-width:none!important}
+ .fj-tracker-shell .fj-search-label{width:min(100%,620px)!important;max-width:620px!important}
+}
 </style>
 <div class="fj-head"><div class="fj-title-block"><div class="eyebrow">ESPACE ADMINISTRATEUR · SUIVI DES COMMANDES</div><h1>Soumissions <span>PRO</span></h1><p>De la création du devis à la livraison, retrouve ici le statut, le paiement et la production de chaque commande.</p></div><div class="fj-head-actions"><a class="btn fj-primary-action" href="#fj-new-quote">＋ Nouvelle soumission</a><a href="/admin/modeles">📚 Modèles 3D</a><a href="/admin">← Administration</a></div></div>
 <div class="fj-private-note"><span>🔒</span><p>Les coûts internes et les majorations restent privés. Le PDF client affiche seulement les détails de la pièce, le prix et les taxes applicables.</p></div>
