@@ -2224,6 +2224,7 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         return page("Soumissions PRO",r"""
 <style>
 .fj-status-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:15px 0 22px}
+.fj-quote-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}.fj-quote-tab{background:#102b43;border:1px solid #3288b7;color:#eafaff;padding:13px 18px;border-radius:12px;cursor:pointer;font:inherit;font-weight:750}.fj-quote-tab strong{display:inline-block;margin-left:8px;color:#8ce8ff}.fj-quote-tab.active{background:linear-gradient(110deg,#075b99,#148dcc);outline:2px solid #7ee7ff}.fj-quote-tab[aria-selected="true"]{box-shadow:0 0 0 1px #7ee7ff inset}.fj-status-board[hidden]{display:none!important}
 .fj-status-btn{border:1px solid #548da7;border-radius:12px;background:#16364b;color:#e9faff;padding:13px 10px;text-align:left;cursor:pointer}
 .fj-status-btn strong{display:block;font-size:24px;margin-top:5px}
 .fj-status-btn.active{outline:2px solid #7ee7ff;background:#21506a}
