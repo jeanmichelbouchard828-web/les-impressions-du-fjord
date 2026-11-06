@@ -7,6 +7,67 @@ function ConvertTo-UrlPart {
     return [System.Uri]::EscapeDataString($Value)
 }
 
+function Confirm-BambuConnectImport {
+    param([string]$ExpectedName)
+
+    try {
+        Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
+        Add-Type -AssemblyName UIAutomationTypes -ErrorAction Stop
+    }
+    catch {
+        return $false
+    }
+
+    $deadline = (Get-Date).AddSeconds(18)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $condition = [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'Import Gcode 3MF')
+            $button = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+                [System.Windows.Automation.TreeScope]::Descendants, $condition)
+
+            if ($button -and $button.Current.IsEnabled) {
+                $window = $button
+                for ($level = 0; $level -lt 16 -and $window; $level++) {
+                    if ($window.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window) {
+                        break
+                    }
+                    $window = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($window)
+                }
+
+                if (-not $window -or $window.Current.Name -notmatch '(?i)bambu.?connect') {
+                    Start-Sleep -Milliseconds 750
+                    continue
+                }
+
+                $fileFound = $false
+                $elements = $window.FindAll(
+                    [System.Windows.Automation.TreeScope]::Descendants,
+                    [System.Windows.Automation.Condition]::TrueCondition)
+                foreach ($element in $elements) {
+                    if ($element.Current.Name -and $element.Current.Name.Contains($ExpectedName)) {
+                        $fileFound = $true
+                        break
+                    }
+                }
+
+                if ($fileFound) {
+                    $invoke = $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                    $invoke.Invoke()
+                    return $true
+                }
+            }
+        }
+        catch {
+            # Keep waiting; Bambu Connect may still be opening its import dialog.
+        }
+        Start-Sleep -Milliseconds 750
+    }
+
+    return $false
+}
+
 function New-BridgeToken {
     $code = Read-Host 'Enter the one-time code from Admin > Pont Bambu Connect'
     $pairBody = @{ code = $code.Trim(); device_name = $env:COMPUTERNAME } | ConvertTo-Json -Compress
@@ -94,9 +155,15 @@ while ($true) {
         $uri = $uri + $separator + 'name=' + $encodedName
         $uri = $uri + $separator + 'version=1.0.0'
         Start-Process -FilePath $uri -ErrorAction Stop | Out-Null
+        $importConfirmed = Confirm-BambuConnectImport -ExpectedName $connectName
         Set-Content -LiteralPath $seenPath -Value ([string]$job.id) -Encoding ascii
         Invoke-RestMethod -Method Post -Uri "$site/api/fjord-print-bridge/ack/$($job.id)" -Headers $headers -ContentType 'application/json' -Body '{}' -TimeoutSec 20 | Out-Null
-        Write-Host 'Bambu Connect opened for the new file. Confirm the print in the app.' -ForegroundColor Cyan
+        if ($importConfirmed) {
+            Write-Host 'File import confirmed automatically. Select the X2D and explicitly confirm the print in Bambu Connect.' -ForegroundColor Cyan
+        }
+        else {
+            Write-Host 'Click Import Gcode 3MF manually, then select the X2D and explicitly confirm the print in Bambu Connect.' -ForegroundColor Yellow
+        }
     }
     catch {
         $errorMessage = $_.Exception.Message
