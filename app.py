@@ -336,6 +336,47 @@ apply();
 def page(title,body,**kwargs):
  from flask import render_template_string
  return render_template_string(BASE,title=title,meta_description=("Découvrez un lien de parrainage Starlink pour les nouveaux abonnés admissibles au Canada. Parrainage personnel et transparent." if title=="Parrainage Starlink" else "Les Impressions du Fjord — impression 3D sur mesure au Saguenay."),body=render_template_string(body,**kwargs))
+def _fjord_error_page(code):
+ if code==404:
+  title="Cette page est introuvable"
+  heading="Oups, on ne trouve pas cette page."
+  message="Le lien a peut-être changé ou la page n’existe plus."
+ else:
+  title="Une erreur est survenue"
+  heading="Un petit pépin est survenu."
+  message="La page n’a pas pu se charger. Réessaie dans un instant; si le problème continue, écris-nous."
+ body="""<style>
+.fjord-error{max-width:760px;margin:clamp(30px,8vh,90px) auto;padding:clamp(22px,5vw,42px);border:1px solid #2e84ad;border-radius:22px;background:linear-gradient(145deg,#102f49,#081b2d);box-shadow:0 18px 55px #00101d88;color:#eef8ff;text-align:center}
+.fjord-error-mark{display:grid;place-items:center;width:66px;height:66px;margin:0 auto 18px;border:1px solid #55c8ed;border-radius:20px;background:#0a4564;font-size:32px}
+.fjord-error h1{margin:0 0 12px;color:#b4edff;font-size:clamp(25px,5vw,38px);line-height:1.15}
+.fjord-error p{max-width:560px;margin:0 auto 24px;color:#c8dce9;font-size:16px;line-height:1.65}
+.fjord-error-code{display:block;margin:0 0 22px;color:#8fb8ce;font-size:12px;letter-spacing:.08em}
+.fjord-error-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.fjord-error-actions a,.fjord-error-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 18px;border:1px solid #53c7eb;border-radius:11px;background:#0875a5;color:#fff;font:inherit;font-weight:750;text-decoration:none;cursor:pointer}
+.fjord-error-actions .fjord-error-home{background:#132d43;border-color:#527c96}
+@media(max-width:560px){.fjord-error{margin:20px 10px;padding:24px 18px}.fjord-error-actions{display:grid;grid-template-columns:1fr}.fjord-error-actions a,.fjord-error-actions button{width:100%;box-sizing:border-box}}
+</style>
+<main class="fjord-error" role="alert">
+ <div class="fjord-error-mark" aria-hidden="true">🏔️</div>
+ <span class="fjord-error-code">LES IMPRESSIONS DU FJORD · CODE {{error_code}}</span>
+ <h1>{{heading}}</h1>
+ <p>{{message}}</p>
+ <div class="fjord-error-actions">
+  <button type="button" onclick="window.location.reload()">↻ Réessayer</button>
+  <a class="fjord-error-home" href="/">⌂ Retour à l’accueil</a>
+  <a class="fjord-error-home" href="mailto:lesimpressionsdufjord@gmail.com">✉ Nous écrire</a>
+ </div>
+</main>"""
+ return page(title,body,error_code=code,heading=heading,message=message),code
+
+@app.errorhandler(404)
+def fjord_not_found(_error):
+ return _fjord_error_page(404)
+
+@app.errorhandler(500)
+def fjord_server_error(_error):
+ return _fjord_error_page(500)
+
 def csrf():
  if "csrf" not in session:session["csrf"]=secrets.token_urlsafe(24)
  return session["csrf"]
