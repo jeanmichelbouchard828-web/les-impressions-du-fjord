@@ -1870,6 +1870,18 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             c.execute("""INSERT INTO settings(key,value) VALUES(%s,%s)
                          ON CONFLICT(key) DO NOTHING""",
                       ("fjord_mathieu_quote_restore_v1","done"))
+        # Apply the user's request once: remove Mathieu's FJ-00002 from active
+        # lists but keep it recoverable in the quote trash.
+        trash_marker=c.execute("SELECT value FROM settings WHERE key=%s",
+                               ("fjord_mathieu_quote_trash_v1",)).fetchone()
+        if not trash_marker:
+            c.execute("""UPDATE private_quotes SET deleted_at=COALESCE(deleted_at,NOW())
+                         WHERE public_number=%s
+                            OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))""",
+                      ("FJ-00002","Mathieu rivard","porte can motoneige"))
+            c.execute("""INSERT INTO settings(key,value) VALUES(%s,%s)
+                         ON CONFLICT(key) DO NOTHING""",
+                      ("fjord_mathieu_quote_trash_v1","done"))
 
     def _save_model(deduplicate=False):
         name = request.form.get("name", "").strip()[:120]
