@@ -2454,10 +2454,10 @@ body.light .fj-quote-total strong{color:#07608e}
 </div>
 <form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
 <div class="fj-quote-tabs" role="tablist" aria-label="Soumissions actives et historique">
-<button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📋 À traiter <strong>{{quotes|length - counters.payees}}</strong></button>
+<button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">⏳ En attente de paiement <strong>{{counters.attente_paiement}}</strong></button>
 <button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">💳 Payées <strong>{{counters.payees}}</strong></button>
 </div>
-<p id="fjQuoteViewHint" class="fj-help">Les soumissions payées sont rangées dans l’historique. Les soumissions à traiter restent visibles ici.</p>
+<p id="fjQuoteViewHint" class="fj-help">Les soumissions non payées restent ici. Les soumissions payées passent dans l’onglet Payées.</p>
 <div class="fj-status-board" id="fjActiveFilters">
 <button type="button" class="fj-status-btn active" data-stage="attente_paiement">⏳ En attente de paiement <strong>{{counters.attente_paiement}}</strong></button>
 </div>
@@ -3005,9 +3005,10 @@ fjFilterQuoteCards();
         if payment not in ("En attente","Paiement partiel","Payée"):abort(400)
         if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",progress_text):abort(400)
         progress=int(progress_text)
-        if production=="Terminée":progress=100
-        elif production=="À traiter":progress=0
-        elif progress==100:production="Terminée"
+        if payment=="Payée":
+            production="Terminée" if progress>=100 else "En production"
+        else:
+            production="À traiter"
         with db() as c:
             c.execute("SELECT pg_advisory_xact_lock(7342026, 4)")
             existing=c.execute("SELECT id FROM private_quotes WHERE public_number=%s AND id<>%s",(number,quote_id)).fetchone()
