@@ -124,7 +124,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
         return page("Pont Bambu Connect", r"""
 <section class="card" style="max-width:850px;margin:auto">
  <h1>🖨️ Pont vers Bambu Connect</h1>
- <p>Ce pont permet au site Render de remettre le 3MF au PC Windows. Bambu Connect ouvre ensuite le fichier et garde la confirmation finale d'impression.</p>
+ <p>Ce pont remet le 3MF au PC Windows et tente de confirmer automatiquement l’import exact dans Bambu Connect. Tu gardes le choix de l’imprimante et la confirmation finale du démarrage.</p>
  <p><strong>État :</strong> {% if state.online %}PC connecté{% elif state.paired %}PC associé, hors ligne{% else %}aucun PC associé{% endif %}</p>
  {% if state.age is not none %}<p class="small muted">Dernier contact : {{state.age}} s</p>{% endif %}
  <p><a class="btn" href="/admin/atelier-pont/bridge.zip">Télécharger le pont Windows (ZIP)</a></p>
@@ -134,7 +134,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
  <form method="post" action="/admin/atelier-pont/code">{{csrf|safe}}<button>Générer le code d’association</button></form>
  {% if code %}<div class="alert"><strong>Code d’association (valide 10 minutes) — copie-le :</strong><br><code style="font-size:22px;user-select:all">{{code}}</code><p>Le code apparaît ici sur la page. Colle-le dans la fenêtre PowerShell quand le script te le demande. Ne le partage pas.</p></div>{% endif %}
  <form method="post" action="/admin/atelier-pont/revoquer" onsubmit="return confirm('Dissocier tous les PC?');">{{csrf|safe}}<button style="background:#9e4545;color:white">Dissocier tous les PC</button></form>
- <ol><li>Télécharge le ZIP et extrais son contenu sur le PC où Bambu Connect est installé.</li><li>Clique d’abord sur <strong>Générer le code d’association</strong> : il s’affichera ici sur cette page.</li><li>Double-clique sur <strong>Lancer_Pont_Bambu_Connect.cmd</strong>, puis colle le code quand la fenêtre PowerShell le demande.</li><li>Laisse la fenêtre ouverte. Lors d’un lancement depuis le site, Bambu Connect s’ouvrira sur le PC pour confirmer l’imprimante et l’envoi.</li></ol>
+ <ol><li>Télécharge le ZIP et extrais son contenu sur le PC où Bambu Connect est installé.</li><li>Clique d’abord sur <strong>Générer le code d’association</strong> : il s’affichera ici sur cette page.</li><li>Double-clique sur <strong>Lancer_Pont_Bambu_Connect.cmd</strong>, puis colle le code quand la fenêtre PowerShell le demande.</li><li>Laisse la fenêtre ouverte. Le pont tentera de cliquer sur « Import Gcode 3MF » seulement si la fenêtre Bambu Connect montre le nom du fichier transmis; choisis ensuite la X2D et confirme toi-même l’impression.</li></ol>
  <p class="small muted">Aucun code d’accès imprimante ni clé de signature Bambu n’est stocké sur Render. Ce pont ne démarre jamais seul une impression.</p>
  <p><a href="/admin/atelier-imprimer">← Retour à l’impression X2D</a></p>
 </section>""", state=state, code=code, csrf=csrfinput(), last_handoff=last_handoff)
@@ -221,7 +221,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
             "3. Double-clique sur Lancer_Pont_Bambu_Connect.cmd et colle le code affiché.\r\n"
             "4. Laisse la fenêtre ouverte.\r\n\r\n"
             "Le PC doit avoir Bambu Connect installé. Si Windows dit qu’aucune application n’ouvre bambu-connect://, installe Bambu Connect depuis https://wiki.bambulab.com/en/software/bambu-connect puis ouvre-le une fois.\r\n"
-            "Lorsqu’un fichier arrive, confirme le choix de l’imprimante et l’envoi dans Bambu Connect.\r\n"
+            "Le pont tente de confirmer uniquement l’import du fichier correspondant dans Bambu Connect. Vérifie ensuite la X2D et confirme l’impression dans l’application. Si Windows ne reconnaît pas le bouton, clique sur « Import Gcode 3MF » manuellement.\r\n"
         )
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for filename in ("fjord_bambu_connect_bridge.ps1", "Lancer_Pont_Bambu_Connect.cmd"):
@@ -230,7 +230,7 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
             bundle.writestr("LISEZ-MOI.txt", instructions.encode("utf-8"))
         archive.seek(0)
         response = send_file(archive, as_attachment=True,
-                             download_name="Pont_Bambu_Connect_Windows_CORRIGE_V5_20261105.zip",
+                             download_name="Pont_Bambu_Connect_Windows_AUTO_IMPORT_V6_20261106.zip",
                              mimetype="application/zip", max_age=0)
         response.headers["Cache-Control"] = "private, no-store"
         return response
