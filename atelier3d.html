@@ -3030,31 +3030,29 @@ async function importModelFile(file, displayName){
    const g=new STLLoader().parse(buffer);
    geometries.push({g, name:title, color:0x5bc6eb});
  }else{
-   // Native ThreeMFLoader handles standard 3MF, but not every Bambu/Orca
-   // multi-part project using the 3MF Production Extension (p:path).
+   // Read 3MF materials, Bambu filament assignments and painting BEFORE a
+   // generic loader reduces every part to a single material.
    try{
-     const {ThreeMFLoader}=await import('three/addons/loaders/3MFLoader.js');
-     const root=new ThreeMFLoader().parse(buffer);
-     root.updateMatrixWorld(true);
-     root.traverse(obj=>{
-       if(!obj.isMesh||!obj.geometry?.getAttribute('position'))return;
-       let g=obj.geometry.clone();
-       if(g.index){const flat=g.toNonIndexed();g.dispose();g=flat}
-       g.applyMatrix4(obj.matrixWorld);
-       geometries.push({g,name:(obj.name||title).slice(0,120),color:obj.material?.color?.getHex?.()??0x5bc6eb});
-     });
+     const {parse3MFProduction}=await import('/static/fjord_3mf.js');
+     geometries.push(...parse3MFProduction(buffer,title));
    }catch(error){
-     console.info('Chargeur 3MF standard incompatible : essai du format Bambu/Orca.',error);
-     geometries.forEach(part=>part.g.dispose());
-     geometries.length=0;
-   }
-   if(!geometries.length){
+     console.info('Lecture des couleurs 3MF indisponible ; essai standard.',error);
+     geometries.forEach(part=>part.g.dispose());geometries.length=0;
      try{
-       const {parse3MFProduction}=await import('/static/fjord_3mf.js');
-       geometries.push(...parse3MFProduction(buffer,title));
-     }catch(error){
-       console.warn('Import 3MF multi-fichiers impossible',error);
-       throw Error('Impossible de lire la géométrie 3MF (Bambu/Orca inclus) : '+String(error?.message||error));
+       const {ThreeMFLoader}=await import('three/addons/loaders/3MFLoader.js');
+       const root=new ThreeMFLoader().parse(buffer);
+       root.updateMatrixWorld(true);
+       root.traverse(obj=>{
+         if(!obj.isMesh||!obj.geometry?.getAttribute('position'))return;
+         let g=obj.geometry.clone();
+         if(g.index){const flat=g.toNonIndexed();g.dispose();g=flat}
+         g.applyMatrix4(obj.matrixWorld);
+         geometries.push({g,name:(obj.name||title).slice(0,120),color:obj.material?.color?.getHex?.()??0x5bc6eb});
+       });
+     }catch(fallbackError){
+       geometries.forEach(part=>part.g.dispose());geometries.length=0;
+       throw Error('Import 3MF impossible : '+String(error?.message||error)+
+         ' / '+String(fallbackError?.message||fallbackError));
      }
    }
  }
@@ -3083,11 +3081,21 @@ async function importModelFile(file, displayName){
    }
    remember();sliceClose();
    let last=null;
+   let paintedCount=0;
    for(const part of geometries){
      last=makeMesh(part.g,'imported',part.name);
      last.material.color.setHex(part.color);
+     if(part.faceColors && Object.keys(part.faceColors).length){
+       window.fjordPaint?.restoreMesh?.(last,{
+         paintBase:part.color,paintFaces:part.faceColors
+       });
+       paintedCount++;
+     }
    }
    pick(last);say('imported');
+   if(paintedCount)status.textContent='✓ 3MF importé avec couleurs des faces ('+paintedCount+
+     ' pièce(s)). Les subdivisions peintes dans Bambu peuvent être approximatives dans l’aperçu.';
+
    return geometries.length;
  }catch(error){
    geometries.forEach(p=>p.g.dispose());
