@@ -14,7 +14,7 @@ install_preview_guard(app)
 from real_slicer import slicer_bp
 app.register_blueprint(slicer_bp)
 app.secret_key=os.environ.get("SECRET_KEY",secrets.token_hex(32))
-app.config.update(MAX_CONTENT_LENGTH=10*1024*1024,SESSION_COOKIE_SECURE=True,SESSION_COOKIE_HTTPONLY=True,SESSION_COOKIE_SAMESITE="Lax")
+app.config.update(MAX_CONTENT_LENGTH=24*1024*1024,SESSION_COOKIE_SECURE=True,SESSION_COOKIE_HTTPONLY=True,SESSION_COOKIE_SAMESITE="Lax")
 from fjord_preview_guard import assert_preview_isolated
 DB=os.environ["DATABASE_URL"]
 assert_preview_isolated(DB)
