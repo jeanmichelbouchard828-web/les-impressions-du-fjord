@@ -6,6 +6,13 @@ prepare/upload a machine-ready 3MF, but it NEVER starts the printer.
 from __future__ import annotations
 
 import json
+import io
+import hashlib
+import math
+import struct
+import zlib
+import zipfile
+import xml.etree.ElementTree as ET
 import logging
 import os
 import re
@@ -148,6 +155,101 @@ def _log_failure(output: bytes, exit_code: int, output_exists: bool):
     LOG.warning("Bambu slicing failed: exit=%s, file_written=%s, diagnostics=%s",
                 exit_code, bool(output_exists), summary[:1300])
 
+
+def prepare_connect_archive(raw: bytes) -> bytes:
+    """Complete native CLI plate metadata without changing printable bytes/settings.
+
+    Headless CLI output can omit thumbnail/bbox keys used by Connect's importer.
+    Missing images use an explicitly empty transparent PNG, never a fake model.
+    Do not pad filament/extruder arrays or substitute another printer profile.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as zin:
+            infos = zin.infolist()
+            names = [i.filename for i in infos]
+            if len(names) != len(set(names)) or sum(i.file_size for i in infos) > 100 * 1024 * 1024:
+                raise AutoSliceError("Archive 3MF ambiguë ou trop volumineuse.")
+            data = {i.filename: zin.read(i) for i in infos}
+        settings = json.loads(data["Metadata/project_settings.config"])
+        if not re.search(r"\bX2D\b", str(settings.get("printer_model", "")), re.I):
+            raise AutoSliceError("Le 3MF ne déclare pas une X2D.")
+        model = ET.fromstring(data["Metadata/model_settings.config"])
+        slices = ET.fromstring(data["Metadata/slice_info.config"])
+        plates = model.findall("plate")
+        if not plates:
+            raise AutoSliceError("Le 3MF ne contient aucun plateau.")
+        changed = False
+        def png_chunk(kind, payload):
+            return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload) & 0xffffffff)
+        empty_png = (b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+                     + png_chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\x00")) + png_chunk(b"IEND", b""))
+        for plate in plates:
+            meta = {e.get("key"): e for e in plate.findall("metadata")}
+            number = meta.get("plater_id")
+            number = number.get("value", "") if number is not None else ""
+            if not number.isdigit():
+                raise AutoSliceError("Identifiant de plateau 3MF invalide.")
+            gcode_node = meta.get("gcode_file")
+            path = gcode_node.get("value", "") if gcode_node is not None else ""
+            gcode = data[path]
+            if not gcode or hashlib.md5(gcode).hexdigest().upper() != data[path + ".md5"].decode().strip().upper():
+                raise AutoSliceError("Le contrôle d'intégrité du G-code a échoué.")
+            bbox = "Metadata/plate_" + number + ".json"
+            json.loads(data[bbox])
+            refs = {
+                "thumbnail_file": "Metadata/plate_" + number + ".png",
+                "thumbnail_no_light_file": "Metadata/plate_no_light_" + number + ".png",
+                "top_file": "Metadata/top_" + number + ".png",
+                "pick_file": "Metadata/pick_" + number + ".png",
+                "pattern_bbox_file": bbox,
+            }
+            for key, target in refs.items():
+                node = meta.get(key)
+                if node is None:
+                    node = ET.SubElement(plate, "metadata", key=key, value=target)
+                    changed = True
+                elif not node.get("value"):
+                    node.set("value", target)
+                    changed = True
+                target = node.get("value")
+                if target.endswith(".png") and target not in data:
+                    data[target] = empty_png
+                    changed = True
+                elif target not in data:
+                    raise AutoSliceError("Référence du plateau absente du 3MF.")
+            small = "Metadata/plate_" + number + "_small.png"
+            if small not in data:
+                data[small] = empty_png
+                changed = True
+        for plate in slices.findall("plate"):
+            meta = {e.get("key"): e for e in plate.findall("metadata")}
+            first = meta.get("first_layer_time")
+            total = meta.get("prediction")
+            if first is not None and total is not None:
+                duration = float(first.get("value", "nan"))
+                prediction = float(total.get("value", "0"))
+                if not math.isfinite(duration) or duration < 0 or duration > prediction:
+                    # Zero is the native plate JSON's unavailable-duration value.
+                    first.set("value", "0")
+                    changed = True
+        if not changed:
+            return raw
+        data["Metadata/model_settings.config"] = ET.tostring(model, encoding="utf-8", xml_declaration=True)
+        data["Metadata/slice_info.config"] = ET.tostring(slices, encoding="utf-8", xml_declaration=True)
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+            for name, payload in data.items():
+                zout.writestr(name, payload)
+        result = out.getvalue()
+        if len(result) > MAX_3MF:
+            raise AutoSliceError("Le 3MF préparé dépasse 30 Mo.")
+        return result
+    except AutoSliceError:
+        raise
+    except (KeyError, ValueError, TypeError, UnicodeError, ET.ParseError, zipfile.BadZipFile) as exc:
+        raise AutoSliceError("Métadonnées du 3MF illisibles ou incomplètes : import annulé.") from exc
+
+
 def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured PEI Plate',
               support_mode: str = 'off', support_plate_only: bool = False) -> bytes:
     """Return verified native sliced 3MF; fail closed before any network transfer.
@@ -250,8 +352,9 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
                 )
             if output_file.stat().st_size > MAX_3MF:
                 raise AutoSliceError("Le fichier tranché dépasse 30 Mo.")
-            finished = output_file.read_bytes()
+            finished = prepare_connect_archive(output_file.read_bytes())
             verifier(finished)
             return finished
     finally:
         _SLICING_SLOT.release()
+
