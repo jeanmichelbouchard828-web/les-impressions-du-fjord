@@ -121,7 +121,7 @@ def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> 
         message, re.I
     )
     if missing_lib:
-        return ("Bambu Studio ne peut pas démarrer sur Railway : bibliothèque Linux "
+        return ("Bambu Studio ne peut pas démarrer sur Render : bibliothèque Linux "
                 "manquante ({}). Les profils ne sont pas en cause.".format(missing_lib.group(1)[:90]))
     if exit_code < 0:
         return "Le moteur Bambu Studio s’est arrêté anormalement (signal {}).".format(-exit_code)
@@ -141,7 +141,7 @@ def _safe_cli_diagnostic(output: bytes, exit_code: int, output_exists: bool) -> 
 
 
 def _log_failure(output: bytes, exit_code: int, output_exists: bool):
-    """Record minimal, scrubbed diagnostics in Railway logs only."""
+    """Record minimal, scrubbed diagnostics in Render logs only."""
     lines = output.decode("utf-8", "replace")[-16000:].splitlines()
     important = [line for line in lines if any(
         word in line.lower() for word in ("error", "failed", "fatal", "invalid",
