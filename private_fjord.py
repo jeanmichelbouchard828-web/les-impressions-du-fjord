@@ -2724,6 +2724,7 @@ body.light .fj-overall-state,body.light .fj-quote-card .fj-acceptance-state{back
 }
 @media(max-width:430px){.fj-head-actions>a{width:100%}.fj-quote-tabs{grid-template-columns:1fr}
  .fj-quote-tab{flex-direction:row;justify-content:space-between;min-height:45px;padding:8px 11px;font-size:13px}.fj-quote-tab strong{height:23px;min-width:23px}}
+.fj-status-btn [data-stage-count][hidden]{display:none!important}
 </style><style id="fjord-pro-float-fix">
 @media(min-width:651px){
  .fj-tracker-shell .fj-quote-tabs{float:none!important;clear:both!important;position:static!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:stretch!important;margin:16px 0 9px!important}
@@ -2758,14 +2759,14 @@ body.light .fj-overall-state,body.light .fj-quote-card .fj-acceptance-state{back
 <p id="fjQuoteViewHint" class="fj-help">Le tracker suit automatiquement l’acceptation, le paiement et la production, sur ordinateur comme sur téléphone.</p>
 <p id="fjQuoteSyncStatus" class="fj-help" role="status" aria-live="polite" style="margin:4px 0;color:#9fd5e9">⏳ Vérification des statuts…</p>
 <div class="fj-status-board" id="fjActiveFilters">
-<button type="button" class="fj-status-btn active" data-stage="all-active">Toutes <strong data-stage-count="all-active">{{counters.actives}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="attente_acceptation">✉️ À accepter <strong data-stage-count="attente_acceptation">{{counters.attente_acceptation}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="attente_paiement">À payer <strong data-stage-count="attente_paiement">{{counters.attente_paiement}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="all-active">Toutes <strong data-stage-count="all-active" {% if counters.actives==0 %}hidden{% endif %}>{{counters.actives}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="attente_acceptation">✉️ À accepter <strong data-stage-count="attente_acceptation" {% if counters.attente_acceptation==0 %}hidden{% endif %}>{{counters.attente_acceptation}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="attente_paiement">À payer <strong data-stage-count="attente_paiement" {% if counters.attente_paiement==0 %}hidden{% endif %}>{{counters.attente_paiement}}</strong></button>
 </div>
 <div class="fj-status-board" id="fjPaidFilters" hidden>
-<button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong data-stage-count="production">{{counters.production}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong data-stage-count="terminees">{{counters.terminees}}</strong></button>
-<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong data-stage-count="all">{{counters.payees}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong data-stage-count="production" {% if counters.production==0 %}hidden{% endif %}>{{counters.production}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong data-stage-count="terminees" {% if counters.terminees==0 %}hidden{% endif %}>{{counters.terminees}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong data-stage-count="all" {% if counters.payees==0 %}hidden{% endif %}>{{counters.payees}}</strong></button>
 </div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
 <p id="fj-quotes-empty" class="fj-help" role="status" hidden>Aucune soumission à afficher pour le moment.</p>
 <div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-deleted="{{'yes' if q.deleted_at else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' or q.deleted_at %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div>{% if q.deleted_at %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/restaurer" class="fj-quote-delete-form" onsubmit="return confirm('Restaurer cette soumission ?');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Restaurer la soumission" title="Restaurer">↩️</button></form>{% else %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Déplacer cette soumission dans la corbeille ? Elle pourra être restaurée.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Mettre la soumission à la corbeille" title="Mettre à la corbeille">🗑️</button></form>{% endif %}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
@@ -3284,7 +3285,9 @@ async function fjRefreshTracker(){
   const paidBadge=fjHistoryTab?.querySelector('strong');if(paidBadge)paidBadge.textContent=paidCount;
   document.querySelectorAll('[data-stage-count]').forEach(el=>{
    const stage=el.dataset.stageCount;
-   el.textContent=stage==='all-active'?activeCount:stage==='all'?paidCount:(counts[stage]||0);
+   const count=stage==='all-active'?activeCount:stage==='all'?paidCount:(counts[stage]||0);
+   el.textContent=count;
+   el.hidden=count===0;
   });
   fjFilterQuoteCards();
   if(fjQuoteSyncStatus){const time=new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});fjQuoteSyncStatus.textContent='✓ Suivi actualisé à '+time;fjQuoteSyncStatus.style.color='#9fd5e9'}
