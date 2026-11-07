@@ -83,6 +83,10 @@ export function installFjordEnhancements(api){
  }
  function paintGeom(mesh){
   if(mesh.userData.mergedParts){notice('Sépare le groupe Merge avant de peindre ses faces.');return false;}
+  // Reuse the initialized vertex colors while brushing; rebuilding on each
+  // pointermove makes large 3MF objects look as if painting is frozen.
+  if(mesh.userData.fjordPaintReadyGeometry===mesh.geometry &&
+     mesh.geometry.getAttribute('color') && mesh.material.vertexColors)return true;
   if(mesh.geometry.index){
    const original=mesh.geometry;
    mesh.geometry=original.toNonIndexed();original.dispose();
@@ -109,6 +113,7 @@ export function installFjordEnhancements(api){
   mesh.material.color.set(0xffffff);mesh.material.vertexColors=true;mesh.material.needsUpdate=true;
   if(api.selected()===mesh)api.addSelectionTint(mesh);
   colors.needsUpdate=true;
+  mesh.userData.fjordPaintReadyGeometry=mesh.geometry;
   return true;
  }
  function setTriangle(mesh,index,color){
@@ -384,7 +389,9 @@ export function installFjordEnhancements(api){
   model.material.vertexColors=false;
   model.material.color.setHex(Number.isInteger(originalColor)?originalColor:0x5bc6eb);
   api.addSelectionTint(model);
-  model.material.needsUpdate=true;api.sync();
+  model.material.needsUpdate=true;
+  delete model.userData.fjordPaintReadyGeometry;
+  api.sync();
   notice('✓ Peinture de la pièce effacée. Annuler reste disponible.');
  });
  // Existing AMS palette selects the paint color instead of recoloring the whole object while painting.
@@ -419,7 +426,7 @@ export function installFjordEnhancements(api){
   }
   if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey)return false;
   const hit=hitPaint(e);
-  if(!hit){close();api.clearSelectionOnBlank();e.preventDefault();e.stopImmediatePropagation();return true;}
+  if(!hit){notice('Clique sur une surface pour peindre : le mode peinture reste actif.');e.preventDefault();e.stopImmediatePropagation();return true;}
   if(hit.object!==api.selected())api.pick(hit.object);
   api.remember();
   if(!drawHit(hit))return true;
@@ -491,7 +498,7 @@ export function installFjordEnhancements(api){
  }
  function restoreMesh(mesh,entry){
   const data=entry?.paintFaces;
-  if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).length>150000)return;
+  if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).length>500000)return;
   mesh.userData.fjordPaintFaces={};
   for(const [key,value] of Object.entries(data))
    if(/^\d{1,8}$/.test(key)&&validHex(value))mesh.userData.fjordPaintFaces[key]=value;
@@ -503,6 +510,7 @@ export function installFjordEnhancements(api){
   delete mesh.userData.fjordPaintFaces;delete mesh.userData.fjordPaintBase;
   mesh.geometry.deleteAttribute('color');
   mesh.material.vertexColors=false;mesh.material.needsUpdate=true;
+  delete mesh.userData.fjordPaintReadyGeometry;
  }
  function serializeMesh(mesh){
   return {
