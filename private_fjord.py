@@ -1406,8 +1406,8 @@ if(fjordAutoButton){
   if([size.x,size.y,size.z].some(n=>!Number.isFinite(n)||n<=0)||
      size.x>256||size.y>256||size.z>260)
    throw Error('La création dépasse le volume X2D indiqué (256 × 256 × 260 mm).');
-  if(!['PLA','PETG','ASA','TPU'].includes(material()))
-   throw Error('Choisis un matériau PLA, PETG, ASA ou TPU dans le tranchage de l’Atelier.');
+  if(!['PLA','PETG','PETG-CF','ASA','TPU'].includes(material()))
+   throw Error('Choisis un matériau PLA, PETG, PETG-CF, ASA ou TPU dans le tranchage de l’Atelier.');
  }
  async function prepare(){
   if(busy||!selectedValid())return;
@@ -1423,7 +1423,7 @@ if(fjordAutoButton){
    }
    const binary=new STLExporter().parse(group,{binary:true});
    const blob=new Blob([binary],{type:'application/octet-stream'});
-   if(blob.size>8*1024*1024)throw Error('STL trop volumineux (8 Mo).');
+   if(blob.size>20*1024*1024)throw Error('STL trop volumineux pour la X2D en ligne (20 Mo maximum).');
    const requestBody=new FormData();
    requestBody.append('csrf',__FJORD_CSRF__);
    requestBody.append('stl',blob,'Creation-du-Fjord.stl');
