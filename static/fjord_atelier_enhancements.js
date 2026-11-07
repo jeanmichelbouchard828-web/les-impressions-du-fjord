@@ -5,7 +5,7 @@ export function installFjordEnhancements(api){
  const {THREE,renderer,stage}=api;
  const $=id=>document.getElementById(id);
  const notice=(text)=>{const el=$('fjordPaintStatus');if(el)el.textContent=text;};
- let fontPromise=null,paintOn=false,paintTool='brush',paintHex='#f04c55',brushSize=7,strokePointer=null;
+ let fontPromise=null,paintOn=false,paintTool='brush',paintHex='#f04c55',brushSize=7,fillAngle=45,strokePointer=null;
  let cameraNavigate=false,paintPreviousRightButton=null,paintPreviousTwoTouch=null;
  // Touch painting waits for a tap or a clear one-finger drag. This prevents
  // a second finger arriving for pinch zoom from painting an accidental face.
@@ -155,11 +155,49 @@ export function installFjordEnhancements(api){
   for(let x=0;x<queue.length&&queue.length<max;x++){
    for(const j of neighbors[queue[x]])if(!seen.has(j)){
     seen.add(j);
-    if(faceNormal(mesh,j).dot(norm)>Math.cos(Math.PI/6))queue.push(j);
+    if(faceNormal(mesh,j).dot(norm)>Math.cos(THREE.MathUtils.degToRad(fillAngle)))queue.push(j);
    }
   }
   if(queue.length>=max)notice('Région limitée à 15 000 facettes pour protéger les performances.');
   return queue;
+ }
+ // Cache world-space face centres in a small spatial grid. This prevents
+ // full-mesh scans on each pointer movement for detailed Bambu 3MF models.
+ const paintSpatialCache=new WeakMap();
+ function brushFaceCandidates(mesh,hitPoint,radius){
+  const pos=mesh.geometry.getAttribute('position'),count=pos.count/3;
+  mesh.updateMatrixWorld(true);
+  const stamp=mesh.matrixWorld.elements.map(n=>n.toFixed(5)).join(',');
+  let cache=paintSpatialCache.get(mesh);
+  if(!cache||cache.geometry!==mesh.geometry||cache.matrix!==stamp){
+   const bins=new Map(),coords=new Float32Array(count*3),cell=8;
+   const v=new THREE.Vector3();
+   for(let i=0;i<count;i++){
+    let x=0,y=0,z=0;
+    for(let j=0;j<3;j++){
+     x+=pos.getX(i*3+j);y+=pos.getY(i*3+j);z+=pos.getZ(i*3+j);
+    }
+    v.set(x/3,y/3,z/3).applyMatrix4(mesh.matrixWorld);
+    coords[i*3]=v.x;coords[i*3+1]=v.y;coords[i*3+2]=v.z;
+    const key=Math.floor(v.x/cell)+','+Math.floor(v.y/cell)+','+Math.floor(v.z/cell);
+    let list=bins.get(key);if(!list){list=[];bins.set(key,list);}
+    list.push(i);
+   }
+   cache={geometry:mesh.geometry,matrix:stamp,coords,bins,cell};
+   paintSpatialCache.set(mesh,cache);
+  }
+  const {bins,coords,cell}=cache,selected=[],radiusSq=radius*radius;
+  const xmin=Math.floor((hitPoint.x-radius)/cell),xmax=Math.floor((hitPoint.x+radius)/cell);
+  const ymin=Math.floor((hitPoint.y-radius)/cell),ymax=Math.floor((hitPoint.y+radius)/cell);
+  const zmin=Math.floor((hitPoint.z-radius)/cell),zmax=Math.floor((hitPoint.z+radius)/cell);
+  for(let x=xmin;x<=xmax;x++)for(let y=ymin;y<=ymax;y++)for(let z=zmin;z<=zmax;z++){
+   const entries=bins.get(x+','+y+','+z);if(!entries)continue;
+   for(const i of entries){
+    const k=i*3,dx=coords[k]-hitPoint.x,dy=coords[k+1]-hitPoint.y,dz=coords[k+2]-hitPoint.z;
+    if(dx*dx+dy*dy+dz*dz<=radiusSq)selected.push(i);
+   }
+  }
+  return selected;
  }
  function hitPaint(e){
   const hit=api.findHit(e);
@@ -173,23 +211,28 @@ export function installFjordEnhancements(api){
   const count=mesh.geometry.getAttribute('position').count/3,seed=hit.faceIndex;
   if(!Number.isInteger(seed)||seed<0||seed>=count)return false;
   const color=paintTool==='eraser'?'#'+mesh.userData.fjordPaintBase.toString(16).padStart(6,'0'):paintHex;
+  if(paintTool==='pipette'){
+   const sample=mesh.userData.fjordPaintFaces?.[seed]||'#'+mesh.userData.fjordPaintBase.toString(16).padStart(6,'0');
+   chooseColor(sample);
+   notice('✓ Pipette : '+paintHex+' sélectionnée. Choisis Pinceau pour peindre.');
+   return true;
+  }
   let targets;
   if(paintTool==='triangle')targets=[seed];
   else if(paintTool==='fill')targets=regionFaces(mesh,seed);
   else {
    // Brush/eraser: local painting. Sphere: nearby faces through the mesh.
    // Height: a complete horizontal Z band through this object, like a layer painting tool.
-   const center=hit.point,normal=faceNormal(mesh,seed);
-   const radius=brushSize;
+   const center=hit.point,normal=faceNormal(mesh,seed),radius=Math.max(.5,brushSize/2);
    targets=[];
-   if(count>120000){targets=[seed];notice('Pièce très détaillée : utilise le mode facette pour conserver la fluidité.');}
-   else for(let i=0;i<count;i++){
-    const position=faceCenter(mesh,i);
-    const selected=paintTool==='height'
-      ? Math.abs(position.z-center.z)<=radius/2
-      : position.distanceToSquared(center)<=radius*radius &&
-        (paintTool==='sphere'||faceNormal(mesh,i).dot(normal)>.65);
-    if(selected)targets.push(i);
+   if(paintTool==='height'){
+    // Layer-height brush runs across the whole model at the selected Z.
+    for(let i=0;i<count;i++)if(Math.abs(faceCenter(mesh,i).z-center.z)<=radius)targets.push(i);
+   }else{
+    const candidates=brushFaceCandidates(mesh,center,radius);
+    const threshold=Math.cos(THREE.MathUtils.degToRad(fillAngle));
+    for(const i of candidates)if(paintTool==='sphere'||faceNormal(mesh,i).dot(normal)>=threshold)targets.push(i);
+    if(!targets.length)targets=[seed];
    }
   }
   for(const i of targets)setTriangle(mesh,i,color);
@@ -206,7 +249,7 @@ export function installFjordEnhancements(api){
   });
  }
  function paintToolChoose(value){
-  if(!['brush','sphere','triangle','fill','height','eraser'].includes(value))return;
+  if(!['brush','sphere','triangle','fill','height','eraser','pipette'].includes(value))return;
   paintTool=value;
   document.querySelectorAll('[data-fjord-paint-tool]').forEach(b=>{
    const active=b.dataset.fjordPaintTool===paintTool;b.classList.toggle('active',active);
@@ -375,6 +418,10 @@ export function installFjordEnhancements(api){
  $('fjordPaintColor')?.addEventListener('input',event=>chooseColor(event.target.value));
  $('fjordPaintSize')?.addEventListener('input',event=>{
   brushSize=Number(event.target.value)||7;$('fjordPaintSizeLabel').textContent=brushSize+' mm';
+ });
+ $('fjordPaintAngle')?.addEventListener('input',event=>{
+  fillAngle=Number(event.target.value)||45;
+  $('fjordPaintAngleLabel').textContent=fillAngle+'°';
  });
  $('fjordPaintEraseAll')?.addEventListener('click',()=>{
   const model=api.selected();
