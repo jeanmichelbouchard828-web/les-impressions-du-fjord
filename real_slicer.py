@@ -18,7 +18,7 @@ TOOL = shutil.which("prusa-slicer")
 ARG = re.compile(r"([XYZEFS])([-+]?(?:\d+\.?\d*|\.\d+))")
 FLOAT = r"([-+]?(?:\d+\.?\d*|\.\d+))"
 MAX_SAMPLES = 80000
-MAX_UPLOAD = 8 * 1024 * 1024
+MAX_UPLOAD = 20 * 1024 * 1024
 
 
 def parse_gcode(filename, density):
@@ -171,7 +171,7 @@ def slice_real():
         return jsonify(error="Hauteur de couche non prise en charge."), 400
     blob = file.read(MAX_UPLOAD + 1)
     if len(blob) < 84 or len(blob) > MAX_UPLOAD:
-        return jsonify(error="STL vide ou supérieur à 8 Mo."), 413
+        return jsonify(error="STL vide ou supérieur à 20 Mo."), 413
     # Generic preview only. Never expose this G-code as printable X2D machine code.
     with tempfile.TemporaryDirectory(prefix="fjord_slicer_") as tmp:
         model = os.path.join(tmp, "model.stl")
