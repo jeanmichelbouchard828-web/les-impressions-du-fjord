@@ -13,7 +13,7 @@ import tempfile
 from flask import Blueprint, jsonify, request
 
 slicer_bp = Blueprint("real_slicer", __name__)
-DENSITIES = {"PLA": 1.24, "PETG": 1.27, "ASA": 1.07, "TPU": 1.20}
+DENSITIES = {"PLA": 1.24, "PETG": 1.27, "PETG-CF": 1.30, "ASA": 1.07, "TPU": 1.20}
 TOOL = shutil.which("prusa-slicer")
 ARG = re.compile(r"([XYZEFS])([-+]?(?:\d+\.?\d*|\.\d+))")
 FLOAT = r"([-+]?(?:\d+\.?\d*|\.\d+))"
@@ -184,10 +184,10 @@ def slice_real():
                    "--first-layer-height", str(height), "--nozzle-diameter", "0.4",
                    "--filament-diameter", "1.75", "--fill-density", "18%",
                    "--perimeters", "3", "--gcode-flavor", "marlin",
-                   "--temperature", str({"PLA": 210, "PETG": 230, "ASA": 250, "TPU": 220}[material]),
-                   "--first-layer-temperature", str({"PLA": 210, "PETG": 230, "ASA": 250, "TPU": 220}[material]),
-                   "--bed-temperature", str({"PLA": 60, "PETG": 75, "ASA": 100, "TPU": 50}[material]),
-                   "--first-layer-bed-temperature", str({"PLA": 60, "PETG": 75, "ASA": 100, "TPU": 50}[material]),
+                   "--temperature", str({"PLA": 210, "PETG": 230, "PETG-CF": 230, "ASA": 250, "TPU": 220}[material]),
+                   "--first-layer-temperature", str({"PLA": 210, "PETG": 230, "PETG-CF": 230, "ASA": 250, "TPU": 220}[material]),
+                   "--bed-temperature", str({"PLA": 60, "PETG": 75, "PETG-CF": 75, "ASA": 100, "TPU": 50}[material]),
+                   "--first-layer-bed-temperature", str({"PLA": 60, "PETG": 75, "PETG-CF": 75, "ASA": 100, "TPU": 50}[material]),
                    model]
         try:
             run = subprocess.run(command, capture_output=True, text=True, timeout=115,
