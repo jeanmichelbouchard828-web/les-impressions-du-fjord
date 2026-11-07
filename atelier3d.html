@@ -1389,8 +1389,10 @@ body.light .fjord-menu-options{background:#fff}
 <button type="button" data-fjord-paint-tool="fill" aria-pressed="false">▧ Remplir</button>
 <button type="button" data-fjord-paint-tool="height" aria-pressed="false">↕ Hauteur</button>
 <button type="button" data-fjord-paint-tool="eraser" aria-pressed="false">⌫ Gomme</button>
+ <button type="button" data-fjord-paint-tool="pipette" aria-pressed="false">♧ Pipette</button>
 </div>
 <div class="fjord-paint-field"><label for="fjordPaintSize">Diamètre du pinceau : <strong id="fjordPaintSizeLabel">7 mm</strong></label><input type="range" id="fjordPaintSize" min="1" max="40" step="1" value="7"></div>
+ <div class="fjord-paint-field"><label for="fjordPaintAngle">Angle de la surface (Pinceau / Remplir) : <strong id="fjordPaintAngleLabel">45°</strong></label><input type="range" id="fjordPaintAngle" min="5" max="90" step="5" value="45"></div>
 <div class="fjord-paint-field">
 <div class="fjord-paint-palette-header"><strong>🧵 Couleurs de tes bobines AMS</strong><button type="button" id="fjordPaintRefreshAms" title="Actualiser les couleurs AMS">↻</button></div>
 <div id="fjordPaintAmsPalette" class="fjord-paint-ams-palette" role="group" aria-label="Bobines AMS pour la peinture"></div>
@@ -3257,7 +3259,13 @@ async function importModelFile(file, displayName){
      }
    }
    pick(last);say('imported');
-   if(paintedCount)status.textContent='✓ 3MF avec couleurs des faces : '+paintedCount+' pièce(s). La peinture Bambu subdivisée peut être approximative dans l’aperçu.';
+   if(ext==='3mf'){
+     const uniqueColors=new Set(geometries.map(p=>p.color));
+     const colorCount=uniqueColors.size+paintedCount;
+     if(paintedCount)status.textContent='✓ 3MF multicolore : '+paintedCount+' pièce(s) avec faces colorées. Peinture subdivisée Bambu affichée approximativement.';
+     else if(colorCount>1)status.textContent='✓ 3MF : '+uniqueColors.size+' couleurs de pièces détectées.';
+     else status.textContent='ℹ 3MF importé, mais une seule couleur détectée. Vérifie que le 3MF original contient bien les filaments/peintures et non uniquement le modèle.';
+   }
    return geometries.length;
  }catch(error){
    geometries.forEach(p=>p.g.dispose());
