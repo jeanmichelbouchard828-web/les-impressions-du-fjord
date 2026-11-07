@@ -15,6 +15,8 @@ import secrets
 import time
 import zipfile
 
+from bambu_auto import prepare_connect_archive, AutoSliceError
+
 from flask import abort, jsonify, redirect, request, send_file, session
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{20,48}$")
@@ -58,6 +60,7 @@ def store_file(db, job_id, file_path, file_name, material, raw):
         raise ValueError("Identifiant de transfert invalide.")
     if not isinstance(raw, bytes) or not (100 <= len(raw) <= _MAX_3MF):
         raise ValueError("Le 3MF dépasse la taille autorisée.")
+    raw = prepare_connect_archive(raw)
     safe_name = re.sub(r"[^A-Za-z0-9_. -]", "_", str(file_name or "piece.3mf"))[:120]
     if not safe_name.lower().endswith(".gcode.3mf"):
         if safe_name.lower().endswith(".3mf"):
@@ -283,7 +286,11 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
                                (job_id,)).fetchone()
         if not job or job["state"] not in ("claimed", "queued"):
             abort(404)
-        response = send_file(io.BytesIO(bytes(job["file_data"])), as_attachment=True,
+        try:
+            prepared = prepare_connect_archive(bytes(job["file_data"]))
+        except AutoSliceError as exc:
+            return jsonify(ok=False, error=str(exc)), 422
+        response = send_file(io.BytesIO(prepared), as_attachment=True,
                              download_name=job["file_name"], mimetype="model/3mf", max_age=0)
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -300,4 +307,5 @@ def register_bridge(app, db, admin_required, verify, csrfinput, page):
         if not row:
             abort(409)
         return jsonify(ok=True)
+
 
