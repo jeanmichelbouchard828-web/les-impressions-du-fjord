@@ -10,7 +10,7 @@ import urllib.request
 import urllib.error
 from decimal import Decimal, ROUND_HALF_UP
 from flask import request, abort, redirect, jsonify, make_response
-from private_fjord import _quote_amounts
+from private_fjord import _quote_amounts, _quote_acceptance_digest
 
 TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{40,90}$")
 
@@ -30,8 +30,12 @@ def register_stripe_payments(app, db):
             return "Paiement par carte temporairement indisponible.", 503
         with db() as c:
             q = c.execute("SELECT * FROM private_quotes WHERE payment_token=%s", (token,)).fetchone()
+            accepted = c.execute("SELECT quote_hash FROM fjord_quote_acceptances WHERE quote_id=%s",
+                                 (q["id"],)).fetchone() if q else None
         if not q:
             abort(404)
+        if not accepted or accepted["quote_hash"] != _quote_acceptance_digest(q):
+            return redirect("/accepter-soumission/" + token)
         if q["payment_status"] == "Payée":
             return "Cette soumission est déjà payée.", 409
         amount = int((Decimal(str(_quote_amounts(q)[3])) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))

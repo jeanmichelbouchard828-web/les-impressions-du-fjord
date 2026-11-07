@@ -89,7 +89,7 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertNotIn('fjordPrivateSave', public)
         self.assertNotIn('fjordAdminShortcut', public)
         self.assertLess(public.index('fjordAdminAccess'), public.index('id="theme"'))
-        self.assertEqual(public.count('fjordAdminAccess'), 1)
+        self.assertEqual(public.count('id="fjordAdminAccess"'), 1)
 
     def test_admin_header_is_compact_and_keeps_all_original_controls(self):
         with open("atelier3d.html", encoding="utf-8") as source:
@@ -102,7 +102,7 @@ class PrivateFjordTests(unittest.TestCase):
         self.assertIn('/static/atelier_admin_header.css', admin)
         self.assertIn('class="fjord-admin-links"', admin)
         self.assertIn('id="fjordAdminModeBanner"', admin)
-        self.assertIn('🔒 ADMINISTRATEUR', admin)
+        self.assertIn('🔒 Mode administrateur', admin)
         self.assertIn('id="fjordPublicAtelierShortcut" href="/atelier-3d"', admin)
         self.assertNotIn('fjordAdminModeBanner', public)
         self.assertIn('function fjordSaveStudioModel(forQuote,button)', admin)

@@ -1,0 +1,34 @@
+name: Render Fjord lightweight smoke
+on:
+  pull_request:
+    paths:
+      - "Dockerfile.render-lite"
+      - "fjord_preview_guard.py"
+      - "app.py"
+      - "render.yaml"
+      - ".github/workflows/render-lite.yml"
+  push:
+    branches:
+      - migration/render-fjord-20261104
+jobs:
+  render-lite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build lightweight Render container (no slicers)
+        run: docker build --tag fjord-render-lite-ci --file Dockerfile.render-lite .
+      - name: Reject production Railway database BEFORE startup
+        shell: bash
+        run: |
+          set +e
+          docker run --rm -e FJORD_PREVIEW_MODE=1 \
+            -e DATABASE_URL=postgresql://tester:dummy@proxy.rlwy.net/railway \
+            fjord-render-lite-ci python -c "import app" > startup.log 2>&1
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "FAIL: preview incorrectly booted with Railway database"
+            exit 1
+          fi
+          grep -F "PREVIEW REFUSED: isolated Render PostgreSQL required." startup.log
+          echo "PASS: Railway database refused without any database migration"

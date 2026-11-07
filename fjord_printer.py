@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from flask import abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, send_file, session, url_for
+from flask import Response, abort, flash, get_flashed_messages, jsonify, redirect, render_template_string, request, send_file, session, url_for
 
 MAX_SLICED_3MF = 30 * 1024 * 1024
 MAX_ZIP_ENTRIES = 2500
@@ -35,13 +35,13 @@ def _connection():
         parsed = urllib.parse.urlsplit(base)
         hostname, port, username, password = parsed.hostname, parsed.port, parsed.username, parsed.password
     except ValueError as exc:
-        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Railway.") from exc
+        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Render.") from exc
     if (parsed.scheme != "https" or not hostname or
         not hostname.endswith(".octoeverywhere.com") or
         hostname == ".octoeverywhere.com" or
         username or password or port is not None or
         parsed.path not in ("", "/") or parsed.query or parsed.fragment):
-        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Railway.")
+        raise PrinterError("Connexion OctoEverywhere non configurée ou invalide dans Render.")
     return base
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -299,12 +299,12 @@ def verify_sliced_bambu_3mf(raw):
             names = [name.replace("\\", "/") for name in archive.namelist()]
             if any(name.startswith("/") or ".." in name.split("/") for name in names):
                 raise PrinterError("Chemin dangereux détecté dans le fichier 3MF.")
-            if "3D/3dmodel.model" not in names:
-                raise PrinterError("Projet 3MF non reconnu : géométrie absente.")
+            # BambuStudio --min-save outputs a valid sliced package without
+            # model geometry; the native plate G-code is the required payload.
             plates = [int(m.group(1)) for n in names
                       if (m := re.fullmatch(r"Metadata/plate_(\d{1,3})\.gcode", n))]
             if not plates:
-                raise PrinterError("Ce 3MF contient un modèle, mais aucune plaque tranchée Bambu. Ouvre-le dans Bambu Studio et fais « Trancher » avant l'envoi.")
+                raise PrinterError("Ce 3MF ne contient aucune plaque Bambu tranchée. Ouvre-le dans Bambu Studio, fais « Trancher », puis exporte le fichier tranché.")
             if 1 not in plates:
                 raise PrinterError("Le fichier n'a pas de plaque 1 tranchée.")
             plate = archive.getinfo("Metadata/plate_1.gcode")
@@ -320,6 +320,11 @@ def _status():
     features = result.get("Features")
     features = features if type(features) is int else 0
     state = str(job.get("State") or "inconnu").lower()
+    error = str(job.get("Error") or "")[:160]
+    # Bambu firmware reports a user-cancelled task as an error. Treat only this
+    # exact cancellation message as idle-ready; other printer errors stay blocked.
+    if state == "error" and error.strip().casefold() == "error: the task was canceled.":
+        state = "cancelled"
     current = job.get("CurrentPrint") or {}
     def bounded_number(value, maximum):
         return (value if type(value) in (int, float) and math.isfinite(value) and
@@ -329,7 +334,7 @@ def _status():
     return {"state":state, "progress":progress,
             "file":str(current.get("FileName") or "")[:120],
             "substate":str(job.get("SubState") or "")[:120],
-            "error":str(job.get("Error") or "")[:160],
+            "error":error,
             "time_left_sec":bounded_number(current.get("TimeLeftSec"), 31_536_000),
             "elapsed_sec":bounded_number(current.get("DurationSec"), 31_536_000),
             "hotend_actual":bounded_number(temps.get("HotendActual"), 500),
@@ -356,6 +361,10 @@ def _atelier_remote_start_outcome(status, previous, age):
     reported = str(status.get("file") or "").lower()
     matches = bool(reported and (expected in reported or expected[:-4] in reported))
     state = str(status.get("state") or "").lower()
+    # Bambu Connect handoff waits for an explicit confirmation in the desktop app.
+    # An unrelated old printer error is not evidence that this handoff failed.
+    if previous.get("start_ack") == "bambu_connect_handoff" and not matches:
+        return "handoff_pending"
     if matches and state in ("printing", "warmingup", "resuming", "paused"):
         return "active"
     if age < 20:
@@ -447,6 +456,73 @@ def _verify_native_start_reply(reply):
 
 
 def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None):
+    # Private, read-only camera snapshots proxied through the server so printer
+    # credentials never reach the browser. OctoEverywhere supports Bambu webcams.
+    def webcam_snapshot():
+        base = _connection()
+        headers = {"Accept": "image/jpeg", "User-Agent": "Fjord-Atelier-Admin/1"}
+        bearer = os.environ.get("OCTOEVERYWHERE_AUTH_BEARER_TOKEN", "").strip()
+        basic_user = os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_USER", "").strip()
+        basic_pass = os.environ.get("OCTOEVERYWHERE_AUTH_BASIC_PASSWORD", "")
+        if bearer:
+            headers["Authorization"] = "Bearer " + bearer
+        elif basic_user and basic_pass:
+            credentials = (basic_user + ":" + basic_pass).encode("utf-8")
+            headers["Authorization"] = "Basic " + base64.b64encode(credentials).decode("ascii")
+        req = urllib.request.Request(
+            base + "/octoeverywhere-command-api/webcam/snapshot",
+            headers=headers, method="GET")
+        try:
+            with urllib.request.build_opener(_NoRedirect).open(req, timeout=12) as resp:
+                content_type = resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                if content_type != "image/jpeg":
+                    raise PrinterError("La caméra n'a pas retourné d'image JPEG.")
+                image = resp.read(5 * 1024 * 1024 + 1)
+        except PrinterError:
+            raise
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise PrinterError("La caméra X2D ne répond pas par OctoEverywhere.") from exc
+        if not image or len(image) > 5 * 1024 * 1024:
+            raise PrinterError("L'image de la caméra est vide ou trop volumineuse.")
+        return image
+
+    @app.get("/admin/imprimante-camera")
+    @admin_required
+    def admin_printer_camera():
+        return page("Caméra X2D", """
+        <section class="card" style="max-width:1000px;margin:auto">
+          <p><a href="/admin">← Retour à l’administration</a></p>
+          <h1>📷 Caméra de l’imprimante X2D</h1>
+          <p>Vue à distance via OctoEverywhere. L’image se rafraîchit automatiquement environ toutes les 2 secondes.</p>
+          <div id="fjord-camera-status" role="status" style="padding:10px;border-radius:10px;background:#263746;margin:12px 0">Connexion à la caméra…</div>
+          <div style="background:#05090d;border-radius:12px;overflow:hidden;text-align:center;min-height:240px;display:grid;place-items:center">
+            <img id="fjord-camera-image" src="/admin/imprimante-camera/snapshot" alt="Vue en direct de l’imprimante X2D" style="display:block;width:100%;height:auto;max-height:75vh;object-fit:contain">
+          </div>
+          <p style="opacity:.8">Si l’image reste noire ou ne se charge pas, vérifie que le PC/pont OctoEverywhere et la caméra de la X2D sont en ligne.</p>
+        </section>
+        <script>
+        (() => {
+          const img = document.getElementById("fjord-camera-image");
+          const status = document.getElementById("fjord-camera-status");
+          const update = () => { img.src = "/admin/imprimante-camera/snapshot?t=" + Date.now(); };
+          img.onload = () => { status.textContent = "✅ Caméra connectée · actualisation automatique"; status.style.background = "#14513e"; };
+          img.onerror = () => { status.textContent = "⚠️ Image indisponible · nouvelle tentative automatique"; status.style.background = "#6a3b26"; };
+          window.setInterval(update, 2200);
+        })();
+        </script>
+        """)
+
+    @app.get("/admin/imprimante-camera/snapshot")
+    @admin_required
+    def admin_printer_camera_snapshot():
+        try:
+            image = webcam_snapshot()
+        except PrinterError as exc:
+            return Response(str(exc), status=503, content_type="text/plain; charset=utf-8",
+                            headers={"Cache-Control": "no-store"})
+        return Response(image, status=200, content_type="image/jpeg",
+                        headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
+
     # The schema lives with the normal app migrations in app.py.
     # Admin-only start metadata is shared, but never the one-use nonce.
 
@@ -550,7 +626,7 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None
             "engine_ready": bool(cli_location()),
             "profiles": available_presets(),
             "message": ("Bambu Studio disponible" if cli_location() else
-                        "Moteur Bambu Studio à installer et valider sur Railway"),
+                        "Moteur Bambu Studio à installer et valider sur Render"),
         })
         response.headers["Cache-Control"] = "no-store"
         return response
@@ -728,6 +804,8 @@ body.light .fj-print-hint{color:#496477!important}
       <a href="/admin/atelier-3d">← Retour à l’Atelier</a>
       <a href="/admin/profils-bambu">⚙️ Mes profils Bambu</a>
       <a href="/api/admin/atelier/impression-diagnostic" target="_blank" rel="noopener">🔎 Diagnostic X2D</a>
+      <a href="/admin/atelier-pont">🔗 Pont Bambu Connect</a>
+      <a href="/admin/imprimante-camera">📷 Caméra X2D en direct</a>
     </nav>
   </section>
 
@@ -738,7 +816,7 @@ body.light .fj-print-hint{color:#496477!important}
     {% if auto_engine_ready %}
       <div class="fj-print-notice" role="status">Bambu Studio disponible pour préparer tes modèles.</div>
     {% else %}
-      <div class="fj-print-notice error" role="status">Moteur Bambu Studio absent sur ce déploiement Railway : tranchage automatique désactivé jusqu’à son installation et à la validation de profils complets. Tu peux toujours envoyer un 3MF déjà tranché.</div>
+      <div class="fj-print-notice error" role="status">Moteur Bambu Studio absent sur ce déploiement Render : tranchage automatique désactivé jusqu’à son installation et à la validation de profils complets. Tu peux toujours envoyer un 3MF déjà tranché.</div>
     {% endif %}
     <a class="fj-print-refresh" style="display:inline-block;margin-top:12px" href="/admin/atelier-3d">Ouvrir l’Atelier 3D</a>
   </section>
@@ -776,6 +854,12 @@ body.light .fj-print-hint{color:#496477!important}
           <p>La connexion doit être disponible pour transférer ou démarrer un fichier.</p>
         {% endif %}
       </div>
+      <div id="fjordStartMonitor" hidden role="status" aria-live="polite" style="grid-column:1/-1;padding:13px 15px;border:1px solid #4b8caa;border-radius:11px;background:#163a4b;color:#e9f8ff;line-height:1.5">
+        <strong id="fjordStartMonitorTitle">Vérification du démarrage</strong>
+        <p id="fjordStartMonitorMessage" style="margin:5px 0 0;color:inherit"></p>
+        <progress id="fjordStartMonitorProgress" max="100" value="0" hidden style="width:100%;max-width:none;height:10px;accent-color:#49bda2"></progress>
+        <small id="fjordStartMonitorDetails" style="display:block;margin-top:5px"></small>
+      </div>
       <a class="fj-print-refresh" href="/admin/atelier-imprimer">↻ Actualiser</a>
     </section>
 
@@ -792,6 +876,10 @@ body.light .fj-print-hint{color:#496477!important}
             <input id="fjordPrintUpload" type="file" name="sliced_file" accept=".3mf" required>
           </label>
           <div id="fjordPrintFileName" class="fj-print-chip" role="status">Aucun fichier sélectionné</div>
+          <div id="fjordUploadProgress" hidden aria-live="polite" style="display:grid;gap:7px">
+            <progress max="100" value="0" style="width:100%;height:12px;accent-color:#49bda2"></progress>
+            <div id="fjordUploadStatus" class="fj-print-notice" role="status" style="margin:0">Prêt à envoyer.</div>
+          </div>
           <button type="submit" {% if not status %}disabled{% endif %}>📤 Envoyer à la X2D</button>
         </form>
         <p class="fj-print-hint">Maximum 30 Mo. L’envoi ne déclenche jamais automatiquement l’impression.</p>
@@ -846,7 +934,7 @@ body.light .fj-print-hint{color:#496477!important}
       {% else %}
       <div class="fj-print-empty">Aucun fichier 3MF trouvé sur l’imprimante, ou impossible de consulter sa bibliothèque. Envoie un fichier compatible, puis clique sur « Actualiser ».</div>
       {% endif %}
-      <p class="fj-print-hint">OctoEverywhere doit accepter la commande. Une confirmation d’envoi ne garantit pas que la première couche a commencé.</p>
+      <p class="fj-print-hint">Si le pont Windows est connecté, le fichier sera remis à Bambu Connect : confirme l’imprimante et le lancement dans l’application. Sinon, le site utilisera le relais OctoEverywhere. Dans les deux cas, vérifie l’état réel de la X2D.</p>
     </section>
   </div>
   <p class="fj-print-bottom">Important : les profils sauvegardés dans l’Atelier ne sont pas encore un moteur de tranchage Bambu. L’impression directe d’un modèle créé dans l’Atelier nécessitera une intégration de tranchage compatible et vérifiée.</p>
@@ -855,12 +943,103 @@ body.light .fj-print-hint{color:#496477!important}
 (function(){
  const upload=document.getElementById('fjordPrintUpload');
  const label=document.getElementById('fjordPrintFileName');
+ const form=upload?.form,progressBox=document.getElementById('fjordUploadProgress');
+ const progress=progressBox?.querySelector('progress'),status=document.getElementById('fjordUploadStatus');
+ const submit=form?.querySelector('button[type="submit"]');
  if(upload && label){
    upload.addEventListener('change',()=>{
      const file=upload.files && upload.files[0];
-     label.textContent=file ? file.name : 'Aucun fichier sélectionné';
+     label.textContent=file ? file.name+' · '+(file.size/1048576).toFixed(1)+' Mo' : 'Aucun fichier sélectionné';
    });
  }
+ if(!form||!upload||!progressBox||!progress||!status)return;
+ form.addEventListener('submit',event=>{
+   event.preventDefault();
+   if(!upload.files?.length)return;
+   progressBox.hidden=false;progress.value=0;status.classList.remove('error');
+   status.textContent='Envoi du fichier au site : 0 %';
+   if(submit){submit.disabled=true;submit.textContent='⏳ Envoi en cours…'}
+   const xhr=new XMLHttpRequest();xhr.open('POST',form.action,true);
+   xhr.setRequestHeader('Accept','application/json');
+   xhr.upload.addEventListener('progress',event=>{
+     if(!event.lengthComputable)return;
+     const percent=Math.min(100,Math.round(event.loaded/event.total*100));
+     progress.value=percent;
+     status.textContent=percent<100?'Envoi du fichier au site : '+percent+' %':'Fichier reçu. Vérification du 3MF et transfert vers la X2D en cours…';
+   });
+   xhr.addEventListener('load',()=>{
+     let result={};try{result=JSON.parse(xhr.responseText||'{}')}catch(_){}
+     if(xhr.status>=200&&xhr.status<300&&result.ok&&result.next){
+       progress.value=100;status.textContent='✓ Fichier transféré. Ouverture de l’écran de confirmation…';
+       window.location.assign(result.next);return;
+     }
+     status.classList.add('error');
+     status.textContent=result.error||'Le transfert a échoué (HTTP '+xhr.status+'). Aucun démarrage n’a été confirmé.';
+     if(submit){submit.disabled=false;submit.textContent='↻ Réessayer l’envoi'}
+   });
+   xhr.addEventListener('error',()=>{
+     status.classList.add('error');status.textContent='Connexion interrompue. Actualise l’état de la X2D avant de réessayer.';
+     if(submit){submit.disabled=false;submit.textContent='↻ Réessayer l’envoi'}
+   });
+   xhr.addEventListener('timeout',()=>{
+     status.classList.add('error');status.textContent='Le délai d’envoi est dépassé. Actualise l’état de la X2D avant de réessayer.';
+     if(submit){submit.disabled=false;submit.textContent='↻ Réessayer l’envoi'}
+   });
+   xhr.timeout=120000;xhr.send(new FormData(form));
+ });
+})();
+</script>
+<script>
+(() => {
+ const box=document.getElementById('fjordStartMonitor');
+ const title=document.getElementById('fjordStartMonitorTitle');
+ const message=document.getElementById('fjordStartMonitorMessage');
+ const details=document.getElementById('fjordStartMonitorDetails');
+ const bar=document.getElementById('fjordStartMonitorProgress');
+ if(!box||!title||!message||!details||!bar)return;
+ let busy=false,stopped=false;
+ const labels={
+  handoff_pending:['En attente de Bambu Connect','Le fichier a été remis au PC, mais la X2D ne confirme pas encore son démarrage. Dans Bambu Connect, termine l’importation, sélectionne la X2D et confirme l’impression.'],
+  pending:['Vérification du départ en cours','La commande a été envoyée. Le démarrage réel n’est pas encore confirmé par la X2D.'],
+  active:['Impression confirmée sur la X2D','La X2D signale maintenant ce fichier comme tâche active.'],
+  instant_finish:['Départ non confirmé','La X2D affiche la tâche comme terminée sans durée, couche ni chauffe suffisante. Le démarrage n’est pas confirmé.'],
+  unverified_finish:['État final à vérifier','La tâche n’est plus active, mais les données de la X2D ne permettent pas de confirmer clairement le résultat.'],
+  printer_error:['Erreur signalée par la X2D','La X2D signale une erreur. Consulte son écran avant de renvoyer une commande.'],
+  not_started:['Impression non démarrée','Aucun démarrage correspondant n’a été observé sur la X2D.'],
+  none:['Aucun nouveau départ à vérifier','Aucune commande récente n’est en cours de vérification.']
+ };
+ const stop=()=>{stopped=true};
+ async function refresh(){
+  if(busy||stopped)return;
+  busy=true;
+  try{
+   const response=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{cache:'no-store',credentials:'same-origin'});
+   if(!response.ok)throw new Error('État indisponible');
+   const data=await response.json();
+   const age=Number(data.start_command_age_sec);
+   if(!data.ok||!data.shared_job||!Number.isFinite(age)||age>600){
+    box.hidden=true;stop();return;
+   }
+   box.hidden=false;
+   const outcome=data.start_outcome||'pending';
+   const copy=labels[outcome]||labels.pending;
+   title.textContent=copy[0];message.textContent=copy[1];
+   const file=String(data.shared_job.file||'').split('/').pop();
+   const progress=data.progress;
+   bar.hidden=outcome!=='active'||typeof progress!=='number'||!Number.isFinite(progress);
+   if(!bar.hidden)bar.value=Math.max(0,Math.min(100,progress));
+   const layer=Number.isFinite(Number(data.current_layer))&&Number(data.current_layer)>0
+    ?' · Couche '+data.current_layer+(Number(data.total_layers)>0?' / '+data.total_layers:''):'';
+   details.textContent=(file?'Fichier : '+file:'')+(outcome==='active'&&Number.isFinite(progress)?' · '+Math.round(progress)+' %':'')+layer;
+   if(outcome==='printer_error'&&data.printer_error)details.textContent+=' · '+String(data.printer_error).slice(0,180);
+  }catch(error){
+   box.hidden=false;title.textContent='État en direct indisponible';
+   message.textContent='Je n’ai pas pu relire la X2D. Clique sur « Actualiser » pour vérifier à nouveau.';
+  }finally{busy=false}
+ }
+ refresh();
+ const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refresh()},8000);
+ window.setTimeout(()=>{window.clearInterval(timer)},600000);
 })();
 </script>
 """,csrf_field=csrfinput(),nonce=token,status=status,files=files,error=error,
@@ -877,7 +1056,7 @@ body.light .fj-print-hint{color:#496477!important}
         verify()
         try:
             if not cli_location():
-                raise AutoSliceError("Moteur Bambu Studio absent sur Railway. Aucun fichier envoyé.")
+                raise AutoSliceError("Moteur Bambu Studio absent sur Render. Aucun fichier envoyé.")
             upload = request.files.get("stl")
             if upload is None or not str(upload.filename or "").lower().endswith(".stl"):
                 raise AutoSliceError("Fichier STL invalide.")
@@ -989,6 +1168,18 @@ body.light .fj-print-hint{color:#496477!important}
                 raise PrinterError("X2D occupée ou indisponible : aucune transmission.")
             virtual_path = "gcode/fjord_auto_" + secrets.token_hex(6) + ".3mf"
             _upload(virtual_path, staged)
+            bridge_job_id = ""
+            if db is not None:
+                bridge_job_id = secrets.token_urlsafe(24)
+                try:
+                    from fjord_bambu_connect import store_file
+                    store_file(db, bridge_job_id, virtual_path,
+                               virtual_path.rsplit("/", 1)[-1],
+                               str(request.form.get("material", "")).strip().upper()[:32],
+                               staged)
+                except Exception as exc:
+                    app.logger.exception("Préparation du pont Bambu Connect indisponible.")
+                    raise PrinterError("Le 3MF est transféré, mais le pont Bambu Connect n'a pas pu préparer le fichier. Vérifie le pont puis réessaie.") from exc
             session.pop("fjord_last_upload_diagnostic", None)
             consume_staged(token)
             # Trust only the exact uploaded path returned by the printer.
@@ -996,7 +1187,8 @@ body.light .fj-print-hint{color:#496477!important}
             start_nonce = secrets.token_urlsafe(32)
             session["fjord_atelier_start"] = {
                 "path": virtual_path, "nonce": start_nonce, "time": time.time(),
-                "material": str(request.form.get("material", "")).strip().upper()[:32]
+                "material": str(request.form.get("material", "")).strip().upper()[:32],
+                "bridge_job_id": bridge_job_id
             }
             message = "3MF tranché envoyé. Vérifie les matériaux et le plateau avant le démarrage."
             next_page = url_for("fjord_printer_page", selected=virtual_path)
@@ -1127,6 +1319,12 @@ body.light .fj-print-hint{color:#496477!important}
                     " La commande a obtenu une réponse 200 du relais, mais aucune "
                     "confirmation native de démarrage n'a été transmise."
                 )
+            elif acknowledgement == "bambu_connect_handoff":
+                diagnosis += (
+                    " Le 3MF a été remis au pont Windows. Confirme son envoi dans "
+                    "Bambu Connect. L'état d'une ancienne tâche X2D ne permet pas "
+                    "de conclure que ce nouveau fichier a échoué."
+                )
             elif acknowledgement == "native_ok":
                 diagnosis += (
                     " La réponse native était OK, sans preuve d'une impression physique."
@@ -1152,11 +1350,18 @@ body.light .fj-print-hint{color:#496477!important}
                         "de la X2D et les refus éventuels de commande MQTT."
                     )
                 elif printer_state in ("idle", "cancelled", "error"):
-                    diagnosis += (
-                        " La commande reçue par le relais n'a pas déclenché de nouveau "
-                        "travail confirmé : le départ réel n'est pas confirmé. "
-                        "État X2D « " + printer_state + " »."
-                    )
+                    if acknowledgement == "bambu_connect_handoff":
+                        diagnosis += (
+                            " L'état « " + printer_state + " » concerne une tâche X2D "
+                            "qui ne correspond pas au 3MF remis au PC; il est ignoré. "
+                            "En attente de la confirmation dans Bambu Connect."
+                        )
+                    else:
+                        diagnosis += (
+                            " La commande reçue par le relais n'a pas déclenché de nouveau "
+                            "travail confirmé : le départ réel n'est pas confirmé. "
+                            "État X2D « " + printer_state + " »."
+                        )
                 else:
                     diagnosis += (
                         " La X2D ne signale pas de travail correspondant au fichier "
@@ -1183,30 +1388,38 @@ body.light .fj-print-hint{color:#496477!important}
                         "Les firmwares Bambu récents peuvent exiger une autorisation "
                         "MQTT signée pour les commandes distantes."
                     )
-            if printer_elapsed is not None:
-                diagnosis += " Durée rapportée par la X2D : " + str(round(printer_elapsed)) + " s."
-            if printer_layer is not None:
-                diagnosis += " Couche rapportée : " + str(printer_layer) + "."
-            if printer_targets:
-                diagnosis += " Températures cibles rapportées : " + ", ".join(
-                    label + " " + str(printer_targets[key]) + " °C"
-                    for key, label in (("HotendTarget", "buse"), ("BedTarget", "plateau"))
-                    if key in printer_targets
-                ) + "."
-            if printer_substate:
-                diagnosis += " Sous-état : " + printer_substate
-            if printer_error:
-                diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
+            handoff_waiting = (acknowledgement == "bambu_connect_handoff"
+                               and not job_matches_start)
+            if not handoff_waiting:
+                if printer_elapsed is not None:
+                    diagnosis += " Durée rapportée par la X2D : " + str(round(printer_elapsed)) + " s."
+                if printer_layer is not None:
+                    diagnosis += " Couche rapportée : " + str(printer_layer) + "."
+                if printer_targets:
+                    diagnosis += " Températures cibles rapportées : " + ", ".join(
+                        label + " " + str(printer_targets[key]) + " °C"
+                        for key, label in (("HotendTarget", "buse"), ("BedTarget", "plateau"))
+                        if key in printer_targets
+                    ) + "."
+                if printer_substate:
+                    diagnosis += " Sous-état : " + printer_substate
+                if printer_error:
+                    diagnosis += " Erreur rapportée par l'imprimante : " + printer_error
         prior = session.get("fjord_last_upload_diagnostic")
         previous_hint = ""
         if (isinstance(prior, dict) and
             0 <= time.time() - float(prior.get("at", 0)) < 3600):
             previous_hint = str(prior.get("hint", ""))[:420]
+        ignore_stale_error = (
+            isinstance(previous_start, dict)
+            and previous_start.get("start_ack") == "bambu_connect_handoff"
+            and job_matches_start is False
+        )
         response = jsonify(ok=True, status_ok=checks["status"], files_ok=checks["files"],
                            diagnosis=diagnosis, details=details,
                            last_upload=previous_hint,
                            printer_state=printer_state,
-                           printer_error=printer_error,
+                           printer_error=None if ignore_stale_error else printer_error,
                            recent_start_age_sec=recent_start_age,
                            start_ack=(previous_start.get("start_ack")
                                       if isinstance(previous_start, dict) else None),
@@ -1269,9 +1482,12 @@ body.light .fj-print-hint{color:#496477!important}
                         (expected_name in result_file or
                          expected_name.rsplit(".", 1)[0] in result_file))
                     payload["start_ack"] = (previous.get("start_ack")
-                                             if previous.get("start_ack") in ("native_ok", "relay_only")
+                                             if previous.get("start_ack") in ("native_ok", "relay_only", "bambu_connect_handoff")
                                              else None)
                     payload["start_outcome"] = _atelier_remote_start_outcome(status, previous, age)
+                    if (previous.get("start_ack") == "bambu_connect_handoff"
+                        and payload["job_matches_start"] is not True):
+                        payload["printer_error"] = None
                     response = jsonify(payload)
         except PrinterError as exc:
             response = jsonify(ok=False, error=str(exc))
@@ -1321,6 +1537,24 @@ body.light .fj-print-hint{color:#496477!important}
                 if requested_material and selected["material"] != requested_material:
                     raise PrinterError("Le matériau de la bobine AMS ne correspond plus au fichier tranché.")
                 command["AmsMapping"] = [chosen_slot]
+            if db is not None:
+                from fjord_bambu_connect import bridge_state, queue_file
+                bridge = bridge_state(db)
+                if bridge["paired"]:
+                    if not bridge["online"]:
+                        raise PrinterError("Le PC Bambu Connect est hors ligne. Ouvre le pont Windows avant de lancer.")
+                    bridge_job_id = str(pending.get("bridge_job_id") or "")
+                    if not bridge_job_id or not queue_file(db, bridge_job_id):
+                        raise PrinterError("Le fichier n'est plus en attente pour Bambu Connect. Renvoie le 3MF depuis l'Atelier.")
+                    remember_start(path, "bambu_connect_handoff")
+                    result = jsonify(
+                        ok=True,
+                        message="Fichier remis au PC. Bambu Connect va s'ouvrir : confirme la X2D et le lancement dans l'application.",
+                        start_ack="bambu_connect_handoff",
+                        file=path
+                    )
+                    result.headers["Cache-Control"] = "no-store"
+                    return result
             response = _api("/start", method="POST", payload=command, timeout=15)
             if response.get("VirtualPath") not in (None, path):
                 raise PrinterError("La réponse de démarrage ne correspond pas au fichier préparé.")
@@ -1366,9 +1600,28 @@ body.light .fj-print-hint{color:#496477!important}
             safe_name = re.sub(r"[^A-Za-z0-9_-]", "_", upload.filename.rsplit(".",1)[0])[:44] or "piece"
             virtual_path = "gcode/fjord_" + secrets.token_hex(5) + "_" + safe_name + ".3mf"
             _upload(virtual_path, raw)
-            flash("Fichier tranché envoyé. Sélectionne-le dans la liste puis confirme manuellement l'impression.")
-            return redirect(url_for("fjord_printer_page", selected=virtual_path))
+            bridge_job_id = ""
+            if db is not None:
+                bridge_job_id = secrets.token_urlsafe(24)
+                from fjord_bambu_connect import store_file
+                store_file(db, bridge_job_id, virtual_path,
+                           virtual_path.rsplit("/", 1)[-1], "", raw)
+                pending_jobs = session.get("fjord_print_bridge_jobs", {})
+                if not isinstance(pending_jobs, dict):
+                    pending_jobs = {}
+                pending_jobs[virtual_path] = bridge_job_id
+                session["fjord_print_bridge_jobs"] = dict(list(pending_jobs.items())[-12:])
+            message = "Fichier tranché envoyé. Sélectionne-le puis confirme le démarrage. Si le pont Windows est connecté, Bambu Connect s’ouvrira sur son PC."
+            next_page = url_for("fjord_printer_page", selected=virtual_path)
+            if request.accept_mimetypes.best == "application/json":
+                response = jsonify(ok=True, file=virtual_path, next=next_page, message=message)
+                response.headers["Cache-Control"] = "no-store"
+                return response
+            flash(message)
+            return redirect(next_page)
         except PrinterError as exc:
+            if request.accept_mimetypes.best == "application/json":
+                return jsonify(ok=False, error=str(exc)), 422
             flash(str(exc))
             return redirect(url_for("fjord_printer_page"))
 
@@ -1393,11 +1646,28 @@ body.light .fj-print-hint{color:#496477!important}
             if not any(item["path"] == path for item in listed):
                 raise PrinterError("Fichier absent de l'imprimante. Aucune commande envoyée.")
             command = {"Path":path,"Plate":1,"UseAms":request.form.get("ams")=="yes"}
+            if db is not None:
+                from fjord_bambu_connect import bridge_state, queue_file
+                bridge = bridge_state(db)
+                if bridge["paired"]:
+                    if not bridge["online"]:
+                        raise PrinterError("Le PC Bambu Connect est associé, mais hors ligne. Ouvre le pont Windows avant de démarrer.")
+                    pending_jobs = session.get("fjord_print_bridge_jobs", {})
+                    bridge_job_id = (pending_jobs.get(path) if isinstance(pending_jobs, dict) else None)
+                    if not bridge_job_id:
+                        raise PrinterError("Pour démarrer ce fichier depuis le site avec Bambu Connect, renvoie d’abord son 3MF depuis cet écran.")
+                    if not queue_file(db, str(bridge_job_id)):
+                        raise PrinterError("Le fichier n’est plus en attente pour Bambu Connect. Renvoie le 3MF depuis cet écran.")
+                    pending_jobs.pop(path, None)
+                    session["fjord_print_bridge_jobs"] = pending_jobs
+                    remember_start(path, "bambu_connect_handoff")
+                    flash("✓ Fichier remis au PC connecté. Bambu Connect va s’ouvrir : confirme la X2D et le lancement dans l’application.")
+                    return redirect(url_for("fjord_printer_page", selected=path))
             response = _api("/start",method="POST",payload=command,timeout=15)
             # A transport acknowledgement is not proof the printer is actually printing.
             if response.get("VirtualPath") not in (None,path):
                 raise PrinterError("La confirmation du fichier démarré ne correspond pas.")
-            flash("Commande de démarrage acceptée. Surveille la X2D et confirme le lancement réel sur l'écran ou la caméra.")
+            flash("Commande remise au relais. Surveille la X2D : une réponse du relais ne confirme pas le démarrage réel.")
         except PrinterError as exc:
             flash(str(exc))
         return redirect(url_for("fjord_printer_page"))

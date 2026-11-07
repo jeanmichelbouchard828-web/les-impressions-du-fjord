@@ -1,0 +1,18 @@
+# Les Impressions du Fjord: lightweight Render web server.
+# Bambu Studio and PrusaSlicer are intentionally not included: these
+# heavy slicing engines cannot be guaranteed on a 512 MB starter instance.
+# All customer-facing Flask/PG logic is retained. Never submit generic
+# Prusa G-code to a Bambu X2D printer.
+FROM python:3.12-slim-bookworm
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=10000 \
+    FJORD_PREVIEW_MODE=1
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY *.py atelier3d.html ./
+COPY static ./static
+# Run a single Gunicorn worker to cap memory use. Actual 3D slicing must
+# be handled by a separate authorized worker, not faked on the web host.
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 2 --timeout 160 app:app"]

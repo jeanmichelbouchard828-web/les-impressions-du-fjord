@@ -36,6 +36,8 @@ RUN ( timeout 30 /usr/local/bin/bambu-studio --help >/tmp/bambu-help.log 2>&1 &&
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py atelier3d.html ./
+COPY fjord_bambu_connect_bridge.ps1 ./
+COPY Lancer_Pont_Bambu_Connect.cmd ./
 # Fail the build if the X2D machine G-code or PETG factory profile cannot be
 # expanded. An inherited generic start script is unsafe for a real X2D/AMS.
 RUN python -c 'from bambu_stock_profiles import original_preset; \

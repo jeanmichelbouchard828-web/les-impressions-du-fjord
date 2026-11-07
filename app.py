@@ -7,13 +7,17 @@ import psycopg
 from psycopg.rows import dict_row
 from werkzeug.utils import secure_filename
 app=Flask(__name__)
+from fjord_preview_guard import install_preview_guard
+install_preview_guard(app)
 # Actual server-side slicing / layer toolpaths. The resulting generic G-code
 # is NOT downloadable or intended for direct use on a Bambu X2D printer.
 from real_slicer import slicer_bp
 app.register_blueprint(slicer_bp)
 app.secret_key=os.environ.get("SECRET_KEY",secrets.token_hex(32))
 app.config.update(MAX_CONTENT_LENGTH=10*1024*1024,SESSION_COOKIE_SECURE=True,SESSION_COOKIE_HTTPONLY=True,SESSION_COOKIE_SAMESITE="Lax")
+from fjord_preview_guard import assert_preview_isolated
 DB=os.environ["DATABASE_URL"]
+assert_preview_isolated(DB)
 STATUSES=["Demande reçue","Soumission envoyée","En impression","Terminée"]
 MATERIALS=["À déterminer","PLA","PETG","ASA","TPU","Autre"]
 def db():
@@ -32,14 +36,16 @@ def init():
   )""")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
 init()
-# Compteur de visiteurs uniques (navigateur, pas nombre de pages vues).
-# Aucun nom, adresse IP ou agent utilisateur n'est enregistré.
-with db() as c:
- c.execute("CREATE TABLE IF NOT EXISTS site_visitors (visitor_hash TEXT PRIMARY KEY, first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW())")
+# Compteur historique conservé; présence estimée dans une fenêtre de 5 min.
+# Seul un hachage de cookie aléatoire est conservé, pas l'adresse IP.
+from fjord_visitors import initialize as initialize_visitors, observe as observe_visitor, site_stats
+initialize_visitors(db)
 
 @app.before_request
 def fjord_track_visit():
- if request.method != "GET" or request.path.startswith(("/admin","/api","/static","/atelier","/favicon","/gallery-photo","/galerie/photo")):
+ if os.environ.get("FJORD_PREVIEW_MODE") == "1":
+  return
+ if request.method != "GET" or request.path.startswith(("/admin","/api","/static","/favicon","/gallery-photo","/galerie/photo","/health")):
   return
  from flask import g
  token=request.cookies.get("fjord_visitor")
@@ -47,9 +53,7 @@ def fjord_track_visit():
   token=secrets.token_hex(16)
   g.fjord_new_visitor_token=token
  try:
-  digest=hashlib.sha256(token.encode()).hexdigest()
-  with db() as c:
-   c.execute("INSERT INTO site_visitors(visitor_hash) VALUES (%s) ON CONFLICT DO NOTHING",(digest,))
+  observe_visitor(db,token)
  except Exception:
   app.logger.exception("Compteur de visiteurs indisponible")
 
@@ -61,14 +65,33 @@ def fjord_set_visitor_cookie(response):
   response.set_cookie("fjord_visitor",token,max_age=365*24*3600,secure=True,httponly=True,samesite="Lax")
  return response
 
+@app.get("/api/public/visitors")
+def fjord_visitors_public_stats():
+ """Expose aggregated totals only, never cookie hashes or timestamps."""
+ if os.environ.get("FJORD_PREVIEW_MODE") != "1":
+  token=request.cookies.get("fjord_visitor")
+  if token:
+   try:
+    observe_visitor(db,token)
+   except Exception:
+    app.logger.exception("Actualisation présence indisponible")
+ try:
+  snapshot=site_stats(db)
+ except Exception:
+  app.logger.exception("Statistiques de visites indisponibles")
+  snapshot=None
+ if snapshot is None:
+  return jsonify(error="Statistiques temporairement indisponibles"),503,{"Cache-Control":"no-store"}
+ return jsonify(snapshot),200,{"Cache-Control":"no-store"}
+
 @app.context_processor
 def fjord_visitor_count():
  try:
-  with db() as c:
-   count=c.execute("SELECT COUNT(*) AS n FROM site_visitors").fetchone()["n"]
-  return {"fjord_visitors":count}
+  snapshot=site_stats(db)
  except Exception:
-  return {"fjord_visitors":None}
+  snapshot=None
+ return {"fjord_visitors":snapshot["total"] if snapshot else None,
+         "fjord_online_visitors":snapshot["online"] if snapshot else None}
 
 # Migration additive : progression renseignée par l'administrateur, jamais simulée.
 with db() as c:
@@ -196,9 +219,56 @@ body.light main th{background:#d8efff;color:#103a56}
 </style>"""
 FJORD_VISITOR_STYLE="""<style>.fjord-visitor-counter{display:inline-flex;gap:7px;align-items:center;padding:9px 14px;border:1px solid #247eae;border-radius:30px;background:#0c2b44;color:#c5edff;font-size:13px;margin:12px 0}.fjord-visitor-counter strong{color:#58d5ff;font-size:16px}body.light .fjord-visitor-counter{background:#e7f6ff;color:#154b6b}</style>"""
 FJORD_DONATION_STYLE="""<style>.fjord-donation-link{display:inline-flex;align-items:center;justify-content:center;padding:10px 17px;margin:12px 8px 12px 0;border:1px solid #62d6ff;border-radius:28px;background:linear-gradient(110deg,#07558a,#099ed3);color:#fff!important;font-weight:800;box-shadow:0 4px 18px #0397da55}.fjord-donation-link:hover{filter:brightness(1.12)}.fjord-support-panel{max-width:660px;margin:25px auto;padding:28px;border:1px solid #2b9bd1;border-radius:20px;background:linear-gradient(140deg,#102e49,#081c30);text-align:center}.fjord-support-panel h1{font-size:clamp(30px,5vw,48px)}.fjord-support-panel p{color:#d1eafb}.fjord-support-panel .fjord-donation-link{font-size:18px;margin-top:16px}</style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+FJORD_FINISHING+FJORD_VISITOR_STYLE+FJORD_DONATION_STYLE+"""<style>
+FJORD_PRO_REDESIGN="""<style>
+:root{--fjord-bg:#071321;--fjord-surface:#0d2135;--fjord-surface-2:#112c45;--fjord-text:#eef7ff;--fjord-muted:#b7c9d8;--fjord-line:#284b65;--fjord-accent:#29b8eb;--fjord-accent-2:#70def7;--fjord-radius:16px}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+body{min-height:100vh;background:radial-gradient(ellipse at 84% -8%,#17507844,transparent 42%),linear-gradient(160deg,#071321,#091b2d 60%,#071321);color:var(--fjord-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;line-height:1.55}
+.site-header{position:sticky;top:0;z-index:100;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(10px,2vw,24px);width:100%;min-height:80px;padding:10px clamp(14px,3vw,42px);background:#07182bef;border-bottom:1px solid #20587a;box-shadow:0 8px 24px #00101f66;backdrop-filter:blur(16px)}
+.site-header .brand{display:grid;grid-template-columns:54px auto;grid-template-rows:auto auto auto;column-gap:11px;align-items:center;min-width:0;color:#f1f9ff;text-decoration:none;font-size:clamp(14px,1.5vw,19px);font-weight:850;letter-spacing:.015em;line-height:1.05}
+.site-header .brand img{grid-column:1;grid-row:1/4;width:52px!important;height:52px!important;margin:0!important;border-radius:12px;object-fit:cover}
+.site-header .brand-main{grid-column:2;grid-row:1}.site-header .brand-blue{grid-column:2;grid-row:2;color:#42c8f2;font-weight:950}
+.site-header .fjord-brand-tagline{grid-column:2;grid-row:3;margin-top:4px;color:#b6d2e2;font-size:8px;font-weight:700;letter-spacing:.17em}
+.site-header nav{display:flex;align-items:center;justify-content:center;gap:4px;min-width:0}
+.site-header nav a{display:inline-flex;align-items:center;min-height:40px;padding:8px 10px;border:1px solid transparent;border-radius:10px;color:#c4d8e7;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.site-header nav a:hover,.site-header nav a[aria-current=page]{background:#123954;border-color:#2b7194;color:#fff}
+.site-header .pref-controls{display:flex;align-items:center;gap:7px}.site-header .pref-controls select{width:auto;min-width:92px;max-width:130px;min-height:39px;margin:0;padding:7px 9px;border:1px solid #315f7c;border-radius:10px;background:#0b2238;color:#e6f4ff;font-size:12px}
+.site-nav-toggle{display:none;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:9px 12px;border:1px solid #347b9d;border-radius:11px;background:#102e47;color:#f1fbff;font-size:14px;font-weight:800;cursor:pointer}
+body>main{width:min(100%,1440px)!important;max-width:1440px!important;margin:0 auto!important;padding:clamp(22px,4vw,52px) clamp(14px,3.5vw,50px) clamp(48px,7vw,84px)!important}
+body>footer{margin:0!important;padding:26px clamp(14px,4vw,54px);border-top:1px solid #244760;background:#06111f;color:#a9bfce}
+main h1{font-size:clamp(30px,5vw,56px);line-height:1.08;letter-spacing:-.04em;color:#f4fbff}main h2{font-size:clamp(22px,3vw,31px);line-height:1.2;letter-spacing:-.025em}
+main p{color:var(--fjord-muted);line-height:1.65}
+main :is(section,article,fieldset){scroll-margin-top:95px}
+main .hero{border:1px solid #286a8c;border-radius:22px;background:radial-gradient(ellipse at 78% 10%,#1279a640,transparent 55%),linear-gradient(135deg,#102c45,#0a1d31);box-shadow:0 22px 54px #0003}
+main .card,main .gallery-tile,main .tracking-result{border:1px solid var(--fjord-line);border-radius:var(--fjord-radius);background:linear-gradient(150deg,#10283c,#0a1d30);box-shadow:0 8px 24px #0002}
+main .card:hover,main .gallery-tile:hover{border-color:#3b9dc4;box-shadow:0 12px 32px #0003}
+main :is(input,textarea,select){max-width:100%;min-height:46px;border:1px solid #345f7b;border-radius:10px;background:#081a2a;color:#f1f8ff;font:inherit}
+main :is(input,textarea,select):focus-visible{border-color:#49c9f2;outline:3px solid #31b9e833;outline-offset:1px}
+main button,main .btn,main input[type=submit]{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border:1px solid #55c8ec;border-radius:11px;background:linear-gradient(120deg,#087ab3,#18a3d0);color:#fff;font:inherit;font-weight:780;text-decoration:none;cursor:pointer}
+main button:hover,main .btn:hover,main input[type=submit]:hover{filter:brightness(1.08);box-shadow:0 8px 22px #00121f55;transform:translateY(-1px)}
+main .btn.secondary-btn{background:#102d45;color:#d8f1ff}
+main a{color:#79dcf5}
+main :is(a,button,input,textarea,select):focus-visible,.site-header :is(a,button,select):focus-visible{outline:3px solid #72e3ff;outline-offset:2px}
+.alert{padding:13px 16px;border:1px solid #2978a0;border-radius:12px;background:#103550;color:#effaff}
+.contact-section{margin:30px 0 0;padding:clamp(18px,3vw,30px);border:1px solid #27688b;border-radius:18px;background:linear-gradient(140deg,#0d2940,#0a1e32)}
+.contact-section h2{margin-top:0}.contact-actions{display:flex;flex-wrap:wrap;gap:9px}
+.contact-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 14px;border:1px solid #346d8c;border-radius:11px;background:#12354e;color:#e8f8ff;font-weight:700;overflow-wrap:anywhere}
+.referral-footer{display:flex;flex-wrap:wrap;gap:7px 12px;margin-top:12px;padding-top:12px;border-top:1px solid #263f54}
+.fjord-footer-legal{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;width:100%}.fjord-footer-legal a{display:inline-flex;align-items:center;min-height:40px;color:#b6e4f4;text-decoration:underline;text-underline-offset:3px}
+body.light{background:#f3f8fc;color:#173047}body.light .site-header{background:#f9fcffef;border-color:#d0e0eb}
+body.light .site-header .brand{color:#153a54}body.light .site-header .brand-blue{color:#087fae}body.light .site-header .fjord-brand-tagline{color:#42657a}
+body.light .site-header nav a{color:#31566d}body.light .site-header nav a:hover,body.light .site-header nav a[aria-current=page]{background:#e2f3fb;border-color:#acd5e6;color:#124261}
+body.light .site-header .pref-controls select{background:#fff;color:#173047;border-color:#b5cedc}
+body.light>footer{background:#eaf3f8;color:#35566b;border-color:#d2e1eb}body.light main h1{color:#153047}body.light main p{color:#405b70}
+body.light main .card,body.light main .gallery-tile,body.light main .tracking-result{background:#fff;border-color:#cedee8;box-shadow:0 7px 22px #22445b12}
+body.light main :is(input,textarea,select){background:#fff;color:#173047;border-color:#a8c0d0}
+body.light .contact-section{background:#edf7fb;border-color:#c4dce9}body.light .contact-actions a{background:#fff;color:#184b67;border-color:#c0dbe8}
+@media(max-width:1120px){.site-header{grid-template-columns:minmax(0,1fr) auto}.site-header nav{display:none!important;grid-column:1/-1;justify-content:flex-start;flex-wrap:wrap;padding:4px 0 8px}.site-header.menu-open nav{display:flex!important}.site-header .pref-controls{grid-column:1/-1;justify-content:flex-end}.site-nav-toggle{display:inline-flex}.site-header .brand{grid-column:1}.site-header .pref-controls{grid-row:2}}
+@media(max-width:640px){.site-header{gap:8px;padding:9px 12px}.site-header .brand{grid-template-columns:45px auto;column-gap:8px;font-size:14px}.site-header .brand img{width:44px!important;height:44px!important}.site-header .fjord-brand-tagline{font-size:7px;letter-spacing:.12em}.site-header nav{display:none!important;grid-template-columns:1fr 1fr;gap:6px}.site-header.menu-open nav{display:grid!important}.site-header nav a{min-height:42px;white-space:normal}.site-header .pref-controls{grid-column:1/-1;grid-row:2;justify-content:flex-end}.site-header .pref-controls select{min-width:0;max-width:125px}.site-nav-toggle{min-height:40px;padding:8px 10px}body>main{padding:20px 12px 44px!important}.hero{padding:32px 16px!important}main .card{padding:16px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>"""
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><title>{{title}} | Les Impressions du Fjord</title>"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+FJORD_FINISHING+FJORD_VISITOR_STYLE+FJORD_DONATION_STYLE+FJORD_PRO_REDESIGN+"""<style>
 @media(max-width:650px){
- header nav{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+ header nav{width:100%;display:none;flex-wrap:wrap;gap:8px;align-items:center}
  header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
  main{padding:18px 12px 60px}
  .fj-quote-card{min-width:0}
@@ -248,15 +318,82 @@ body.light .referral-footer a{color:#075f90}
 body.light .referral-footer span{color:#466073}
 body.light .referral-page .referral-disclosure{border-color:#c7d8e7}
 @media(max-width:600px){.referral-page .referral-card{padding:18px}.referral-page .referral-cta{width:100%}}
-.public-print-list{display:grid;gap:10px;margin-top:16px}.public-print-job{padding:12px;border-radius:10px;background:#0c1c2caa;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.public-print-job .tracking-progress{flex:1 1 100%;margin:0}.public-print-job span{margin-left:auto}.tracking-billboard{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:10px 0 32px;padding:26px;border:1px solid #4e9cc5;border-radius:18px;background:linear-gradient(120deg,#173a54,#0c2133)}.tracking-billboard h2{margin:8px 0;font-size:clamp(23px,3vw,33px)}.tracking-billboard p{color:#d6e6f1}.tracking-panel{max-width:640px;margin:20px auto}.tracking-result{margin-top:25px;padding:22px;border:1px solid #4e9cc5;border-radius:12px}.tracking-progress{height:16px;border-radius:12px;background:#273b50;overflow:hidden}.tracking-progress span{display:block;height:100%;background:#43b9ec}body.light .tracking-billboard{background:#e5f3fc;color:#173a54}body.light .tracking-billboard p{color:#34536c}</style></head><body><header><a class="brand" href="/"><img src="/identite/logo" alt="Logo Les Impressions du Fjord" style="width:64px;height:64px;object-fit:contain;vertical-align:middle;margin-right:12px" onerror="this.style.display='none'">LES IMPRESSIONS <span class="fjord-brand-blue">DU FJORD</span><small class="fjord-brand-tagline">IMPRESSION 3D SUR MESURE</small></a><nav><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/#nous-joindre">Nous joindre</a><a href="/contact">Formulaire</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><aside class="fjord-side-nav" aria-label="Navigation principale"><div class="fjord-side-menu"><a href="/">⌂ <span>Accueil</span></a><a href="/admin">▤ <span>Administration</span></a><a href="/galerie">▧ <span>Galerie</span></a><a href="/atelier-3d">⬡ <span>Atelier 3D</span></a><a href="/#services">⚙ <span>Services</span></a><a href="/soumission">▣ <span>Soumission</span></a><a href="/contact">✉ <span>Contact</span></a><hr><span class="fjord-side-label">Liens utiles</span><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ <span>Facebook</span></a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">⌖ <span>Google Maps</span></a></div><div class="fjord-side-deco" aria-hidden="true">LES IMPRESSIONS<br><b>DU FJORD</b><small>IMPRESSION 3D</small></div></aside><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous par courriel, sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="mailto:lesimpressionsdufjord@gmail.com">✉ lesimpressionsdufjord@gmail.com</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section></main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div><div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div><a class="fjord-donation-link" href="/soutenir">❤️ Soutenir notre atelier</a><nav class="fjord-footer-legal" aria-label="Informations légales et assistance"><a href="/assistance">Assistance</a><a href="/politique-confidentialite">Confidentialité</a><a href="/conditions-utilisation">Conditions d’utilisation</a><a href="mailto:lesimpressionsdufjord@gmail.com">Nous écrire</a></nav><div class="fjord-visitor-counter" aria-label="Nombre de visiteurs uniques">👀 <strong>{{ '{:,}'.format(fjord_visitors).replace(',', ' ') if fjord_visitors is not none else '—' }}</strong> visiteurs uniques</div></footer><script>
+.public-print-list{display:grid;gap:10px;margin-top:16px}.public-print-job{padding:12px;border-radius:10px;background:#0c1c2caa;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.public-print-job .tracking-progress{flex:1 1 100%;margin:0}.public-print-job span{margin-left:auto}.tracking-billboard{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin:10px 0 32px;padding:26px;border:1px solid #4e9cc5;border-radius:18px;background:linear-gradient(120deg,#173a54,#0c2133)}.tracking-billboard h2{margin:8px 0;font-size:clamp(23px,3vw,33px)}.tracking-billboard p{color:#d6e6f1}.tracking-panel{max-width:640px;margin:20px auto}.tracking-result{margin-top:25px;padding:22px;border:1px solid #4e9cc5;border-radius:12px}.tracking-progress{height:16px;border-radius:12px;background:#273b50;overflow:hidden}.tracking-progress span{display:block;height:100%;background:#43b9ec}body.light .tracking-billboard{background:#e5f3fc;color:#173a54}body.light .tracking-billboard p{color:#34536c}<style>
+/* Finition commune : hiérarchie visuelle, lisibilité et confort mobile */
+:root{--fjord-ink:#eaf6ff;--fjord-muted:#b7ccdc;--fjord-panel:#10283b;--fjord-border:#2d668a;--fjord-glow:#27baff}
+html{scroll-behavior:smooth;scroll-padding-top:18px}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;line-height:1.55}
+header{gap:16px}
+header .brand{min-height:52px;text-decoration:none;line-height:1.15}
+header .brand img{object-fit:cover;border-radius:12px}
+header nav a{transition:background .18s,color .18s,border-color .18s,transform .18s}
+main{padding-top:clamp(24px,4vw,44px);padding-bottom:clamp(48px,7vw,82px)}
+main h1{font-size:clamp(32px,5.5vw,62px);line-height:1.08;letter-spacing:-.04em;text-wrap:balance}
+main h2{font-size:clamp(23px,3vw,32px);line-height:1.2;letter-spacing:-.025em;text-wrap:balance}
+main h3{line-height:1.25}
+main p{max-width:78ch}
+.card,.gallery-tile,.tracking-result,.tracking-billboard,.contact-section{border-radius:18px}
+.card{padding:clamp(18px,2.3vw,26px)}
+button,.btn,input[type=submit]{min-height:44px;font-weight:750;transition:transform .16s,filter .16s,box-shadow .16s}
+button:hover,.btn:hover,input[type=submit]:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 8px 20px #00111f55}
+button:active,.btn:active,input[type=submit]:active{transform:translateY(0)}
+input,textarea,select{min-height:46px}
+textarea{line-height:1.5}
+.alert{border:1px solid #3d91b8;background:linear-gradient(120deg,#123a55,#102a40);color:#ecf9ff}
+.contact-section{margin-top:32px;padding:clamp(18px,3vw,30px);border:1px solid #2679a7;background:linear-gradient(135deg,#0e2941,#0a2035)}
+.contact-section h2{margin-top:0}
+.contact-actions{gap:10px}
+.contact-actions a{min-height:50px;line-height:1.3;overflow-wrap:anywhere;transition:transform .16s,background .16s}
+.contact-actions a:hover{transform:translateY(-1px)}
+footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:28px clamp(16px,5vw,64px);line-height:1.5}
+footer>div:first-child{font-weight:650}
+.fjord-visitor-counter{margin:0}
+.fjord-side-menu a{transition:background .16s,box-shadow .16s,transform .16s}
+.fjord-side-menu a:hover{transform:translateX(2px)}
+@media(max-width:1100px){
+ header{align-items:center}
+ header nav{display:none!important}
+ .fjord-side-nav{background:linear-gradient(100deg,#071a2b,#0a2942);box-shadow:0 5px 18px #0003}
+ .fjord-side-menu{gap:7px}
+ .fjord-side-menu a{border:1px solid #245778;background:#0b2439;border-radius:999px}
+ .fjord-side-menu a[aria-current="page"]{border:1px solid #4bcfff;border-left:1px solid #4bcfff}
+}
+@media(max-width:650px){
+ header{padding:11px 13px;gap:9px}
+ header .brand{font-size:16px;grid-template-columns:48px auto;column-gap:9px}
+ header .brand img{width:46px!important;height:46px!important}
+ .pref-controls{width:100%;justify-content:flex-end}
+ .pref-controls select{min-height:42px}
+ .fjord-side-nav{padding:8px 10px}
+ .fjord-side-menu a{min-height:40px;padding:7px 12px}
+ main{padding:20px 13px 42px}
+ main h1{font-size:clamp(30px,9vw,44px)}
+ .card{padding:17px}
+ .contact-section{margin-top:24px;padding:18px}
+ .contact-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
+ .contact-actions a{min-width:0;padding:12px 13px}
+ footer{padding:22px 15px;gap:10px}
+ .referral-footer{width:100%}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button,.btn,input[type=submit],a{transition:none!important}}
+</style></head><body><header class="site-header"><a class="brand" href="/" aria-label="Les Impressions du Fjord, accueil"><img src="/identite/logo" alt="" style="width:52px;height:52px;object-fit:cover" onerror="this.style.display='none'"><span class="brand-main">LES IMPRESSIONS</span><span class="fjord-brand-blue brand-blue">DU FJORD</span><small class="fjord-brand-tagline">IMPRESSION 3D SUR MESURE</small></a><button class="site-nav-toggle" type="button" id="fjordNavToggle" aria-controls="fjordPrimaryNav" aria-expanded="false" aria-label="Ouvrir le menu">☰ <span>Menu</span></button><nav id="fjordPrimaryNav" aria-label="Navigation principale"><a href="/">Accueil</a><a href="/#services">Services</a><a href="/galerie">Galerie</a><a href="/soumission">Soumission</a><a href="/contact">Contact</a><a href="/atelier-3d">Atelier 3D</a><a href="/admin">Administration</a></nav><div class="pref-controls"><select id="fjord-lang" aria-label="Langue / Language"><option value="fr">🇨🇦 Français</option><option value="en">🇨🇦 English</option></select><select id="fjord-theme" aria-label="Thème / Theme"><option value="dark">🌙 Sombre</option><option value="light">☀️ Clair</option></select></div></header><main>{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="alert">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}{% if not request.path.startswith('/admin') and request.path!='/contact' %}<section id="nous-joindre" class="contact-section"><h2>Contactez-nous</h2><p>Une idée de création 3D? Écrivez-nous par courriel, sur Facebook ou appelez-nous!</p><div class="contact-actions"><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">ⓕ Notre page Facebook</a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Nous écrire sur Facebook</a><a href="mailto:lesimpressionsdufjord@gmail.com">✉ lesimpressionsdufjord@gmail.com</a><a href="tel:+15819980831">☎ 581-998-0831</a><a href="https://maps.app.goo.gl/9Qryi3nbK9nBuXts8?g_st=ac" target="_blank" rel="noopener noreferrer">📍 Nous trouver sur Google Maps</a></div><p class="muted small">Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».</p></section>{% endif %}</main><footer><div>© 2026 Les Impressions du Fjord · Saguenay, Québec</div>{% if not request.path.startswith('/admin') %}<div class="referral-footer"><a href="/bons-plans/starlink">🛰️ Notre bon plan Internet : parrainage Starlink</a><span>Un partage personnel, indépendant de nos services d'impression 3D.</span></div><a class="fjord-donation-link" href="/soutenir">❤️ Soutenir notre atelier</a>{% endif %}<nav class="fjord-footer-legal" aria-label="Informations légales et assistance"><a href="/assistance">Assistance</a><a href="/politique-confidentialite">Confidentialité</a><a href="/conditions-utilisation">Conditions d’utilisation</a><a href="mailto:lesimpressionsdufjord@gmail.com">Nous écrire</a></nav>{% if not request.path.startswith('/admin') %}<div class="fjord-visitor-counter" aria-label="Nombre de visiteurs uniques">👀 <strong>{{ '{:,}'.format(fjord_visitors).replace(',', ' ') if fjord_visitors is not none else '—' }}</strong> visiteurs uniques · 🟢 <strong>{{ fjord_online_visitors if fjord_online_visitors is not none else '—' }}</strong> en ligne (5 min)</div>{% endif %}</footer><script>
 (function(){
  const path=location.pathname.replace(/\\/$/,'')||'/';
- document.querySelectorAll('header nav a, .fjord-side-menu a').forEach(link=>{
+ document.querySelectorAll('header nav a').forEach(link=>{
   const href=link.getAttribute('href');
   if(!href||!href.startsWith('/')||href.includes('#'))return;
   const target=href.replace(/\\/$/,'')||'/';
   if(target===path)link.setAttribute('aria-current','page');
  });
+ const header=document.querySelector('.site-header');
+ const button=document.getElementById('fjordNavToggle');
+ const nav=document.getElementById('fjordPrimaryNav');
+ if(!header||!button||!nav)return;
+ const close=()=>{header.classList.remove('menu-open');button.setAttribute('aria-expanded','false');button.setAttribute('aria-label','Ouvrir le menu')};
+ button.addEventListener('click',()=>{const open=!header.classList.contains('menu-open');header.classList.toggle('menu-open',open);button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',open?'Fermer le menu':'Ouvrir le menu')});
+ nav.addEventListener('click',event=>{if(event.target.closest('a'))close()});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape')close()});
+ document.addEventListener('pointerdown',event=>{if(!header.contains(event.target))close()});
 })();
 </script><script>
 (function(){
@@ -313,6 +450,47 @@ apply();
 def page(title,body,**kwargs):
  from flask import render_template_string
  return render_template_string(BASE,title=title,meta_description=("Découvrez un lien de parrainage Starlink pour les nouveaux abonnés admissibles au Canada. Parrainage personnel et transparent." if title=="Parrainage Starlink" else "Les Impressions du Fjord — impression 3D sur mesure au Saguenay."),body=render_template_string(body,**kwargs))
+def _fjord_error_page(code):
+ if code==404:
+  title="Cette page est introuvable"
+  heading="Oups, on ne trouve pas cette page."
+  message="Le lien a peut-être changé ou la page n’existe plus."
+ else:
+  title="Une erreur est survenue"
+  heading="Un petit pépin est survenu."
+  message="La page n’a pas pu se charger. Réessaie dans un instant; si le problème continue, écris-nous."
+ body="""<style>
+.fjord-error{max-width:760px;margin:clamp(30px,8vh,90px) auto;padding:clamp(22px,5vw,42px);border:1px solid #2e84ad;border-radius:22px;background:linear-gradient(145deg,#102f49,#081b2d);box-shadow:0 18px 55px #00101d88;color:#eef8ff;text-align:center}
+.fjord-error-mark{display:grid;place-items:center;width:66px;height:66px;margin:0 auto 18px;border:1px solid #55c8ed;border-radius:20px;background:#0a4564;font-size:32px}
+.fjord-error h1{margin:0 0 12px;color:#b4edff;font-size:clamp(25px,5vw,38px);line-height:1.15}
+.fjord-error p{max-width:560px;margin:0 auto 24px;color:#c8dce9;font-size:16px;line-height:1.65}
+.fjord-error-code{display:block;margin:0 0 22px;color:#8fb8ce;font-size:12px;letter-spacing:.08em}
+.fjord-error-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.fjord-error-actions a,.fjord-error-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 18px;border:1px solid #53c7eb;border-radius:11px;background:#0875a5;color:#fff;font:inherit;font-weight:750;text-decoration:none;cursor:pointer}
+.fjord-error-actions .fjord-error-home{background:#132d43;border-color:#527c96}
+@media(max-width:560px){.fjord-error{margin:20px 10px;padding:24px 18px}.fjord-error-actions{display:grid;grid-template-columns:1fr}.fjord-error-actions a,.fjord-error-actions button{width:100%;box-sizing:border-box}}
+</style>
+<main class="fjord-error" role="alert">
+ <div class="fjord-error-mark" aria-hidden="true">🏔️</div>
+ <span class="fjord-error-code">LES IMPRESSIONS DU FJORD · CODE {{error_code}}</span>
+ <h1>{{heading}}</h1>
+ <p>{{message}}</p>
+ <div class="fjord-error-actions">
+  <button type="button" onclick="window.location.reload()">↻ Réessayer</button>
+  <a class="fjord-error-home" href="/">⌂ Retour à l’accueil</a>
+  <a class="fjord-error-home" href="mailto:lesimpressionsdufjord@gmail.com">✉ Nous écrire</a>
+ </div>
+</main>"""
+ return page(title,body,error_code=code,heading=heading,message=message),code
+
+@app.errorhandler(404)
+def fjord_not_found(_error):
+ return _fjord_error_page(404)
+
+@app.errorhandler(500)
+def fjord_server_error(_error):
+ return _fjord_error_page(500)
+
 def csrf():
  if "csrf" not in session:session["csrf"]=secrets.token_urlsafe(24)
  return session["csrf"]
@@ -549,50 +727,60 @@ def atelier_ams_filaments():
  return response
 
 def _octo_job_matches(configured,reported):
- def norm(v):
-  return str(v or "").replace(chr(92),"/").split("/")[-1].rsplit(".",1)[0].strip().casefold()
+ def norm(value):
+  name=str(value or "").replace(chr(92),"/").split("/")[-1].strip().casefold()
+  # Bambu et Octo peuvent rapporter un fichier avec plusieurs suffixes.
+  for suffix in (".gcode.3mf",".bgcode.3mf",".gcode",".bgcode",".3mf",".stl"):
+   if name.endswith(suffix):
+    name=name[:-len(suffix)]
+    break
+  return name.strip()
  expected,actual=norm(configured),norm(reported)
  if not expected or not actual:return False
  if expected==actual:return True
- # Permettre uniquement un préfixe de soumission explicite FJ-00002_.
- # Ne jamais retirer un préfixe arbitraire qui pourrait créer une collision.
+ # Autorise seulement un préfixe public explicite « FJ-00002_ ».
  match=re.fullmatch(r"fj-\d{5}_(.+)",expected)
  return bool(match and match.group(1)==actual)
 
 def _sync_octo_progress():
- """Persist a confirmed live OctoEverywhere job against one unambiguous quote."""
+ """Relie sans ambiguïté le travail OctoEverywhere à une soumission."""
  live=_octo_live_status()
  result={"connected":live is not None,"reason":_octo_cache["reason"],
          "state":live["state"] if live else None,"filename":live["filename"] if live else "",
          "matched":False,"number":None,"progress":None,"updated":False}
  if not live or live["state"] not in ("printing","warmingup","resuming","paused","complete"):
   return result
- filename=live["filename"]
- if not filename or (live["progress"] is None and live["state"]!="complete"):
-  result["reason"]="OctoEverywhere ne donne pas de nom de travail ou de pourcentage."
+ filename=live.get("filename") or ""
+ if not filename:
+  result["reason"]="OctoEverywhere ne donne pas le nom du travail actif."
   return result
  reported=str(filename).replace(chr(92),"/").split("/")[-1]
- raw=re.sub(r"(?i)(?:\.gcode)?\.(?:3mf|gcode|stl)$","",reported).casefold()
- match=re.match(r"^(fj-[0-9]{1,8})(?:[_\s-]|$)",raw)
+ raw=re.sub(r"(?i)\.gcode\.3mf$|\.bgcode\.3mf$|\.(?:3mf|gcode|bgcode|stl)$","",reported)
+ number_match=re.match(r"^(fj-[0-9]{1,8})(?:[_\s-]|$)",raw.casefold())
  with db() as c:
   quotes=c.execute("""SELECT id,public_number,printer_job_name,production_status,production_progress
                       FROM private_quotes ORDER BY id DESC LIMIT 300""").fetchall()
-  candidates=[]
-  if match:
-   number=match.group(1).upper()
+  # Une association manuelle est la source prioritaire, y compris pour les
+  # noms de fichiers génériques de Bambu Studio.
+  candidates=[q for q in quotes if _octo_job_matches(q["printer_job_name"],filename)]
+  if not candidates and number_match:
+   number=number_match.group(1).upper()
    candidates=[q for q in quotes if (q["public_number"] or "FJ-{:05d}".format(q["id"]))==number]
-  else:
-   candidates=[q for q in quotes if _octo_job_matches(q["printer_job_name"],filename)]
   if len(candidates)!=1:
    result["reason"]=("Aucune soumission associée au nom du travail de l'imprimante."
                      if not candidates else "Plusieurs soumissions utilisent le même nom de travail.")
    return result
   q=candidates[0]
   number=q["public_number"] or "FJ-{:05d}".format(q["id"])
-  progress=100 if live["state"]=="complete" else live["progress"]
-  result.update({"matched":True,"id":q["id"],"status":"Terminée" if live["state"]=="complete" else "En production","number":number,
-                 "progress":max(progress,int(q["production_progress"] or 0)),
-                 "reason":"Progression reçue pour "+number+"."})
+  progress=100 if live["state"]=="complete" else live.get("progress")
+  status="Terminée" if live["state"]=="complete" else "En production"
+  existing=int(q["production_progress"] or 0)
+  result.update({"matched":True,"id":q["id"],"status":status,"number":number,
+                 "progress":max(int(progress),existing) if progress is not None else existing})
+  if progress is None:
+   result["reason"]="Impression associée à "+number+"; progression en attente."
+   return result
+  result["reason"]="Progression reçue pour "+number+"."
   if q["production_status"]!="Terminée":
    changed=c.execute("""UPDATE private_quotes SET
                  production_progress=GREATEST(production_progress,%s),
@@ -660,14 +848,18 @@ def public_production():
 
 @app.get("/soutenir")
 def fjord_support():
- # Lien Stripe Payment Link configuré séparément des paiements de soumission.
+ # Les dons peuvent être faits par Stripe ou par virement Interac.
  link=os.environ.get("STRIPE_DONATION_URL","").strip()
  valid=bool(re.fullmatch(r"https://(?:buy|donate)\.stripe\.com/[A-Za-z0-9_/?=&-]+",link))
+ with db() as c:
+  setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+ recipient=(setting["value"].strip() if setting and setting["value"] else "")
  body="""<section class="fjord-support-panel"><div class="eyebrow">Un petit geste, un grand merci</div><h1>❤️ Soutenir Les Impressions du Fjord</h1><p>Vous aimez nos créations et souhaitez encourager notre atelier d'impression 3D? Votre soutien volontaire nous aide à développer de nouveaux projets.</p>
- {% if valid %}<a class="fjord-donation-link" href="{{link}}" target="_blank" rel="noopener noreferrer">❤️ Faire un don sécurisé avec Stripe ↗</a><p class="small">Paiement traité par Stripe. Les dons sont indépendants des commandes et ne constituent pas des reçus officiels de dons de bienfaisance.</p>
- {% else %}<p class="alert">Les dons en ligne seront disponibles prochainement. Merci pour votre soutien! 💙</p>{% endif %}
+ {% if recipient %}<details class="fjord-donation-interac" style="background:#172334;color:#f5f7fb;border:1px solid #34485f;border-radius:14px;padding:12px 16px;margin:18px 0"><summary style="cursor:pointer;font-weight:800;color:#ffd447"><svg aria-hidden="true" focusable="false" width="38" height="27" viewBox="0 0 38 27" style="vertical-align:middle;margin-right:9px"><rect x="1" y="1" width="36" height="25" rx="4" fill="#26394f" stroke="#ffd447" stroke-width="2"/><rect x="1" y="7" width="36" height="5" fill="#ffd447"/><rect x="6" y="16" width="8" height="6" rx="1" fill="#d6deea"/><path d="M20 18h11M20 21h7" stroke="#d6deea" stroke-width="1.5" stroke-linecap="round"/></svg>Virement Interac — afficher les instructions</summary><p style="color:#edf2f7">Envoyez le montant de votre choix à <strong>{{recipient}}</strong> et inscrivez « Don atelier Fjord » en note.</p><p class="small" style="color:#c5d0dd">La marche à suivre varie selon la banque. <a style="color:#ffd447" href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Instructions officielles ↗</a></p></details>{% endif %}
+ {% if valid %}<a class="fjord-donation-link" href="{{link}}" target="_blank" rel="noopener noreferrer">❤️ Faire un don sécurisé avec Stripe ↗</a><p class="small">Paiement traité par Stripe. Les dons sont indépendants des commandes et ne constituent pas des reçus officiels de dons de bienfaisance.</p>{% endif %}
+ {% if not valid and not recipient %}<p class="alert">Les dons en ligne seront disponibles prochainement. Merci pour votre soutien! 💙</p>{% endif %}
  <p><a href="/">← Retour à l'accueil</a></p></section>"""
- return page("Soutenir notre atelier",body,valid=valid,link=link)
+ return page("Soutenir notre atelier",body,valid=valid,link=link,recipient=recipient)
 
 @app.get("/")
 def home():
@@ -828,9 +1020,71 @@ def login():
 @admin_required
 def admin():
  with db() as c:
-  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 200").fetchall()
+  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 12").fetchall()
+  reqs_count=c.execute("SELECT COUNT(*) AS total FROM requests").fetchone()["total"]
   gallery=c.execute("SELECT id,title,category FROM gallery ORDER BY id DESC").fetchall()
- return page("Administration",'''<h1>Tableau de bord</h1><div class="row"><a class="btn" href="/admin/modeles">📚 Mes modèles 3D</a><a class="btn" href="/admin/profils-bambu">⚙️ Mes profils Bambu</a><a class="btn" href="/admin/soumissions-pro">📄 Soumissions PRO</a><a class="btn" href="/admin/new">Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>Déconnexion</button></form></div><h2>Demandes et commandes</h2><div class="grid">{% for r in reqs %}<article class="card"><div class="eyebrow">#{{r.id}} · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}}</div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a> · {{r.phone or ''}}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p>Aucune demande pour le moment.</p>{% endfor %}</div>''',reqs=reqs,gallery=gallery,statuses=STATUSES,csrf=csrfinput())
+  quotes_stats=c.execute("""SELECT COUNT(*) FILTER (WHERE payment_status <> 'Payée' AND deleted_at IS NULL) AS unpaid,
+      COUNT(*) FILTER (WHERE payment_status = 'Payée' AND deleted_at IS NULL) AS paid FROM private_quotes""").fetchone()
+ from fjord_bambu_connect import bridge_state as _bridge_state
+ bridge=_bridge_state(db)
+ return page("Administration",'''<style>
+.admin-dashboard{max-width:1500px;margin:0 auto;padding:clamp(12px,2.4vw,30px)}
+.admin-dashboard *{box-sizing:border-box}
+.admin-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 24px}
+.admin-hero .eyebrow{color:#82d8f5;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.admin-hero h1{font-size:clamp(30px,4vw,48px);line-height:1.05;margin:7px 0}
+.admin-hero p{max-width:690px;margin:0;color:#b7cad9}
+.admin-clock{color:#b5d7e7;font-size:13px}
+.admin-control-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}
+.admin-control-card{display:flex;flex-direction:column;min-width:0;min-height:226px;padding:19px;border:1px solid #286488;border-radius:16px;background:linear-gradient(155deg,#123550,#0a2238);box-shadow:0 10px 26px #00132430}
+.admin-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.admin-control-card h2{font-size:16px;line-height:1.3;margin:0;color:#eff8ff}
+.admin-icon{display:grid;place-items:center;flex:0 0 38px;height:38px;border:1px solid #397b9b;border-radius:11px;background:#0d2c45;font-size:19px}
+.admin-control-card p{margin:6px 0;color:#bdd1df;line-height:1.5}
+.admin-metric{font-size:34px;line-height:1.1;font-weight:850;color:#76e2ff;margin:2px 0}
+.admin-metric-label{color:#b7cad9;font-size:13px}
+.admin-mini-metric{font-size:15px;color:#e5f4ff;margin-top:12px}
+.admin-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:15px}
+.admin-card-actions a,.admin-shortcuts a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border:1px solid #377e9f;border-radius:10px;background:#123c59;color:#dff7ff;text-decoration:none;font-weight:750;font-size:13px}
+.admin-card-actions a:hover,.admin-shortcuts a:hover{background:#175477;border-color:#65ceee}
+.admin-card-actions a.primary{background:#0d82b8;border-color:#5ed6f7;color:#fff}
+.admin-status{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border-radius:999px;background:#102a3d;border:1px solid #3a6075;color:#c4d8e3;font-size:12px;font-weight:800}
+.admin-shortcut-panel{margin:20px 0 30px;padding:17px;border:1px solid #284c64;border-radius:16px;background:#0c2438}
+.admin-shortcut-panel h2{margin:0 0 12px;font-size:16px}
+.admin-shortcuts{display:flex;gap:9px;flex-wrap:wrap}
+.admin-shortcuts form{margin:0}
+.admin-shortcuts button{min-height:40px;padding:9px 13px;border:1px solid #5297b4;border-radius:10px;background:#173a53;color:#eefaff;font-weight:750;cursor:pointer}
+.admin-shortcuts button:hover{background:#204f6c}
+.admin-requests-section{margin-top:28px}
+.admin-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.admin-section-head h2{font-size:24px;margin:0}
+.admin-section-head p{font-size:13px;color:#b6cbd9;margin:4px 0 0}
+.admin-request-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.admin-request-card{min-width:0;margin:0;padding:18px;border:1px solid #284e68;border-radius:15px;background:linear-gradient(155deg,#102c43,#0b2135)}
+.admin-request-card h3{margin:6px 0;font-size:18px;overflow-wrap:anywhere}
+.admin-request-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#a9c7d8;font-size:12px}
+.admin-request-card p{line-height:1.5;overflow-wrap:anywhere}
+.admin-request-card form{margin:14px 0 0}
+.admin-request-card form label{font-size:13px}
+.admin-request-card select,.admin-request-card input{max-width:100%}
+.admin-empty{padding:24px;border:1px dashed #37617a;border-radius:14px;background:#0c2438;color:#bdd1df}
+@media(max-width:1050px){.admin-control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.admin-dashboard{padding:10px}.admin-hero{margin-bottom:16px}.admin-hero h1{font-size:32px}.admin-control-grid{grid-template-columns:1fr;gap:10px;margin:14px 0}.admin-control-card{min-height:0;padding:16px}.admin-card-actions a{flex:1 1 auto}.admin-shortcut-panel{padding:14px}.admin-shortcuts{display:grid;grid-template-columns:1fr 1fr}.admin-shortcuts a,.admin-shortcuts form,.admin-shortcuts button{width:100%;text-align:center}.admin-shortcuts form{grid-column:1/-1}.admin-request-grid{grid-template-columns:1fr;gap:10px}.admin-request-card{padding:14px}.admin-section-head h2{font-size:21px}}
+</style>
+<main class="admin-dashboard">
+<header class="admin-hero"><div><div class="eyebrow">Espace privé · Les Impressions du Fjord</div><h1>Centre de contrôle</h1><p>Imprimante, commandes et outils essentiels regroupés au même endroit.</p></div><div class="admin-clock" id="adminLocalClock" aria-live="off"></div></header>
+<section class="admin-control-grid" aria-label="État des opérations">
+<article class="admin-control-card"><div class="admin-card-top"><h2>Imprimante X2D</h2><span class="admin-icon" aria-hidden="true">🖨️</span></div><div id="fjord-admin-printer-status" role="status">Lecture de l’état…</div><div class="admin-card-actions"><a class="primary" href="/admin/atelier-imprimer">Ouvrir le contrôle</a><a href="/admin/imprimante-camera">Voir la caméra</a></div></article>
+<article class="admin-control-card"><div class="admin-card-top"><h2>Pont Bambu Connect</h2><span class="admin-icon" aria-hidden="true">🔌</span></div><div class="admin-status">{% if bridge.online %}● En ligne{% elif bridge.paired %}● Hors ligne{% else %}● À associer{% endif %}</div><p>{% if bridge.age is not none %}Dernier contact il y a {{bridge.age}} s{% elif bridge.paired %}PC associé, en attente du prochain contact{% else %}Associe le PC Windows pour transmettre les fichiers{% endif %}</p><div class="admin-card-actions"><a href="/admin/atelier-pont">Gérer le pont</a></div></article>
+<article class="admin-control-card"><div class="admin-card-top"><h2>Soumissions PRO</h2><span class="admin-icon" aria-hidden="true">📄</span></div><div class="admin-metric">{{quotes_stats.unpaid}}</div><div class="admin-metric-label">à traiter ou à payer</div><div class="admin-mini-metric"><strong>{{quotes_stats.paid}}</strong> payée(s) dans l’historique</div><div class="admin-card-actions"><a class="primary" href="/admin/soumissions-pro#soumissions-enregistrees">Gérer les soumissions</a></div></article>
+<article class="admin-control-card"><div class="admin-card-top"><h2>Demandes récentes</h2><span class="admin-icon" aria-hidden="true">📥</span></div><div class="admin-metric">{{reqs_count}}</div><div class="admin-metric-label">demande(s) au total</div><p>Les 12 dernières sont listées plus bas.</p><div class="admin-card-actions"><a href="#admin-requests">Voir les demandes</a></div></article>
+</section>
+<section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
+<section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div></div>
+<div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
+(async function(){const box=document.getElementById('fjord-admin-printer-status');if(!box)return;try{const r=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const s=await r.json();if(!s.ok)throw Error();const state=String(s.state||'inconnu').replace(/_/g,' ');const parts=[({'printing':'En impression','paused':'En pause','idle':'Prête','finished':'Terminée','failed':'Erreur'}[s.state]||state),s.file?'Fichier : '+s.file:'Aucun fichier en cours'];if(typeof s.progress==='number')parts.push(Math.round(s.progress)+' %');box.textContent=parts.join(' · ');}catch(_){box.textContent='État non disponible. Ouvre le contrôle X2D pour actualiser.'}})();
+(function(){const el=document.getElementById('adminLocalClock');if(!el)return;const update=()=>{el.textContent=new Intl.DateTimeFormat('fr-CA',{dateStyle:'full',timeStyle:'short'}).format(new Date())};update();setInterval(update,60000)})();
+</script>''',reqs=reqs,reqs_count=reqs_count,gallery=gallery,statuses=STATUSES,csrf=csrfinput(),bridge=bridge,quotes_stats=quotes_stats)
 @app.post("/admin/status/<int:id>")
 @admin_required
 def status(id):
@@ -980,3 +1234,5 @@ register_bambu_preset_library(app,db,admin_required,verify,csrfinput,page)
 # Private X2D print console (OctoEverywhere capabilities verified at runtime).
 from fjord_printer import register_printer_admin
 register_printer_admin(app,admin_required,verify,csrfinput,page,db=db)
+from fjord_bambu_connect import register_bridge as register_bambu_connect_bridge
+register_bambu_connect_bridge(app,db,admin_required,verify,csrfinput,page)

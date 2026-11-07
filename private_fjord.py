@@ -68,6 +68,16 @@ def _quote_amounts(q):
     return subtotal, gst, qst, round(subtotal + gst + qst, 2)
 
 
+def _quote_acceptance_digest(q):
+    """Hash des champs commerciaux que le client a acceptés."""
+    fields=("id","customer","email","title","description","material","quantity","unit_price","shipping","apply_taxes")
+    snapshot={k:str(q[k]) if q[k] is not None else None for k in fields}
+    if q.get("military_discount"):
+        snapshot["military_discount"]="True"
+    payload=json.dumps(snapshot,ensure_ascii=False,sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 def _square_checkout_url(value):
     """Only official Square or Stripe-hosted HTTPS payment links are accepted."""
     value=(value or "").strip()
@@ -125,7 +135,7 @@ def admin_studio(html, csrf_token):
     button = '<button type="button" id="fjordPrivateImport">📚 Importer de ma bibliothèque</button><button type="button" class="primary" id="fjordPrivateSave">💾 Enregistrer dans ma bibliothèque</button><a href="/admin/modeles">Voir mes modèles</a><a href="/admin/profils-bambu" title="Importer ou consulter les paramètres Bambu Studio">⚙️ Mes profils Bambu</a>'
     html = html.replace('<button id="export" data-i18n="export">', button + '<button id="export" data-i18n="export">', 1)
     # Mobile-only quick quote: reuses the existing save-and-create flow, no duplicate submission.
-    mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission PRO" title="Créer une soumission PRO">💰</button>
+    mobile_quote = '''<button type="button" id="fjordMobileQuote" aria-label="Créer une soumission" title="Créer une soumission">💰</button>
 <button type="button" id="fjordMobileMove" aria-label="Déplacer la pièce" title="Déplacer la pièce" aria-pressed="false">✥</button>
 <style>
 #fjordMobileQuote,#fjordMobileMove{display:none}
@@ -144,26 +154,9 @@ def admin_studio(html, csrf_token):
 document.addEventListener("DOMContentLoaded",()=>{
  const bar=document.getElementById("mobileIconBar");
  const textBtn=bar?.querySelector('[data-open-tools="text"]');
- // Private Atelier PRO only: keep this original button id for existing
- // editor bindings, but move the printer icon BESIDE the admin gear in header.
- // No duplicate print/slice control is left in the mobile tools strip.
- const printBtn=bar?.querySelector("#mobileSliceBtn");
- const links=document.querySelector("header.fjord-admin-header .fjord-admin-links");
- if(printBtn&&links){
-  printBtn.removeAttribute("data-i18n");
-  printBtn.classList.add("fjord-mobile-print");
-  printBtn.textContent="🖨️";
-  printBtn.title="Imprimer sur ma X2D";
-  printBtn.setAttribute("aria-label","Imprimer sur ma X2D");
-  printBtn.removeAttribute("aria-pressed");
-  links.prepend(printBtn);
-  // The old mobile button's slicer listener must not run on this print icon.
-  printBtn.addEventListener("click",event=>{
-   event.preventDefault();
-   event.stopImmediatePropagation();
-   document.getElementById("fjordPrintShortcut")?.click();
-  },true);
- }
+ // Keep one print shortcut in the admin header; remove the old duplicate
+ // mobile slicer icon because slicing remains available in the Slice workspace.
+ bar?.querySelector("#mobileSliceBtn")?.remove();
  const quote=document.getElementById("fjordMobileQuote");
  const move=document.getElementById("fjordMobileMove");
  if(bar&&textBtn&&quote&&move){textBtn.after(quote,move);document.querySelectorAll("#mobileIconBar #fjordMobileQuote, #mobileIconBar #fjordMobileMove").forEach(b=>b.style.removeProperty("display"))}
@@ -179,12 +172,12 @@ document.addEventListener("DOMContentLoaded",()=>{
     # collapsible "Projet" menu. This HTML is served only to authenticated admins.
     admin_shortcut = (
         '<a id="fjordAdminShortcut" href="/admin" '
-        'title="Retour au tableau de bord administrateur" '
+        'title="Ouvrir le tableau de bord administrateur" '
         'style="display:inline-flex;align-items:center;justify-content:center;'
         'min-height:40px;padding:8px 12px;border-radius:9px;'
         'border:1px solid #67b0d9;background:#11577e;color:#fff;'
         'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
-        '👤 Mode normal</a>'
+        '📋 Tableau de bord</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + admin_shortcut, 1)
     print_shortcut = (
@@ -195,6 +188,15 @@ document.addEventListener("DOMContentLoaded",()=>{
         'border:1px solid #68c4a4;background:#115f4e;color:#fff;'
         'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
         '🖨️ Imprimer sur ma X2D</a>'
+    )
+    camera_shortcut = (
+        '<a id="fjordCameraShortcut" href="/admin/imprimante-camera" '
+        'title="Voir la caméra X2D en direct" '
+        'style="display:inline-flex;align-items:center;justify-content:center;'
+        'min-height:40px;padding:8px 12px;border-radius:9px;'
+        'border:1px solid #71bde7;background:#164f71;color:#fff;'
+        'font-size:13px;font-weight:750;white-space:nowrap;text-decoration:none">'
+        '📷 Caméra X2D</a>'
     )
     html = html.replace('<div class="top-preferences">', '<div class="top-preferences">' + print_shortcut, 1)
     # Shorten the two long library labels without changing their IDs/actions.
@@ -236,15 +238,15 @@ document.addEventListener("DOMContentLoaded",()=>{
         )
         html = html[:menu.start(2)] + compact + html[menu.end(2):]
         html = html.replace('<button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>',
-                            '<button id="quote" class="primary" title="Créer une soumission depuis le plateau">💰 Soumission PRO</button>', 1)
+                            '<button id="quote" class="primary" title="Créer une soumission depuis le plateau">💰 Créer une soumission</button>', 1)
         html = html.replace(print_shortcut, '', 1).replace(admin_shortcut, '', 1)
         html = html.replace('<div class="top-preferences">',
                             '<div class="fjord-admin-links" aria-label="Accès privé">' +
-                            admin_shortcut +
+                            admin_shortcut + print_shortcut + camera_shortcut +
                             '</div><div class="top-preferences">', 1)
         # Visible on desktop and mobile; delegates to the existing protected
         # save-model-and-create-quote workflow (does not auto-create a quote).
-        html = html.replace('</body>', '''<button type="button" id="fjordStudioQuoteShortcut" aria-label="Créer une soumission PRO depuis le plateau">💰 Créer une soumission</button>
+        html = html.replace('</body>', '''<button type="button" id="fjordStudioQuoteShortcut" aria-label="Créer une soumission depuis le plateau">💰 Créer une soumission</button>
 <style>
 #fjordStudioQuoteShortcut{display:flex;position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:8500;align-items:center;justify-content:center;min-height:46px;max-width:calc(100vw - 24px);padding:10px 18px;border:1px solid #7bdcff;border-radius:999px;background:linear-gradient(120deg,#0575b4,#14a4dd);box-shadow:0 5px 22px #00182dbb;color:#fff;font-size:14px;font-weight:800;cursor:pointer}
 #fjordStudioQuoteShortcut:focus-visible{outline:3px solid #fff;outline-offset:3px}
@@ -257,12 +259,10 @@ document.addEventListener("DOMContentLoaded",()=>{
         # Print controls belong to the Slice panel, not the crowded header.
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
-            + print_shortcut
-            + '<button type="button" id="fjordQuoteFromSlice" class="fjord-quote-from-slice">💰 Créer une soumission PRO</button>'
+            + '<button type="button" id="fjordQuoteFromSlice" class="fjord-quote-from-slice">💰 Créer une soumission</button>'
             + '<button type="button" hidden id="fjordAutoPrintLauncher" '
               'title="Préparer le tranchage Bambu Studio sur ma X2D"></button>'
-            + '<p>Aperçu du plateau ci-dessus : estimation. '
-              'Pour préparer le vrai G-code Bambu, clique sur Imprimer sur ma X2D, '
+            + '<p>Aperçu du plateau ci-dessus : estimation. Le bouton Imprimer sur ma X2D reste dans l’en-tête; '
               'examine les couches et confirme l’envoi avant le démarrage.</p>'
             + '</div>'
         )
@@ -795,14 +795,17 @@ if(fjordAutoButton){
    livePercent.textContent=ownProgress
      ?pct.toLocaleString('fr-CA',{maximumFractionDigits:1})+' %'
      :sent?'Progression de CE fichier non confirmée':'En attente du départ';
-   liveState.textContent=matched?
-     (data.state==='complete'&&!confirmedActiveJob?'Fin signalée (non vérifiée)':
-      (labels[data.state]||data.state||'État inconnu'))+
-      (reportedName?' · '+reportedName:''):
-     (reportedName?'Dernière tâche connue : '+reportedName+
-      ' · '+(labels[data.state]||data.state||'État inconnu'):
-      (labels[data.state]||data.state||'État inconnu'))+
-      (data.substate?' · '+data.substate:'');
+   const handoffWaiting=sent&&!matched&&data.start_ack==='bambu_connect_handoff';
+   liveState.textContent=handoffWaiting
+     ?'En attente de Bambu Connect sur le PC'
+     :matched?
+       (data.state==='complete'&&!confirmedActiveJob?'Fin signalée (non vérifiée)':
+        (labels[data.state]||data.state||'État inconnu'))+
+        (reportedName?' · '+reportedName:''):
+       (reportedName?'Dernière tâche connue : '+reportedName+
+        ' · '+(labels[data.state]||data.state||'État inconnu'):
+        (labels[data.state]||data.state||'État inconnu'))+
+       (data.substate?' · '+data.substate:'');
    const info=[];
    if(ownProgress&&data.total_layers>0&&data.current_layer!=null)
     info.push('Couche '+data.current_layer+' / '+data.total_layers);
@@ -838,7 +841,11 @@ if(fjordAutoButton){
        'Le relais a reçu la commande, mais la X2D n’a pas démarré le nouveau fichier.';
     }
    }
-   if(sent&&!matched){
+   if(handoffWaiting){
+    info.unshift('⏳ La demande est remise au PC. Confirme l’imprimante et le lancement dans Bambu Connect.');
+    if(reportedName)info.push('La tâche « '+reportedName+' » affichée par la X2D est ancienne et ne concerne pas ce 3MF.');
+    startMessage.textContent='📨 3MF remis à Bambu Connect. Confirme l’envoi à la X2D dans l’application sur le PC.';
+   }else if(sent&&!matched){
     if(reportedName)info.unshift('⚠ La X2D rapporte « '+reportedName+
       ' » : ce n’est pas le fichier récemment envoyé.');
     else info.unshift('⚠ La X2D ne rapporte aucun fichier correspondant au dernier envoi.');
@@ -1828,10 +1835,53 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         c.execute("""ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS
                      payment_status TEXT NOT NULL DEFAULT 'En attente'""")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ")
+        c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_url TEXT")
         c.execute("ALTER TABLE private_quotes ADD COLUMN IF NOT EXISTS square_link_amount_cents BIGINT")
         c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS private_quotes_payment_token_idx
                      ON private_quotes(payment_token)""")
+        # One-time repair on deployment: make FJ-00002 visible without relying
+        # on a browser page load. The migration marker prevents later restarts
+        # from resurrecting a quote deliberately moved to the trash.
+        c.execute("SELECT pg_advisory_xact_lock(7342026, 8)")
+        marker=c.execute("SELECT value FROM settings WHERE key=%s",
+                         ("fjord_mathieu_quote_restore_v1",)).fetchone()
+        if not marker:
+            existing=c.execute("""SELECT id,public_number FROM private_quotes
+                WHERE public_number=%s OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))
+                ORDER BY CASE WHEN public_number=%s THEN 0 ELSE 1 END,id DESC LIMIT 1""",
+                ("FJ-00002","Mathieu rivard","porte can motoneige","FJ-00002")).fetchone()
+            if existing:
+                c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s",(existing["id"],))
+                if not existing.get("public_number"):
+                    c.execute("UPDATE private_quotes SET public_number=%s WHERE id=%s",
+                              ("FJ-00002",existing["id"]))
+            else:
+                c.execute("""INSERT INTO private_quotes
+                    (customer,email,phone,title,description,material,quantity,unit_price,
+                     shipping,apply_taxes,military_discount,payment_token,payment_status,
+                     production_status,production_progress,public_number,created)
+                    VALUES (%s,NULL,NULL,%s,%s,%s,1,%s,0,FALSE,FALSE,%s,'En attente',
+                            'À traiter',0,%s,%s)
+                    ON CONFLICT DO NOTHING""",
+                    ("Mathieu rivard","porte can motoneige","", "PETG",20.50,
+                     secrets.token_urlsafe(32),"FJ-00002",
+                     datetime.datetime(2026,10,31,12,0,tzinfo=datetime.timezone.utc)))
+            c.execute("""INSERT INTO settings(key,value) VALUES(%s,%s)
+                         ON CONFLICT(key) DO NOTHING""",
+                      ("fjord_mathieu_quote_restore_v1","done"))
+        # Apply the user's request once: remove Mathieu's FJ-00002 from active
+        # lists but keep it recoverable in the quote trash.
+        trash_marker=c.execute("SELECT value FROM settings WHERE key=%s",
+                               ("fjord_mathieu_quote_trash_v1",)).fetchone()
+        if not trash_marker:
+            c.execute("""UPDATE private_quotes SET deleted_at=COALESCE(deleted_at,NOW())
+                         WHERE public_number=%s
+                            OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))""",
+                      ("FJ-00002","Mathieu rivard","porte can motoneige"))
+            c.execute("""INSERT INTO settings(key,value) VALUES(%s,%s)
+                         ON CONFLICT(key) DO NOTHING""",
+                      ("fjord_mathieu_quote_trash_v1","done"))
 
     def _save_model(deduplicate=False):
         name = request.form.get("name", "").strip()[:120]
@@ -2146,14 +2196,63 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         flash("Modèle supprimé de la bibliothèque.")
         return redirect("/admin/modeles")
 
+    @app.post("/admin/soumissions-pro/recuperer-mathieu")
+    @admin_required
+    def fjord_quote_recover_mathieu():
+        verify()
+        with db() as c:
+            c.execute("SELECT pg_advisory_xact_lock(7342026, 8)")
+            quote=c.execute("""SELECT id,public_number,deleted_at FROM private_quotes
+                WHERE public_number=%s OR (lower(customer)=lower(%s) AND lower(title)=lower(%s))
+                ORDER BY CASE WHEN public_number=%s THEN 0 ELSE 1 END,id DESC LIMIT 1 FOR UPDATE""",
+                ("FJ-00002","Mathieu rivard","porte can motoneige","FJ-00002")).fetchone()
+            if quote:
+                c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s",(quote["id"],))
+                if not quote.get("public_number"):
+                    c.execute("UPDATE private_quotes SET public_number=%s WHERE id=%s",("FJ-00002",quote["id"]))
+                recovered_existing=True
+            else:
+                created=c.execute("""INSERT INTO private_quotes
+                    (customer,email,phone,title,description,material,quantity,unit_price,
+                     shipping,apply_taxes,military_discount,payment_token,payment_status,
+                     production_status,production_progress,public_number,created)
+                    VALUES (%s,NULL,NULL,%s,%s,%s,1,%s,0,FALSE,FALSE,%s,'En attente',
+                            'À traiter',0,%s,%s)
+                    ON CONFLICT DO NOTHING RETURNING id""",
+                    ("Mathieu rivard","porte can motoneige","", "PETG",20.50,
+                     secrets.token_urlsafe(32),"FJ-00002",
+                     datetime.datetime(2026,10,31,12,0,tzinfo=datetime.timezone.utc))).fetchone()
+                if created:
+                    recovered_existing=False
+                else:
+                    quote=c.execute("SELECT id FROM private_quotes WHERE public_number=%s FOR UPDATE",("FJ-00002",)).fetchone()
+                    if not quote:abort(409,"La soumission n’a pas pu être rétablie.")
+                    c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s",(quote["id"],))
+                    recovered_existing=True
+        if recovered_existing:
+            flash("FJ-00002 de Mathieu a été retrouvée et remise dans le tracker. Son statut de paiement existant a été conservé.")
+        else:
+            flash("FJ-00002 de Mathieu a été recréée depuis le PDF : 20,50 $ CAD, PETG, en attente d’acceptation. L’ancien historique n’était pas dans le PDF.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
     @app.post("/admin/soumissions-pro/<int:quote_id>/supprimer")
     @admin_required
     def fjord_quote_delete(quote_id):
         verify()
         with db() as c:
-            deleted=c.execute("DELETE FROM private_quotes WHERE id=%s RETURNING id",(quote_id,)).fetchone()
+            deleted=c.execute("UPDATE private_quotes SET deleted_at=NOW() WHERE id=%s AND deleted_at IS NULL RETURNING id",(quote_id,)).fetchone()
         if not deleted:abort(404)
-        flash("Soumission supprimée.")
+        flash("Soumission déplacée dans la corbeille. Tu peux la restaurer plus tard.")
+        return redirect("/admin/soumissions-pro#soumissions-enregistrees")
+
+    @app.post("/admin/soumissions-pro/<int:quote_id>/restaurer")
+    @admin_required
+    def fjord_quote_restore(quote_id):
+        verify()
+        with db() as c:
+            restored=c.execute("UPDATE private_quotes SET deleted_at=NULL WHERE id=%s AND deleted_at IS NOT NULL RETURNING id",(quote_id,)).fetchone()
+        if not restored:abort(404)
+        flash("Soumission restaurée dans le tracker.")
         return redirect("/admin/soumissions-pro#soumissions-enregistrees")
 
     @app.post("/admin/api/associer-impression")
@@ -2176,7 +2275,10 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
             c.execute("UPDATE private_quotes SET printer_job_name=NULL WHERE printer_job_name=%s AND id<>%s",(filename,ident))
             c.execute("UPDATE private_quotes SET printer_job_name=%s WHERE id=%s",(filename,ident))
         state=_sync_octo_progress()
-        return {"ok":True,"message":"Impression associée à "+(row["public_number"] or "FJ-{:05d}".format(ident))+".","progress":state.get("progress")}
+        display_number=row["public_number"] or "FJ-{:05d}".format(ident)
+        if not state.get("matched") or state.get("id")!=ident:
+            return {"ok":False,"error":"Le nom du fichier a été associé, mais le suivi n’a pas confirmé cette soumission. Actualise le suivi; si le problème persiste, vérifie le nom du fichier détecté."},409
+        return {"ok":True,"message":"Impression associée à "+display_number+". La progression se met à jour automatiquement.","progress":state.get("progress")}
 
     @app.get("/admin/api/progression-auto")
     @admin_required
@@ -2185,26 +2287,63 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         status=_sync_octo_progress()
         return {"ok":True,**status}
 
+    @app.get("/admin/api/soumissions-pro-etat")
+    @admin_required
+    def fjord_quote_tracker_state():
+        """État minimal du tracker admin pour l'actualisation automatique."""
+        with db() as c:
+            rows=c.execute("""SELECT q.*,a.quote_hash AS accepted_hash
+                FROM private_quotes q
+                LEFT JOIN fjord_quote_acceptances a ON a.quote_id=q.id
+                WHERE q.deleted_at IS NULL ORDER BY q.id DESC""").fetchall()
+        items=[]
+        for q in rows:
+            accepted=bool(q.get("accepted_hash") and
+                          q["accepted_hash"]==_quote_acceptance_digest(q))
+            if q["payment_status"]=="Payée":
+                stage="terminees" if int(q.get("production_progress") or 0)>=100 else "production"
+            elif not accepted:
+                stage="attente_acceptation"
+            else:
+                stage="attente_paiement"
+            items.append({"id":q["id"],"accepted":accepted,
+                          "paid":q["payment_status"]=="Payée",
+                          "stage":stage,"progress":int(q.get("production_progress") or 0)})
+        return {"ok":True,"quotes":items},200,{"Cache-Control":"no-store"}
+
     @app.get("/admin/soumissions-pro")
     @admin_required
     def fjord_quotes():
         with db() as c:
             models=c.execute("SELECT id,name,(preview IS NOT NULL OR lower(filename) LIKE '%.stl' OR lower(filename) LIKE '%.3mf') AS has_preview FROM private_models ORDER BY created DESC LIMIT 1000").fetchall()
-            quotes=c.execute("""SELECT id,model_id,customer,email,title,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
+            quotes=c.execute("""SELECT id,model_id,customer,email,title,description,material,quantity,unit_price,shipping,square_link_url,square_link_amount_cents,
                      apply_taxes,military_discount,payment_status,paid_at,created,payment_token,production_status,production_progress,public_number,printer_job_name,
                      (SELECT signer FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_by,
                      (SELECT accepted_at FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_at,
-                     live_url,live_token,live_enabled,live_expires
-                     FROM private_quotes ORDER BY id DESC LIMIT 150""").fetchall()
+                     (SELECT quote_hash FROM fjord_quote_acceptances a WHERE a.quote_id=private_quotes.id) AS accepted_hash,
+                     live_url,live_token,live_enabled,live_expires,deleted_at
+                     FROM private_quotes ORDER BY id DESC""").fetchall()
             payment_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
+        acceptance_valid={q["id"]:bool(q.get("accepted_hash") and
+                              q["accepted_hash"]==_quote_acceptance_digest(q)) for q in quotes}
         def quote_stage(q):
-            if q["payment_status"]=="Payée":return "payees"
-            if q.get("production_status")=="Terminée":return "terminees"
-            if q.get("production_status")=="En production":return "production"
-            if q["accepted_at"]:return "acceptees"
-            return "attente"
+            # Toute soumission payée appartient à l'historique, même si son
+            # acceptation électronique n'a pas été enregistrée dans l'ancien flux.
+            if q["payment_status"]=="Payée":
+                return "terminees" if int(q.get("production_progress") or 0)>=100 else "production"
+            if not acceptance_valid[q["id"]]:return "attente_acceptation"
+            return "attente_paiement"
         stages={q["id"]:quote_stage(q) for q in quotes}
-        counters={k:sum(stage==k for stage in stages.values()) for k in ("attente","acceptees","payees","production","terminees")}
+        active_quotes=[q for q in quotes if not q.get("deleted_at")]
+        counters={
+            "attente_acceptation":sum(stages[q["id"]]=="attente_acceptation" for q in active_quotes),
+            "attente_paiement":sum(stages[q["id"]]=="attente_paiement" for q in active_quotes),
+            "actives":sum(q["payment_status"]!="Payée" for q in active_quotes),
+            "payees":sum(q["payment_status"]=="Payée" for q in active_quotes),
+            "production":sum(stages[q["id"]]=="production" for q in active_quotes),
+            "terminees":sum(stages[q["id"]]=="terminees" for q in active_quotes),
+            "corbeille":sum(bool(q.get("deleted_at")) for q in quotes),
+        }
         interac_email=payment_setting["value"] if payment_setting else ""
         quote_totals={q["id"]:_quote_amounts(q)[3] for q in quotes}
         square_active={q["id"]:bool(_active_square_url(q)) for q in quotes}
@@ -2227,17 +2366,39 @@ def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, pag
         return page("Soumissions PRO",r"""
 <style>
 .fj-status-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:15px 0 22px}
+.fj-quote-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}.fj-quote-tab{background:#102b43;border:1px solid #3288b7;color:#eafaff;padding:13px 18px;border-radius:12px;cursor:pointer;font:inherit;font-weight:750}.fj-quote-tab strong{display:inline-block;margin-left:8px;color:#8ce8ff}.fj-quote-tab.active{background:linear-gradient(110deg,#075b99,#148dcc);outline:2px solid #7ee7ff}.fj-quote-tab[aria-selected="true"]{box-shadow:0 0 0 1px #7ee7ff inset}.fj-status-board[hidden]{display:none!important}
+.fj-overall-state{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:14px 0;padding:11px 13px;border:1px solid #277bb1;border-radius:10px;background:#0d2b43}.fj-overall-state>span{font-size:13px;color:#bdd8e8}.fj-overall-state>strong{color:#a9edff;font-size:15px}
 .fj-status-btn{border:1px solid #548da7;border-radius:12px;background:#16364b;color:#e9faff;padding:13px 10px;text-align:left;cursor:pointer}
 .fj-status-btn strong{display:block;font-size:24px;margin-top:5px}
 .fj-status-btn.active{outline:2px solid #7ee7ff;background:#21506a}
 .fj-quote-card[hidden]{display:none!important}
+.fj-quote-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.fj-quote-delete-form{margin:0!important;max-width:none}
+.fj-quote-delete{display:inline-flex;align-items:center;justify-content:center;width:42px;min-width:42px;height:42px;padding:0;border:1px solid #d66a72;border-radius:10px;background:#762a34;color:#fff;font-size:18px;cursor:pointer}
+.fj-quote-delete:hover{background:#9a3541}
 .fj-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .fj-two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .fj-two label{min-width:0}.fj-two input,.fj-two select{max-width:100%}
 .fj-help{font-size:13px;color:#b4d1e1}
 .fj-summary{background:#132e43;border:1px solid #58bce8;border-radius:12px;padding:20px}
+.fj-recover-mathieu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;border:1px solid #48b7dc;border-radius:12px;background:#0e2b42}.fj-recover-mathieu button{padding:10px 14px;background:#117eb0;color:#fff;border:1px solid #6bdbff;border-radius:9px;font-weight:800;cursor:pointer}.fj-recover-mathieu span{font-size:13px;color:#b8d6e6}
+@media(min-width:651px){.fj-quote-tabs{float:left;width:205px;display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:14px 16px 12px 0;position:sticky;top:12px;z-index:2}.fj-quote-tab{text-align:left}.fj-quote-tab strong{float:right}#fjQuoteViewHint,#fjQuoteSyncStatus,#fjActiveFilters,#fjPaidFilters,.fj-search-label,#fj-quotes-empty,#fj-quotes-grid{margin-left:222px}}
+.fj-recover-mathieu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;border:1px solid #48b7dc;border-radius:12px;background:#0e2b42}.fj-recover-mathieu button{padding:10px 14px;background:#117eb0;color:#fff;border:1px solid #6bdbff;border-radius:9px;font-weight:800;cursor:pointer}.fj-recover-mathieu span{font-size:13px;color:#b8d6e6}
+@media(min-width:651px){.fj-quote-tabs{float:left;width:205px;display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:14px 16px 12px 0;position:sticky;top:12px;z-index:2}.fj-quote-tab{text-align:left}.fj-quote-tab strong{float:right}#fjQuoteViewHint,#fjQuoteSyncStatus,#fjActiveFilters,#fjPaidFilters,.fj-search-label,#fj-quotes-empty,#fj-quotes-grid{margin-left:222px}}
 .fj-summary strong{display:block;font-size:30px;color:#7ee7ff}
 .fj-summary p{margin:5px 0}.fj-card{margin:18px 0}
+.fj-octo-association[hidden]{display:none!important}
+.fj-octo-association{margin:12px 0 18px!important;border-color:#35bce9!important;background:linear-gradient(145deg,#12334d,#0b2438)!important}
+.fj-octo-association-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.fj-octo-association-head h3{margin:0}
+.fj-octo-badge{padding:5px 9px;border:1px solid #55bedc;border-radius:999px;color:#a8edff;font-size:12px;font-weight:750}
+.fj-octo-help{margin:10px 0 14px;color:#c7dceb}
+.fj-octo-filename{padding:10px 12px;margin:0 0 14px;border:1px solid #426d87;border-radius:9px;background:#091a2b;color:#9be7ff;font-weight:700;overflow-wrap:anywhere}
+.fj-octo-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.fj-octo-controls label{min-width:0}.fj-octo-controls select{margin-bottom:0}
+#fjord-octo-bind{min-height:46px;white-space:normal}
+#fjord-octo-bind-result{min-height:1.4em;margin:10px 0 0;color:#bfeeff}
+@media(max-width:650px){.fj-octo-controls{grid-template-columns:1fr}.fj-octo-controls button{width:100%;min-height:50px}}
 .fj-preview-box{max-width:460px;margin:14px 0;padding:12px;background:#eaf4fa;border-radius:12px}
 .fj-preview-box[hidden]{display:none!important}
 .fj-preview-box .fj-help{color:#32546a!important}
@@ -2274,7 +2435,7 @@ body.light .fj-library-item small,body.light .fj-library-dialog .fj-help{color:#
 body.light .fj-reset-button{color:#126185;border-color:#318cb7}
 body.light .fj-reset-button:hover,body.light .fj-reset-button:focus-visible{color:#fff}
 @media(max-width:540px){.fj-quote-actions button{width:100%}}
-.fj-payment-form{max-width:360px;margin:12px 0 6px}
+.fj-interac-quote{margin:12px 0;border:1px solid #d39e18;border-radius:12px;background:#142334;color:#f5f7fb;overflow:hidden}.fj-interac-quote summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;color:#ffd447;font-weight:850}.fj-interac-logo{display:inline-flex;flex-direction:column;flex:0 0 104px;width:104px;overflow:hidden;border:2px solid #f7f7f7;border-radius:9px;line-height:1;box-shadow:0 2px 6px #0005}.fj-interac-logo-top{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;padding:7px 4px 6px;background:#efb21c;color:#111;font-size:18px;font-weight:950;font-style:italic;letter-spacing:-.07em;text-align:center}.fj-interac-logo-top small{font-size:7px;font-style:normal;letter-spacing:0;align-self:flex-start;margin-top:-2px}.fj-interac-hand{width:12px;height:17px;flex:0 0 auto}.fj-interac-logo-bottom{display:block;padding:6px 4px;background:#676767;color:#fff;font-size:13px;font-weight:850;text-align:center;letter-spacing:.01em}.fj-interac-quote-body{padding:2px 14px 14px;font-size:13px;line-height:1.55;color:#e6edf4}.fj-interac-quote-body p{margin:7px 0}.fj-interac-quote-body strong{color:#fff}.fj-interac-quote-body a{color:#ffd447}.fj-payment-form{max-width:360px;margin:12px 0 6px}
 .fj-square-settings{margin:14px 0;padding:15px;border:1px solid #4bb8dd;border-radius:13px}
 .fj-square-settings label{font-weight:700}
 .fj-square-settings input[type=url]{width:100%;max-width:100%;box-sizing:border-box}
@@ -2334,8 +2495,8 @@ body.light .fj-top-panel,body.light .fj-card-section{border-color:#aed0df}
 body.light .fj-square-section>summary{background:#e1f2f8}
 @media(max-width:700px){
 .fj-two{grid-template-columns:1fr}
-.fj-status-board{flex-wrap:nowrap;overflow-x:auto;padding-bottom:9px;scroll-snap-type:x proximity}
-.fj-status-btn{flex:0 0 auto;scroll-snap-align:start}
+.fj-status-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:visible;padding:0;margin:10px 0 14px}
+.fj-status-btn{width:100%;min-width:0;min-height:54px;flex:initial;scroll-snap-align:none;line-height:1.25;white-space:normal}
 .fj-quick-actions{display:grid;grid-template-columns:1fr}
 .fj-quick-actions .btn{justify-content:center}
 .fj-quote-card{padding:13px}
@@ -2366,14 +2527,315 @@ body.light .fj-quote-card{background:#f2f9ff!important;border-color:#92c7e7!impo
 body.light .fj-quote-card h3{color:#133e5c}
 body.light .fj-quote-total{background:#e3f5ff}
 body.light .fj-quote-total strong{color:#07608e}
-@media(max-width:650px){.fj-pro-hero{padding:17px}.fj-quote-card{padding:14px}}
+@media(max-width:650px){
+.fj-pro-hero{padding:13px 15px;margin-bottom:12px;border-radius:12px}
+.fj-pro-hero .fjord-pro-label{font-size:9px;letter-spacing:.14em}
+.fj-pro-hero h2{font-size:21px;margin:5px 0}
+.fj-pro-hero p{font-size:12px}
+.fj-head{align-items:flex-start;gap:8px}
+.fj-head h1{font-size:25px;margin:4px 0;width:100%}
+.fj-head>a{font-size:13px}
+.fj-quote-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 8px}
+.fj-quote-tab{min-height:54px;padding:8px 7px;font-size:14px;line-height:1.2}
+.fj-quote-tab strong{display:block;margin:4px 0 0;font-size:17px}
+.fj-status-board{gap:7px;margin:10px 0 14px}
+.fj-status-btn{min-height:48px;padding:10px 12px;font-size:13px}
+.fj-status-btn strong{font-size:16px}
+.fj-search-label{margin:10px 0 14px}
+.fj-search-label input{min-height:48px}
+#fj-quotes-grid{gap:10px}
+.fj-quote-card{padding:12px!important;border-radius:12px!important}
+.fj-quote-card h3{font-size:19px;margin:5px 0}
+.fj-quote-summary{font-size:14px;margin:5px 0 9px}
+.fj-quote-total{padding:10px;margin:9px 0;border-radius:9px}
+.fj-quote-total strong{font-size:21px}
+.fj-quick-actions{gap:7px;margin:9px 0}
+.fj-quick-actions .btn,.fj-quick-actions a{min-height:46px}
+.fj-overall-state{margin:9px 0;padding:9px 10px}
+.fj-overall-state>strong{font-size:14px}
+.fj-interac-quote summary{padding:10px;font-size:13px}
+.fj-interac-quote-body{padding:2px 10px 11px}
+.fj-advanced>summary{padding:12px;font-size:13px}
+.fj-advanced>div,.fj-advanced>section,.fj-advanced>form,.fj-advanced>p,.fj-advanced>.fj-bmo-details{margin:9px!important}
+.fj-advanced input,.fj-advanced select{font-size:16px}
+.fj-top-panel>summary{padding:12px 13px}
+.fj-library-dialog{max-height:82dvh}
+main:has(#fjord-save-global){padding-bottom:100px}
+#fjord-save-global{position:fixed;z-index:100;left:0;right:0;bottom:0;width:100%;max-width:none;margin:0;padding:9px 12px calc(9px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:9px;background:#071a2df2;border-top:1px solid #3288b7;box-shadow:0 -8px 24px #0006;backdrop-filter:blur(10px)}
+#fjord-save-global button{flex:1;min-height:48px;margin:0;font-size:15px}
+#fjord-save-global>span{display:none}
+#fjord-save-feedback{max-width:45%;margin:0;font-size:11px;line-height:1.3}
+}
+/* Tableau de suivi : sections nettes et priorités faciles à repérer */
+.fj-tracker-shell{margin:24px 0 32px;padding:clamp(14px,2vw,24px);border:1px solid #247bb6;border-radius:18px;background:linear-gradient(145deg,#0c2238,#081a2c);box-shadow:0 12px 28px #0003}
+#soumissions-enregistrees{margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid #28516b;font-size:clamp(24px,3vw,32px);line-height:1.15}
+#fjord-auto-progress{display:flex;align-items:center;min-height:38px;margin:0 0 12px;padding:7px 11px;border:1px solid #275a78;border-radius:9px;background:#0a1d30;font-size:13px}
+#fjord-octo-association{margin:12px 0 16px!important;padding:14px!important;border-radius:12px!important}
+#fjord-octo-association h3{font-size:18px}
+#fjord-octo-association .fj-octo-help{margin:7px 0 10px;font-size:14px}
+#fjord-save-global{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;padding:0 0 13px;border:0;border-bottom:1px solid #28516b}
+#fjord-save-global button{min-height:46px;padding:11px 18px}
+#fjord-save-global .fj-help{margin:0}
+#fjord-save-feedback{flex-basis:100%;margin:0}
+.fj-quote-tabs{display:flex;gap:9px;margin:15px 0 8px}
+.fj-quote-tab{display:flex;flex:1;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:10px 14px}
+.fj-quote-tab strong{margin:0!important;padding:2px 8px;border-radius:999px;background:#071a2d;color:#a6ecff!important;font-size:15px}
+#fjQuoteViewHint{margin:8px 0;color:#bdd5e5;line-height:1.45}
+#fjQuoteSyncStatus{display:inline-flex;align-items:center;min-height:28px;padding:3px 9px;border:1px solid #27516b;border-radius:999px;background:#0a1d30;font-size:12px}
+.fj-status-board{gap:8px;margin:12px 0}
+.fj-status-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;text-align:center;font-size:14px;font-weight:750}
+.fj-status-btn strong{display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;margin:0!important;border-radius:999px;background:#071a2d;color:#a6ecff;font-size:15px}
+#fj-quotes-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,410px),1fr));gap:12px}
+.fj-quote-card{padding:18px!important}
+.fj-quote-card[data-stage="attente_acceptation"]{border-left:4px solid #f0b83c!important}
+.fj-quote-card[data-stage="attente_paiement"]{border-left:4px solid #43c8ef!important}
+.fj-quote-card[data-stage="production"]{border-left:4px solid #9c85ec!important}
+.fj-quote-card[data-stage="terminees"]{border-left:4px solid #42c77a!important}
+#fj-quotes-empty{margin:12px 0;padding:16px;border:1px dashed #39799b;border-radius:12px;background:#0a1d30}
+body.light .fj-tracker-shell{background:linear-gradient(145deg,#f1f9fd,#e6f3fa);border-color:#9bc9df;box-shadow:0 8px 20px #17476312}
+body.light #soumissions-enregistrees{border-color:#bfd9e7}
+body.light #fjord-auto-progress,body.light #fjQuoteSyncStatus,body.light #fj-quotes-empty{background:#f7fbfd;border-color:#b8d6e4;color:#36596e}
+body.light .fj-quote-tab strong,body.light .fj-status-btn strong{background:#e2f3fa;color:#075f90!important}
+@media(max-width:650px){
+ .fj-tracker-shell{margin:16px 0 26px;padding:12px;border-radius:13px}
+ #soumissions-enregistrees{font-size:24px;margin-bottom:10px}
+ #fjord-auto-progress{font-size:12px}
+ #fjord-save-global{gap:7px;padding-bottom:10px}
+ #fjord-save-global button{width:100%;min-height:46px}
+ .fj-quote-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0 7px}
+ .fj-quote-tab{min-height:48px;padding:8px 6px;font-size:13px;line-height:1.2}
+ .fj-quote-tab strong{font-size:14px}
+ #fjTrashTab{grid-column:1/-1}
+ #fjActiveFilters,#fjPaidFilters{display:grid;grid-template-columns:1fr;gap:7px}
+ .fj-status-btn{min-height:44px;justify-content:space-between;padding:9px 12px;text-align:left}
+ .fj-status-btn strong{min-width:24px;height:24px}
+ #fj-quotes-grid{grid-template-columns:1fr;gap:9px}
+ .fj-quote-card{padding:13px!important}
+ #fjQuoteViewHint{font-size:12px}
+}
+/* Refonte globale de Soumissions PRO : suivi d’abord, outils ensuite */
+.fj-pro-hero{padding:clamp(20px,3vw,34px);margin-bottom:18px;border-radius:20px}
+.fj-pro-hero .fjord-pro-label{font-size:12px}
+.fj-pro-hero h2{font-size:clamp(27px,4vw,40px);margin:9px 0}
+.fj-head{align-items:center;margin:14px 0 8px}
+.fj-head h1{font-size:clamp(32px,5vw,52px);line-height:1.08}
+.fj-head>a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid #286b93;border-radius:10px;background:#0c2941}
+.fj-head+p{max-width:78ch;margin:8px 0 18px;color:#bad0df;font-size:14px}
+.fj-tracker-shell{margin:18px 0 26px}
+.fj-tools-section{margin:24px 0 34px;padding:clamp(14px,2vw,22px);border:1px solid #285c7c;border-radius:18px;background:linear-gradient(145deg,#0b1f32,#081726)}
+.fj-tools-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 14px}
+.fj-tools-heading .eyebrow{font-size:11px;letter-spacing:.14em}
+.fj-tools-heading h2{margin:4px 0;font-size:clamp(22px,3vw,30px)}
+.fj-tools-heading p{margin:4px 0;color:#b3c8d7;font-size:14px}
+.fj-tools-section>.fj-top-panel{margin:10px 0;border-radius:13px}
+.fj-tools-section>.fj-top-panel>summary{min-height:54px;display:flex;align-items:center;gap:8px;padding:13px 16px;font-size:16px}
+.fj-tools-section>.fj-top-panel>summary small{margin-left:auto;text-align:right}
+.fj-tools-section>.fj-top-panel[open]>summary{border-bottom:1px solid #2b7199}
+.fj-tools-section>.fj-top-panel .fj-card{padding:clamp(16px,2.4vw,24px)}
+.fj-tracker-shell .fj-quote-tab,.fj-status-btn{transition:background .15s,border-color .15s,box-shadow .15s}
+.fj-quote-card{height:100%}
+.fj-quote-card .fj-quick-actions{border-bottom:1px solid #244d69;padding-bottom:12px}
+.fj-quote-card .fj-acceptance-state{padding:8px 10px;border-radius:8px;background:#0a1c2d}
+body.light .fj-tools-section{background:linear-gradient(145deg,#f2f9fd,#e6f2f8);border-color:#b1d4e5}
+body.light .fj-tools-heading p{color:#425c6e}
+body.light .fj-head>a{background:#e9f6fc;border-color:#afd2e3;color:#15516f}
+body.light .fj-quote-card .fj-acceptance-state{background:#e8f4f9}
+@media(max-width:700px){
+ .fj-pro-hero{padding:18px 16px;border-radius:15px}
+ .fj-head{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+ .fj-head h1{grid-column:1/-1;margin:8px 0;font-size:32px}
+ .fj-head>a{font-size:13px;padding:8px}
+ .fj-head+p{font-size:13px;line-height:1.5}
+ .fj-tools-section{margin:18px 0 28px;padding:12px;border-radius:14px}
+ .fj-tools-heading{margin-bottom:10px}
+ .fj-tools-heading h2{font-size:22px}
+ .fj-tools-section>.fj-top-panel>summary{min-height:50px;padding:11px 12px;font-size:14px}
+ .fj-tools-section>.fj-top-panel>summary small{font-size:11px}
+}
+/* Interface PRO : suivi d’abord, création en second plan */
+.fj-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:0 0 18px;padding:4px 0 20px;border-bottom:1px solid #234861}
+.fj-title-block{max-width:760px}.fj-title-block .eyebrow{font-size:11px;letter-spacing:.16em;color:#64c9ed}
+.fj-title-block h1{margin:7px 0 8px;font-size:clamp(34px,5vw,54px);line-height:1.04;letter-spacing:-.045em;color:#f4faff}
+.fj-title-block h1 span{color:#57d0f2}.fj-title-block p{max-width:68ch;margin:0;color:#b7c9d8;font-size:15px}
+.fj-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.fj-head-actions>a:not(.btn){display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid #294f68;border-radius:11px;background:#0b2034;color:#c8e8f5;font-size:13px;font-weight:750;text-decoration:none}
+.fj-head-actions>a:hover{border-color:#4bbbdc}.fj-head-actions .fj-primary-action{min-height:44px;white-space:nowrap}
+.fj-private-note{display:flex;align-items:flex-start;gap:10px;margin:0 0 22px;padding:12px 15px;border:1px solid #274d66;border-radius:12px;background:#0b1c2d}
+.fj-private-note p{margin:0;color:#b9cbd9;font-size:13px;line-height:1.45}
+.fj-tracker-shell{margin:20px 0 28px;padding:clamp(14px,2.2vw,26px);border:1px solid #28506b;border-radius:20px;background:linear-gradient(145deg,#0b1f32,#081726);box-shadow:0 16px 40px #0003}
+#soumissions-enregistrees{margin:0 0 8px;padding:0;border:0;font-size:clamp(23px,3vw,30px)}
+#fjord-auto-progress{display:inline-flex;width:auto;min-height:32px;margin:0 0 12px;padding:5px 10px;border:1px solid #294d65;border-radius:999px;background:#081a2a;color:#b8d8e8;font-size:12px}
+#fjord-save-global{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 16px;padding:0 0 15px;border:0;border-bottom:1px solid #24475f}
+#fjord-save-global button{min-height:44px;padding:10px 17px}#fjord-save-global .fj-help{margin:0}#fjord-save-feedback{flex-basis:100%;margin:0}
+.fj-recovery{margin:4px 0 14px;border:1px solid #284a60;border-radius:11px;background:#091a2a}
+.fj-recovery>summary{padding:10px 13px;color:#b8d0df;font-size:13px;font-weight:700;cursor:pointer}
+.fj-recovery>div{padding:0 13px 12px}.fj-recovery p{margin:2px 0 10px;font-size:13px;color:#a9c1d0}
+.fj-recover-mathieu{margin:0;padding:0;border:0;background:none}.fj-recover-mathieu button{min-height:38px;padding:8px 12px}
+.fj-quote-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0 9px}
+.fj-quote-tab{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:50px;padding:10px 12px;border:1px solid #2b5976;border-radius:12px;background:#102b42;color:#d9effa;font-weight:750}
+.fj-quote-tab.active{border-color:#56c9ed;background:linear-gradient(120deg,#075587,#087eaf);color:#fff;box-shadow:0 0 0 2px #39c4ed2b}
+.fj-quote-tab strong{display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;margin:0;padding:0 7px;border-radius:999px;background:#061a2b;color:#8ee5ff;font-size:14px}
+#fjQuoteViewHint{margin:8px 0 4px;color:#abc4d4;font-size:13px}#fjQuoteSyncStatus{margin:4px 0 10px!important}
+#fjActiveFilters,#fjPaidFilters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.fj-status-btn{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;min-height:46px;padding:9px 12px;border:1px solid #2a5674;border-radius:11px;background:#102a40;color:#dceef8;text-align:left;font-size:13px;font-weight:700;white-space:normal}
+.fj-status-btn.active{border-color:#55c9ed;background:#0b6391;color:#fff;box-shadow:inset 0 0 0 1px #4bbfe8}
+.fj-status-btn strong{display:inline-flex;flex:none;align-items:center;justify-content:center;min-width:24px;height:24px;margin:0;padding:0 6px;border-radius:999px;background:#071a2b;color:#9de9ff;font-size:13px}
+.fj-search-label{display:block;max-width:620px;margin:14px 0 12px;color:#d9eaf3;font-size:14px;font-weight:750}.fj-search-label input{min-height:46px;margin:7px 0 0}
+#fj-quotes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:14px;margin:0}
+.fj-quote-card{height:100%;padding:18px!important;border:1px solid #294f6a!important;border-radius:16px!important;background:linear-gradient(145deg,#10283d,#091b2d)!important;box-shadow:0 9px 24px #0003}
+.fj-quote-card[data-stage="attente_acceptation"]{border-left:4px solid #edbd4b!important}.fj-quote-card[data-stage="attente_paiement"]{border-left:4px solid #45c3e8!important}.fj-quote-card[data-stage="production"]{border-left:4px solid #9a8be9!important}.fj-quote-card[data-stage="terminees"]{border-left:4px solid #47c987!important}
+.fj-quote-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.fj-quote-card>.eyebrow{color:#70d8f6;font-weight:800}
+.fj-quote-delete{width:38px;height:38px;padding:0;border:1px solid #365a70;border-radius:10px;background:#0a1d2e;color:#c6deeb}
+.fj-quote-card h3{margin:4px 0;color:#f4faff;font-size:22px}.fj-quote-summary{margin:4px 0 12px;color:#bacddd}
+.fj-quote-total{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;padding:13px 15px;border:1px solid #286b8b;border-radius:12px;background:linear-gradient(120deg,#102c42,#0d3953)}
+.fj-quote-total span{color:#c3d8e5;font-size:13px}.fj-quote-total strong{color:#a2ebff;font-size:25px}
+.fj-quick-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 14px;padding-bottom:13px;border-bottom:1px solid #25465d}
+.fj-quick-actions .btn{min-height:40px;padding:8px 12px;font-size:13px}
+.fj-acceptance-state{margin:10px 0!important;padding:9px 11px;border:1px solid #284b64;border-radius:10px;background:#091b2b;color:#c5dce9}
+.fj-overall-state{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:12px;border:1px solid #2a5876;border-radius:11px;background:#0c263c}
+.fj-overall-state>span{color:#aec5d4;font-size:13px}.fj-overall-state>strong{color:#8ee6ff;font-size:15px;text-align:right}
+.fj-payment-form{max-width:100%;margin:12px 0}.fj-payment-form select{max-width:400px}.fj-advanced{margin-top:12px}
+.fj-tools-section{margin:28px 0 34px;padding:clamp(14px,2vw,22px);border:1px solid #28506b;border-radius:18px;background:#091a2a}
+.fj-tools-heading{margin-bottom:16px}.fj-tools-section>.fj-top-panel{background:#0b2033;border:1px solid #2b5672}.fj-tools-section>.fj-top-panel>summary{background:#102b42}.fj-top-panel>summary,.fj-card-section>summary{min-height:50px}
+body.light .fj-private-note,body.light .fj-recovery{background:#f4f9fc;border-color:#c7dce8}
+body.light .fj-private-note p,body.light .fj-recovery p{color:#466173}
+body.light .fj-quote-tab{background:#f3f8fb;color:#2d5268;border-color:#c5dce7}body.light .fj-quote-tab.active{background:#087aae;color:#fff;border-color:#54c9e9}
+body.light .fj-quote-tab strong,body.light .fj-status-btn strong{background:#e3f1f7;color:#075f90}
+body.light .fj-status-btn{background:#f2f8fb;color:#31566d;border-color:#c4dbe6}body.light .fj-status-btn.active{background:#087aae;color:#fff;border-color:#1686b5}
+body.light .fj-quote-card{background:linear-gradient(145deg,#fff,#f2f8fc)!important;border-color:#c7dce7!important}
+body.light .fj-quote-card h3{color:#15394f}body.light .fj-quote-summary{color:#466173}
+body.light .fj-quote-total{background:#e7f5fb;border-color:#b8dbe9}body.light .fj-quote-total span{color:#31566d}body.light .fj-quote-total strong{color:#0875a6}
+body.light .fj-overall-state,body.light .fj-quote-card .fj-acceptance-state{background:#eff7fa;border-color:#c5dce7;color:#31566d}
+@media(max-width:760px){
+ .fj-head{display:block;padding-bottom:15px}.fj-title-block{margin-bottom:13px}.fj-title-block h1{font-size:35px}.fj-title-block p{font-size:14px}
+ .fj-head-actions{justify-content:flex-start}.fj-head-actions>a{flex:1 1 auto}
+ .fj-private-note{margin-bottom:16px}.fj-tracker-shell{margin:15px 0 22px;padding:13px;border-radius:15px}
+ .fj-quote-tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0 8px}
+ .fj-quote-tab{min-height:54px;flex-direction:column;gap:2px;padding:7px 4px;font-size:12px;line-height:1.15;text-align:center}
+ .fj-quote-tab strong{height:20px;min-width:20px;font-size:12px}
+ #fjActiveFilters,#fjPaidFilters{grid-template-columns:1fr;gap:6px}.fj-status-btn{min-height:44px;font-size:13px}
+ #fj-quotes-grid{grid-template-columns:minmax(0,1fr);gap:10px}.fj-quote-card{padding:14px!important}.fj-quote-card h3{font-size:20px}
+ .fj-quote-total{padding:11px 12px}.fj-quote-total strong{font-size:23px}
+ .fj-quick-actions{display:grid;grid-template-columns:1fr}.fj-quick-actions .btn{justify-content:center}
+ .fj-tools-section{margin-top:20px;padding:12px}.fj-tools-heading h2{font-size:23px}.fj-recovery{margin:0 0 12px}
+ #fjord-save-global{gap:7px}#fjord-save-global button{width:auto;min-width:190px;min-height:46px}
+ #fjord-save-global>span{display:block;flex-basis:100%;font-size:12px}#fjord-save-feedback{max-width:100%;flex-basis:100%}
+ .fj-tools-section>.fj-top-panel>summary{padding:12px}.fj-tools-section>.fj-top-panel>summary small{display:block;margin-left:auto;font-size:11px}
+}
+@media(max-width:430px){.fj-head-actions>a{width:100%}.fj-quote-tabs{grid-template-columns:1fr}
+ .fj-quote-tab{flex-direction:row;justify-content:space-between;min-height:45px;padding:8px 11px;font-size:13px}.fj-quote-tab strong{height:23px;min-width:23px}}
+.fj-status-btn [data-stage-count][hidden]{display:none!important}
+</style><style id="fjord-pro-float-fix">
+@media(min-width:651px){
+ .fj-tracker-shell .fj-quote-tabs{float:none!important;clear:both!important;position:static!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:stretch!important;margin:16px 0 9px!important}
+ .fj-tracker-shell #fjQuoteViewHint,.fj-tracker-shell #fjQuoteSyncStatus,.fj-tracker-shell #fjActiveFilters,.fj-tracker-shell #fjPaidFilters,.fj-tracker-shell .fj-search-label,.fj-tracker-shell #fj-quotes-empty,.fj-tracker-shell #fj-quotes-grid{float:none!important;clear:both!important;margin-left:0!important}
+ .fj-tracker-shell #fjQuoteViewHint,.fj-tracker-shell #fjQuoteSyncStatus,.fj-tracker-shell #fjActiveFilters,.fj-tracker-shell #fjPaidFilters,.fj-tracker-shell #fj-quotes-empty,.fj-tracker-shell #fj-quotes-grid{width:100%!important;max-width:none!important}
+ .fj-tracker-shell .fj-search-label{width:min(100%,620px)!important;max-width:620px!important}
+}
 </style>
-<section class="fj-pro-hero" aria-label="Les Impressions du Fjord"><div class="fjord-pro-label">IMPRESSION 3D SUR MESURE · SAGUENAY</div><h2>🏔️ LES IMPRESSIONS <span>DU FJORD</span></h2><p>Soumissions · Aperçus 3D · Paiements sécurisés</p></section>
-<div class="eyebrow">Visible uniquement par l'administrateur</div>
-<div class="fj-head"><h1>Soumissions PRO</h1><a href="/admin/modeles">📚 Mes modèles 3D</a><a href="/admin">← Administration</a></div>
-<p>Les coûts, taux machine et majorations sont privés. Le PDF remis au client indique seulement la pièce, le prix et les taxes applicables.</p>
-<details class="fj-top-panel" {% if from_atelier or incoming %}open{% endif %}><summary>➕ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
-{% if from_atelier %}<p class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF. <a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin:8px 0 0;padding:8px 12px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750">✏️ Retourner modifier dans l’Atelier</a>{% if atelier_colors=='3mf' %} Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %} Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</p>{% endif %}
+<div class="fj-head"><div class="fj-title-block"><div class="eyebrow">ESPACE ADMINISTRATEUR · SUIVI DES COMMANDES</div><h1>Soumissions <span>PRO</span></h1><p>De la création du devis à la livraison, retrouve ici le statut, le paiement et la production de chaque commande.</p></div><div class="fj-head-actions"><a class="btn fj-primary-action" href="#fj-new-quote">＋ Nouvelle soumission</a><a href="/admin/modeles">📚 Modèles 3D</a><a href="/admin">← Administration</a></div></div>
+<div class="fj-private-note"><span>🔒</span><p>Les coûts internes et les majorations restent privés. Le PDF client affiche seulement les détails de la pièce, le prix et les taxes applicables.</p></div>
+<section class="fj-tracker-shell" aria-labelledby="soumissions-enregistrees">
+<h2 id="soumissions-enregistrees">Suivi des soumissions</h2>
+<p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
+<div id="fjord-octo-association" class="card fj-octo-association" hidden>
+ <div class="fj-octo-association-head"><h3>🔗 Associer l’impression détectée</h3><span class="fj-octo-badge">Suivi automatique</span></div>
+ <p class="fj-octo-help">Le travail actif n’est pas encore relié à une soumission. Choisis la commande correspondante pour que sa progression se mette à jour automatiquement.</p>
+ <div id="fjord-octo-filename" class="fj-octo-filename" role="status" aria-live="polite"></div>
+ <div class="fj-octo-controls"><label for="fjord-octo-quote">Soumission à suivre
+ <select id="fjord-octo-quote"><option value="">Choisir une soumission…</option>
+ {% for q in quotes %}<option value="{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.customer}} — {{q.title}} · {% if q.payment_status=='Payée' %}payée{% else %}paiement en attente{% endif %}</option>{% endfor %}
+ </select></label>
+ <button type="button" id="fjord-octo-bind">🔗 Associer et activer le suivi</button></div>
+ <p id="fjord-octo-bind-result" role="status" aria-live="polite"></p>
+</div>
+<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
+<details class="fj-recovery"><summary>Récupération d’une soumission archivée</summary><div><p>Cette action remet la soumission de Mathieu dans le suivi et la retire de la corbeille.</p><form method="post" action="/admin/soumissions-pro/recuperer-mathieu" class="fj-recover-mathieu">{{csrf|safe}}<button type="submit">Restaurer FJ-00002 · Mathieu</button></form></div></details>
+<div class="fj-quote-tabs" role="tablist" aria-label="Soumissions">
+<button type="button" class="fj-quote-tab active" id="fjActiveTab" role="tab" aria-selected="true">📄 À traiter <strong data-active-count>{{counters.actives}}</strong></button>
+<button type="button" class="fj-quote-tab" id="fjHistoryTab" role="tab" aria-selected="false">💳 Payées <strong>{{counters.payees}}</strong></button>
+<button type="button" class="fj-quote-tab" id="fjTrashTab" role="tab" aria-selected="false">🗑️ Corbeille <strong>{{counters.corbeille}}</strong></button>
+</div>
+<p id="fjQuoteViewHint" class="fj-help">Le tracker suit automatiquement l’acceptation, le paiement et la production, sur ordinateur comme sur téléphone.</p>
+<p id="fjQuoteSyncStatus" class="fj-help" role="status" aria-live="polite" style="margin:4px 0;color:#9fd5e9">⏳ Vérification des statuts…</p>
+<div class="fj-status-board" id="fjActiveFilters">
+<button type="button" class="fj-status-btn active" data-stage="all-active">Toutes <strong data-stage-count="all-active" {% if counters.actives==0 %}hidden{% endif %}>{{counters.actives}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="attente_acceptation">✉️ À accepter <strong data-stage-count="attente_acceptation" {% if counters.attente_acceptation==0 %}hidden{% endif %}>{{counters.attente_acceptation}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="attente_paiement">À payer <strong data-stage-count="attente_paiement" {% if counters.attente_paiement==0 %}hidden{% endif %}>{{counters.attente_paiement}}</strong></button>
+</div>
+<div class="fj-status-board" id="fjPaidFilters" hidden>
+<button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong data-stage-count="production" {% if counters.production==0 %}hidden{% endif %}>{{counters.production}}</strong></button>
+<button type="button" class="fj-status-btn" data-stage="terminees">✅ Terminées <strong data-stage-count="terminees" {% if counters.terminees==0 %}hidden{% endif %}>{{counters.terminees}}</strong></button>
+<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong data-stage-count="all" {% if counters.payees==0 %}hidden{% endif %}>{{counters.payees}}</strong></button>
+</div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
+<p id="fj-quotes-empty" class="fj-help" role="status" hidden>Aucune soumission à afficher pour le moment.</p>
+<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}" data-paid="{{'yes' if q.payment_status=='Payée' else 'no'}}" data-deleted="{{'yes' if q.deleted_at else 'no'}}" data-accepted="{{'yes' if stages[q.id]!='attente_acceptation' else 'no'}}"{% if q.payment_status=='Payée' or q.deleted_at %} hidden{% endif %}><div class="fj-quote-card-head"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div>{% if q.deleted_at %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/restaurer" class="fj-quote-delete-form" onsubmit="return confirm('Restaurer cette soumission ?');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Restaurer la soumission" title="Restaurer">↩️</button></form>{% else %}<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" class="fj-quote-delete-form" onsubmit="return confirm('Déplacer cette soumission dans la corbeille ? Elle pourra être restaurée.');">{{csrf|safe}}<button type="submit" class="fj-quote-delete" aria-label="Mettre la soumission à la corbeille" title="Mettre à la corbeille">🗑️</button></form>{% endif %}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
+<div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
+<p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
+<div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
+{% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester le paiement ↗</a>{% endif %}
+{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True,_scheme='https')}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
+<label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
+<p class="fj-help fj-acceptance-state" data-acceptance-state="{{q.id}}">{% if acceptance_valid[q.id] %}✓ Soumission acceptée{% if q.accepted_at %} · {{q.accepted_at.strftime('%d-%m-%Y %H:%M')}}{% endif %}{% elif q.payment_status=='Payée' %}💳 Paiement confirmé{% else %}✉️ En attente de l’acceptation du client{% endif %}</p>
+<div class="fj-overall-state"><span>État de la commande</span><strong data-overall-state="{{q.id}}">{% if stages[q.id]=='attente_acceptation' %}✉️ En attente d’acceptation{% elif q.payment_status!='Payée' %}💳 En attente de paiement{% elif q.production_progress|int >= 100 %}✅ Terminé{% else %}🖨️ En production{% endif %}</strong><input type="hidden" form="fjord-save-global" name="production_status_{{q.id}}" value="{% if q.payment_status!='Payée' %}À traiter{% elif q.production_progress|int >= 100 %}Terminée{% else %}En production{% endif %}"></div>
+<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span><span class="fj-help">Terminé automatiquement quand le paiement est confirmé et l’avancement atteint 100 %.</span></div>
+
+
+<div class="fj-payment-form">
+<label for="fj-payment-{{q.id}}">Statut du paiement</label>
+<select id="fj-payment-{{q.id}}" form="fjord-save-global" name="payment_status_{{q.id}}" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
+<option value="En attente" {% if q.payment_status=='En attente' %}selected{% endif %}>En attente</option>
+<option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
+<option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
+</select></div>
+{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé {% if q.stripe_session_id %}automatiquement par Stripe{% else %}manuellement{% endif %} le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
+<details class="fj-card-section fj-advanced"><summary>⚙️ Plus d’options <small>Caméra, couleurs, référence, Interac, suppression</small></summary><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div>
+<section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
+<h4>📹 Caméra en direct pour le client</h4>
+<form method="post" action="/admin/soumissions-pro/{{q.id}}/diffusion">{{csrf|safe}}
+<label for="fjord-live-{{q.id}}">Lien de visionnement OctoEverywhere Live ou YouTube Live</label>
+<input type="url" id="fjord-live-{{q.id}}" name="live_url" maxlength="700"
+  value="{{q.live_url or ''}}" placeholder="https://oe.ink/l/… ou https://youtube.com/live/…">
+<label for="fjord-duration-{{q.id}}">Accès client valide pendant</label>
+<select id="fjord-duration-{{q.id}}" name="live_hours">
+<option value="12">12 heures</option><option value="24" selected>24 heures</option>
+<option value="48">48 heures</option><option value="72">3 jours</option>
+<option value="168">7 jours</option>
+</select>
+<p class="fj-help">Le flux se configure chez le fournisseur vidéo. Ne colle jamais l'adresse IP
+de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imprime.</p>
+<div class="row">
+<button type="submit" name="live_action" value="enable">▶ Activer un nouveau lien</button>
+<button type="submit" name="live_action" value="disable" class="fj-live-off">■ Arrêter / révoquer</button>
+</div></form>
+{% if q.live_enabled and q.live_token %}
+<p class="fj-help">Lien privé de suivi :
+{% if q.live_expires %}expire le {{q.live_expires.strftime('%d-%m-%Y à %H:%M')}} (heure du serveur).{% endif %}</p>
+<input class="fj-live-copy" readonly aria-label="Lien client de la soumission FJ-{{'%05d'|format(q.id)}}" onclick="this.select()"
+ value="{{url_for('fjord_live_view',token=q.live_token,_external=True,_scheme='https')}}">
+<a class="fj-watch-link" href="{{url_for('fjord_live_view',token=q.live_token)}}" target="_blank" rel="noopener noreferrer">↗ Voir la page client</a>
+{% else %}
+<p class="fj-help">Diffusion inactive : aucun client ne peut voir la caméra depuis cette soumission.</p>
+{% endif %}
+</section>
+
+
+{% if q.model_id %}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">
+<label>Corps<input form="fjord-save-global" type="color" name="preview_color_{{q.id}}" value="#ffcc00" aria-label="Couleur principale"></label>
+<label>Autres pièces<input form="fjord-save-global" type="color" name="preview_secondary_{{q.id}}" value="#111111" aria-label="Couleur secondaire"></label>
+</div>{% endif %}
+
+{% if interac_email or square_active[q.id] %}
+<a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Tester le paiement du client</a>
+{% endif %}
+</details></div>
+{% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
+</section>
+<section class="fj-tools-section" aria-label="Création et paramètres des soumissions">
+<div class="fj-tools-heading"><div><span class="eyebrow">Outils d’administration</span><h2>Créer ou configurer une soumission</h2><p>Les formulaires restent repliés jusqu’à ce que tu en aies besoin.</p></div></div>
+
+<details class="fj-top-panel" id="fj-new-quote" {% if from_atelier or incoming %}open{% endif %}><summary>＋ Nouvelle soumission <small>Créer un devis avec modèle 3D et prix</small></summary><div class="card fj-card"><h2>Préparer une nouvelle soumission</h2>
+{% if from_atelier %}<div class="fj-help" style="border-left:3px solid #58bce8;padding:10px 13px;background:#153247;border-radius:8px">✓ Création reçue de ton Atelier 3D : <strong>{{atelier_model.name}}</strong>. Le modèle est sélectionné, l'estimation démarre automatiquement et tu peux préparer le client et le PDF.<a href="/admin/atelier-3d?model_id={{atelier_model.id}}" style="display:flex;box-sizing:border-box;align-items:center;justify-content:center;width:fit-content;max-width:100%;min-height:44px;margin:12px 0;padding:10px 16px;border-radius:9px;border:1px solid #60c7ed;color:#fff;background:#075b88;text-decoration:none;font-weight:750;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere">✏️ Retourner modifier dans l’Atelier</a><div>{% if atelier_colors=='3mf' %}Couleurs de surface dans le 3MF : attribution AMS à vérifier avant impression.{% else %}Géométrie STL : la peinture AMS n'est pas dans le fichier, mais la photo est conservée.{% endif %}</div></div>{% endif %}
 <form method="post" action="/admin/soumissions-pro/creer" enctype="multipart/form-data" style="max-width:none" id="fjQuote">{{csrf|safe}}
 <input type="hidden" name="use_atelier_preview" value="{{'yes' if from_atelier else 'no'}}">
 <div class="fj-two">
@@ -2439,107 +2901,7 @@ body.light .fj-quote-total strong{color:#07608e}
 <form method="post" action="/admin/soumissions-pro/logo" enctype="multipart/form-data">{{csrf|safe}}
 <label>Remplacer le logo (PNG ou JPG)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required></label>
 <button type="submit">Mettre à jour le logo PDF</button></form></div></details>
-<h2 id="soumissions-enregistrees">Mes soumissions</h2>
-<p id="fjord-auto-progress" role="status" aria-live="polite" class="fj-help">🖨️ Vérification de la connexion OctoEverywhere…</p>
-<div id="fjord-octo-association" class="card" style="display:none;margin:12px 0">
- <h3>🔗 Associer l'impression en cours</h3>
- <p id="fjord-octo-filename" class="fj-help"></p>
- <label>Soumission correspondante
- <select id="fjord-octo-quote"><option value="">Choisir une soumission…</option>
- {% for q in quotes %}<option value="{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}} — {{q.customer}}</option>{% endfor %}
- </select></label>
- <button type="button" id="fjord-octo-bind">Associer cette impression</button>
- <p id="fjord-octo-bind-result" role="status"></p>
-</div>
-<form id="fjord-save-global" method="post" action="/admin/soumissions-pro/enregistrer-tout">{{csrf|safe}}<button type="submit" class="primary" style="font-weight:800;padding:14px 24px">💾 Enregistrer</button><span class="fj-help"> Sauvegarder les modifications des soumissions ci-dessous en une seule fois.</span><p id="fjord-save-feedback" role="status" aria-live="polite" class="fj-help"></p></form>
-<p class="fj-help">Clique sur une catégorie pour filtrer les soumissions. Actualise la page pour voir les nouvelles acceptations.</p>
-<div class="fj-status-board">
-<button type="button" class="fj-status-btn active" data-stage="all">Toutes <strong>{{quotes|length}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="attente">⏳ En attente <strong>{{counters.attente}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="acceptees">✓ Acceptées <strong>{{counters.acceptees}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="payees">💳 Payées <strong>{{counters.payees}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="production">🖨️ En production <strong>{{counters.production}}</strong></button>
-<button type="button" class="fj-status-btn" data-stage="terminees">📦 Terminées <strong>{{counters.terminees}}</strong></button>
-</div><label class="fj-search-label" for="fjQuoteSearch">🔎 Rechercher une soumission<input id="fjQuoteSearch" type="search" placeholder="Client, numéro FJ ou pièce…" autocomplete="off"></label>
-<div class="grid" id="fj-quotes-grid">{% for q in quotes %}<div class="card fj-quote-card" data-quote-id="{{q.id}}" data-stage="{{stages[q.id]}}"><div class="eyebrow">{{q.public_number or ('FJ-%05d'|format(q.id))}} · {{q.created.strftime('%d-%m-%Y')}}</div><h3>{{q.customer}}</h3><p class="fj-quote-summary">{{q.title}} · {{q.quantity}} exemplaire(s)</p>
-<div class="fj-quote-total"><span>Montant total</span><strong>{{money(quote_totals[q.id])}}</strong></div>
-<p class="fj-help">{{money(q.unit_price|float)}} par unité{% if q.military_discount %} · 🎖️ Rabais militaire inclus{% endif %}</p>
-<div class="fj-quick-actions"><a class="btn" href="/admin/soumissions-pro/{{q.id}}/pdf">⬇ Soumission PDF</a>
-{% if square_active[q.id] %}<a class="btn" href="{{q.square_link_url}}" rel="noopener noreferrer" target="_blank">💳 Tester le paiement ↗</a>{% endif %}
-{% if q.payment_token %}<p><a href="{{url_for('fjord_accept_quote',token=q.payment_token,_external=True,_scheme='https')}}" target="_blank" rel="noopener">Lien d'acceptation à envoyer au client</a></p>{% endif %}</div>
-<label class="fj-military-discount"><input form="fjord-save-global" type="checkbox" name="military_discount_{{q.id}}" value="yes" {% if q.military_discount %}checked{% endif %} style="display:inline;width:auto;margin-right:8px">🎖️ Appliquer le rabais militaire de 5 % (PDF et paiement Interac)</label><div>
-<label>État de fabrication
-<select form="fjord-save-global" name="production_status_{{q.id}}">
-<option value="À traiter" {% if q.production_status=='À traiter' %}selected{% endif %}>À traiter</option>
-<option value="En production" {% if q.production_status=='En production' %}selected{% endif %}>🖨️ En production</option>
-<option value="Terminée" {% if q.production_status=='Terminée' %}selected{% endif %}>📦 Terminée</option>
-</select></label></div>
-<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0 16px"><label>Avancement de fabrication (%)<input form="fjord-save-global" type="number" name="production_progress_{{q.id}}" min="0" max="100" step="1" value="{{q.production_progress}}" style="width:105px"></label><span class="fj-help" data-auto-quote="{{q.id}}"></span></div>
-{% if q.accepted_at %}<p><strong>✓ SOUMISSION ACCEPTÉE</strong> par {{q.accepted_by}} le {{q.accepted_at.strftime('%d-%m-%Y %H:%M UTC')}}</p>{% else %}<p>⏳ En attente d'acceptation</p>{% endif %}
-
-<div class="fj-payment-form">
-<label for="fj-payment-{{q.id}}">Statut du paiement</label>
-<select id="fj-payment-{{q.id}}" form="fjord-save-global" name="payment_status_{{q.id}}" aria-label="Statut de paiement de la soumission FJ-{{'%05d'|format(q.id)}}">
-<option value="En attente" {% if q.payment_status=='En attente' %}selected{% endif %}>En attente</option>
-<option value="Paiement partiel" {% if q.payment_status=='Paiement partiel' %}selected{% endif %}>Paiement partiel</option>
-<option value="Payée" {% if q.payment_status=='Payée' %}selected{% endif %}>✅ Payée</option>
-</select></div>
-{% if q.payment_status=='Payée' and q.paid_at %}<p class="fj-payment-date">Paiement confirmé {% if q.stripe_session_id %}automatiquement par Stripe{% else %}manuellement{% endif %} le {{q.paid_at.strftime('%d-%m-%Y')}}</p>{% endif %}
-<details class="fj-card-section fj-advanced"><summary>⚙️ Plus d’options <small>Caméra, couleurs, référence, Interac, suppression</small></summary><div style="margin:10px 0"><label>Numéro affiché publiquement<input form="fjord-save-global" name="public_number_{{q.id}}" maxlength="32" value="{{q.public_number or ('FJ-%05d'|format(q.id))}}" placeholder="FJ-00002"></label><label>Nom du travail dans Bambu Studio / OctoEverywhere<input form="fjord-save-global" name="printer_job_name_{{q.id}}" maxlength="160" value="{{q.printer_job_name or ''}}" placeholder="FJ-00002_BRP_gas_tank_can_holder"></label></div>
-<section class="fj-live-form" aria-label="Diffusion de la soumission FJ-{{'%05d'|format(q.id)}}">
-<h4>📹 Caméra en direct pour le client</h4>
-<form method="post" action="/admin/soumissions-pro/{{q.id}}/diffusion">{{csrf|safe}}
-<label for="fjord-live-{{q.id}}">Lien de visionnement OctoEverywhere Live ou YouTube Live</label>
-<input type="url" id="fjord-live-{{q.id}}" name="live_url" maxlength="700"
-  value="{{q.live_url or ''}}" placeholder="https://oe.ink/l/… ou https://youtube.com/live/…">
-<label for="fjord-duration-{{q.id}}">Accès client valide pendant</label>
-<select id="fjord-duration-{{q.id}}" name="live_hours">
-<option value="12">12 heures</option><option value="24" selected>24 heures</option>
-<option value="48">48 heures</option><option value="72">3 jours</option>
-<option value="168">7 jours</option>
-</select>
-<p class="fj-help">Le flux se configure chez le fournisseur vidéo. Ne colle jamais l'adresse IP
-de ton imprimante ni son code d'accès. Partage uniquement la commande qui s'imprime.</p>
-<div class="row">
-<button type="submit" name="live_action" value="enable">▶ Activer un nouveau lien</button>
-<button type="submit" name="live_action" value="disable" class="fj-live-off">■ Arrêter / révoquer</button>
-</div></form>
-{% if q.live_enabled and q.live_token %}
-<p class="fj-help">Lien privé de suivi :
-{% if q.live_expires %}expire le {{q.live_expires.strftime('%d-%m-%Y à %H:%M')}} (heure du serveur).{% endif %}</p>
-<input class="fj-live-copy" readonly aria-label="Lien client de la soumission FJ-{{'%05d'|format(q.id)}}" onclick="this.select()"
- value="{{url_for('fjord_live_view',token=q.live_token,_external=True,_scheme='https')}}">
-<a class="fj-watch-link" href="{{url_for('fjord_live_view',token=q.live_token)}}" target="_blank" rel="noopener noreferrer">↗ Voir la page client</a>
-{% else %}
-<p class="fj-help">Diffusion inactive : aucun client ne peut voir la caméra depuis cette soumission.</p>
-{% endif %}
 </section>
-
-
-{% if q.model_id %}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">
-<label>Corps<input form="fjord-save-global" type="color" name="preview_color_{{q.id}}" value="#ffcc00" aria-label="Couleur principale"></label>
-<label>Autres pièces<input form="fjord-save-global" type="color" name="preview_secondary_{{q.id}}" value="#111111" aria-label="Couleur secondaire"></label>
-</div>{% endif %}
-
-<form method="post" action="/admin/soumissions-pro/{{q.id}}/supprimer" onsubmit="return confirm('Supprimer définitivement la soumission FJ-{{'%05d'|format(q.id)}} de {{q.customer|e}} ? Cette action est irréversible.');" style="margin-top:12px">{{csrf|safe}}<button type="submit" style="background:#842b35;color:white;border:1px solid #b74752">🗑️ Supprimer cette soumission</button></form>
-{% if interac_email or square_active[q.id] %}
-<a href="/admin/soumissions-pro/{{q.id}}/paiement" target="_blank" rel="noopener noreferrer">💸 Tester le paiement du client</a>
-{% endif %}
-{% if interac_email %}
-<details class="fj-bmo-details">
-<summary>🏦 Envoyer la demande Interac au client (BMO)</summary>
-<p class="fj-help"><strong>Pour que ton client paie sans copier-coller :</strong> ouvre BMO, choisis « Demander des fonds », entre son courriel et le montant ci-dessous, puis envoie la demande officielle Interac. Le client recevra un courriel Interac avec son bouton de paiement bancaire prérempli. La soumission PDF contient aussi un bouton « PAYER PAR INTERAC » et un QR qui ouvrent la page d'aide au paiement.</p>
-<div class="fj-bmo-row"><div>Client<br><strong>{{q.customer}}</strong></div></div>
-<div class="fj-bmo-row"><div>Courriel du client<br><strong id="bmoEmail{{q.id}}">{{q.email or 'Non renseigné'}}</strong></div>{% if q.email %}<button type="button" data-copy-id="bmoEmail{{q.id}}">Copier</button>{% endif %}</div>
-<div class="fj-bmo-row"><div>Montant exact<br><strong id="bmoAmount{{q.id}}">{{money(quote_totals[q.id])}}</strong></div><button type="button" data-copy-id="bmoAmount{{q.id}}">Copier</button></div>
-<div class="fj-bmo-row"><div>Numéro de soumission<br><strong id="bmoRef{{q.id}}">{{q.public_number or ('FJ-%05d'|format(q.id))}}</strong></div><button type="button" data-copy-id="bmoRef{{q.id}}">Copier</button></div>
-<div class="fj-bmo-actions"><a class="btn" href="https://www.bmo.com/" target="_blank" rel="noopener noreferrer">🏦 Ouvrir BMO pour demander le paiement ↗</a>
-<button type="button" data-bmo-copy="{{q.id}}">📋 Copier le montant et les coordonnées</button></div>
-<p role="status" aria-live="polite" data-bmo-status="{{q.id}}" class="fj-help"></p>
-<p class="fj-help">Dans BMO : Paiements et virements → Demande de fonds → client → montant → référence. Le client autorise ensuite la demande dans sa banque. Vérifie le dépôt avant de sélectionner « Payée ».</p>
-</details>
-{% endif %}</details></div>
-{% else %}<p>Aucune soumission enregistrée.</p>{% endfor %}</div>
 <script>
 (function(){
  const f=document.getElementById("fjQuote"),o=document.getElementById("fjTotal"),d=document.getElementById("fjBreakdown");
@@ -2792,7 +3154,8 @@ quoteSave?.addEventListener('submit',async event=>{
    if(label)label.textContent='🖨️ '+data.reason;
    const bindBox=document.getElementById('fjord-octo-association');
    if(bindBox){
-    bindBox.style.display=(data.connected && !data.matched && data.filename)?'block':'none';
+    const activeJob=['printing','warmingup','resuming','paused'].includes(data.state);
+    bindBox.hidden=!(data.connected && activeJob && !data.matched && data.filename);
     document.getElementById('fjord-octo-filename').textContent=data.filename?'Travail détecté : '+data.filename:'';
    }
    if(data.matched && Number.isInteger(data.id)){
@@ -2824,7 +3187,8 @@ quoteSave?.addEventListener('submit',async event=>{
    const resp=await fetch('/admin/api/associer-impression',{method:'POST',body:payload,credentials:'same-origin'});
    const result=await resp.json();
    if(!resp.ok||!result.ok)throw Error(result.error||'Association impossible');
-   feedback.textContent='✓ '+result.message;
+   feedback.textContent='✓ '+result.message+' La progression sera actualisée automatiquement.';
+   document.getElementById('fjord-octo-quote').value='';
    await checkPrinter();
   }catch(e){feedback.textContent='⚠ '+String(e.message||e)}
   finally{bind.disabled=false}
@@ -2855,24 +3219,129 @@ document.querySelectorAll('[data-bmo-copy]').forEach(button=>button.addEventList
  catch(e){if(feedback)feedback.textContent='Copie automatique indisponible : utilise les boutons Copier de chaque champ.';}
 }));
 const fjQuoteSearch=document.getElementById('fjQuoteSearch');
-let fjSelectedStage='all';
+const fjActiveTab=document.getElementById('fjActiveTab');
+const fjHistoryTab=document.getElementById('fjHistoryTab');
+const fjTrashTab=document.getElementById('fjTrashTab');
+const fjActiveFilters=document.getElementById('fjActiveFilters');
+const fjPaidFilters=document.getElementById('fjPaidFilters');
+const fjQuoteViewHint=document.getElementById('fjQuoteViewHint');
+const fjQuoteSyncStatus=document.getElementById('fjQuoteSyncStatus');
+const fjQuotesEmpty=document.getElementById('fj-quotes-empty');
+let fjSelectedStage='all-active',fjHistoryMode=false,fjTrashMode=false;
 function fjFilterQuoteCards(){
- const query=(fjQuoteSearch?.value||'').trim().toLocaleLowerCase('fr');
+ const rawQuery=(fjQuoteSearch?.value||'').trim();
+ const query=rawQuery.toLocaleLowerCase('fr');
  for(const card of document.querySelectorAll('.fj-quote-card')){
   const content=[card.querySelector('h3')?.textContent,card.querySelector('.fj-quote-summary')?.textContent,card.querySelector('.eyebrow')?.textContent].join(' ').toLocaleLowerCase('fr');
-  card.hidden=(fjSelectedStage!=='all' && card.dataset.stage!==fjSelectedStage) || Boolean(query && !content.includes(query));
+  const inTab=fjTrashMode ? card.dataset.deleted==='yes' : card.dataset.deleted!=='yes' && (fjHistoryMode ? card.dataset.paid==='yes' : card.dataset.paid!=='yes');
+  const inStage=fjTrashMode || fjSelectedStage==='all' || (fjSelectedStage==='all-active' && card.dataset.paid!=='yes') || card.dataset.stage===fjSelectedStage;
+  card.hidden=!inTab || !inStage || Boolean(query && !content.includes(query));
+ }
+ const hasVisibleCard=[...document.querySelectorAll('.fj-quote-card')].some(card=>!card.hidden);
+ if(fjQuotesEmpty){
+  let message=fjTrashMode?'La corbeille est vide.':fjHistoryMode?'Aucune soumission payée pour le moment.':fjSelectedStage==='attente_acceptation'?'Aucune soumission en attente d’acceptation.':fjSelectedStage==='attente_paiement'?'Aucune soumission en attente de paiement.':'Aucune soumission à traiter pour le moment.';
+  if(query)message='Aucun résultat pour « '+rawQuery+' ». Essaie un autre nom, numéro FJ ou nom de pièce.';
+  fjQuotesEmpty.textContent=message;
+  fjQuotesEmpty.hidden=hasVisibleCard;
+ }
+ if(fjActiveTab)fjActiveTab.setAttribute('aria-selected',String(!fjHistoryMode&&!fjTrashMode));
+ if(fjHistoryTab)fjHistoryTab.setAttribute('aria-selected',String(fjHistoryMode&&!fjTrashMode));
+ if(fjTrashTab)fjTrashTab.setAttribute('aria-selected',String(fjTrashMode));
+ if(fjActiveTab)fjActiveTab.classList.toggle('active',!fjHistoryMode&&!fjTrashMode);
+ if(fjHistoryTab)fjHistoryTab.classList.toggle('active',fjHistoryMode&&!fjTrashMode);
+ if(fjTrashTab)fjTrashTab.classList.toggle('active',fjTrashMode);
+ if(fjActiveFilters)fjActiveFilters.hidden=fjHistoryMode||fjTrashMode;
+ if(fjPaidFilters)fjPaidFilters.hidden=!fjHistoryMode||fjTrashMode;
+ if(fjQuoteViewHint)fjQuoteViewHint.textContent=fjTrashMode
+   ?'Soumissions supprimées. Tu peux les restaurer ici.'
+   :fjHistoryMode
+   ?'Soumissions payées : en production ou terminées.'
+   :'Soumissions à accepter ou à payer.';
+}
+async function fjRefreshTracker(){
+ if(document.hidden)return;
+ try{
+  const response=await fetch('/admin/api/soumissions-pro-etat',{cache:'no-store',credentials:'same-origin'});
+  if(!response.ok){
+   if(fjQuoteSyncStatus){fjQuoteSyncStatus.textContent='⚠️ Actualisation indisponible pour le moment. Les chiffres affichés peuvent être périmés.';fjQuoteSyncStatus.style.color='#ffd36a'}
+   return;
+  }
+  const data=await response.json();
+  const counts={attente_acceptation:0,attente_paiement:0,production:0,terminees:0,all:0};
+  for(const item of data.quotes||[]){
+   const card=document.querySelector('.fj-quote-card[data-quote-id="'+item.id+'"]');
+   if(!card)continue;
+   card.dataset.stage=item.stage;card.dataset.paid=item.paid?'yes':'no';card.dataset.accepted=item.accepted?'yes':'no';
+   if(item.accepted)counts.all++;
+   if(item.stage in counts)counts[item.stage]++;
+   const acceptance=card.querySelector('[data-acceptance-state]');
+   if(acceptance)acceptance.textContent=item.accepted?'✓ Soumission acceptée':item.paid?'💳 Paiement confirmé':'✉️ En attente de l’acceptation du client';
+   const overall=card.querySelector('[data-overall-state]');
+   if(overall)overall.textContent=item.stage==='attente_acceptation'?'✉️ En attente d’acceptation':item.stage==='attente_paiement'?'💳 En attente de paiement':item.stage==='production'?'🖨️ En production':'✅ Terminé';
+  }
+  const activeCount=(data.quotes||[]).filter(item=>!item.paid).length;
+  const paidCount=(data.quotes||[]).filter(item=>item.paid).length;
+  const activeBadge=document.querySelector('[data-active-count]');if(activeBadge)activeBadge.textContent=activeCount;
+  const paidBadge=fjHistoryTab?.querySelector('strong');if(paidBadge)paidBadge.textContent=paidCount;
+  document.querySelectorAll('[data-stage-count]').forEach(el=>{
+   const stage=el.dataset.stageCount;
+   const count=stage==='all-active'?activeCount:stage==='all'?paidCount:(counts[stage]||0);
+   el.textContent=count;
+   el.hidden=count===0;
+  });
+  fjFilterQuoteCards();
+  if(fjQuoteSyncStatus){const time=new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});fjQuoteSyncStatus.textContent='✓ Suivi actualisé à '+time;fjQuoteSyncStatus.style.color='#9fd5e9'}
+ }catch(error){
+  if(fjQuoteSyncStatus){fjQuoteSyncStatus.textContent='⚠️ Impossible d’actualiser le suivi. Les chiffres affichés peuvent être périmés.';fjQuoteSyncStatus.style.color='#ffd36a'}
  }
 }
 fjQuoteSearch?.addEventListener('input',fjFilterQuoteCards);
+fjRefreshTracker();setInterval(fjRefreshTracker,30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)fjRefreshTracker()});
+fjActiveTab?.addEventListener('click',()=>{
+ fjHistoryMode=false;fjTrashMode=false;fjSelectedStage='all-active';
+ if(fjQuoteSearch)fjQuoteSearch.value='';
+ document.querySelectorAll('#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage===fjSelectedStage));
+ fjFilterQuoteCards();
+});
+fjHistoryTab?.addEventListener('click',()=>{
+ fjHistoryMode=true;fjTrashMode=false;fjSelectedStage='all';
+ if(fjQuoteSearch)fjQuoteSearch.value='';
+ document.querySelectorAll('#fjPaidFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b.dataset.stage==='all'));
+ fjFilterQuoteCards();
+});
+fjTrashTab?.addEventListener('click',()=>{
+ fjHistoryMode=false;fjTrashMode=true;fjSelectedStage='all';
+ if(fjQuoteSearch)fjQuoteSearch.value='';
+ fjFilterQuoteCards();
+});
 document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListener('click',()=>{
+ fjTrashMode=false;fjHistoryMode=Boolean(button.closest('#fjPaidFilters'));
  fjSelectedStage=button.dataset.stage;
- document.querySelectorAll('.fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
+ document.querySelectorAll(fjHistoryMode?'#fjPaidFilters .fj-status-btn':'#fjActiveFilters .fj-status-btn').forEach(b=>b.classList.toggle('active',b===button));
  fjFilterQuoteCards();
 }));
+document.querySelectorAll('.fj-quote-card').forEach(card=>{
+ const id=card.dataset.quoteId;
+ const payment=document.getElementById('fj-payment-'+id);
+ const progress=document.querySelector('[name="production_progress_'+id+'"]');
+ const badge=card.querySelector('.fj-overall-state strong');
+ const refreshBadge=()=>{
+  if(!badge||!payment)return;
+  badge.textContent=payment.value!=='Payée'?'⏳ En attente de paiement':
+   (Number(progress?.value||0)>=100?'✅ Terminé':'🖨️ En production');
+ };
+ payment?.addEventListener('change',refreshBadge);
+ progress?.addEventListener('input',refreshBadge);
+});
+if(fjQuoteSearch)fjQuoteSearch.value='';
+fjHistoryMode=false;fjSelectedStage='all-active';
+fjFilterQuoteCards();
 </script>""",models=models,quotes=quotes,quote_totals=quote_totals,square_active=square_active,stages=stages,counters=counters,chosen=chosen,materials=MATERIALS,
           money=_money,csrf=csrfinput(),incoming=incoming,interac_email=interac_email,
           from_atelier=from_atelier,atelier_model=atelier_model,atelier_material=atelier_material,
-          atelier_layer=atelier_layer,atelier_colors=atelier_colors)
+          atelier_layer=atelier_layer,atelier_colors=atelier_colors,
+          acceptance_valid=acceptance_valid)
 
 
 
@@ -2899,7 +3368,7 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
             c.execute("SELECT pg_advisory_xact_lock(7342026,4)")
             interac=request.form.get("interac_email","").strip().lower()[:180]
             if interac and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",interac):abort(400,"Adresse Interac invalide : vérifie le courriel.")
-            rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC LIMIT 150").fetchall()
+            rows=c.execute("SELECT id,model_id FROM private_quotes ORDER BY id DESC").fetchall()
             changes=[]
             for q in rows:
                 suffix="_"+str(q["id"])
@@ -2915,9 +3384,12 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                 if payment not in ("En attente","Paiement partiel","Payée"):abort(400,"Statut du paiement invalide.")
                 if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",raw):abort(400,"Progression invalide : entre 0 et 100 %.")
                 progress=int(raw)
-                if production=="Terminée":progress=100
-                elif production=="À traiter":progress=0
-                elif progress==100:production="Terminée"
+                # Statut global dérivé: impayé, production payée, ou terminé seulement
+                # si le paiement est confirmé et l'avancement atteint 100 %.
+                if payment=="Payée":
+                    production="Terminée" if progress>=100 else "En production"
+                else:
+                    production="À traiter"
                 primary=request.form.get("preview_color"+suffix,"")
                 secondary=request.form.get("preview_secondary"+suffix,"")
                 preview=None
@@ -2969,9 +3441,10 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         if payment not in ("En attente","Paiement partiel","Payée"):abort(400)
         if not re.fullmatch(r"(?:100|[0-9]|[1-9][0-9])",progress_text):abort(400)
         progress=int(progress_text)
-        if production=="Terminée":progress=100
-        elif production=="À traiter":progress=0
-        elif progress==100:production="Terminée"
+        if payment=="Payée":
+            production="Terminée" if progress>=100 else "En production"
+        else:
+            production="À traiter"
         with db() as c:
             c.execute("SELECT pg_advisory_xact_lock(7342026, 4)")
             existing=c.execute("SELECT id FROM private_quotes WHERE public_number=%s AND id<>%s",(number,quote_id)).fetchone()
@@ -3265,7 +3738,11 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
         with db() as c:
             q=c.execute("SELECT * FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
             accepted=c.execute("SELECT signer,accepted_at,quote_hash FROM fjord_quote_acceptances WHERE quote_id=%s",(q["id"],)).fetchone() if q else None
+            interac_setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
         if not q:abort(404)
+        payment_available=bool((interac_setting and interac_setting["value"]) or
+                               _active_square_url(q) or
+                               (os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET")))
         snapshot=quote_snapshot(q)
         digest=hashlib.sha256(snapshot.encode()).hexdigest()
         changed=bool(accepted and accepted["quote_hash"]!=digest)
@@ -3285,8 +3762,8 @@ document.querySelectorAll('.fj-status-btn').forEach(button=>button.addEventListe
                      (quote_id,signer,quote_snapshot,quote_hash,terms_version,ip_hash,user_agent)
                      VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(quote_id) DO NOTHING""",
                      (q["id"],signer,snapshot,digest,"QC-2026-10",iphash,(request.user_agent.string or "")[:350]))
-                # Après signature, proposer immédiatement le règlement intégral de la soumission.
-                if os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"):
+                # Après acceptation, ouvrir le paiement si un moyen est configuré.
+                if payment_available:
                     return redirect(url_for("fjord_payment_page",token=token))
                 return redirect(url_for("fjord_accept_quote",token=token))
         subtotal,gst,qst,total=_quote_amounts(q)
@@ -3347,13 +3824,13 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
 {% endif %}
 <p>Veuillez consulter le PDF de soumission et ses conditions transmis par Les Impressions du Fjord avant d’accepter.</p>
 {% if changed %}<p>Cette soumission a été modifiée depuis son acceptation. Une nouvelle acceptation est nécessaire : communiquez avec Les Impressions du Fjord.</p>
-{% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>{% if stripe_ready %}<p><a class="btn" href="{{url_for('fjord_payment_page',token=token)}}">💳 Payer 100 % de la soumission — {{total}}</a></p>{% endif %}
+{% elif accepted %}<div class="card"><h2>✓ Acceptation enregistrée</h2><p>Signataire : {{accepted.signer}}</p><p>Date : {{accepted.accepted_at.strftime('%Y-%m-%d %H:%M UTC')}}</p><p>Référence de preuve : {{accepted.quote_hash[:16]}}</p></div>{% if payment_available %}<p><a class="btn" href="{{url_for('fjord_payment_page',token=token)}}">💸 Voir les instructions Interac et les options de paiement — {{total}}</a></p>{% endif %}
 {% else %}<form method="post">{{csrf|safe}}<input type="hidden" name="quote_hash" value="{{digest}}">
 <label>Nom complet du client<input name="signer" maxlength="150" required autocomplete="name"></label>
 <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="agree" value="yes" required style="width:auto;margin-top:5px"><span>J'ai pris connaissance de la soumission, des conditions de vente et des garanties légales applicables. J'accepte le prix et les spécifications et j'autorise la fabrication selon cette soumission.</span></label>
 <div class="card" style="margin:16px 0;border-color:#68c6e7"><strong>VENTE FINALE – FABRICATION PERSONNALISÉE</strong><p>Le client confirme avoir vérifié et approuvé les caractéristiques convenues du produit, notamment le modèle, les dimensions, le matériau, la couleur et la quantité. Une fois la fabrication commencée, aucune annulation ou modification pour simple changement d'avis n'est garantie, sous réserve des droits prévus par la loi. Les garanties légales et les recours applicables demeurent pleinement en vigueur.</p><label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="final_sale" value="yes" required style="width:auto;margin-top:5px"><span>Je reconnais avoir lu et compris les conditions de vente finale pour cet article personnalisé, sous réserve de mes droits légaux.</span></label></div>
 <button class="btn" type="submit">✓ J'accepte la soumission et j'autorise la fabrication</button></form>{% endif %}
-<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),token=token,stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET")),model_url=url_for("fjord_client_quote_mesh",token=token)))
+<p>Les garanties légales applicables demeurent en vigueur.</p></section>''',q=q,total=_money(total),accepted=accepted,changed=changed,digest=digest,csrf=csrfinput(),token=token,payment_available=payment_available,model_url=url_for("fjord_client_quote_mesh",token=token)))
         response.headers["Cache-Control"]="no-store"
         response.headers["X-Robots-Tag"]="noindex, nofollow"
         response.headers["Referrer-Policy"]="no-referrer"
@@ -3365,15 +3842,20 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,90}",token):
             abort(404)
         with db() as c:
-            q=c.execute("""SELECT id,public_number,title,quantity,unit_price,shipping,apply_taxes,military_discount,
-                                    square_link_url,square_link_amount_cents
-                             FROM private_quotes WHERE payment_token=%s""",(token,)).fetchone()
+            q=c.execute("SELECT * FROM private_quotes WHERE payment_token=%s",(token,)).fetchone()
+            accepted=c.execute("SELECT quote_hash FROM fjord_quote_acceptances WHERE quote_id=%s",
+                               (q["id"],)).fetchone() if q else None
             setting=c.execute("SELECT value FROM settings WHERE key='fjord_interac_email'").fetchone()
-        square_url=_active_square_url(q) if q else None
+        if not q:abort(404)
+        if q.get("payment_status")=="Payée":
+            return page("Soumission déjà payée",'<section class="card" style="max-width:700px;margin:30px auto;padding:24px"><h1>✓ Paiement déjà confirmé</h1><p>Cette soumission est marquée payée. Communiquez avec Les Impressions du Fjord si vous croyez qu’il s’agit d’une erreur.</p></section>')
+        if not accepted or accepted["quote_hash"]!=_quote_acceptance_digest(q):
+            return redirect(url_for("fjord_accept_quote",token=token))
+        square_url=_active_square_url(q)
         payment_provider=_payment_link_provider(square_url)
         recipient=setting["value"] if setting and setting["value"] else ""
         stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"))
-        if not q or not (square_url or recipient or stripe_ready):
+        if not (square_url or recipient or stripe_ready):
             abort(404)
         subtotal,gst,qst,total=_quote_amounts(q)
         reference=q.get("public_number") or "FJ-{:05d}".format(q["id"])
@@ -3457,65 +3939,34 @@ function animate(){requestAnimationFrame(animate);if(active){controls.update();r
       <div class="fj-checkout-row fj-checkout-total"><dt>Montant CAD</dt><dd>{{amount}}</dd></div>
     </dl>
     <h2>Méthode de paiement</h2>
+    {% if recipient %}
+      <details class="fj-checkout-interac" style="background:#172334;color:#f5f7fb;border:1px solid #d7a91c;border-radius:14px;padding:12px 16px;margin:0 0 16px">
+        <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;font-weight:800;color:#ffd447">
+          <span style="display:inline-flex;align-items:center;gap:9px"><span aria-hidden="true" style="display:inline-flex;flex:0 0 72px;box-sizing:border-box;align-items:center;justify-content:center;width:72px;min-width:72px;height:30px;padding:0 5px;border-radius:7px;background:#ffd447;color:#132033;font-weight:950;font-size:11px;letter-spacing:-.035em;white-space:nowrap;overflow:visible">INTERAC<span style="font-size:16px;margin-left:1px">↗</span></span><span>Virement Interac</span></span>
+          <span style="font-size:13px;color:#f5d975">Afficher les instructions ▾</span>
+        </summary>
+        <div style="padding-top:10px;font-size:14px;line-height:1.55;color:#edf2f7">
+          <p style="margin:5px 0 9px">Dans votre application bancaire, choisissez <strong>Virement Interac → Envoyer</strong>, puis entrez :</p>
+          <p style="margin:5px 0">Destinataire : <strong>{{recipient}}</strong></p>
+          <p style="margin:5px 0">Montant exact : <strong>{{amount}}</strong></p>
+          <p style="margin:5px 0">Note / référence : <strong>{{reference}}</strong></p>
+          <p style="margin:9px 0;color:#c5d0dd">Confirmez le virement dans votre banque. Le paiement est marqué comme reçu après vérification du dépôt. <a style="color:#ffd447" href="https://www.interac.ca/fr/comment-utiliser/virement-interac/comment-envoyer-des-fonds-avec-virement-interac/" target="_blank" rel="noopener noreferrer">Instructions officielles ↗</a></p>
+        </div>
+      </details>
+    {% endif %}
     {% if stripe_ready %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Paiement sécurisé Stripe</div>
-      <a class="fj-checkout-action" href="{{url_for('fjord_stripe_checkout',token=token)}}">Payer maintenant par carte ↗</a>
+      <a class="fj-checkout-action" href="{{url_for('fjord_stripe_checkout',token=token)}}">Payer par carte avec Stripe ↗</a>
       <p class="fj-checkout-explain">Le montant exact de cette soumission est calculé automatiquement. Le statut Payée est confirmé par Stripe.</p>
     {% elif square_url %}
       <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">💳</span> Carte bancaire — {{payment_provider}}</div>
       <a class="fj-checkout-action" href="{{square_url}}" target="_blank" rel="noopener noreferrer">Payer maintenant en ligne ↗</a>
       <p class="fj-checkout-explain">Paiement sur la caisse officielle de {{payment_provider}}. Vérifiez le montant avant de confirmer.</p>
-    {% else %}
-      <div class="fj-checkout-method"><span class="fj-checkout-method-mark" aria-hidden="true">↗</span> Virement Interac</div>
-      <button class="fj-checkout-action" type="button" onclick="fjordShowInterac()">Payer avec Interac — instructions</button>
-      <p class="fj-checkout-explain">Vous avez reçu une demande de fonds officielle Interac? Ouvrez le courriel reçu de votre banque pour autoriser le montant prérempli. Ce site ne peut pas générer cette demande automatiquement.</p>
-    {% endif %}
-    {% if recipient and not stripe_ready and not square_url %}
-    <details id="fjInteracOptions" class="fj-checkout-alt">
-      <summary>{% if square_url %}Payer plutôt par virement Interac{% else %}Je n'ai pas reçu de demande Interac{% endif %}</summary>
-      <div class="fj-checkout-alt-body">
-        <p>Si aucune demande de fonds n'a été envoyée, vous pouvez effectuer un virement Interac depuis votre propre application bancaire. Les renseignements sont ci-dessous.</p>
-        <ol><li>Ouvrez votre application bancaire habituelle.</li>
-        <li>Choisissez « Virement Interac », puis « Envoyer ».</li>
-        <li>Vérifiez le destinataire, inscrivez le montant et la référence, puis autorisez le paiement.</li></ol>
-        <div class="fj-checkout-field"><span>Courriel du destinataire<strong id="payEmail">{{recipient}}</strong></span><button type="button" onclick="fjordCopy('payEmail',this)">Copier</button></div>
-        <div class="fj-checkout-field"><span>Montant<strong id="payAmount">{{amount}}</strong></span><button type="button" onclick="fjordCopy('payAmount',this)">Copier</button></div>
-        <div class="fj-checkout-field"><span>Référence<strong id="payRef">{{reference}}</strong></span><button type="button" onclick="fjordCopy('payRef',this)">Copier</button></div>
-        <button type="button" onclick="fjordCopyAll(this)">📋 Copier tous les renseignements</button>
-        <span id="fjordPaymentFeedback" class="fj-checkout-status" role="status" aria-live="polite"></span>
-      </div>
-    </details>
     {% endif %}
     <p class="fj-checkout-footnote">Ne payez pas deux fois la même soumission. Le paiement est confirmé après réception par l'entreprise, et non par un clic sur cette page. Besoin d'aide? Mentionnez la référence {{reference}}.</p>
   </section>
 </main>
-<script>
-function fjordShowInterac(){
- const options=document.getElementById('fjInteracOptions');
- if(options){options.open=true;options.scrollIntoView({block:'nearest',behavior:'smooth'});}
-}
-async function fjordCopyText(text,button){
- const feedback=document.getElementById('fjordPaymentFeedback');
- try{
-  await navigator.clipboard.writeText(text);
-  if(feedback)feedback.textContent='✓ Copié. Ouvrez votre application bancaire pour poursuivre.';
-  const previous=button.textContent;button.textContent='✓ Copié';
-  setTimeout(()=>button.textContent=previous,2200);
- }catch(e){
-  if(feedback)feedback.textContent='Copie automatique indisponible. Sélectionnez le renseignement ci-dessus.';
- }
-}
-function fjordCopy(id,button){
- const el=document.getElementById(id);
- if(el)fjordCopyText(el.textContent.trim(),button);
-}
-function fjordCopyAll(button){
- const email=document.getElementById('payEmail')?.textContent.trim()||'';
- const amount=document.getElementById('payAmount')?.textContent.trim()||'';
- const reference=document.getElementById('payRef')?.textContent.trim()||'';
- fjordCopyText('Les Impressions du Fjord\nCourriel Interac : '+email+'\nMontant : '+amount+'\nRéférence : '+reference,button);
-}
-</script>""",amount=_money(total),reference=reference,
+""",amount=_money(total),reference=reference,
     quote_description=q.get("title") or "Impression 3D personnalisée",
     recipient=recipient,square_url=square_url,payment_provider=payment_provider,stripe_ready=stripe_ready,token=token))
         response.headers["Cache-Control"]="no-store"
@@ -3564,10 +4015,12 @@ function fjordCopyAll(button){
         token=_quote_payment_token(db,q)
         accept_url=url_for("fjord_accept_quote",token=token,_external=True,_scheme="https") if token else None
         active_square_url=_active_square_url(q)
-        interac_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if token and interac_setting and interac_setting["value"] else None
         stripe_ready=bool(os.getenv("STRIPE_SECRET_KEY") and os.getenv("STRIPE_WEBHOOK_SECRET"))
-        stripe_url=url_for("fjord_payment_page",token=token,_external=True,_scheme="https") if stripe_ready and token else None
-        payment_url=stripe_url or active_square_url or interac_url
+        payment_available=bool(token and (active_square_url or
+                               (interac_setting and interac_setting["value"]) or stripe_ready))
+        # Le PDF ouvre l'écran d'acceptation; l'acceptation enregistrée redirige
+        # ensuite automatiquement vers la page de paiement Interac/Stripe.
+        payment_url=accept_url if payment_available else None
         logo=None
         if setting:
             try:logo=base64.b64decode(setting["value"],validate=True)
@@ -3686,15 +4139,15 @@ function fjordCopyAll(button){
             pdf.roundRect(39,bottom,w-78,96,10,stroke=0,fill=1)
             pdf.setFillColor(navy)
             pdf.setFont("Helvetica-Bold",12)
-            pdf.drawString(52,top-24,"PAYER EN LIGNE PAR CARTE" if active_square_url else "MODALITÉS DE PAIEMENT INTERAC")
+            pdf.drawString(52,top-24,"ACCEPTATION ET PAIEMENT")
             pdf.setFont("Helvetica",10)
-            pdf.drawString(52,top-42,"Montant à transférer : "+_money(total).replace(" $"," CAD"))
-            pdf.drawString(52,top-58,"Référence : {}".format(display_number))
+            pdf.drawString(52,top-42,"Total de la soumission : "+_money(total).replace(" $"," CAD"))
+            pdf.drawString(52,top-58,"Après acceptation, choisissez Interac ou Stripe.")
             pdf.setFillColor(cyan)
             pdf.roundRect(52,bottom+10,340,23,6,stroke=0,fill=1)
             pdf.setFillColor(colors.white)
             pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(222,bottom+18,"PAYER MAINTENANT PAR CARTE" if active_square_url else "VOIR LES OPTIONS DE PAIEMENT")
+            pdf.drawCentredString(222,bottom+18,"ACCEPTER LA SOUMISSION")
             pdf.linkURL(payment_url,(52,bottom+10,392,bottom+33),relative=1)
             try:
                 from reportlab.graphics.barcode import qr
@@ -3709,14 +4162,6 @@ function fjordCopyAll(button){
             except Exception:
                 # Le bouton PDF demeure utilisable même si le rendu QR est indisponible.
                 pass
-        if accept_url:
-            # L'aperçu de la pièce reste dans le PDF sous forme d'image.
-            # Ne pas créer de lien "voir en 3D" qui change de page.
-            pdf.setFillColor(cyan)
-            pdf.roundRect(39,14,315,27,6,stroke=0,fill=1)
-            pdf.setFillColor(colors.white);pdf.setFont("Helvetica-Bold",10)
-            pdf.drawCentredString(196,23,"ACCEPTER CETTE SOUMISSION")
-            pdf.linkURL(accept_url,(39,14,354,41),relative=1)
         pdf.restoreState()
         w,h=legal
         pdf.setStrokeColor(cyan);pdf.line(30,282,w-30,282)
