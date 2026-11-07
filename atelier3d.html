@@ -1491,7 +1491,8 @@ body.light .fjord-menu-options{background:#fff}
  <div class="slice-legend"><span>🟠 <span data-i18n="sliceLegendPrint">Filament déposé</span></span><span>🔵 <span data-i18n="sliceLegendTravel">Déplacement</span></span><span>🔴 <span data-i18n="sliceLegendHead">Tête</span></span></div>
  <div class="slice-engine-state" id="sliceEngineState" role="status">En attente du moteur de tranchage…</div>
  </div>
- <div id="sliceWarning" class="slice-warning" role="status"></div>
+ <div id="sliceEngineSummary" class="slice-engine-state" role="status" aria-live="polite">Le calcul des trajets commence après Trancher.</div>
+  <div id="sliceWarning" class="slice-warning" role="status"></div>
  <p class="slice-disclaimer" data-i18n="sliceDisclaimer">Aperçu des couches et estimation automatique, pas un vrai tranchage ni du G-code. Remplissage estimé à 18 %, supports et rétractions non calculés. Prix à confirmer.</p>
  <div class="slice-actions"><button id="sliceEstimator" type="button" data-i18n="sliceEditPrice">⚙️ Ajuster le prix</button><button id="sliceExport" type="button" class="primary" data-i18n="sliceExport">Exporter STL</button></div>
  </div>
@@ -3559,6 +3560,7 @@ async function requestRealSlice(){
  sliceRealData=null;
  $('sliceHeadSlider').disabled=true;$('sliceHeadValue').textContent=langText[currentLang()].sliceHeadWaiting;
  $('sliceEngineState').textContent=langText[currentLang()].sliceRealLoading;
+  $('sliceEngineSummary').textContent='⏳ Calcul des couches en cours…';
  clearRealToolpath();
  try{
   const group=new THREE.Group();
@@ -3567,14 +3569,14 @@ async function requestRealSlice(){
   }
   const binary=new STLExporter().parse(group,{binary:true});
   const blob=new Blob([binary],{type:'application/octet-stream'});
-  if(blob.size>8*1024*1024)throw Error('STL de plus de 8 Mo');
+  if(blob.size>20*1024*1024)throw Error('STL de plus de 20 Mo : simplifie le modèle pour l’aperçu des couches.');
   const form=new FormData();
   form.append('stl',blob,'atelier-du-fjord.stl');
   form.append('material',$('sliceMaterial').value);
   form.append('layer_height',$('sliceLayerHeight').value);
   const response=await fetch('/api/slice/real',{method:'POST',body:form,credentials:'same-origin'});
   const parsed=await response.json();
-  if(!response.ok)throw Error(parsed.error||('Erreur '+response.status));
+  if(!response.ok)throw Error([parsed.error,parsed.detail].filter(Boolean).join(' · ')||('Erreur '+response.status));
   if(!sliceActive||token!==sliceRequestToken)return;
   if(!Array.isArray(parsed.layers)||!parsed.layers.length)throw Error('Aucune couche G-code');
   sliceRealData=parsed;
@@ -3582,6 +3584,7 @@ async function requestRealSlice(){
   buildRealTimeline(parsed);
   $('sliceEngineState').textContent=langText[currentLang()].sliceRealReady+
     (parsed.preview_sampled?' · Trajets échantillonnés.':'');
+   $('sliceEngineSummary').textContent='✓ '+parsed.layer_count+' couches calculées · '+Number(parsed.filament_grams||0).toFixed(1)+' g · Aperçu PrusaSlicer, non prêt pour X2D.';
   $('sliceLayerSlider').max=String(parsed.layer_count);
   sliceUpdateAll();
   // Begin in the completed-build view. Play restarts from the first movement.
@@ -3593,6 +3596,7 @@ async function requestRealSlice(){
   sliceRealData=null;
   $('sliceEngineState').textContent=langText[currentLang()].sliceRealFailure
     .replace('{reason}',String(err.message||err).slice(0,140));
+   $('sliceEngineSummary').textContent='⚠ Tranchage indisponible : '+String(err.message||err).slice(0,260);
   $('sliceHeadValue').textContent='—';
   clearRealToolpath();
  }
@@ -3739,7 +3743,7 @@ function sliceOpen(){
  $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
  $('mobileSliceBtn').setAttribute('aria-pressed','true');
- $('sliceMaterial').value=$('estimateMaterial').value;
+ $('sliceMaterial').value=['PLA','PETG','ASA','TPU'].includes($('estimateMaterial').value)?$('estimateMaterial').value:'PETG';
  // Show the entire part initially, then move the slider downward to reveal layers.
  sliceBounds=models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
  const step=Number($('sliceLayerHeight').value)||.2;
@@ -3757,7 +3761,7 @@ document.addEventListener('click',event=>{
  if(!sliceActive)return;
  const target=event.target;
  if(!(target instanceof Element))return;
- if(target.closest('#sliceFloat,dialog[open]'))return;
+ if(target.closest('#sliceFloat,#stage,dialog[open]'))return;
  if(target.closest('#slicePreview,#sliceTop,#mobileSliceBtn,'+
   '[data-quick-action="slicePreview"],[data-fjord-tool="slicePreview"],'+
   '[data-fjord-target="sliceTop"],[data-context-action="sliceTop"],'+
