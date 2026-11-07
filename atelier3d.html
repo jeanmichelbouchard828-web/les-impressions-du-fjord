@@ -1469,7 +1469,7 @@ body.light .fjord-menu-options{background:#fff}
  </div>
  </details>
  <div class="slice-settings">
-  <div><label for="sliceMaterial" data-i18n="sliceMaterialLabel">Matériau</label><select id="sliceMaterial"><option>PLA</option><option selected>PETG</option><option>ASA</option><option>TPU</option><option value="Autre">Autre</option></select></div>
+  <div><label for="sliceMaterial" data-i18n="sliceMaterialLabel">Matériau</label><select id="sliceMaterial"><option>PLA</option><option selected>PETG</option><option>PETG-CF</option><option>ASA</option><option>TPU</option><option value="Autre">Autre</option></select></div>
   <div><label for="sliceLayerHeight" data-i18n="sliceLayerLabel">Hauteur de couche</label><select id="sliceLayerHeight"><option value="0.08">0,08 mm</option><option value="0.12">0,12 mm</option><option value="0.2" selected>0,20 mm</option><option value="0.28">0,28 mm</option></select></div>
  </div>
  <div class="slice-mode-tabs" role="group" aria-label="Modes de prévisualisation">
@@ -1599,7 +1599,7 @@ body.light .fjord-menu-options{background:#fff}
 <div class="field"><label data-i18n="estimateManualDimensions">Dimensions approximatives (mm) — L, l, H</label>
 <div class="triple"><input id="estimateX" type="number" min="1" step="1" inputmode="decimal" aria-label="Longueur mm" placeholder="L"><input id="estimateY" type="number" min="1" step="1" inputmode="decimal" aria-label="Largeur mm" placeholder="l"><input id="estimateZ" type="number" min="1" step="1" inputmode="decimal" aria-label="Hauteur mm" placeholder="H"></div></div></div>
 <div class="field"><label for="estimateMaterial" data-i18n="estimateMaterialLabel">Matériau</label>
-<select id="estimateMaterial"><option value="PLA">PLA</option><option value="PETG" selected>PETG</option><option value="ASA">ASA</option><option value="TPU">TPU</option><option value="Autre">Autre / Other</option></select></div>
+<select id="estimateMaterial"><option value="PLA">PLA</option><option value="PETG" selected>PETG</option><option value="PETG-CF">PETG-CF</option><option value="ASA">ASA</option><option value="TPU">TPU</option><option value="Autre">Autre / Other</option></select></div>
 <details class="estimate-advanced"><summary data-i18n="estimateManualOverridesTitle">Options facultatives (poids et durée connus)</summary>
 <p class="estimate-help" data-i18n="estimateManualOverridesHelp">Remplissez ces cases seulement si vous connaissez déjà le poids ou le temps. Sinon, nous les calculons automatiquement.</p>
 <div class="field"><label for="estimateWeight" data-i18n="estimateWeightLabel">Poids connu (g, facultatif)</label><input id="estimateWeight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Automatique"></div>
@@ -3751,7 +3751,7 @@ function sliceOpen(){
  $('slicePreview').classList.add('active');$('slicePreview').setAttribute('aria-pressed','true');
  document.querySelectorAll('[data-quick-action="slicePreview"]').forEach(b=>b.setAttribute('aria-pressed','true'));
  $('mobileSliceBtn').setAttribute('aria-pressed','true');
- $('sliceMaterial').value=['PLA','PETG','ASA','TPU'].includes($('estimateMaterial').value)?$('estimateMaterial').value:'PETG';
+ $('sliceMaterial').value=['PLA','PETG','PETG-CF','ASA','TPU'].includes($('estimateMaterial').value)?$('estimateMaterial').value:'PETG';
  // Show the entire part initially, then move the slider downward to reveal layers.
  sliceBounds=models.reduce((box,m)=>box.union(modelWorldBounds(m)),new THREE.Box3());
  const step=Number($('sliceLayerHeight').value)||.2;
