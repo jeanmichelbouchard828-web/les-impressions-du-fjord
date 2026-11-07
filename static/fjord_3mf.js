@@ -20,11 +20,11 @@ function paintedExtruder(encoded) {
   const digits = Array.from(encoded, c => Number.parseInt(c, 16)).reverse();
   let pos = 0, nodes = 0;
   const counts = new Map();
-  const walk = depth => {
+  const walk = (depth, weight) => {
     if (++nodes > 4096 || depth > 48 || pos >= digits.length) throw Error('Peinture 3MF invalide');
     const code = digits[pos++], split = code & 3, upper = code >> 2;
     if (split) {
-      for (let i = 0; i < split + 1; i++) walk(depth + 1);
+      for (let i = 0; i < split + 1; i++) walk(depth + 1, weight / (split + 1));
     } else {
       let state = upper;
       if (upper === 3) {
@@ -36,11 +36,11 @@ function paintedExtruder(encoded) {
         } while (next === 15 && extension < 32);
         state = 3 + extension * 15 + next;
       }
-      if (state > 0 && state <= 32) counts.set(state, (counts.get(state) || 0) + 1);
+      if (state > 0 && state <= 32) counts.set(state, (counts.get(state) || 0) + weight);
     }
   };
   try {
-    walk(0);
+    walk(0, 1);
     let selected = null, maximum = 0;
     for (const [slot, count] of counts) if (count > maximum) {selected = slot; maximum = count;}
     return selected;
@@ -215,7 +215,7 @@ export function parse3MFProduction(arrayBuffer, fallbackName = 'Objet 3MF') {
       const pindex = p1 !== null ? Number(p1) : objectPindex;
       if (palette && Number.isInteger(pindex)) faceColor = palette[pindex] ?? null;
       if (faceColor === null) {
-        const paint = Array.from(triangle.attributes).find(a => a.localName === 'paint_color');
+        const paint = Array.from(triangle.attributes).find(a => a.localName === 'paint_color' || a.localName === 'mmu_segmentation');
         const painted = paintedExtruder(paint?.value);
         if (painted) faceColor = filamentColors[painted - 1] ?? null;
       }
