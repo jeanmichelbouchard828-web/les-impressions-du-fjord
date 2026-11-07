@@ -1099,8 +1099,8 @@ body.light .fj-print-hint{color:#496477!important}
                 raise AutoSliceError("Les trois profils choisis ne sont pas complets ou disponibles.")
             # Never silently swap PLA/PETG/ASA/TPU for a different material.
             expected_material = str(request.form.get("material", "")).strip().upper()
-            if expected_material not in ("PLA", "PETG", "ASA", "TPU"):
-                raise AutoSliceError("Choisis explicitement le matériau PLA, PETG, ASA ou TPU dans l'Atelier.")
+            if expected_material not in ("PLA", "PETG", "PETG-CF", "ASA", "TPU"):
+                raise AutoSliceError("Choisis explicitement le matériau PLA, PETG, PETG-CF, ASA ou TPU dans l'Atelier.")
             actual = full_preset(presets["Filament"], "Filament")["filament_type"]
             if isinstance(actual, list):
                 actual = actual[0] if actual else ""
