@@ -24,7 +24,7 @@ from pathlib import Path
 
 LOG = logging.getLogger('fjord.bambu_slicer')
 
-MAX_STL = 8 * 1024 * 1024
+MAX_STL = 20 * 1024 * 1024
 MAX_3MF = 30 * 1024 * 1024
 # Intentional whitelist: never accept arbitrary slicer configuration from a client.
 SUPPORT_MODES = ('off', 'tree(auto)', 'normal(auto)')
@@ -261,12 +261,12 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
     if support_mode not in SUPPORT_MODES or type(support_plate_only) is not bool:
         raise AutoSliceError("Configuration des supports automatiques invalide.")
     if not isinstance(stl, bytes) or not 84 <= len(stl) <= MAX_STL:
-        raise AutoSliceError("STL vide ou trop volumineux (maximum 8 Mo).")
+        raise AutoSliceError("STL vide ou trop volumineux (maximum 20 Mo).")
     # Binary STL: 80-byte header + uint32 triangle count + 50 bytes per triangle.
     if len(stl) < 134:
         raise AutoSliceError("STL binaire incomplet.")
     n = int.from_bytes(stl[80:84], "little")
-    if not 0 < n <= 160000 or len(stl) != 84 + 50 * n:
+    if not 0 < n <= 400000 or len(stl) != 84 + 50 * n:
         raise AutoSliceError("Maillage STL binaire invalide.")
     if not _SLICING_SLOT.acquire(blocking=False):
         raise AutoSliceError("Un tranchage est déjà en cours. Réessaie après sa fin.")
@@ -274,7 +274,7 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
         cli = cli_location()
         if not cli:
             raise AutoSliceError(
-                "Moteur Bambu Studio non installé sur Railway. Impression automatique désactivée."
+                "Moteur Bambu Studio non installé sur Render. Impression automatique désactivée."
             )
         machine = cli_preset(presets.get("Imprimante"), "Imprimante")
         process = cli_preset(presets.get("Impression"), "Impression")
@@ -344,7 +344,7 @@ def slice_x2d(stl: bytes, presets: dict, verifier, *, bed_type: str = 'Textured 
                 raise AutoSliceError("Le tranchage a dépassé 95 secondes. Essaie une pièce plus simple.") from exc
             except OSError as exc:
                 LOG.warning("Bambu CLI launch error: %s", type(exc).__name__)
-                raise AutoSliceError("Le moteur Bambu Studio n'a pas pu être lancé sur Railway.") from exc
+                raise AutoSliceError("Le moteur Bambu Studio n'a pas pu être lancé sur Render.") from exc
             if result.returncode != 0 or not output_file.is_file():
                 _log_failure(result.stdout, result.returncode, output_file.is_file())
                 raise AutoSliceError(
