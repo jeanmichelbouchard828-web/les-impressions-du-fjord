@@ -1414,7 +1414,10 @@ body.light .fjord-menu-options{background:#fff}
 <button type="button" class="fjord-paint-swatch" data-fjord-color="#8B61C5" style="--swatch:#8B61C5" title="Violet" aria-label="Violet"></button>
 </div>
 <label for="fjordPaintColor">Couleur active</label>
-<div class="fjord-paint-color-row"><input id="fjordPaintColor" type="color" value="#f04c55"><strong id="fjordPaintColorLabel">#F04C55</strong></div></div>
+<div class="fjord-paint-color-row"><input id="fjordPaintColor" type="color" value="#f04c55"><strong id="fjordPaintColorLabel">#F04C55</strong></div>
+<button type="button" id="fjordPaintWhole" class="fjord-paint-whole" title="Remplacer la couleur de la pièce sélectionnée et conserver Annuler">🎨 Appliquer cette couleur à toute la pièce</button>
+<p class="fjord-paint-whole-note">Pour peindre seulement certaines faces, choisis Pinceau ou Remplir et touche la pièce. Le tranchage X2D automatique en plusieurs couleurs n'est pas encore disponible.</p>
+</div>
 <button type="button" id="fjordPaintEraseAll">Effacer la peinture de la pièce</button>
 <p class="tool-note" id="fjordPaintStatus" role="status" aria-live="polite">Clique sur la pièce pour commencer.</p>
 <p class="tool-note">Enregistre ton projet Fjord en JSON pour conserver les zones peintes. Le STL ne transporte pas les couleurs.</p>
@@ -5336,6 +5339,31 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  document.addEventListener('fullscreenchange',update);
  language?.addEventListener('change',update);
  update();
+})();
+</script>
+<script>
+/* A clear whole-part colour action using the existing undoable material workflow.
+   Painting individual facets and changing an entire object remain distinct. */
+(()=>{
+ const whole=document.getElementById('fjordPaintWhole');
+ const color=document.getElementById('fjordPaintColor');
+ const manual=document.getElementById('fjordManualColor');
+ const apply=document.getElementById('fjordApplyColor');
+ const status=document.getElementById('fjordPaintStatus');
+ if(!whole||!color||!manual||!apply)return;
+ whole.addEventListener('click',()=>{
+  if(!/^#[0-9a-f]{6}$/i.test(color.value))return;
+  manual.value=color.value;
+  apply.click();
+  const message=document.getElementById('fjordAmsStatus')?.textContent||'';
+  if(status)status.textContent=message.includes('✓')?message:
+   (message||'Choisis une pièce, puis applique la couleur.');
+  if(message.includes('✓'))whole.setAttribute('aria-pressed','true');
+ });
+ color.addEventListener('input',()=>whole.setAttribute('aria-pressed','false'));
+ document.querySelectorAll('#fjordPaintPresets [data-fjord-color]').forEach(button=>{
+  button.addEventListener('click',()=>whole.setAttribute('aria-pressed','false'));
+ });
 })();
 </script>
 </html>
