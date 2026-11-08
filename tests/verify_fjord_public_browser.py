@@ -71,6 +71,19 @@ async def check_viewport(browser, label, width, height):
                 await page.locator('input[name=quantity]').fill("2")
                 await page.locator('select[name=color]').select_option(label="Bleu")
                 result["quantity_ui"]=await page.locator('input[name=quantity]').input_value()
+                photo_input=page.locator('input[name="reference_photo"]')
+                if await photo_input.count()!=1:
+                    raise AssertionError("Photo/croquis upload missing from customer quote")
+                import base64
+                pixel=base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9bc7nnAAAAAASUVORK5CYII=")
+                await photo_input.set_input_files({"name":"croquis.png","mimeType":"image/png","buffer":pixel})
+                await page.locator("#fjordReferencePreview").wait_for(state="visible",timeout=8000)
+                if not await page.locator("#fjordReferenceImage").get_attribute("src"):
+                    raise AssertionError("Customer photo preview not created")
+                await page.locator("#fjordReferenceRemove").click()
+                if await photo_input.input_value():
+                    raise AssertionError("Remove photo button didn't clear selected file")
+                result["photo_preview"]="working"
             if name == "gallery":
                 count = await page.locator(".fjm-project").count()
                 result["published_cards"]=count
