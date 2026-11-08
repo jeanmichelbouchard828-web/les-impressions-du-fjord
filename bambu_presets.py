@@ -291,6 +291,9 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
               FROM bambu_user_presets ORDER BY id DESC LIMIT 1000""").fetchall()
             counts = c.execute("""SELECT category,COUNT(*) AS total FROM bambu_user_presets
               GROUP BY category ORDER BY category""").fetchall()
+            reset = c.execute("""SELECT removed_count,cleared_at FROM bambu_user_presets_reset_events
+                    WHERE reset_id=%s""",
+                    ("reinitialisation-bbcfg-nouveaux-profils-20261108-v1",)).fetchone()
         tiers = {"essentiel": 0, "alternative": 0, "archive": 0}
         for item in items:
             item["tier"] = profile_tier(item["signature"])
@@ -318,6 +321,9 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 </form>
 {% if request.args.get('cleaned') is not none %}<p role="status" class="card">{{request.args.get('cleaned')|int}} profil(s) retiré(s), sauvegarde interne conservée.</p>{% endif %}
 <h2>Mes profils importés</h2>
+{% if reset %}
+<p role="status" class="card">🧹 Ancienne bibliothèque réinitialisée : <strong>{{reset.removed_count}}</strong> profils sauvegardés avant suppression. Les nouveaux BBCFG importés après cette opération sont conservés.</p>
+{% endif %}
 <p>Les profils personnalisés sont séparés des profils Bambu d'origine. Après l'import de tes nouveaux BBCFG, choisis <strong>Imprimante, Process et Filament</strong> directement dans l'Atelier 3D administrateur.</p>
 {% for item in counts %}<span style="display:inline-block;margin:4px;padding:8px;border:1px solid #5b8199;border-radius:8px">{{item.category}} : <strong>{{item.total}}</strong></span>{% endfor %}
 {% if items %}
@@ -383,7 +389,7 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 </script>
 <style>.fjord-bambu-profile-row[hidden]{display:none!important}</style>
 {% else %}<p>Ta bibliothèque de profils est vide pour le moment.</p>{% endif %}
-""", csrf_field=csrfinput(), message=message, counts=counts, items=items, tiers=tiers, default_tier=default_tier)
+""", csrf_field=csrfinput(), message=message, counts=counts, items=items, tiers=tiers, default_tier=default_tier, reset=reset)
 
     @app.get("/admin/profils-bambu/<int:profile_id>.json")
     @admin_required
