@@ -155,6 +155,45 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
           signature TEXT NOT NULL UNIQUE,
           imported_at TIMESTAMPTZ DEFAULT NOW())""")
 
+    # Réinitialisation explicitement demandée : sauvegarder puis vider UNE fois
+    # la bibliothèque des imports, sans toucher aux profils système Bambu X2D.
+    # Le marqueur transactionnel empêche qu'un redéploiement efface les nouveaux
+    # BBCFG qu'on ajoutera après la remise à zéro.
+    with db() as c:
+        c.execute("""CREATE TABLE IF NOT EXISTS bambu_user_presets_reset_backup (
+          reset_id TEXT NOT NULL,
+          original_id BIGINT NOT NULL,
+          backed_up_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          name TEXT NOT NULL,
+          category TEXT NOT NULL,
+          source_file TEXT NOT NULL,
+          internal_path TEXT NOT NULL,
+          settings TEXT NOT NULL,
+          signature TEXT NOT NULL,
+          imported_at TIMESTAMPTZ,
+          PRIMARY KEY(reset_id,original_id))""")
+        c.execute("""CREATE TABLE IF NOT EXISTS bambu_user_presets_reset_events (
+          reset_id TEXT PRIMARY KEY,
+          cleared_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          removed_count INTEGER NOT NULL DEFAULT 0)""")
+        reset_id = "reinitialisation-bbcfg-nouveaux-profils-20261108-v1"
+        inserted = c.execute("""INSERT INTO bambu_user_presets_reset_events(reset_id)
+             VALUES(%s) ON CONFLICT (reset_id) DO NOTHING
+             RETURNING reset_id""", (reset_id,)).fetchone()
+        if inserted:
+            c.execute("LOCK TABLE bambu_user_presets IN SHARE ROW EXCLUSIVE MODE")
+            c.execute("""INSERT INTO bambu_user_presets_reset_backup
+                  (reset_id,original_id,name,category,source_file,internal_path,
+                   settings,signature,imported_at)
+                  SELECT %s,id,name,category,source_file,internal_path,
+                         settings,signature,imported_at
+                    FROM bambu_user_presets""", (reset_id,))
+            removed=c.execute("DELETE FROM bambu_user_presets RETURNING id").fetchall()
+            c.execute("""UPDATE bambu_user_presets_reset_events
+                 SET removed_count=%s WHERE reset_id=%s""",
+                 (len(removed),reset_id))
+            app.logger.info("Bambu imported profiles reset, safely snapshotted: %s", len(removed))
+
     @app.post("/admin/profils-bambu/nettoyer")
     @admin_required
     def bambu_cleanup_profiles():
