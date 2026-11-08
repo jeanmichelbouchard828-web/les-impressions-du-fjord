@@ -195,7 +195,9 @@ class ReviewTests(unittest.TestCase):
             # Physical start must require explicit safety checks, a one-use
             # nonce and a matching printer-side file, not a user path.
             nonce=success.json["nonce"]
-            with patch("fjord_printer._api",side_effect=lambda path,**kwargs:
+            with patch("fjord_bambu_connect.bridge_state",
+                       return_value={"paired":False,"online":False,"age":None}), \
+                 patch("fjord_printer._api",side_effect=lambda path,**kwargs:
                 {"Root":[{"Type":"file","VirtualPath":success.json["file"]}]}
                 if path=="/files/list" else
                 {"VirtualPath":kwargs["payload"]["Path"]} if path=="/start"
