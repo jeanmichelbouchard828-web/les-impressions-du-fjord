@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Atelier 3D du Fjord</title>
+<title>Atelier 3D | Les Impressions du Fjord</title>
+<meta name="description" content="Atelier 3D des Impressions du Fjord : importer un fichier STL ou 3MF, personnaliser une création et préparer votre projet d'impression 3D au Saguenay.">
+<meta property="og:title" content="Atelier 3D | Les Impressions du Fjord">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://fjord-render-apercu-20261104.onrender.com/identite/logo">
+<link rel="canonical" href="https://fjord-render-apercu-20261104.onrender.com/atelier-3d">
 <style>
 :root{color-scheme:dark;--bg:#0a1320;--panel:#112136;--field:#152940;--text:#ecf6ff;--muted:#b5c7d9;--border:#36516c;--accent:#45c4ec}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,Arial,sans-serif}
@@ -1121,11 +1126,11 @@ body.light .fjord-menu-options{background:#fff}
  .shell{min-height:calc(100dvh - 118px)}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
-</style></head><body>
+</style><link rel="stylesheet" href="/static/fjord_atelier_brand.css?v=20261108c"></head><body>
 <header>
 <div><div class="brand"><a class="fjord-home-link" href="/" title="Retour à l’accueil des Impressions du Fjord" aria-label="Retour à l’accueil">🏔️ Atelier 3D du Fjord</a></div><div class="subtitle" data-i18n="tagline">Les impressions du Fjord · Création 3D</div></div>
 <div id="projectMenu" class="project-menu"><button type="button" id="projectMenuButton" aria-expanded="false" data-i18n="mobileProject">📁 Projet</button><div class="top-actions">
-<a href="/" data-i18n="back">← Retour au site</a>
+<a href="/" data-i18n="back">← Retour au site</a><a class="fjord-studio-link" href="/galerie" title="Voir nos réalisations">✨ Galerie</a>
 <button id="new" data-i18n="new">Nouveau</button><button id="open" data-i18n="open">📂 Ouvrir un fichier</button>
 <button id="import" data-i18n="import">📥 Importer STL / 3MF</button><button id="save" class="primary" data-i18n="save">Enregistrer</button>
 <button id="export" data-i18n="export">Exporter STL</button><button id="exportColor3MF" title="Exporter un 3MF standard avec couleurs de surface (bêta)">🌈 3MF couleurs (bêta)</button><button id="sliceTop" data-i18n="slicePreview">▥ Trancher</button><button id="estimateToggle" data-i18n="estimateButton">💰 Estimateur</button><button id="quote" class="primary" data-i18n="quote">Faire imprimer</button>
