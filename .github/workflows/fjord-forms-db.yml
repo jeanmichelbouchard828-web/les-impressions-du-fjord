@@ -1,0 +1,38 @@
+name: Fjord isolated forms and database tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [migration/render-fjord-20261104]
+    paths:
+      - "tests/verify_fjord_public_forms_db.py"
+      - ".github/workflows/fjord-forms-db.yml"
+jobs:
+  forms:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: fjord_ci_test
+          POSTGRES_USER: fjord_test
+          POSTGRES_PASSWORD: ephemeral-test-password-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U fjord_test -d fjord_ci_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://fjord_test:ephemeral-test-password-only@127.0.0.1:5432/fjord_ci_test
+      FJORD_PREVIEW_MODE: "0"
+      SECRET_KEY: fjord-ci-only-do-not-use-in-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install application requirements
+        run: pip install -r requirements.txt
+      - name: Verify full business request flow on isolated local database
+        run: python tests/verify_fjord_public_forms_db.py
