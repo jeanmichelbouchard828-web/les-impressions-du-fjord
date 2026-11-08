@@ -109,3 +109,27 @@ body.light .fjm-files{background:#f1faff;border-color:#aad6e7}
 body.light .fjord-reference-preview{background:#fff;border-color:#b4dbea}
 body.light .fjord-reference-admin{background:#e7f5fc;border-color:#a5cbdc}
 @media(max-width:520px){.fjm-files{padding:12px}.fjord-reference-preview img{height:85px;width:100px}}
+
+/* Secure admin demand archive, usable with hundreds of customer requests. */
+.fjord-demandes-history{max-width:1270px;margin:0 auto;padding:clamp(12px,3vw,29px)}
+.fjord-demandes-history h1{font-size:clamp(29px,4vw,44px)}
+.fjord-history-filters{display:grid;grid-template-columns:minmax(220px,2fr) minmax(135px,1fr) minmax(160px,1fr) auto auto;gap:12px;align-items:end;max-width:none;padding:20px;border:1px solid #337e9f;background:#102f46;border-radius:17px}
+.fjord-history-filters label{margin:0;min-width:0;font-size:13px}
+.fjord-history-filters input,.fjord-history-filters select{margin:6px 0 0;min-width:0}
+.fjord-history-filters button,.fjord-history-filters>a{min-height:46px;display:inline-flex;align-items:center;justify-content:center;padding:10px 15px;border-radius:10px}
+.fjord-history-filters>a{border:1px solid #4e96b5}
+.fjord-history-summary{font-size:14px;margin:17px 0}
+.fjord-history-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.fjord-history-card{padding:20px;border:1px solid #33799c;background:#0c293e;border-radius:17px;min-width:0}
+.fjord-history-card h2{font-size:20px;margin:12px 0 6px}
+.fjord-history-card p{font-size:14px;overflow-wrap:anywhere}
+.fjord-history-card details{padding:11px;border:1px solid #285c7b;border-radius:10px}
+.fjord-history-card summary{cursor:pointer;font-weight:800}
+.fjord-history-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:13px}
+.fjord-history-actions a{font-size:13px;font-weight:800;text-decoration:underline}
+.fjord-history-pages{display:flex;justify-content:center;gap:24px;align-items:center;margin:29px 0}
+.fjord-history-pages a{padding:10px 14px;border:1px solid #4082a1;border-radius:10px}
+body.light .fjord-history-filters,body.light .fjord-history-card{background:#fff;border-color:#b2d9ea}
+body.light .fjord-history-card details{border-color:#b7d6e5}
+@media(max-width:1000px){.fjord-history-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.fjord-history-filters>label:first-child{grid-column:1/-1}.fjord-history-results{grid-template-columns:1fr}}
+@media(max-width:550px){.fjord-history-filters{grid-template-columns:1fr}.fjord-history-filters>label:first-child{grid-column:auto}.fjord-history-filters button,.fjord-history-filters>a{width:100%}.fjord-history-card{padding:14px}}
