@@ -314,7 +314,7 @@ export function installFjordEnhancements(api){
   if(paintPreviousTwoTouch===null)paintPreviousTwoTouch=api.orbit.touches.TWO;
   api.orbit.touches.TWO=THREE.TOUCH.DOLLY_ROTATE;
   // Preserve most of the phone's build plate; "Outils" expands the palette.
-  foldMobilePaint(window.matchMedia('(max-width:760px)').matches);
+  foldMobilePaint(false); // Show colour tools immediately on phones; Réduire remains available.
   // OrbitControls stays enabled except while a LEFT paint stroke is active.
   // RIGHT-drag temporarily orbits around the selected model, rather than panning
   // the whole build plate. Restore its original mapping on closing paint.
