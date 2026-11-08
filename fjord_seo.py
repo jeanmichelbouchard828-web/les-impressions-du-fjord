@@ -21,12 +21,14 @@ DEFAULT_ORIGIN = "https://fjord-render-apercu-20261104.onrender.com"
 PUBLIC_ORIGIN = (os.environ.get("FJORD_PUBLIC_URL") or DEFAULT_ORIGIN).strip().rstrip("/")
 if not PUBLIC_ORIGIN.startswith("https://"):
     PUBLIC_ORIGIN = DEFAULT_ORIGIN
+# Keep schema.org URLs in sync when the real domain replaces the temporary Render hostname.
+BUSINESS_SCHEMA = BUSINESS_SCHEMA.replace(DEFAULT_ORIGIN, PUBLIC_ORIGIN)
 
 INDEXABLE = {"/", "/galerie", "/soumission", "/contact", "/atelier-3d",
              "/assistance", "/politique-confidentialite", "/conditions-utilisation"}
 PRIVATE_PREFIXES = ("/admin", "/api", "/payer", "/stripe", "/suivi",
                     "/voir-mon-impression", "/live", "/gallery/cover",
-                    "/gallery/image", "/photo/", "/identite", "/health")
+                    "/identite", "/health")
 
 
 def safe_canonical_path(path):
@@ -56,8 +58,7 @@ def register_seo_routes(app, db):
         else:
             lines += ["Disallow: /admin", "Disallow: /api", "Disallow: /payer",
                       "Disallow: /stripe", "Disallow: /suivi",
-                      "Disallow: /voir-mon-impression", "Disallow: /photo/",
-                      "Disallow: /gallery/", "Disallow: /identite/",
+                      "Disallow: /voir-mon-impression", "Disallow: /identite/",
                       "Disallow: /health", "Sitemap: " + PUBLIC_ORIGIN + "/sitemap.xml"]
         return Response("\n".join(lines) + "\n", mimetype="text/plain",
                         headers={"Cache-Control":"public, max-age=3600"})
