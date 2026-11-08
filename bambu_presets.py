@@ -317,19 +317,12 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 <p class="muted small">Garde les imprimantes X2D, les filaments PLA, PETG, PETG-CF, ASA et TPU et les profils d'impression complets. Sauvegarde les profils retirés dans une table d'archives.</p>
 </form>
 {% if request.args.get('cleaned') is not none %}<p role="status" class="card">{{request.args.get('cleaned')|int}} profil(s) retiré(s), sauvegarde interne conservée.</p>{% endif %}
-<h2>Mes profils classés</h2>
-<p>Ce classement facilite le choix : <strong>aucun profil d'imprimante ou ancien essai n'est effacé automatiquement.</strong> Les profils essentiels et alternatifs restent <strong>à vérifier dans Bambu Studio</strong> avant toute impression.</p>
-<p><strong>Essentiels : {{tiers.essentiel}}</strong> · Alternatives : {{tiers.alternative}} · Archives : {{tiers.archive}}</p>
+<h2>Mes profils importés</h2>
+<p>Les profils personnalisés sont séparés des profils Bambu d'origine. Après l'import de tes nouveaux BBCFG, choisis <strong>Imprimante, Process et Filament</strong> directement dans l'Atelier 3D administrateur.</p>
 {% for item in counts %}<span style="display:inline-block;margin:4px;padding:8px;border:1px solid #5b8199;border-radius:8px">{{item.category}} : <strong>{{item.total}}</strong></span>{% endfor %}
 {% if items %}
 <div class="row" style="align-items:end;flex-wrap:wrap">
-<label style="min-width:180px">Afficher
-<select id="fjordBambuTier" aria-label="Filtrer les profils par classement">
-<option value="essentiel" {% if default_tier == 'essentiel' %}selected{% endif %}>⭐ Mes essentiels</option>
-<option value="alternative">🧪 Alternatives à tester</option>
-<option value="archive">📦 Archives / anciens essais</option>
-<option value="tous" {% if default_tier == 'tous' %}selected{% endif %}>Tous les profils</option>
-</select></label>
+
 <label style="min-width:155px">Catégorie
 <select id="fjordBambuCategory" aria-label="Filtrer par catégorie">
 <option value="toutes">Toutes</option><option value="filament">Filaments</option>
@@ -348,12 +341,12 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 <p id="fjordBambuFilteredCount" role="status" aria-live="polite"></p>
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse">
-<thead><tr><th style="text-align:left">Profil</th><th>Classement</th><th>Catégorie</th><th>Fichier d'origine</th><th>Action</th></tr></thead>
+<thead><tr><th style="text-align:left">Profil</th><th>Catégorie</th><th>Fichier d'origine</th><th>Action</th></tr></thead>
 <tbody>
 {% for item in items %}
 <tr class="fjord-bambu-profile-row" data-tier="{{item.tier}}" data-name="{{item.name|lower}}" data-category="{{item.category|lower}}" style="border-top:1px solid #56758c">
 <td style="padding:8px">{{item.name}}</td>
-<td>{% if item.tier == 'essentiel' %}⭐ Essentiel (à vérifier){% elif item.tier == 'alternative' %}🧪 Alternative{% else %}📦 Archive{% endif %}</td>
+
 <td>{{item.category}}</td><td>{{item.source_file}}</td>
 <td><a href="/admin/profils-bambu/{{item.id}}.json">JSON</a>
 <form style="display:inline" method="post" action="/admin/profils-bambu/{{item.id}}/supprimer" onsubmit="return confirm('Supprimer ce profil archivé ?')">
@@ -363,14 +356,12 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
 </table></div>
 <script>
 (function(){
- const tier=document.getElementById("fjordBambuTier");
  const query=document.getElementById("fjordBambuSearch");
  const category=document.getElementById("fjordBambuCategory");
  const material=document.getElementById("fjordBambuMaterial");
  const output=document.getElementById("fjordBambuFilteredCount");
  const rows=Array.from(document.querySelectorAll(".fjord-bambu-profile-row"));
  function filter(){
-   const kind=tier.value;
    const needle=query.value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
    let shown=0;
    rows.forEach(row=>{
@@ -380,14 +371,13 @@ def register_bambu_preset_library(app, db, admin_required, verify, csrfinput, pa
      const matchMaterial=material.value==="tous"||
        (material.value==="autres"&&!/pla|petg|asa|tpu/.test(materialName))||
        (material.value==="petg"?/petg/.test(materialName)&&!/petg-cf/.test(materialName):materialName.includes(material.value));
-     const visible=(kind==="tous"||row.dataset.tier===kind)&&
-       (category.value==="toutes"||row.dataset.category===category.value)&&
+     const visible=(category.value==="toutes"||row.dataset.category===category.value)&&
        matchMaterial&&(!needle||content.includes(needle));
      row.hidden=!visible;if(visible)shown++;
    });
    output.textContent=shown+" profil(s) affiché(s) sur "+rows.length+".";
  }
- tier.addEventListener("change",filter);category.addEventListener("change",filter);
+ category.addEventListener("change",filter);
  material.addEventListener("change",filter);query.addEventListener("input",filter);filter();
 })();
 </script>
