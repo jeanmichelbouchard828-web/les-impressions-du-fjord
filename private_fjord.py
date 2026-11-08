@@ -538,7 +538,9 @@ if(fjordAutoButton){
  '<small>Bambu Studio détecte les surplombs et crée les supports dans le 3MF. Sans surplomb, aucun support n’est nécessaire.</small></fieldset>'+
  '<section id="fjordMonoApproval" class="fjord-mono-approval" hidden>'+
  '<strong>🎨 Plusieurs couleurs détectées sur ta création.</strong>'+
- '<p>Le STL ne conserve pas la peinture AMS. Pour vérifier le tranchage, tu peux envoyer seulement la géométrie en <b>une couleur PETG</b>. Ta création peinte restera inchangée dans l’Atelier.</p>'+
+ '<p>Ce tranchage X2D automatique ne conserve pas les changements de couleur : si tu continues, la pièce sera tranchée en <b>une seule couleur du matériau choisi</b>. Le projet peint restera intact dans l’Atelier.</p>'+
+ '<button type="button" id="fjordDownloadColor3MF">🌈 Télécharger le 3MF multicolore pour Bambu Studio</button>'+
+ '<p>Pour imprimer avec tes deux extrudeurs et l’AMS, ouvre ce 3MF dans Bambu Studio, vérifie et réattribue les filaments, puis tranche-le là-bas.</p>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordMonoConsent"> Je confirme : pour cet essai, trancher en UNE couleur, sans peinture ni couleurs AMS.</label>'+
  '</section>'+
  '<label class="fjord-auto-remember"><input type="checkbox" id="fjordAutoRemember" checked> Mémoriser ces profils après une préparation réussie</label>'+
@@ -1403,6 +1405,12 @@ if(fjordAutoButton){
   if(!multi)monoConsent.checked=false;
   return multi;
  }
+ panel.querySelector('#fjordDownloadColor3MF')?.addEventListener('click',()=>{
+  const download=document.getElementById('exportColor3MF');
+  if(!download){state.textContent='⚠ Export 3MF couleurs indisponible.';return;}
+  download.click();
+  state.textContent='3MF couleurs demandé. Vérifie la réattribution des couleurs dans Bambu Studio avant de trancher.';
+ });
  monoConsent.addEventListener('change',()=>{
   state.textContent=monoConsent.checked
    ?'✓ Essai en une couleur : la géométrie sera tranchée sans transférer la peinture AMS.'
@@ -1549,7 +1557,7 @@ if(fjordAutoButton){
    plate.value=[...plate.options].some(option=>option.value===remembered.bed_type)
     ?remembered.bed_type:'';
    if(!plate.value)rememberedAll=false;
-   if(!data.engine_ready)state.textContent='⚠ Bambu Studio indisponible sur Railway.';
+   if(!data.engine_ready)state.textContent='⚠ Bambu Studio indisponible sur Render : vérifie les profils et le moteur.';
    else if(!Object.keys(names).every(field=>form.elements.namedItem(field).options.length>1))
     state.textContent='⚠ Il manque un profil complet correspondant : X2D 0,4 mm, '+material()+
       ' et couche '+layer()+' mm. Vérifie les profils importés.';
