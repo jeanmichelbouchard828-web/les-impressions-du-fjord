@@ -267,6 +267,25 @@ document.addEventListener("DOMContentLoaded",()=>{
 <script>
 (()=>{const btn=document.getElementById('fjordStudioQuoteShortcut');btn?.addEventListener('click',()=>document.getElementById('quote')?.click());})();
 </script></body>''', 1)
+        # Bambu-Studio-like profile selection is visible on the private
+        # Atelier itself. Only authenticated users can load real preset names.
+        profile_toolbar = """
+<section id="fjordBambuProfileBar" aria-label="Mes profils Bambu Studio X2D">
+ <div class="fjord-profiles-title"><strong>🖨️ Profils X2D</strong>
+ <span>Imprimante · Process · Filament</span></div>
+ <div class="fjord-profile-picks">
+  <label>Imprimante <select id="fjordProfileMachine" aria-label="Profil imprimante X2D"><option value="">Chargement…</option></select></label>
+  <label>Process (impression) <select id="fjordProfileProcess" aria-label="Profil Process impression"><option value="">Chargement…</option></select></label>
+  <label>Filament <select id="fjordProfileFilament" aria-label="Profil filament"><option value="">Chargement…</option></select></label>
+  <button type="button" id="fjordProfilePrepare" title="Vérifier les profils et ouvrir la préparation du tranchage Bambu">▥ Préparer / trancher</button>
+ </div>
+ <p id="fjordProfileBarStatus" role="status" aria-live="polite">Lecture des profils Bambu disponibles…</p>
+</section>
+"""
+        html = html.replace('<div class="shell" id="fjordWorkspace">',
+                            profile_toolbar + '<div class="shell" id="fjordWorkspace">', 1)
+        html = html.replace('</head>',
+            '<link rel="stylesheet" href="/static/fjord_profile_toolbar.css?v=20261108v1"></head>', 1)
         # Print controls belong to the Slice panel, not the crowded header.
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
@@ -624,7 +643,7 @@ if(fjordAutoButton){
  const monoWrap=panel.querySelector('#fjordMonoApproval');
  const monoConsent=panel.querySelector('#fjordMonoConsent');
  const names={machine:'Imprimante',process:'Impression',filament:'Filament'};
- const preferenceKey='fjord-x2d-profile-preferences-v1';
+ const preferenceKey='fjord-x2d-profile-preferences-v2';
  let inventory=null,busy=false,opened=false,prepared=null,transferred=null,printerCanStart=false,printerPoll=null;
  let expectedJobFile='',confirmedActiveJob=false,printerPollVersion=0;
  const sharedBox=panel.querySelector('#fjordSharedX2D');
@@ -1360,6 +1379,98 @@ if(fjordAutoButton){
     String(item.id)===id&&eligible(field,item));
   });
  }
+ const bar=document.getElementById('fjordBambuProfileBar');
+ const barStatus=document.getElementById('fjordProfileBarStatus');
+ const barFields={
+  machine:document.getElementById('fjordProfileMachine'),
+  process:document.getElementById('fjordProfileProcess'),
+  filament:document.getElementById('fjordProfileFilament')
+ };
+ let toolbarInventory=null;
+ const barSelected={};
+ function barFill(){
+  if(!toolbarInventory||!bar)return;
+  const remembered=savedProfiles()[jobKey()]||{};
+  for(const [field,category] of Object.entries(names)){
+   const select=barFields[field];
+   if(!select)continue;
+   const all=toolbarInventory.profiles?.[category]||[];
+   const filtered=all.filter(item=>field==='machine'
+      ? eligible('machine',item)
+      : field==='process'
+        ? Number.isFinite(parseFloat(item.layer))
+        : ['PLA','PETG','PETG-CF','ASA','TPU'].includes(String(item.material||'').toUpperCase()));
+   const previous=String(barSelected[field]||remembered[field]||'');
+   select.replaceChildren(new Option('— Choisir —',''));
+   const source=new Map();
+   for(const item of filtered){
+    source.set(String(item.id),item);
+    const detail=field==='process'?' · '+item.layer+' mm':
+      field==='filament'?' · '+item.material:' · buse '+item.nozzle+' mm';
+    const label=(item.official?'Bambu d’origine · ':'Mes profils · ')+item.name+detail;
+    select.add(new Option(label,String(item.id)));
+   }
+   const selected=source.get(previous)||
+      filtered.find(item=>item.official)||
+      (filtered.length===1?filtered[0]:null);
+   if(selected)select.value=String(selected.id);
+   barSelected[field]=select.value;
+  }
+  barStatus.textContent=toolbarInventory.engine_ready
+    ?'✓ Profils disponibles. Les choix seront utilisés pour le tranchage Bambu X2D, après vérification de la plaque et des bobines.'
+    :'⚠ Les profils sont visibles mais le moteur Bambu est indisponible sur le serveur.';
+ }
+ async function loadBar(){
+  if(!bar)return;
+  try{
+   const response=await fetch('/api/admin/atelier/impression-profils',{
+    credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
+   if(!response.ok)throw Error('Session administrateur requise');
+   toolbarInventory=await response.json();
+   barFill();
+  }catch(error){
+   barStatus.textContent='⚠ '+String(error.message||error)+'. Reconnecte-toi à l’administration.';
+  }
+ }
+ for(const [field,select] of Object.entries(barFields)){
+  select?.addEventListener('change',()=>{
+   barSelected[field]=select.value;
+   const meta=(toolbarInventory?.profiles?.[names[field]]||[])
+      .find(item=>String(item.id)===select.value);
+   if(field==='filament'&&meta?.material){
+    const target=document.getElementById('sliceMaterial');
+    if(target&&[...target.options].some(option=>option.value===meta.material)){
+      target.value=meta.material;
+      target.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+   }
+   if(field==='process'&&meta?.layer){
+    const target=document.getElementById('sliceLayerHeight');
+    const num=Number(meta.layer);
+    const candidate=target&&[...target.options].find(opt=>Math.abs(Number(opt.value)-num)<.005);
+    if(candidate){target.value=candidate.value;target.dispatchEvent(new Event('change',{bubbles:true}));}
+   }
+   try{
+    const prefs=savedProfiles(),key=jobKey(),old=prefs[key]||{};
+    prefs[key]={...old,...barSelected};
+    localStorage.setItem(preferenceKey,JSON.stringify(prefs));
+   }catch(_){}
+   // If the dialog is open, its selects must reflect the same choice.
+   const modalSelect=form.elements.namedItem(field);
+   if(modalSelect&&[...modalSelect.options].some(opt=>opt.value===select.value)){
+    modalSelect.value=select.value;
+    modalSelect.dispatchEvent(new Event('change',{bubbles:true}));
+   }
+  });
+ }
+ document.getElementById('fjordProfilePrepare')?.addEventListener('click',()=>{
+  fjordAutoButton.click();
+ });
+ // Keep the next selection linked to the material and layer selected in the
+ // main Atelier without silently replacing the user's explicit choice.
+ document.getElementById('sliceMaterial')?.addEventListener('change',()=>{if(toolbarInventory)barFill()});
+ document.getElementById('sliceLayerHeight')?.addEventListener('change',()=>{if(toolbarInventory)barFill()});
+ loadBar();
  function updateReady(){
   submit.disabled=busy||!selectedValid();
   if(inventory?.engine_ready&&!form.elements.namedItem('bed_type').value&&!busy){
@@ -1556,8 +1667,7 @@ if(fjordAutoButton){
     // Never erase existing CHATOU choices or the user's saved preferences.
     const saved=compatible.find(item=>String(item.id)===String(remembered[field]||''));
     const official=compatible.find(item=>item.official===true);
-    const selected=(saved?.official?saved:null)||official||saved||
-      (compatible.length===1?compatible[0]:null);
+    const selected=saved||official||(compatible.length===1?compatible[0]:null);
     if(selected)select.value=String(selected.id);
     if(!saved||String(selected?.id)!==String(saved.id))rememberedAll=false;
    }
@@ -1582,7 +1692,8 @@ if(fjordAutoButton){
     state.textContent='✓ Profils Bambu d’origine présélectionnés. Lance le tranchage du cube PETG pour les vérifier.';
    else state.textContent='Choisis tes profils une seule fois : ils seront mémorisés après une préparation réussie.';
    updateReady();
-   if(rememberedAll&&selectedValid()&&!already)await prepare();
+   // Never start slicing simply by opening a profile selector.
+   // User reviews the three profiles, supports and installed plate first.
   }catch(error){
    state.textContent='⚠ '+String(error.message||error).slice(0,180);
   }
