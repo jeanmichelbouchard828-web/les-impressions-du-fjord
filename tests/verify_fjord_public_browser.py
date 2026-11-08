@@ -106,7 +106,8 @@ async def check_viewport(browser, label, width, height):
     if await cards.count():
         await cards.first.click()
         await page.wait_for_load_state("domcontentloaded")
-        if not re.match(r"^/galerie/\\d+$",page.url.replace(BASE,"")):
+        item_path=page.url.replace(BASE,"").split("?")[0]
+        if not (item_path.startswith("/galerie/") and item_path[len("/galerie/"):].isdigit()):
             raise AssertionError("Gallery card did not navigate to its detail page")
         await page.locator('.fjord-gallery-detail-cta a[href^="/soumission?projet="]').first.click()
         await page.wait_for_load_state("domcontentloaded")
