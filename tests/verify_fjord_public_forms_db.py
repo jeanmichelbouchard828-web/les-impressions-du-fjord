@@ -101,6 +101,28 @@ class IsolatedBusinessFlow(unittest.TestCase):
             with self.subTest(values=overrides):
                 self.assertEqual(self.post("/soumission",data).status_code,400)
 
+    def test_3mf_upload_validation_rejects_corrupt_archives(self):
+        import zipfile
+        page=self.get("/soumission")
+        token=csrf_from(page.get_data(as_text=True))
+        common={"csrf":token,"name":"Test 3MF","email":"fjord-ci-3mf@example.invalid",
+                "description":"Test de fichier 3MF","material":"PLA",
+                "quantity":"1","color":"Noir"}
+        broken=self.post("/soumission",dict(common,model=(io.BytesIO(b"PKnot-a-real-zip"),"broken.3mf")))
+        self.assertEqual(broken.status_code,400)
+        archive=io.BytesIO()
+        with zipfile.ZipFile(archive,"w",zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("[Content_Types].xml",'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+            zf.writestr("3D/3dmodel.model",'<model xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"/>')
+        archive.seek(0)
+        valid=self.post("/soumission",dict(common,model=(archive,"part.3mf")))
+        self.assertEqual(valid.status_code,200)
+        with db() as conn:
+            uploaded=conn.execute("SELECT filename,octet_length(filedata) AS size FROM requests WHERE email=%s",
+                                  (common["email"],)).fetchone()
+        self.assertEqual(uploaded["filename"],"part.3mf")
+        self.assertGreater(uploaded["size"],80)
+
     def test_gallery_images_metadata_and_index_safety(self):
         image=Image.new("RGB",(60,55),color=(12,92,147))
         payload=io.BytesIO()
@@ -136,6 +158,11 @@ class IsolatedBusinessFlow(unittest.TestCase):
         self.assertEqual(ready.get_json()["ok"],True)
         self.assertEqual(self.get("/sitemap.xml").status_code,200)
         self.assertEqual(self.get("/robots.txt").status_code,200)
+        quote=self.get("/soumission")
+        self.assertEqual(quote.headers.get("Cache-Control"),"no-store, private")
+        self.assertEqual(quote.headers.get("X-Content-Type-Options"),"nosniff")
+        self.assertEqual(quote.headers.get("X-Frame-Options"),"SAMEORIGIN")
+        self.assertEqual(self.get("/favicon.ico").status_code,302)
         self.assertIn(self.get("/admin").status_code,(302,303))
 
 if __name__=="__main__":
