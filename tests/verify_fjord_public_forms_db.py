@@ -44,6 +44,75 @@ class IsolatedBusinessFlow(unittest.TestCase):
     def post(self,path,values):
         return self.client.post(path,base_url=BASE,data=values)
 
+    def test_legacy_bambu_preset_reset_snapshot_and_one_time_only(self):
+        """Runs ONLY on disposable localhost fjord_ci_test, never a real library."""
+        from flask import Flask
+        from bambu_presets import register_bambu_preset_library
+        reset_id="reinitialisation-bbcfg-nouveaux-profils-20261108-v1"
+        old_sig="a"*64
+        new_sig="b"*64
+        def register():
+            sandbox=Flask("fjord-ci-bambu-reset-"+str(__import__('secrets').token_hex(4)))
+            register_bambu_preset_library(
+                sandbox,db,lambda fn:fn,lambda:None,lambda:"",
+                lambda *args,**kwargs:"test")
+        with db() as conn:
+            conn.execute("DELETE FROM bambu_user_presets_reset_events WHERE reset_id=%s",
+                         (reset_id,))
+            conn.execute("DELETE FROM bambu_user_presets WHERE signature IN (%s,%s)",
+                         (old_sig,new_sig))
+            conn.execute("""INSERT INTO bambu_user_presets
+                 (name,category,source_file,internal_path,settings,signature)
+                 VALUES(%s,%s,%s,%s,%s,%s)""",
+                 ("OLD ci profile","Filament","old.bbscfg","filament/old.json",
+                  '{"name":"OLD ci profile","filament_type":["PLA"]}',old_sig))
+        register()
+        with db() as conn:
+            self.assertIsNone(conn.execute(
+                "SELECT id FROM bambu_user_presets WHERE signature=%s",
+                (old_sig,)).fetchone())
+            saved=conn.execute("""SELECT original_id FROM bambu_user_presets_reset_backup
+                 WHERE reset_id=%s AND signature=%s""",
+                 (reset_id,old_sig)).fetchone()
+            self.assertIsNotNone(saved)
+            conn.execute("""INSERT INTO bambu_user_presets
+                 (name,category,source_file,internal_path,settings,signature)
+                 VALUES(%s,%s,%s,%s,%s,%s)""",
+                 ("NEW ci BBCFG","Filament","new.bbscfg","filament/new.json",
+                  '{"name":"NEW ci BBCFG","filament_type":["PETG"]}',new_sig))
+        register()
+        with db() as conn:
+            self.assertIsNotNone(conn.execute(
+                "SELECT id FROM bambu_user_presets WHERE signature=%s",
+                (new_sig,)).fetchone())
+            row=conn.execute(
+                "SELECT COUNT(*) AS n FROM bambu_user_presets_reset_events WHERE reset_id=%s",
+                (reset_id,)).fetchone()
+            self.assertEqual(row["n"],1)
+
+    def test_private_atelier_exposes_three_bambu_profile_selectors(self):
+        import hashlib
+        import datetime
+        token="fjord-ci-private-atelier-profiles"
+        digest=hashlib.sha256(token.encode()).hexdigest()
+        with db() as conn:
+            conn.execute("""INSERT INTO sessions(tokenhash,expires) VALUES(%s,%s)
+             ON CONFLICT (tokenhash) DO NOTHING""",
+                (digest,datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=1)))
+        with self.client.session_transaction() as session:
+            session["admin_token"]=token
+        response=self.get("/admin/atelier-3d")
+        self.assertEqual(response.status_code,200)
+        text=response.get_data(as_text=True)
+        for expected in ('id="fjordBambuProfileBar"','id="fjordProfileMachine"',
+                         'id="fjordProfileProcess"','id="fjordProfileFilament"',
+                         '/static/fjord_profile_toolbar.css'):
+            self.assertIn(expected,text)
+        self.assertIn("fjord-x2d-profile-preferences-v2",text)
+        self.assertNotIn("fjord-x2d-profile-preferences-v1",text)
+        public=self.get("/atelier-3d").get_data(as_text=True)
+        self.assertNotIn('id="fjordBambuProfileBar"',public)
+
     def test_quote_submission_and_private_tracking(self):
         page=self.get("/soumission")
         self.assertEqual(page.status_code,200)
