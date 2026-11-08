@@ -2403,12 +2403,13 @@ function fjordApplyProject(data){
 function fjordShowDraft(message){
  fjordDraftNotice.textContent=message;fjordDraftNotice.style.display='block';
 }
+function fjordHideDraftNotice(){fjordDraftNotice.style.display='none';}
 window.fjordScheduleAutosave=()=>{
  if(!fjordAutosaveEnabled)return;
  clearTimeout(fjordAutosaveTimer);
- fjordShowDraft('Enregistrement automatique du brouillon…');
+ // Sauvegarder silencieusement; afficher seulement un avis si la sauvegarde échoue.
  fjordAutosaveTimer=setTimeout(async()=>{
-  try{await fjordDraftWrite(fjordDraftSnapshot());fjordShowDraft('✓ Brouillon enregistré sur cet appareil')}
+  try{await fjordDraftWrite(fjordDraftSnapshot());fjordHideDraftNotice()}
   catch(error){console.warn('Brouillon local non enregistré',error);fjordShowDraft('⚠ Sauvegarde locale indisponible dans ce navigateur')}
  },1100);
 };
@@ -2446,7 +2447,7 @@ function fjordOfferDraftRecovery(draft){
  try{
   const draft=await fjordDraftRead();
   if(draft&&draft.version===2&&Array.isArray(draft.beds))fjordOfferDraftRecovery(draft);
-  else{fjordAutosaveEnabled=true;fjordShowDraft('✓ Sauvegarde automatique locale prête');}
+  else{fjordAutosaveEnabled=true;fjordHideDraftNotice();}
  }catch(error){console.warn('Sauvegarde locale indisponible',error);fjordShowDraft('⚠ Sauvegarde automatique indisponible dans ce navigateur');}
 })();
 
