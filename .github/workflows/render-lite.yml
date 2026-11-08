@@ -25,6 +25,38 @@ jobs:
         run: |
           docker run --rm -v "$PWD/tests:/app/tests:ro" fjord-render-lite-ci \
             python -m unittest discover -s tests -p 'test_storefront_integrity.py' -v
+      - name: Read-only live Render smoke check
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+          import urllib.error
+          base="https://fjord-render-apercu-20261104.onrender.com"
+          paths=["/health/ready","/","/galerie","/soumission","/atelier-3d","/robots.txt","/sitemap.xml","/static/fjord_sitewide.css","/gallery/thumb/0"]
+          results={}
+          for path in paths:
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(base+path,headers={"User-Agent":"Fjord-ReadOnly-Smoke/1.0"}),timeout=25) as response:
+                      status=response.status
+                      body=response.read(4000) if path=="/health/ready" else b""
+              except urllib.error.HTTPError as error:
+                  status=error.code
+                  body=b""
+              results[path]=status
+              if path=="/health/ready" and status==200:
+                  readiness=json.loads(body)
+                  mode=readiness.get("mode")
+                  temporary=readiness.get("temporary_preview_database")
+                  print("Readiness:",{"mode":mode,"temporary_preview_database":temporary,"database_ok":readiness.get("ok")})
+                  if mode=="production" and temporary:
+                      raise SystemExit("Unsafe: production requests use expiring temporary preview database")
+              print(path,status)
+          assert results["/health/ready"]==200,"Database readiness check failed"
+          for required in ["/","/galerie","/soumission","/atelier-3d","/robots.txt","/static/fjord_sitewide.css"]:
+              assert results[required]==200,f"Public route broken: {required}"
+          assert results["/gallery/thumb/0"]==404,"Missing gallery thumbnail should return 404"
+          assert results["/sitemap.xml"] in (200,503),"Sitemap unexpected status"
+          PY
       - name: Reject production Railway database BEFORE startup
         shell: bash
         run: |
