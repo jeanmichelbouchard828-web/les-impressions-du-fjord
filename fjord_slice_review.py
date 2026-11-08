@@ -1,6 +1,6 @@
 """Preview actual Bambu G-code and temporarily stage a sliced 3MF.
 
-The file is local to the Railway worker, expires after 20 minutes, is tied to
+The file is local to the Render worker, expires after 20 minutes, is tied to
 an unpredictable session nonce and is never sent to the printer by preview.
 """
 from __future__ import annotations
@@ -21,7 +21,10 @@ from flask import session
 TTL_SECONDS = 20 * 60
 MAX_GCODE = 48 * 1024 * 1024
 MAX_LINE = 300
+# Limit transmitted preview layers, not the genuine sliced 3MF's layer count.
 MAX_LAYERS = 900
+# Preserve a bounded number of genuine extrusion Z heights before reducing the UI.
+MAX_TRACKED_LAYERS = 10000
 MAX_SEGMENTS_PER_LAYER = 800
 MAX_SEGMENTS_TOTAL = 50000
 STAGING_DIRECTORY = Path(tempfile.gettempdir()) / "fjord_bambu_review"
@@ -154,8 +157,8 @@ def preview_toolpath(sliced: bytes) -> dict:
                     if all(-2 <= q <= 260 for q in (x,y,nx,ny)) and -1 <= nz <= 265:
                         layer_key = round(nz, 3)
                         if layer_key not in layers:
-                            if len(layers) >= MAX_LAYERS:
-                                raise SliceReviewError("Trop de couches pour l’aperçu.")
+                            if len(layers) >= MAX_TRACKED_LAYERS:
+                                raise SliceReviewError("Le modèle contient trop de hauteurs d’extrusion pour l’aperçu en ligne. Le 3MF n’a pas été transmis.")
                             layers[layer_key] = {"z":layer_key,"segments":[],"moves":0}
                         layer = layers[layer_key]
                         layer["moves"] += 1
@@ -168,10 +171,24 @@ def preview_toolpath(sliced: bytes) -> dict:
                 x,y,z,e = nx,ny,nz,ne
     if total_segments == 0:
         raise SliceReviewError("Aucune trajectoire d’extrusion reconnue : aperçu et envoi bloqués.")
-    ordered = [layers[k] for k in sorted(layers)]
+    heights = sorted(layers)
+    full_count = len(heights)
+    # When >900 genuine extrusion heights are present, keep a deterministic
+    # and uniformly spaced selection from first to last (no interpolated paths).
+    # The staged, cryptographically verified Bambu .3mf is NEVER modified.
+    if full_count > MAX_LAYERS:
+        selected = [heights[(i * (full_count - 1)) // (MAX_LAYERS - 1)]
+                    for i in range(MAX_LAYERS)]
+        omitted = full_count - MAX_LAYERS
+    else:
+        selected = heights
+        omitted = 0
+    ordered = [layers[key] for key in selected]
     return {"source":"G-code réel du 3MF Bambu Studio","layers":ordered,
-            "layer_count":len(ordered),"total_moves":total_segments,
-            "sampled":sampled_segments<total_segments,
+            "layer_count":full_count,"preview_layer_count":len(ordered),
+            "omitted_layer_count":omitted,"sampled_layers":bool(omitted),
+            "total_moves":total_segments,
+            "sampled":bool(omitted) or sampled_segments < total_segments,
             "plate":1, **native_stats}
 
 
