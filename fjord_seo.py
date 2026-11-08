@@ -5,6 +5,18 @@ from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 from flask import Response, request
 
+
+# Only factual public contact data already displayed on this website.
+BUSINESS_SCHEMA = """{"@context":"https://schema.org","@type":"ProfessionalService",
+"name":"Les Impressions du Fjord",
+"description":"Impression 3D sur mesure, conception de pièces et prototypage au Saguenay, Québec.",
+"url":"https://fjord-render-apercu-20261104.onrender.com",
+"logo":"https://fjord-render-apercu-20261104.onrender.com/identite/logo",
+"telephone":"+1-581-998-0831",
+"email":"lesimpressionsdufjord@gmail.com",
+"areaServed":{"@type":"Place","name":"Saguenay, Québec, Canada"},
+"knowsAbout":["Impression 3D","Prototypage","STL","3MF","PLA","PETG","ASA","TPU"]}"""
+
 DEFAULT_ORIGIN = "https://fjord-render-apercu-20261104.onrender.com"
 PUBLIC_ORIGIN = (os.environ.get("FJORD_PUBLIC_URL") or DEFAULT_ORIGIN).strip().rstrip("/")
 if not PUBLIC_ORIGIN.startswith("https://"):
