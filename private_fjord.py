@@ -51,21 +51,32 @@ def _number(field, default=0, low=0, high=100000):
 
 def _quote_military_discount(q):
     """Rabais militaire facultatif de 5 % sur les articles, hors livraison et taxes."""
-    merchandise = round(float(q["unit_price"]) * int(q["quantity"]), 2)
+    merchandise = (Decimal(str(q["unit_price"])) * Decimal(int(q["quantity"]))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP)
     if not q.get("military_discount"):
         return 0.0
-    amount = (Decimal(str(merchandise)) * Decimal("0.05")).quantize(
+    amount = (merchandise * Decimal("0.05")).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP)
     return float(amount)
 
 
 def _quote_amounts(q):
-    """Calcul unique du prix net, des taxes et du total partout sur le site."""
-    merchandise = round(float(q["unit_price"]) * int(q["quantity"]), 2)
-    subtotal = round(merchandise - _quote_military_discount(q) + float(q["shipping"]), 2)
-    gst = round(subtotal * 0.05, 2) if q["apply_taxes"] else 0.0
-    qst = round(subtotal * 0.09975, 2) if q["apply_taxes"] else 0.0
-    return subtotal, gst, qst, round(subtotal + gst + qst, 2)
+    """Montants CAD arrondis au cent le plus proche (0,005 $ vers le haut)."""
+    merchandise = (Decimal(str(q["unit_price"])) * Decimal(int(q["quantity"]))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP)
+    shipping = Decimal(str(q["shipping"]))
+    discount = Decimal(str(_quote_military_discount(q)))
+    subtotal = (merchandise - discount + shipping).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if q["apply_taxes"]:
+        gst = (subtotal * Decimal("0.05")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP)
+        qst = (subtotal * Decimal("0.09975")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP)
+    else:
+        gst = qst = Decimal("0.00")
+    total = subtotal + gst + qst
+    return tuple(float(amount) for amount in (subtotal, gst, qst, total))
 
 
 def _quote_acceptance_digest(q):
