@@ -1,0 +1,21 @@
+name: Fjord real slicer diagnostic
+on:
+  workflow_dispatch:
+  push:
+    branches: [migration/render-fjord-20261104]
+    paths:
+      - tests/verify_fjord_slicer_live.py
+      - .github/workflows/fjord-slicer-diagnostic.yml
+jobs:
+  real-toolpath-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Make a real generic preview slice (never a printer job)
+        env:
+          FJORD_TEST_BASE: https://fjord-render-apercu-20261104.onrender.com
+        run: python tests/verify_fjord_slicer_live.py
