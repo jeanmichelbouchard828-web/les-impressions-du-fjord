@@ -940,6 +940,34 @@ def gallery_image(id):
  with db() as c:r=c.execute("SELECT photo,mime FROM gallery_photos WHERE id=%s",(id,)).fetchone()
  if not r:abort(404)
  return send_file(io.BytesIO(r["photo"]),mimetype=r["mime"])
+@app.get("/gallery/thumb/<int:id>")
+def fjord_gallery_thumbnail(id):
+ """Optimized WebP thumbnail for explicitly public gallery images only."""
+ from PIL import Image,ImageOps,UnidentifiedImageError
+ with db() as conn:
+  item=conn.execute("SELECT photo FROM gallery WHERE id=%s",(id,)).fetchone()
+  if not item:
+   abort(404)
+  photo=item["photo"]
+  if not photo:
+   first=conn.execute("SELECT photo FROM gallery_photos WHERE gallery_id=%s ORDER BY id LIMIT 1",(id,)).fetchone()
+   photo=first["photo"] if first else None
+ if not photo:
+  abort(404)
+ try:
+  with Image.open(io.BytesIO(photo)) as source:
+   if source.width*source.height>32_000_000:
+    abort(413)
+   image=ImageOps.exif_transpose(source).convert("RGB")
+  image.thumbnail((900,650),Image.Resampling.LANCZOS)
+  output=io.BytesIO()
+  image.save(output,format="WEBP",quality=79,method=4)
+  output.seek(0)
+ except (OSError,ValueError,UnidentifiedImageError,Image.DecompressionBombError):
+  app.logger.warning("Invalid public gallery thumbnail for item %s",id)
+  abort(404)
+ return send_file(output,mimetype="image/webp",max_age=3600)
+
 @app.get("/galerie/<int:id>")
 def gallery_item(id):
  with db() as c:
