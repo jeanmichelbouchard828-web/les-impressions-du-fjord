@@ -101,6 +101,64 @@ class IsolatedBusinessFlow(unittest.TestCase):
             with self.subTest(values=overrides):
                 self.assertEqual(self.post("/soumission",data).status_code,400)
 
+    def test_reference_photo_is_private_scrubbed_and_shown_in_admin(self):
+        import hashlib
+        import datetime
+        from PIL import Image as PillowImage
+        reference=PillowImage.new("RGB",(2400,1800),color=(20,80,150))
+        stream=io.BytesIO()
+        exif=PillowImage.Exif()
+        exif[270]="PRIVATE CAMERA NOTE MUST NOT BE STORED"
+        reference.save(stream,format="JPEG",quality=90,exif=exif)
+        stream.seek(0)
+        view=self.get("/soumission")
+        token=csrf_from(view.get_data(as_text=True))
+        response=self.post("/soumission",{
+            "csrf":token,"name":"Client photo","email":"fjord-photo@example.invalid",
+            "description":"Une pièce semblable au croquis.","quantity":"1","color":"Noir",
+            "material":"PLA","reference_photo":(stream,"croquis-de-client.jpg")})
+        self.assertEqual(response.status_code,200)
+        with db() as conn:
+            record=conn.execute("""SELECT id,reference_filename,reference_photo,reference_mime
+                 FROM requests WHERE email=%s ORDER BY id DESC LIMIT 1""",
+                 ("fjord-photo@example.invalid",)).fetchone()
+        self.assertIsNotNone(record)
+        self.assertEqual(record["reference_filename"],"croquis-de-client.jpg")
+        self.assertEqual(record["reference_mime"],"image/jpeg")
+        self.assertNotIn(b"PRIVATE CAMERA NOTE",record["reference_photo"])
+        with PillowImage.open(io.BytesIO(record["reference_photo"])) as saved:
+            self.assertLessEqual(max(saved.size),1600)
+            self.assertEqual(saved.format,"JPEG")
+        route=f"/admin/reference-photo/{record['id']}"
+        self.assertIn(self.get(route).status_code,(302,303))
+        token="fjord-ci-admin-photo-session"
+        digest=hashlib.sha256(token.encode()).hexdigest()
+        with db() as conn:
+            conn.execute("INSERT INTO sessions(tokenhash,expires) VALUES(%s,%s)",
+                         (digest,datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=1)))
+        with self.client.session_transaction() as session:
+            session["admin_token"]=token
+        admin=self.get("/admin")
+        self.assertEqual(admin.status_code,200)
+        self.assertIn(route,admin.get_data(as_text=True))
+        stored=self.get(route)
+        self.assertEqual(stored.status_code,200)
+        self.assertEqual(stored.mimetype,"image/jpeg")
+        self.assertEqual(stored.headers.get("Cache-Control"),"no-store, private")
+        self.assertIn("noindex",stored.headers.get("X-Robots-Tag",""))
+        self.assertTrue(stored.data.startswith(bytes.fromhex("ffd8ff")))
+
+    def test_reference_rejects_mislabeled_or_oversized_images(self):
+        token=csrf_from(self.get("/soumission").get_data(as_text=True))
+        common={"csrf":token,"name":"Test invalid photo","email":"fjord-invalid-photo@example.invalid",
+                "description":"Test", "quantity":"1","color":"Noir","material":"PLA"}
+        malformed=self.post("/soumission",dict(common,reference_photo=(
+            io.BytesIO(b"not an actual jpeg and should fail"),"photo.jpg")))
+        self.assertEqual(malformed.status_code,400)
+        too_large=self.post("/soumission",dict(common,reference_photo=(
+            io.BytesIO(b"x"*(4*1024*1024+50)),"too-large.jpg")))
+        self.assertEqual(too_large.status_code,413)
+
     def test_3mf_upload_validation_rejects_corrupt_archives(self):
         import zipfile
         page=self.get("/soumission")
