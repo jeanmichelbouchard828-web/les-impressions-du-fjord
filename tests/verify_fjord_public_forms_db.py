@@ -163,6 +163,10 @@ class IsolatedBusinessFlow(unittest.TestCase):
         self.assertEqual(quote.headers.get("X-Content-Type-Options"),"nosniff")
         self.assertEqual(quote.headers.get("X-Frame-Options"),"SAMEORIGIN")
         self.assertEqual(self.get("/favicon.ico").status_code,302)
+        logo=self.get("/identite/logo")
+        self.assertEqual(logo.status_code,200)
+        self.assertEqual(logo.mimetype,"image/jpeg")
+        self.assertTrue(logo.data.startswith(bytes.fromhex("ffd8ff")))
         self.assertIn(self.get("/admin").status_code,(302,303))
 
 if __name__=="__main__":
