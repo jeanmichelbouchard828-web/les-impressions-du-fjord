@@ -1,0 +1,86 @@
+/* Les Impressions du Fjord — harmonisation publique et admin 2026-11 */
+:root{--fjord-2026-blue:#20b8eb;--fjord-2026-ice:#a8eaff;--fjord-2026-dark:#061425}
+html{scroll-behavior:smooth}
+body{overflow-wrap:break-word}
+.site-header{box-shadow:0 10px 30px #00111e66!important}
+.site-header nav a[href="/soumission"],.fjord-side-menu a[href="/soumission"]{background:linear-gradient(115deg,#087eb2,#0c9bcb);border:1px solid #72dbfa;color:#fff!important;border-radius:11px;box-shadow:0 4px 15px #0084bf44;font-weight:850}
+.site-header nav a[href="/soumission"]:hover,.fjord-side-menu a[href="/soumission"]:hover{filter:brightness(1.16)}
+.site-header .brand,.fjord-side-menu a{transition:filter .15s}
+.site-header .brand:hover{filter:brightness(1.15)}
+body.fjord-public main:not(.admin-dashboard) .tracking-panel{max-width:780px;padding:clamp(16px,3vw,33px);margin:clamp(12px,3vw,35px) auto;border:1px solid #327b9a;border-radius:20px;background:linear-gradient(150deg,#12364c,#071c30);box-shadow:0 15px 45px #0004}
+body.fjord-public main .tracking-panel form{max-width:none}
+body.fjord-public main .tracking-result{border:1px solid #4aa8c8;background:#10324b}
+body.fjord-public main .tracking-panel input{font-size:16px}
+body.fjord-public main .tracking-panel button{width:100%;min-height:50px}
+body.fjord-public main .contact-section{margin-top:45px}
+body.fjord-public main .contact-actions a{transition:border-color .17s,transform .17s,background .17s}
+body.fjord-public main .contact-actions a:hover{border-color:#82d8f0;transform:translateY(-1px)}
+body.fjord-public main .fjm-quote-form{max-width:760px!important}
+body.fjord-public main .fjm-quote-form label{margin-bottom:18px;font-size:15px}
+body.fjord-public main .fjm-quote-form label input:not([type=checkbox]),body.fjord-public main .fjm-quote-form label select,body.fjord-public main .fjm-quote-form label textarea{margin-top:8px;margin-bottom:0}
+body.fjord-public main .fjm-quote-form textarea{min-height:155px;resize:vertical}
+body.fjord-public main .fjm-quote-form input[type=file]{padding:13px;border-style:dashed;cursor:pointer}
+body.fjord-public main .fjm-quote-form .fjm-quote-note a{text-decoration:underline}
+.fjord-field-help{display:block;margin:6px 0 0;font-size:12px;color:#a7d6ee;font-weight:450}
+.fjord-file-state{margin:-3px 0 19px;max-width:600px;font-size:13px;color:#c9e8f7}
+.fjord-file-state[data-status=error]{color:#ffd5ce}
+.fjord-form-actions{max-width:700px}
+.fjord-client-contact{max-width:800px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:19px 0 27px}
+.fjord-client-contact a{display:flex;flex-direction:column;gap:6px;min-width:0;padding:17px;border:1px solid #327f9f;border-radius:16px;background:#102e44;color:#e9fbff!important;text-decoration:none;font-weight:800}
+.fjord-client-contact a small{font-size:12px;color:#b6d2e2;font-weight:500}
+.fjord-client-contact a:hover{border-color:#81daf1;background:#164465}
+.fjord-gallery-detail-cta{display:flex;flex-wrap:wrap;gap:11px;margin:22px 0 15px}
+.fjord-gallery-detail-cta a{min-height:48px;text-align:center}
+.fjm-project[hidden]{display:none!important}
+.fjm-gallery-controls{position:relative;gap:7px}
+.fjm-gallery-controls input[type=search]{min-height:46px;padding:12px 15px}
+.fjm-filter{white-space:normal}
+.fjm-category-filters{display:contents}
+.fjord-privacy-mini{margin:23px 0;font-size:12px}
+.fjord-steps-tag{font-size:12px;letter-spacing:.12em;color:#87dbf7;text-transform:uppercase;font-weight:800}
+.fjord-thanks{max-width:770px;margin:20px auto 55px;padding:clamp(24px,5vw,46px);border:1px solid #4195b5;border-radius:24px;background:linear-gradient(125deg,#0e3c57,#092137);box-shadow:0 16px 50px #0003;text-align:center}
+.fjord-thanks-symbol{display:grid;place-items:center;margin:0 auto 18px;width:68px;height:68px;border-radius:22px;border:1px solid #85e1f0;background:#0c6e98;font-size:35px}
+.fjord-thanks h1{margin:8px 0 11px;font-size:clamp(30px,4vw,43px)}
+.fjord-thanks p{max-width:580px;margin:10px auto}
+.fjord-thanks .fjm-hero-actions{justify-content:center;margin-top:24px}
+.fjord-source-verified{font-size:13px}
+.fjord-mobile-actions{display:none}
+.fjord-jump-link{display:block;width:fit-content;margin:0 0 14px;color:#9fe7fa;font-size:14px}
+body.fjord-admin .admin-dashboard{max-width:1460px}
+body.fjord-admin .admin-control-card{transition:border-color .17s,box-shadow .17s}
+body.fjord-admin .admin-control-card:hover{border-color:#53bfe8;box-shadow:0 14px 35px #0005}
+body.fjord-admin .admin-dashboard .admin-shortcut-panel{border-color:#357a9d}
+body.fjord-admin .admin-dashboard input[type=checkbox]{min-width:20px;width:auto;min-height:20px;margin:6px 10px 8px 0;vertical-align:middle}
+body.fjord-admin .admin-dashboard .admin-request-card{min-height:0;overflow:hidden}
+body.fjord-admin .admin-dashboard .admin-request-card form>button{margin-top:9px}
+body.fjord-admin .admin-dashboard .admin-request-card label{line-height:1.5}
+body.fjord-admin .admin-metric{font-variant-numeric:tabular-nums}
+.fjord-admin-insights{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 20px}
+.fjord-admin-insights article{flex:1 1 210px;padding:18px;border:1px solid #2b6d91;border-radius:15px;background:#103248}
+.fjord-admin-insights strong{display:block;color:#8be4fa;font-size:30px;font-weight:900}
+.fjord-admin-insights small{color:#d3e5f0;font-size:13px}
+body.light .fjm-gallery-controls .fjm-filter{background:#fff;border-color:#92bfd5;color:#24546c}
+body.light .fjm-gallery-controls .fjm-filter[aria-pressed=true]{background:#077eaa;color:#fff}
+body.light .fjord-client-contact a{background:#fff;color:#164860!important;border-color:#abcfe2}
+body.light .fjord-client-contact a small{color:#436a80}
+body.light .tracking-panel,body.light .fjord-thanks{background:#f3fbff!important;border-color:#aad8ef}
+body.light main .fjord-thanks p{color:#31586e}
+body.light .fjord-field-help,body.light .fjord-file-state{color:#426b80}
+body.light .fjord-file-state[data-status=error]{color:#a23e32}
+body.light .fjord-admin-insights article{background:#f8fcff;border-color:#b3d6ea}
+body.light .fjord-admin-insights strong{color:#087da9}
+body.light .fjord-admin-insights small{color:#245b77}
+@media(max-width:1100px){.site-header nav a[href="/soumission"]{margin:5px 0}}
+@media(max-width:720px){
+ body.fjord-public main .fjm-quote-form{padding:18px 15px}
+ body.fjord-public main .fjm-quote-form label{font-size:14px}
+ .fjord-mobile-actions{position:fixed;z-index:88;bottom:0;left:0;right:0;display:flex;align-items:center;gap:9px;padding:9px max(12px,env(safe-area-inset-left)) calc(9px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-right));background:#061a2df5;border-top:1px solid #337e9e;box-shadow:0 -8px 28px #0005;backdrop-filter:blur(12px)}
+ .fjord-mobile-actions a{display:flex;align-items:center;justify-content:center;flex:1 1 0;min-height:47px;line-height:1.2;text-align:center;padding:10px 8px;border:1px solid #3f87aa;border-radius:11px;background:#153952;color:#e5f8ff;text-decoration:none;font-size:14px;font-weight:850}
+ .fjord-mobile-actions a.fjord-mobile-main{background:linear-gradient(110deg,#087caf,#12a5d4);border-color:#83e0fa;color:#fff}
+ body.fjord-has-mobile-bar{padding-bottom:calc(83px + env(safe-area-inset-bottom))}
+ .fjord-client-contact{grid-template-columns:1fr}
+ .fjm-project-content{padding:14px}
+ .fjm-gallery-controls input[type=search]{width:100%;max-width:none}
+}
+@media(max-width:480px){body.fjord-public main .contact-actions{grid-template-columns:1fr}.fjord-gallery-detail-cta{display:grid;grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}body.fjord-admin .admin-control-card{transition:none}}
