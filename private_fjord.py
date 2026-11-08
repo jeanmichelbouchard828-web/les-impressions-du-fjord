@@ -280,6 +280,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   <button type="button" id="fjordProfilePrepare" title="Vérifier les profils et ouvrir la préparation du tranchage Bambu">▥ Préparer / trancher</button>
  </div>
  <p id="fjordProfileBarStatus" role="status" aria-live="polite">Lecture des profils Bambu disponibles…</p>
+<a id="fjordProfileImport" href="/admin/profils-bambu" title="Importer mes fichiers BBCFG, puis revenir sélectionner les profils">📥 Importer mes BBCFG</a>
 </section>
 """
         html = html.replace('<div class="shell" id="fjordWorkspace">',
