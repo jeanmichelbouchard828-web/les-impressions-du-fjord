@@ -139,6 +139,7 @@ class ReviewTests(unittest.TestCase):
              patch("bambu_auto.cli_location",return_value="/usr/local/bin/bambu-studio"), \
              patch("bambu_auto.slice_x2d",return_value=archive) as slicer, \
              patch("fjord_printer._upload") as upload, \
+             patch("fjord_bambu_connect.store_file") as connect_store, \
              patch("fjord_printer._status",return_value={"can_start":True,"state":"idle","progress":0,"file":""}) as state:
             prepare=client.post("/admin/atelier-imprimer/preparer",data={
                 "stl":(io.BytesIO(b"x"*134),"cube.stl"),"machine":"1","process":"2",
@@ -182,6 +183,7 @@ class ReviewTests(unittest.TestCase):
             self.assertTrue(success.json["next"].startswith("/admin/atelier-imprimer?"))
             self.assertEqual(upload.call_count,1)
             self.assertEqual(upload.call_args.args[1],archive)
+            connect_store.assert_called_once()  # The Windows bridge is mocked; no PC is contacted.
             download=client.post("/admin/atelier-imprimer/telecharger-3mf",
                 data={"stage":token},headers={"Accept":"application/octet-stream"})
             # A completed upload consumed this stage, blocking reuse.
