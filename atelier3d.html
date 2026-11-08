@@ -2513,12 +2513,12 @@ $('name').value=selected.name;const d=dims(selected);['sx','sy','sz'].forEach((i
 const fjordAmsSwatches=$('fjordAmsSlots');
 const fjordAmsStatus=$('fjordAmsStatus');
 function fjordApplyFilamentColor(hex,filament=null){
- if(!/^#[0-9a-fA-F]{6}$/.test(hex))return;
+ if(!/^#[0-9a-fA-F]{6}$/.test(hex))return 0;
  const targets=models.filter(model=>selectedSet.has(model));
- if(!targets.length){fjordAmsStatus.textContent='Sélectionne d’abord une pièce sur le plateau.';return;}
+ if(!targets.length){fjordAmsStatus.textContent='Sélectionne d’abord une pièce sur le plateau.';return 0;}
  if(targets.some(model=>model.userData.mergedParts)){
   fjordAmsStatus.textContent='Pour changer la couleur d’un groupe Merge, sépare d’abord ses sous-pièces.';
-  return;
+  return 0;
  }
  remember();
  for(const model of targets){
@@ -2544,6 +2544,7 @@ function fjordApplyFilamentColor(hex,filament=null){
  sync();
  const names=filament?(filament.slot+' · '+filament.material):'personnalisée';
  fjordAmsStatus.textContent='✓ Couleur '+names+' appliquée à '+targets.length+' pièce(s).';
+ return targets.length;
 }
 async function fjordRefreshAmsPalette(){
  const refresh=$('fjordAmsRefresh');refresh.disabled=true;
@@ -2587,6 +2588,18 @@ async function fjordRefreshAmsPalette(){
 }
 $('fjordAmsRefresh').addEventListener('click',fjordRefreshAmsPalette);
 $('fjordApplyColor').addEventListener('click',()=>fjordApplyFilamentColor($('fjordManualColor').value));
+// Use the model's actual selected-set rather than an unreliable message from the
+// asynchronously refreshed AMS slot list. The operation uses the existing undo stack.
+$('fjordPaintWhole')?.addEventListener('click',()=>{
+ const hex=$('fjordPaintColor')?.value;
+ const count=fjordApplyFilamentColor(hex);
+ const successful=Number.isInteger(count)&&count>0;
+ const status=$('fjordPaintStatus');
+ if(status)status.textContent=successful
+  ?'✓ Couleur '+String(hex).toUpperCase()+' appliquée à '+count+' pièce(s). Annuler est disponible.'
+  :fjordAmsStatus.textContent;
+ $('fjordPaintWhole').setAttribute('aria-pressed',String(successful));
+});
 fjordRefreshAmsPalette();
 setInterval(()=>{if(document.visibilityState!=='hidden')fjordRefreshAmsPalette();},60000);
 document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{remember();const type=b.dataset.shape,m=makeMesh(shapeGeometry(type),type,type+' '+(++counter));m.position.z=dims(m)[2]/2;pick(m)}));
@@ -5341,29 +5354,5 @@ document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert(
  update();
 })();
 </script>
-<script>
-/* A clear whole-part colour action using the existing undoable material workflow.
-   Painting individual facets and changing an entire object remain distinct. */
-(()=>{
- const whole=document.getElementById('fjordPaintWhole');
- const color=document.getElementById('fjordPaintColor');
- const manual=document.getElementById('fjordManualColor');
- const apply=document.getElementById('fjordApplyColor');
- const status=document.getElementById('fjordPaintStatus');
- if(!whole||!color||!manual||!apply)return;
- whole.addEventListener('click',()=>{
-  if(!/^#[0-9a-f]{6}$/i.test(color.value))return;
-  manual.value=color.value;
-  apply.click();
-  const message=document.getElementById('fjordAmsStatus')?.textContent||'';
-  if(status)status.textContent=message.includes('✓')?message:
-   (message||'Choisis une pièce, puis applique la couleur.');
-  if(message.includes('✓'))whole.setAttribute('aria-pressed','true');
- });
- color.addEventListener('input',()=>whole.setAttribute('aria-pressed','false'));
- document.querySelectorAll('#fjordPaintPresets [data-fjord-color]').forEach(button=>{
-  button.addEventListener('click',()=>whole.setAttribute('aria-pressed','false'));
- });
-})();
-</script>
+
 </html>
