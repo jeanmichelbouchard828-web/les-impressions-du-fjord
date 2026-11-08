@@ -100,6 +100,20 @@ async def check_viewport(browser, label, width, height):
             print("FAIL",label,name,str(exc)[:450])
             await context.close()
             raise
+    # Test the complete discovery-to-quote path without submitting anything.
+    await page.goto(BASE+"/galerie",wait_until="domcontentloaded",timeout=45000)
+    cards=page.locator(".fjm-project")
+    if await cards.count():
+        await cards.first.click()
+        await page.wait_for_load_state("domcontentloaded")
+        if not re.match(r"^/galerie/\\d+$",page.url.replace(BASE,"")):
+            raise AssertionError("Gallery card did not navigate to its detail page")
+        await page.locator('.fjord-gallery-detail-cta a[href^="/soumission?projet="]').first.click()
+        await page.wait_for_load_state("domcontentloaded")
+        quote_text=await page.locator('textarea[name="description"]').input_value()
+        if not quote_text.startswith("Je souhaite une création similaire"):
+            raise AssertionError("Project context was not carried into the quote form")
+        print("PASS",label,"gallery-detail-to-prefilled-quote")
     if errors:
         # Third-party modules can log nonfatal errors; display for triage.
         print("BROWSER_WARNINGS",label,json.dumps(errors[:25],ensure_ascii=False))
