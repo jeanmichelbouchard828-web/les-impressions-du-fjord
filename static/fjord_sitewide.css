@@ -133,3 +133,26 @@ body.light .fjord-history-filters,body.light .fjord-history-card{background:#fff
 body.light .fjord-history-card details{border-color:#b7d6e5}
 @media(max-width:1000px){.fjord-history-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.fjord-history-filters>label:first-child{grid-column:1/-1}.fjord-history-results{grid-template-columns:1fr}}
 @media(max-width:550px){.fjord-history-filters{grid-template-columns:1fr}.fjord-history-filters>label:first-child{grid-column:auto}.fjord-history-filters button,.fjord-history-filters>a{width:100%}.fjord-history-card{padding:14px}}
+
+/* Customer project brief and dependable theme contrast. */
+.fjord-brief{padding:clamp(14px,2.5vw,22px);margin:12px 0 20px;border:1px solid #397c9c;border-radius:16px;background:#0c2c43}
+.fjord-brief h2{margin:0 0 7px;font-size:clamp(19px,2.3vw,25px);color:#e9faff}
+.fjord-brief>p{font-size:13px;line-height:1.55;margin:0 0 17px}
+.fjord-brief-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 15px}
+.fjord-brief-grid label{margin:0!important;font-size:14px}
+.fjord-brief-grid input,.fjord-brief-grid select{margin:7px 0 0!important;min-width:0;width:100%;min-height:46px}
+.fjord-gallery-detail-cta .fjord-share-project{min-height:48px;border:1px solid #58b2d6;border-radius:10px;background:#184764;color:#eefaff;padding:9px 16px;font:inherit;font-weight:750}
+.fjord-share-result{font-size:13px;align-self:center;color:#a5eafc}
+body.light .fjord-brief{background:#edf7fd!important;border-color:#b6dbea;color:#1f4b67}
+body.light .fjord-brief h2{color:#183f59!important}
+body.light .fjord-gallery-detail-cta .fjord-share-project{background:#ddf1fa;color:#154763;border-color:#8abfdd}
+body.light .fjm-quote-form,body.light .fjord-client-contact a,body.light .fjord-history-card{color:#1b4055!important}
+body.light .fjm-quote-form label,body.light .fjord-history-card p{color:#214d64!important}
+body.light .fjm-quote-form input,body.light .fjm-quote-form textarea,body.light .fjm-quote-form select{background:#fff!important;color:#18374c!important;border:1px solid #82b1c9!important}
+body.light .fjm-quote-form input::placeholder,body.light .fjm-quote-form textarea::placeholder{color:#55718a!important}
+body.light .fjm-quote-form small,body.light .fjord-brief .fjord-field-help{color:#3f6275!important}
+body.light .fjord-share-result{color:#176381}
+body.light .site-header nav a:not([href="/soumission"]){color:#144962}
+body.light .fjord-mobile-actions{background:#edf7fce8;border-color:#acd3e3}
+body.light .fjord-mobile-actions a:not(.fjord-mobile-main){background:#fff;color:#15506f}
+@media(max-width:650px){.fjord-brief-grid{grid-template-columns:1fr}.fjord-brief-grid select{font-size:16px}}
