@@ -8,6 +8,10 @@ import os
 import re
 from urllib.parse import urlsplit
 import unittest
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 db_url=os.environ.get("DATABASE_URL","")
 parsed=urlsplit(db_url)
