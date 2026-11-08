@@ -1,0 +1,33 @@
+name: Fjord Atelier colours and real slicing browser test
+on:
+  workflow_dispatch:
+  push:
+    branches: [migration/render-fjord-20261104]
+    paths:
+      - tests/verify_fjord_atelier_colours_slicer.py
+      - .github/workflows/fjord-atelier-colours-slicer.yml
+jobs:
+  live-atelier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare Chromium and web test dependencies
+        run: |
+          pip install playwright==1.58.0
+          python -m playwright install --with-deps chromium
+      - name: Test whole-part colours, 3MF export and real slicer on desktop and mobile
+        env:
+          FJORD_TEST_BASE: https://fjord-render-apercu-20261104.onrender.com
+        run: python tests/verify_fjord_atelier_colours_slicer.py
+      - name: Retain screenshots and sample multicolor 3MF for diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fjord-atelier-colour-slicing-audit
+          path: /tmp/fjord-atelier-tests/*
+          retention-days: 3
+          if-no-files-found: ignore
