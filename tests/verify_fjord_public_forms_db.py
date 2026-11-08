@@ -117,7 +117,10 @@ class IsolatedBusinessFlow(unittest.TestCase):
         thumbnail=self.get(f"/gallery/thumb/{item_id}")
         self.assertEqual(thumbnail.status_code,200)
         self.assertEqual(thumbnail.mimetype,"image/webp")
-        self.assertLess(len(thumbnail.data),len(payload.getvalue()))
+        self.assertGreater(len(thumbnail.data),0)
+        with Image.open(io.BytesIO(thumbnail.data)) as compressed:
+            self.assertEqual(compressed.format,"WEBP")
+            self.assertEqual(compressed.size,(60,55))
         notfound=self.get("/does-not-exist-123456")
         self.assertEqual(notfound.status_code,404)
         self.assertIn('name="robots" content="noindex, nofollow"',
