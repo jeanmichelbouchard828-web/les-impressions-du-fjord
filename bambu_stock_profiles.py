@@ -103,10 +103,14 @@ def resolved_imported_preset(raw, category: str) -> dict:
         raise AutoSliceError("Profil BBCFG illisible.") from exc
     if not isinstance(data, dict):
         raise AutoSliceError("Le profil BBCFG doit être un objet JSON.")
+    parent = data.get("inherits")
+    # Already-expanded user presets retain the previous behaviour, including
+    # offline integration tests that deliberately have no Bambu AppImage.
+    if not parent and not data.get("include"):
+        return full_preset(data,category)
     root = system_root()
     entries = _index(str(root), DIRECTORIES[category])
     merged = {}
-    parent = data.get("inherits")
     if parent is not None:
         if not isinstance(parent, str) or not parent.strip() or len(parent)>180:
             raise AutoSliceError("Héritage BBCFG invalide.")
