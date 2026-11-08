@@ -28,6 +28,10 @@ def db():
 def init():
  with db() as c:
   c.execute("""CREATE TABLE IF NOT EXISTS requests(id BIGSERIAL PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT,material TEXT,description TEXT NOT NULL,filename TEXT,filedata BYTEA,created TIMESTAMPTZ DEFAULT NOW(),status TEXT DEFAULT 'Demande reçue')""")
+  # Additive, nullable customer reference image fields (existing orders remain unchanged).
+  c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS reference_filename TEXT")
+  c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS reference_photo BYTEA")
+  c.execute("ALTER TABLE requests ADD COLUMN IF NOT EXISTS reference_mime TEXT")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery(id BIGSERIAL PRIMARY KEY,title TEXT NOT NULL,category TEXT NOT NULL,description TEXT NOT NULL,photo BYTEA,mime TEXT,created TIMESTAMPTZ DEFAULT NOW())""")
   c.execute("""CREATE TABLE IF NOT EXISTS sessions(tokenhash TEXT PRIMARY KEY,expires TIMESTAMPTZ NOT NULL)""")
   c.execute("""CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)""")
@@ -1000,7 +1004,46 @@ def gallery_item(id):
   "image":[origin+u for u in urls[:15]] if urls else [origin+"/identite/logo"]}
  return page(item["title"],'''<div class="gallery-detail"><a href="/galerie">← Galerie</a><h1>{{item.title}}</h1><div class="eyebrow">{{item.category}}</div><p>{{item.description}}</p><div class="fjord-gallery-detail-cta"><a class="btn" href="/soumission?projet={{item.title|urlencode}}">Demander un projet similaire</a><a class="btn secondary-btn" href="/atelier-3d">Ouvrir l'Atelier 3D</a></div><p class="muted">Touchez une photo pour l’agrandir.</p><div class="gallery-grid">{% for url in urls %}<a href="{{url}}" class="gallery-photo-link" data-photo-index="{{loop.index0}}" aria-label="Agrandir la photo {{loop.index}}"><img loading="lazy" src="{{url}}" alt="{{item.title}} — photo {{loop.index}}"></a>{% endfor %}</div><dialog id="viewer" class="zoom" aria-label="Photo agrandie"><div class="row"><button type="button" id="previousPhoto" aria-label="Photo précédente">❮</button><span id="photoCounter"></span><button type="button" id="nextPhoto" aria-label="Photo suivante">❯</button><button type="button" id="closeViewer">Fermer ✕</button></div><img id="largePhoto" alt="{{item.title}}"></dialog><script>(function(){const links=Array.from(document.querySelectorAll(".gallery-photo-link"));const viewer=document.getElementById("viewer");const large=document.getElementById("largePhoto");const counter=document.getElementById("photoCounter");let position=0;function update(){large.src=links[position].href;counter.textContent=(position+1)+" / "+links.length}function change(delta){position=(position+delta+links.length)%links.length;update()}links.forEach((link,i)=>link.addEventListener("click",function(event){if(typeof viewer.showModal!=="function")return;event.preventDefault();position=i;update();viewer.showModal()}));document.getElementById("previousPhoto").addEventListener("click",()=>change(-1));document.getElementById("nextPhoto").addEventListener("click",()=>change(1));document.getElementById("closeViewer").addEventListener("click",()=>viewer.close());viewer.addEventListener("click",e=>{if(e.target===viewer)viewer.close()});document.addEventListener("keydown",e=>{if(!viewer.open)return;if(e.key==="ArrowRight")change(1);if(e.key==="ArrowLeft")change(-1)})})();</script></div>''',item=item,urls=urls,seo_description=summary,seo_image=social_image,seo_gallery_schema=gallery_schema)
 
-FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p>{% if quote %}{{marketing_help|safe}}{% else %}<div class="fjord-client-contact" aria-label="Nous joindre"><a href="mailto:lesimpressionsdufjord@gmail.com">✉ Courriel<small>lesimpressionsdufjord@gmail.com</small></a><a href="tel:+15819980831">☎ Téléphone<small>581-998-0831</small></a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Facebook<small>Nous écrire sur notre page</small></a><a href="/galerie">✨ Nos réalisations<small>Découvrir ce que nous fabriquons</small></a></div>{% endif %}<form class="fjm-quote-form" method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Votre nom<input name="name" maxlength="120" required></label><label>Courriel<input type="email" name="email" maxlength="200" required></label><label>Téléphone (facultatif)<input name="phone" maxlength="40"></label>{% if quote %}<label>Matériau souhaité<select name="material">{% for m in materials %}<option>{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help">Indiquez le nombre de pièces désirées.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option>{{col}}</option>{% endfor %}</select></label>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<label>Fichier STL ou 3MF (facultatif, maximum 8 Mo)<input type="file" name="model" accept=".stl,.3mf"></label>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else 'Envoyer ma demande'}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p></form>'''
+FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p>{% if quote %}{{marketing_help|safe}}{% else %}<div class="fjord-client-contact" aria-label="Nous joindre"><a href="mailto:lesimpressionsdufjord@gmail.com">✉ Courriel<small>lesimpressionsdufjord@gmail.com</small></a><a href="tel:+15819980831">☎ Téléphone<small>581-998-0831</small></a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Facebook<small>Nous écrire sur notre page</small></a><a href="/galerie">✨ Nos réalisations<small>Découvrir ce que nous fabriquons</small></a></div>{% endif %}<form class="fjm-quote-form" method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Votre nom<input name="name" maxlength="120" required></label><label>Courriel<input type="email" name="email" maxlength="200" required></label><label>Téléphone (facultatif)<input name="phone" maxlength="40"></label>{% if quote %}<label>Matériau souhaité<select name="material">{% for m in materials %}<option>{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help">Indiquez le nombre de pièces désirées.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option>{{col}}</option>{% endfor %}</select></label>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<div class="fjm-files">
+<label>📷 Photo ou croquis de référence (facultatif)<input type="file" name="reference_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="fjordReferenceHelp"><small id="fjordReferenceHelp" class="fjord-field-help">Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).</small></label>
+<div id="fjordReferencePreview" class="fjord-reference-preview" hidden><img alt="Aperçu de votre photo de référence" id="fjordReferenceImage"><span id="fjordReferenceFilename"></span><button type="button" id="fjordReferenceRemove">Retirer la photo</button></div>
+<label>📦 Fichier STL ou 3MF (facultatif, maximum 8 Mo)<input type="file" name="model" accept=".stl,.3mf"></label>
+<p class="fjord-field-help">Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.</p></div>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else 'Envoyer ma demande'}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p></form>'''
+def fjord_reference_image(upload):
+ """Validate, orient, reduce and scrub metadata from a customer reference image."""
+ from PIL import Image,ImageOps,UnidentifiedImageError
+ from flask import abort
+ if not upload or not upload.filename:
+  return None,None,None
+ name=secure_filename(upload.filename)[:140]
+ if not name or not name.lower().endswith((".jpg",".jpeg",".png",".webp")):
+  abort(400,description="Format de photo non accepté.")
+ raw=upload.read(4*1024*1024+1)
+ if len(raw)>4*1024*1024:abort(413,description="La photo dépasse 4 Mo.")
+ if len(raw)<20:abort(400,description="Photo invalide.")
+ try:
+  with Image.open(io.BytesIO(raw)) as source:
+   if source.format not in ("JPEG","PNG","WEBP") or source.width*source.height>20_000_000:
+    abort(400,description="Dimensions ou format d'image non accepté.")
+   source.load()
+   img=ImageOps.exif_transpose(source)
+   if img.mode in ("RGBA","LA") or "transparency" in img.info:
+    rgba=img.convert("RGBA")
+    canvas=Image.new("RGB",rgba.size,(255,255,255))
+    canvas.paste(rgba,mask=rgba.getchannel("A"))
+    img=canvas
+   else:
+    img=img.convert("RGB")
+   img.thumbnail((1600,1600),Image.Resampling.LANCZOS)
+   output=io.BytesIO()
+   img.save(output,format="JPEG",quality=82,optimize=True)
+   data=output.getvalue()
+ except (OSError,ValueError,UnidentifiedImageError,Image.DecompressionBombError):
+  abort(400,description="Impossible de lire cette image.")
+ if not data or len(data)>4*1024*1024:
+  abort(413,description="Photo trop volumineuse.")
+ return name,data,"image/jpeg"
+
 def submission(kind):
  if request.method=="GET":
   return page(kind,FORM + MARKETING_SCRIPT,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=("Je souhaite une création similaire à « "+request.args.get("projet","")[:160]+" ». " if kind=="Soumission" and request.args.get("projet") else ""))
@@ -1026,7 +1069,10 @@ def submission(kind):
    from zipfile import is_zipfile
    if not is_zipfile(io.BytesIO(data)):abort(400)
   if filename.lower().endswith(".stl") and len(data)<84:abort(400)
- with db() as c:request_id=c.execute("INSERT INTO requests(kind,name,email,phone,material,description,filename,filedata) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",(kind,name,email,phone,material,description,filename,data)).fetchone()["id"]
+ ref_name,ref_photo,ref_mime=fjord_reference_image(request.files.get("reference_photo")) if kind=="Soumission" else (None,None,None)
+ with db() as c:
+  request_id=c.execute("""INSERT INTO requests(kind,name,email,phone,material,description,filename,filedata,reference_filename,reference_photo,reference_mime)
+      VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",(kind,name,email,phone,material,description,filename,data,ref_name,ref_photo,ref_mime)).fetchone()["id"]
  notify(kind,name,email)
  return page("Merci",'''<section class="fjord-thanks"><span class="fjord-thanks-symbol" aria-hidden="true">✓</span><p class="fjord-steps-tag">Message reçu</p><h1>Merci pour votre demande!</h1><p>Votre message a été enregistré. Nous vous répondrons dès que possible.</p><p>Votre numéro de référence : <strong>#{{request_id}}</strong></p>{% if is_quote %}<p class="fjord-source-verified">Conservez ce numéro et le courriel utilisé pour retrouver votre suivi après la prise en charge.</p>{% endif %}<div class="fjm-hero-actions"><a class="btn" href="/">Retour à l’accueil</a>{% if is_quote %}<a class="btn secondary-btn" href="/suivi">Suivre ma demande</a>{% endif %}</div></section>''',request_id=request_id,is_quote=kind=="Soumission")
 @app.route("/soumission",methods=["GET","POST"])
@@ -1090,7 +1136,7 @@ def login():
 @admin_required
 def admin():
  with db() as c:
-  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 12").fetchall()
+  reqs=c.execute("SELECT id,kind,name,email,phone,material,description,filename,reference_filename,created,status,progress,live_enabled,live_url,public_progress FROM requests ORDER BY id DESC LIMIT 12").fetchall()
   reqs_count=c.execute("SELECT COUNT(*) AS total FROM requests").fetchone()["total"]
   commercial=c.execute("""SELECT
       COUNT(*) FILTER (WHERE kind='Soumission' AND created >= NOW() - INTERVAL '30 days') AS quotations_30d,
@@ -1156,7 +1202,7 @@ def admin():
 </section>
 <section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
 <section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div></div>
-<div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
+<div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.reference_filename %}<p class="fjord-reference-admin"><a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Voir la photo ou le croquis</a><span>— {{r.reference_filename}}</span></p>{% endif %}{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
 (async function(){const box=document.getElementById('fjord-admin-printer-status');if(!box)return;try{const r=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const s=await r.json();if(!s.ok)throw Error();const state=String(s.state||'inconnu').replace(/_/g,' ');const parts=[({'printing':'En impression','paused':'En pause','idle':'Prête','finished':'Terminée','failed':'Erreur'}[s.state]||state),s.file?'Fichier : '+s.file:'Aucun fichier en cours'];if(typeof s.progress==='number')parts.push(Math.round(s.progress)+' %');box.textContent=parts.join(' · ');}catch(_){box.textContent='État non disponible. Ouvre le contrôle X2D pour actualiser.'}})();
 (function(){const el=document.getElementById('adminLocalClock');if(!el)return;const update=()=>{el.textContent=new Intl.DateTimeFormat('fr-CA',{dateStyle:'full',timeStyle:'short'}).format(new Date())};update();setInterval(update,60000)})();
 </script>''',reqs=reqs,reqs_count=reqs_count,gallery=gallery,statuses=STATUSES,csrf=csrfinput(),bridge=bridge,quotes_stats=quotes_stats,commercial=commercial)
@@ -1176,6 +1222,17 @@ def status(id):
   if parsed.scheme!="https" or parsed.hostname not in ("oe.ink","www.oe.ink") or not parsed.path.startswith("/l/") or parsed.username or parsed.password or len(live_url)>500:abort(400)
  with db() as c:c.execute("UPDATE requests SET status=%s,progress=%s,live_enabled=%s,live_url=%s,public_progress=%s WHERE id=%s",(value,pct,live,live_url or None,public_progress,id))
  return redirect("/admin")
+@app.get("/admin/reference-photo/<int:id>")
+@admin_required
+def fjord_admin_reference_photo(id):
+ """Private only: customers' reference images must never appear in public galleries."""
+ with db() as c:
+  row=c.execute("SELECT reference_photo,reference_mime FROM requests WHERE id=%s",(id,)).fetchone()
+ if not row or not row["reference_photo"]:abort(404)
+ return send_file(io.BytesIO(row["reference_photo"]),mimetype="image/jpeg",
+                  as_attachment=False,download_name="reference-client.jpg",
+                  max_age=0,conditional=False),200,{"Cache-Control":"no-store, private","X-Content-Type-Options":"nosniff","X-Robots-Tag":"noindex, nofollow"}
+
 @app.get("/admin/file/<int:id>")
 @admin_required
 def file(id):
