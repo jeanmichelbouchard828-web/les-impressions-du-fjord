@@ -560,8 +560,9 @@ if(fjordAutoButton){
  '<div class="fjord-review-facts" aria-label="Résultats réels du tranchage">'+
  '<div><span>Durée Bambu</span><strong id="fjordReviewTime">—</strong></div>'+
  '<div><span>Filament Bambu</span><strong id="fjordReviewWeight">—</strong></div>'+
- '<div><span>Nombre de couches</span><strong id="fjordReviewCount">—</strong></div>'+
+ '<div><span>Hauteurs d’extrusion</span><strong id="fjordReviewCount">—</strong></div>'+
  '</div>'+
+ '<p id="fjordReviewSampling" class="fjord-review-sampling" role="status" hidden></p>'+
  '<div class="fjord-review-price"><span>Prix estimé avant taxes <small>(CAD)</small></span><strong id="fjordReviewPrice">—</strong>'+
  '<p id="fjordReviewPriceNote">Calcul à partir des valeurs du véritable 3MF Bambu Studio et des tarifs configurés.</p></div>'+
  '<details class="fjord-review-pricing"><summary>⚙️ Ajuster le calcul du prix</summary>'+
@@ -1005,6 +1006,17 @@ if(fjordAutoButton){
   panel.querySelector('#fjordReviewTime').textContent=duration;
   panel.querySelector('#fjordReviewWeight').textContent=validWeight?grams.toLocaleString('fr-CA',{maximumFractionDigits:1})+' g':'—';
   panel.querySelector('#fjordReviewCount').textContent=String(p.layer_count||p.layers.length);
+  const sampling=panel.querySelector('#fjordReviewSampling');
+  if(sampling){
+   const full=Number(p.layer_count||p.layers.length);
+   const visible=Number(p.preview_layer_count||p.layers.length);
+   const limited=Number.isFinite(full)&&full>visible;
+   sampling.hidden=!limited;
+   sampling.textContent=limited
+    ?'Aperçu allégé : '+visible+' hauteurs visibles sur '+full+
+      ' dans le G-code. Les trajectoires sont réelles, mais certaines couches ne sont pas montrées. Le 3MF tranché reste complet et inchangé. Vérifie les détails dans Bambu Studio.'
+    :'';
+  }
   const price=panel.querySelector('#fjordReviewPrice');
   const note=panel.querySelector('#fjordReviewPriceNote');
   const breakdown=panel.querySelector('#fjordReviewBreakdown');
@@ -1489,7 +1501,9 @@ if(fjordAutoButton){
    slider.max=String(result.preview.layers.length-1);
    slider.value=slider.max;
    panel.querySelector('#fjordReviewTransfer').disabled=false;
-   state.textContent='✓ Tranchage terminé. Inspecte le résultat avant d’envoyer.';
+   state.textContent=result.preview.sampled_layers
+    ?'✓ Tranchage terminé · aperçu de couches allégé pour ce modèle détaillé. Le 3MF original est conservé.'
+    :'✓ Tranchage terminé. Inspecte le résultat avant d’envoyer.';
    drawBambuReview();
    // Move focus away from the hidden submit button directly to the preview.
    review.focus({preventScroll:true});
@@ -1603,6 +1617,9 @@ if(fjordAutoButton){
 #fjordAutoPrintDialog button:disabled{opacity:.5;cursor:not-allowed}
 #fjordAutoPrintDialog a{color:#94e5fb}
 #fjordSliceReview[hidden]{display:none!important}
+ #fjordReviewSampling.fjord-review-sampling{background:#183d54;border:1px solid #5caacb;border-radius:9px;padding:12px;margin:12px 0;color:#e5f7ff;line-height:1.55;font-size:12px}
+ #fjordReviewSampling[hidden]{display:none!important}
+ body.light #fjordReviewSampling.fjord-review-sampling{background:#edf8fd;color:#20495e;border-color:#a3d5e8}
 #fjordSliceReview{border-top:1px solid #4c7388;margin-top:9px;padding-top:8px}
 #fjordSliceReview h3{font-size:15px;margin:4px 0}
 .fjord-review-preview{position:relative;width:min(100%,420px);margin:10px auto}
