@@ -73,6 +73,61 @@ class StockTests(unittest.TestCase):
                     stock.original_preset("Imprimante", "../../secret")
             stock._index.cache_clear()
 
+    def test_expand_user_bbcfg_preserves_process_and_bowden_values(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/"BBL"
+            path=Path(folder)/"stock-path"
+            path.write_text(str(root))
+            base_gcode="M620 S0\\n"+"G28 X\\n"*650
+            write(root,"machine",stock.MACHINE_NAME,{
+                "printer_model":"Bambu Lab X2D",
+                "nozzle_diameter":["0.4","0.4"],
+                "machine_start_gcode":base_gcode,
+                "machine_end_gcode":"M104 S0",
+                "change_filament_gcode":"M620 S1"
+            })
+            write(root,"process","0.08mm High Quality @BBL X2D",{
+                "layer_height":"0.08","wall_loops":"3",
+                "sparse_infill_density":"15%"
+            })
+            write(root,"filament","Generic PETG @BBL X2D",{
+                "filament_type":["PETG"],
+                "nozzle_temperature":["238","220"],
+                "filament_flow_ratio":["0.97","0.96"]
+            })
+            with patch.object(stock,"SYSTEM_PROFILE_ROOT",path):
+                machine=stock.resolved_imported_preset({
+                    "name":"CHATOU X2D","inherits":stock.MACHINE_NAME,
+                    "printer_model":"Bambu Lab X2D",
+                    "nozzle_diameter":["0.4","0.4"],
+                    "machine_start_gcode":"M620 S1\\n"+"G28 X\\n"*650,
+                    "machine_end_gcode":"M104 S0",
+                },"Imprimante")
+                self.assertIn("M620 S1",machine["machine_start_gcode"])
+                self.assertEqual(machine["nozzle_diameter"],["0.4","0.4"])
+                process=stock.resolved_imported_preset({
+                    "name":"CHATOU VITRINE","inherits":"0.08mm High Quality @BBL X2D",
+                    "compatible_printers":[stock.MACHINE_NAME],
+                    "wall_loops":"5"
+                },"Impression")
+                self.assertEqual(process["layer_height"],"0.08")
+                self.assertEqual(process["wall_loops"],"5")
+                filament=stock.resolved_imported_preset({
+                    "name":"CHATOU PETG RAPIDOS",
+                    "inherits":"Generic PETG @BBL X2D",
+                    "filament_flow_ratio":["0.96","0.95"],
+                    "compatible_printers":[stock.MACHINE_NAME]
+                },"Filament")
+                self.assertEqual(filament["filament_type"],["PETG"])
+                self.assertEqual(filament["filament_flow_ratio"],["0.96","0.95"])
+                self.assertEqual(filament["nozzle_temperature"],["238","220"])
+                with self.assertRaisesRegex(AutoSliceError,"manquant"):
+                    stock.resolved_imported_preset({
+                        "name":"unknown","inherits":"Other printer",
+                        "filament_type":["PLA"]
+                    },"Filament")
+            stock._index.cache_clear()
+
     def test_refuse_generic_machine_start_and_wrong_filament(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
