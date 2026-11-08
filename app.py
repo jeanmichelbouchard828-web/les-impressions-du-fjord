@@ -1201,7 +1201,7 @@ def admin():
 <article class="admin-control-card"><div class="admin-card-top"><h2>Demandes récentes</h2><span class="admin-icon" aria-hidden="true">📥</span></div><div class="admin-metric">{{reqs_count}}</div><div class="admin-metric-label">demande(s) au total</div><p>Les 12 dernières sont listées plus bas.</p><div class="admin-card-actions"><a href="#admin-requests">Voir les demandes</a></div></article>
 </section>
 <section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
-<section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div></div>
+<section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div><a class="btn" href="/admin/demandes">🔎 Voir toutes les demandes et rechercher</a></div>
 <div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.reference_filename %}<p class="fjord-reference-admin"><a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Voir la photo ou le croquis</a><span>— {{r.reference_filename}}</span></p>{% endif %}{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
 (async function(){const box=document.getElementById('fjord-admin-printer-status');if(!box)return;try{const r=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const s=await r.json();if(!s.ok)throw Error();const state=String(s.state||'inconnu').replace(/_/g,' ');const parts=[({'printing':'En impression','paused':'En pause','idle':'Prête','finished':'Terminée','failed':'Erreur'}[s.state]||state),s.file?'Fichier : '+s.file:'Aucun fichier en cours'];if(typeof s.progress==='number')parts.push(Math.round(s.progress)+' %');box.textContent=parts.join(' · ');}catch(_){box.textContent='État non disponible. Ouvre le contrôle X2D pour actualiser.'}})();
 (function(){const el=document.getElementById('adminLocalClock');if(!el)return;const update=()=>{el.textContent=new Intl.DateTimeFormat('fr-CA',{dateStyle:'full',timeStyle:'short'}).format(new Date())};update();setInterval(update,60000)})();
@@ -1222,6 +1222,71 @@ def status(id):
   if parsed.scheme!="https" or parsed.hostname not in ("oe.ink","www.oe.ink") or not parsed.path.startswith("/l/") or parsed.username or parsed.password or len(live_url)>500:abort(400)
  with db() as c:c.execute("UPDATE requests SET status=%s,progress=%s,live_enabled=%s,live_url=%s,public_progress=%s WHERE id=%s",(value,pct,live,live_url or None,public_progress,id))
  return redirect("/admin")
+@app.get("/admin/demandes")
+@admin_required
+def fjord_admin_demandes():
+ """Searchable full archive, admin only; latest-12 dashboard remains compact."""
+ from urllib.parse import urlencode
+ query=request.args.get("q","").strip()[:100]
+ kind=request.args.get("type","").strip()
+ status=request.args.get("statut","").strip()
+ if kind not in ("Soumission","Contact"):kind=""
+ if status not in STATUSES:status=""
+ try:
+  page_num=max(1,min(1000,int(request.args.get("page","1"))))
+ except (TypeError,ValueError):
+  page_num=1
+ clauses=[]
+ params=[]
+ if query:
+  clauses.append("(name ILIKE %s OR email ILIKE %s OR CAST(id AS TEXT) LIKE %s)")
+  params.extend(["%"+query+"%","%"+query+"%","%"+query+"%"])
+ if kind:
+  clauses.append("kind=%s")
+  params.append(kind)
+ if status:
+  clauses.append("status=%s")
+  params.append(status)
+ where=" WHERE "+" AND ".join(clauses) if clauses else ""
+ with db() as c:
+  total=c.execute("SELECT COUNT(*) AS count FROM requests"+where,tuple(params)).fetchone()["count"]
+  last=max(1,(total+24)//25)
+  page_num=min(page_num,last)
+  rows=c.execute("""SELECT id,kind,name,email,phone,material,description,
+       filename,reference_filename,created,status
+       FROM requests"""+where+" ORDER BY id DESC LIMIT %s OFFSET %s",
+       tuple(params+[25,(page_num-1)*25])).fetchall()
+ def url(num):
+  return "/admin/demandes?"+urlencode({"q":query,"type":kind,"statut":status,"page":num})
+ return page("Historique des demandes",'''<section class="fjord-demandes-history">
+ <p><a href="/admin">← Retour à l'administration</a></p>
+ <h1>Historique des demandes</h1>
+ <p>Recherchez une soumission ou un message par nom, courriel ou numéro de demande.</p>
+ <form class="fjord-history-filters" method="get" action="/admin/demandes">
+ <label>Rechercher<input name="q" type="search" value="{{query}}" maxlength="100" placeholder="Nom, courriel ou #123" autocomplete="off"></label>
+ <label>Type<select name="type"><option value="">Tous</option>{% for value in kinds %}<option value="{{value}}" {% if value==kind %}selected{% endif %}>{{value}}</option>{% endfor %}</select></label>
+ <label>Statut<select name="statut"><option value="">Tous</option>{% for value in statuses %}<option value="{{value}}" {% if value==status %}selected{% endif %}>{{value}}</option>{% endfor %}</select></label>
+ <button type="submit">Rechercher</button><a href="/admin/demandes">Effacer les filtres</a></form>
+ <p class="fjord-history-summary">{{total}} demande(s) trouvée(s) · Page {{page_num}} sur {{last}}</p>
+ <div class="fjord-history-results">{% for r in rows %}
+ <article class="fjord-history-card"><div class="admin-request-meta"><strong>#{{r.id}}</strong> · {{r.kind}} · {{r.created.strftime('%Y-%m-%d')}} · {{r.status}}</div>
+ <h2>{{r.name}}</h2><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p>
+ <p>Matériau : {{r.material or '—'}}</p>
+ <details><summary>Voir la description</summary><p style="white-space:pre-wrap">{{r.description}}</p></details>
+ <div class="fjord-history-actions">
+ {% if r.reference_filename %}<a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Photo de référence</a>{% endif %}
+ {% if r.filename %}<a href="/admin/file/{{r.id}}">⬇ Télécharger le modèle 3D</a>{% endif %}
+ {% if r.kind=='Soumission' %}<a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Soumission PRO</a>{% endif %}
+ </div></article>{% else %}<p class="admin-empty">Aucune demande ne correspond à ces critères.</p>{% endfor %}</div>
+ <nav class="fjord-history-pages" aria-label="Pages de l'historique">
+ {% if page_num>1 %}<a href="{{previous}}">← Précédente</a>{% endif %}
+ <span>Page {{page_num}} / {{last}}</span>
+ {% if page_num<last %}<a href="{{following}}">Suivante →</a>{% endif %}
+ </nav></section>''',
+ query=query,kind=kind,status=status,statuses=STATUSES,kinds=("Soumission","Contact"),
+ rows=rows,total=total,page_num=page_num,last=last,
+ previous=url(page_num-1),following=url(page_num+1))
+
 @app.get("/admin/reference-photo/<int:id>")
 @admin_required
 def fjord_admin_reference_photo(id):
