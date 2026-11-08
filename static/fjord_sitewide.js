@@ -88,6 +88,37 @@
           file.setCustomValidity(valid?"":"Fichier invalide ou trop volumineux (maximum 8 Mo).");
         });
       }
+      // Instant private preview; the photo stays local until the user submits the form.
+      const photo=quoteForm.querySelector('input[name="reference_photo"]');
+      const preview=document.getElementById("fjordReferencePreview");
+      const photoImage=document.getElementById("fjordReferenceImage");
+      const photoLabel=document.getElementById("fjordReferenceFilename");
+      const photoRemove=document.getElementById("fjordReferenceRemove");
+      let photoUrl=null;
+      function clearPhoto(){
+        if(photoUrl){URL.revokeObjectURL(photoUrl);photoUrl=null;}
+        if(photo)photo.value="";
+        if(photo)photo.setCustomValidity("");
+        if(photoImage)photoImage.removeAttribute("src");
+        if(preview)preview.hidden=true;
+      }
+      if(photo&&preview&&photoImage){
+        photo.addEventListener("change",()=>{
+          if(photoUrl){URL.revokeObjectURL(photoUrl);photoUrl=null;}
+          const file=photo.files?.[0];
+          if(!file){clearPhoto();return;}
+          const types=["image/jpeg","image/png","image/webp"];
+          const valid=types.includes(file.type)&&file.size<=4*1024*1024&&file.size>0;
+          photo.setCustomValidity(valid?"":"Choisissez une image JPG, PNG ou WebP de 4 Mo maximum.");
+          if(!valid){if(photoLabel)photoLabel.textContent="Format ou taille de photo non acceptés";photoImage.removeAttribute("src");preview.hidden=false;return;}
+          photoUrl=URL.createObjectURL(file);
+          photoImage.src=photoUrl;
+          if(photoLabel)photoLabel.textContent=file.name+" · "+(file.size/(1024*1024)).toLocaleString("fr-CA",{maximumFractionDigits:1})+" Mo";
+          preview.hidden=false;
+        });
+        photoRemove?.addEventListener("click",clearPhoto);
+        window.addEventListener("pagehide",()=>{if(photoUrl)URL.revokeObjectURL(photoUrl);});
+      }
       const button=quoteForm.querySelector('button[type="submit"]');
       quoteForm.addEventListener("submit",()=>{
         if(!quoteForm.checkValidity())return;
