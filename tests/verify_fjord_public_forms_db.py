@@ -73,6 +73,32 @@ class IsolatedBusinessFlow(unittest.TestCase):
         self.assertEqual(track_response.status_code,200)
         self.assertIn("Demande reçue",track_response.get_data(as_text=True))
 
+    def test_project_brief_is_validated_and_retained(self):
+        response=self.get("/soumission")
+        page=response.get_data(as_text=True)
+        for name in ("project_type","dimensions","remise","delai"):
+            self.assertIn('name="'+name+'"',page)
+        token=csrf_from(page)
+        values={"csrf":token,"name":"Client avec mesures","email":"fjord-ci-brief@example.invalid",
+                "description":"Un support fonctionnel pour un appareil.","quantity":"3","color":"Bleu",
+                "material":"PETG","project_type":"Prototype","dimensions":"120 x 80 x 30 mm",
+                "remise":"À discuter","delai":"Flexible"}
+        result=self.post("/soumission",values)
+        self.assertEqual(result.status_code,200)
+        with db() as conn:
+            row=conn.execute("SELECT description FROM requests WHERE email=%s",(values["email"],)).fetchone()
+        self.assertIn("Type de projet : Prototype",row["description"])
+        self.assertIn("Dimensions approximatives : 120 x 80 x 30 mm",row["description"])
+        self.assertIn("Quantité demandée : 3",row["description"])
+        self.assertIn("Remise souhaitée : À discuter",row["description"])
+        for patch in ({"project_type":"Choix invalide"},
+                      {"remise":"livraison gratuite garantie"},
+                      {"delai":"demain absolument"},
+                      {"dimensions":"test\\nligne"}):
+            invalid=self.post("/soumission",dict(values,**patch))
+            with self.subTest(invalid=patch):
+                self.assertEqual(invalid.status_code,400)
+
     def test_contact_message_is_stored(self):
         view=self.get("/contact")
         self.assertEqual(view.status_code,200)
