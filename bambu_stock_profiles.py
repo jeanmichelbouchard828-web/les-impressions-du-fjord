@@ -88,6 +88,59 @@ def _expanded(name: str, entries: dict, seen: frozenset, depth: int = 0) -> dict
     return merged
 
 
+def resolved_imported_preset(raw, category: str) -> dict:
+    """Expand *user-provided* BBCFG overrides only against pinned Bambu system parents.
+
+    Bambu Studio exports usually use inherits rather than repeated baseline
+    arrays/G-code. Never invent settings, change Bowden/TrackSwitch arrays, or
+    substitute PLA/PETG for PETG-CF. An unavailable trusted parent fails closed.
+    """
+    if category not in DIRECTORIES:
+        raise AutoSliceError("Catégorie de profil BBCFG non reconnue.")
+    try:
+        data = json.loads(raw) if isinstance(raw, str) else raw
+    except (ValueError, TypeError) as exc:
+        raise AutoSliceError("Profil BBCFG illisible.") from exc
+    if not isinstance(data, dict):
+        raise AutoSliceError("Le profil BBCFG doit être un objet JSON.")
+    root = system_root()
+    entries = _index(str(root), DIRECTORIES[category])
+    merged = {}
+    parent = data.get("inherits")
+    if parent is not None:
+        if not isinstance(parent, str) or not parent.strip() or len(parent)>180:
+            raise AutoSliceError("Héritage BBCFG invalide.")
+        merged.update(_expanded(parent.strip(), entries, frozenset()))
+    includes = data.get("include") or []
+    if isinstance(includes, str):
+        includes = [includes]
+    if not isinstance(includes, list) or len(includes)>30:
+        raise AutoSliceError("Inclusions BBCFG invalides.")
+    for include in includes:
+        if not isinstance(include,str) or not include.strip() or len(include)>180:
+            raise AutoSliceError("Inclusion BBCFG invalide.")
+        merged.update(_expanded(include.strip(), entries, frozenset()))
+    merged.update({key:val for key,val in data.items()
+                   if key not in ("inherits","include")})
+    full_preset(merged,category)
+    if category=="Imprimante":
+        start = merged.get("machine_start_gcode","")
+        # X2D requires its full machine G-code, AMS and preflight support.
+        if not isinstance(start,str) or len(start)<3000 or "M620" not in start:
+            raise AutoSliceError("G-code de démarrage X2D incomplet : tranchage bloqué.")
+    if category=="Filament":
+        compatible = merged.get("compatible_printers") or []
+        if compatible and (not isinstance(compatible,list) or
+            not any(isinstance(v,str) and "X2D" in v for v in compatible)):
+            raise AutoSliceError("Filament BBCFG non compatible avec la X2D.")
+    if category=="Impression":
+        compatible = merged.get("compatible_printers") or []
+        if compatible and (not isinstance(compatible,list) or
+            not any(isinstance(v,str) and "X2D" in v for v in compatible)):
+            raise AutoSliceError("Process BBCFG non compatible avec la X2D.")
+    return merged
+
+
 def original_preset(category: str, stock_id: str) -> dict:
     name = STOCK_NAMES.get(category, {}).get(stock_id)
     if name is None:
