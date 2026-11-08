@@ -84,3 +84,11 @@ body.light .fjord-admin-insights small{color:#245b77}
 }
 @media(max-width:480px){body.fjord-public main .contact-actions{grid-template-columns:1fr}.fjord-gallery-detail-cta{display:grid;grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}body.fjord-admin .admin-control-card{transition:none}}
+
+/* Preview mode: no misleading active checkout or production feed. */
+.fjord-preview .fjord-preview-notice{border:2px solid #d2a45f;background:#422f1c;color:#fff0dc!important;padding:17px 21px;border-radius:16px;max-width:920px;margin:12px 0 22px;line-height:1.6}
+.fjord-preview .fjord-preview-notice strong{color:#fff6e5}
+.fjord-preview .fjord-board{display:none!important}
+.fjord-preview .fjm-quote-form button[type=submit]:disabled{opacity:.6;cursor:not-allowed;box-shadow:none!important;transform:none!important}
+body.light.fjord-preview .fjord-preview-notice{background:#fff5e0;color:#5a4218!important;border-color:#dcb869}
+body.light.fjord-preview .fjord-preview-notice strong{color:#593b11}
