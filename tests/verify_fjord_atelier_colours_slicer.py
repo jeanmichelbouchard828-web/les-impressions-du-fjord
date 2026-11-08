@@ -42,6 +42,8 @@ async def run_check(browser,label,width,height):
   await file.save_as(target)
   with zipfile.ZipFile(target) as zin:
    model=zin.read("3D/3dmodel.model").decode("utf-8")
+   import re
+   print("DIAG",label,"3MF palette:",re.findall(r'color="(#[0-9A-Fa-f]{8})"',model)[:15],"AMS status:",(await page.locator("#fjordAmsStatus").inner_text())[:200],"paint status:",(await page.locator("#fjordPaintStatus").inner_text())[:200])
    assert "#F04444" in model,"Exported 3MF did not retain chosen red colour"
    assert "<m:colorgroup" in model,"3MF material colours absent"
   print("PASS",label,"3MF export preserved actual selected colour")
