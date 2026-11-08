@@ -575,7 +575,8 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None
         result = available_original_presets()
         if db is None:
             return result
-        from bambu_auto import full_preset, AutoSliceError
+        from bambu_auto import AutoSliceError
+        from bambu_stock_profiles import resolved_imported_preset
         with db() as conn:
             rows = conn.execute(
                 "SELECT id,name,category,settings FROM bambu_user_presets ORDER BY category,name LIMIT 1000"
@@ -585,7 +586,7 @@ def register_printer_admin(app, admin_required, verify, csrfinput, page, db=None
             if category not in result:
                 continue
             try:
-                data = full_preset(row["settings"], category)
+                data = resolved_imported_preset(row["settings"], category)
             except (AutoSliceError, TypeError, ValueError):
                 continue
             # Hide archived machine presets for other printers from the X2D launcher.
@@ -1094,7 +1095,8 @@ body.light .fj-print-hint{color:#496477!important}
                     cat = row["category"]
                     selection = choices.get(cat)
                     if selection == ("user", row["id"]):
-                        presets[cat] = full_preset(row["settings"], cat)
+                        from bambu_stock_profiles import resolved_imported_preset
+                        presets[cat] = resolved_imported_preset(row["settings"], cat)
             if len(presets) != 3:
                 raise AutoSliceError("Les trois profils choisis ne sont pas complets ou disponibles.")
             # Never silently swap PLA/PETG/ASA/TPU for a different material.
