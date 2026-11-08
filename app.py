@@ -1273,6 +1273,22 @@ def fjord_terms():
  <h2>Livraison et assistance</h2><p>Les modalités de remise, d'expédition et les frais applicables sont confirmés avec le client. Pour une question ou une réclamation, écrivez à <a href="mailto:lesimpressionsdufjord@gmail.com">lesimpressionsdufjord@gmail.com</a> ou consultez notre <a href="/assistance">page d'assistance</a>.</p>
  </section>""")
 
+@app.after_request
+def fjord_public_security_headers(response):
+ """Protect customer forms without breaking the existing Atelier 3D scripts."""
+ response.headers.setdefault("X-Content-Type-Options","nosniff")
+ response.headers.setdefault("Referrer-Policy","strict-origin-when-cross-origin")
+ response.headers.setdefault("X-Frame-Options","SAMEORIGIN")
+ path=request.path.rstrip("/") or "/"
+ sensitive=("/soumission","/contact","/suivi","/voir-mon-impression")
+ if path in sensitive or path.startswith(("/admin","/payer","/stripe","/api/")):
+  response.headers["Cache-Control"]="no-store, private"
+ return response
+
+@app.get("/favicon.ico")
+def fjord_favicon():
+ return redirect("/identite/logo",code=302)
+
 @app.get("/health")
 def health():return {"ok":True}
 
