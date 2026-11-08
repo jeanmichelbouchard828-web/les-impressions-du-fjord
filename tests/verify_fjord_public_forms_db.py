@@ -94,7 +94,7 @@ class IsolatedBusinessFlow(unittest.TestCase):
         for patch in ({"project_type":"Choix invalide"},
                       {"remise":"livraison gratuite garantie"},
                       {"delai":"demain absolument"},
-                      {"dimensions":"test\\nligne"}):
+                      {"dimensions":"test\nligne"}):
             invalid=self.post("/soumission",dict(values,**patch))
             with self.subTest(invalid=patch):
                 self.assertEqual(invalid.status_code,400)
