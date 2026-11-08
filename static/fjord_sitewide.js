@@ -126,6 +126,28 @@
       });
     }
 
+    // Native share sheet on mobile; safe copy-link fallback on desktop.
+    const share=document.querySelector(".fjord-share-project");
+    if(share){
+      share.addEventListener("click",async ()=>{
+        const url=window.location.href.split("#")[0];
+        const title=share.getAttribute("data-fjord-share-title")||"Les Impressions du Fjord";
+        const output=document.getElementById("fjordShareResult");
+        const note=message=>{if(output)output.textContent=message;};
+        if(navigator.share){
+          try{await navigator.share({url,title});note("Réalisation partagée.");return;}
+          catch(error){if(error?.name==="AbortError")return;}
+        }
+        try{
+          if(!navigator.clipboard?.writeText)throw Error("Clipboard unavailable");
+          await navigator.clipboard.writeText(url);
+          note("Lien de la réalisation copié.");
+        }catch(error){
+          note("Copiez l'adresse de cette page pour la partager.");
+        }
+      });
+    }
+
     // Highlight a quote request link in galleries without interrupting preview controls.
     document.querySelectorAll('.gallery-detail a[href^="/soumission?projet="]').forEach(a=>{
       a.setAttribute("aria-label","Demander une soumission pour un projet similaire");
