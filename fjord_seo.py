@@ -41,9 +41,10 @@ def safe_canonical_path(path):
 
 def seo_metadata():
     path = request.path.rstrip("/") or "/"
+    gallery_item = path.startswith("/galerie/") and path[9:].isdigit()
     noindex = bool(os.environ.get("FJORD_PREVIEW_MODE") == "1"
                    or path.startswith(PRIVATE_PREFIXES)
-                   or (path.startswith("/galerie/") and not path[9:].isdigit()))
+                   or (path not in INDEXABLE and not gallery_item))
     return {"canonical_url": PUBLIC_ORIGIN + safe_canonical_path(path),
             "meta_robots": "noindex, nofollow" if noindex else "index, follow",
             "public_origin": PUBLIC_ORIGIN}
