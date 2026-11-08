@@ -1,0 +1,21 @@
+/* Atelier admin only — Bambu Studio-like real profile selector. */
+#fjordBambuProfileBar{position:relative;z-index:25;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:9px 18px;padding:10px 17px;border-bottom:1px solid #367d9d;background:#0c293d;color:#e8f8ff;box-sizing:border-box}
+#fjordBambuProfileBar *{box-sizing:border-box}
+#fjordBambuProfileBar .fjord-profiles-title{display:grid;gap:3px;min-width:112px}
+#fjordBambuProfileBar .fjord-profiles-title strong{font-size:14px;color:#dff8ff;font-weight:850}
+#fjordBambuProfileBar .fjord-profiles-title span{font-size:11px;color:#a9d5e7}
+#fjordBambuProfileBar .fjord-profile-picks{display:grid;grid-template-columns:minmax(135px,1fr) minmax(135px,1fr) minmax(135px,1fr) auto;align-items:end;gap:10px;min-width:0}
+#fjordBambuProfileBar label{display:grid;gap:5px;font-size:11px;font-weight:750;color:#c0e5f7;min-width:0;margin:0}
+#fjordBambuProfileBar select{width:100%;max-width:100%;min-width:0;height:43px;padding:7px 27px 7px 9px;border:1px solid #5c91b1;border-radius:9px;background:#173c51;color:#f5faff;font-size:13px;text-overflow:ellipsis}
+#fjordBambuProfileBar select:focus-visible,#fjordBambuProfileBar button:focus-visible{outline:3px solid #9be5ff;outline-offset:2px}
+#fjordBambuProfileBar #fjordProfilePrepare{min-height:43px;white-space:normal;max-width:170px;padding:9px 14px;border:1px solid #6ad5f1;border-radius:9px;background:linear-gradient(115deg,#0876a9,#1097c9);color:#fff;font-size:12px;font-weight:850;cursor:pointer}
+#fjordBambuProfileBar #fjordProfilePrepare:hover{filter:brightness(1.12)}
+#fjordBambuProfileBar #fjordProfileBarStatus{grid-column:2;font-size:11px;color:#baddec;margin:0;line-height:1.4}
+body.light #fjordBambuProfileBar{background:#eaf6fb;color:#17425a;border-color:#a5d1e3}
+body.light #fjordBambuProfileBar .fjord-profiles-title strong{color:#164a68}
+body.light #fjordBambuProfileBar .fjord-profiles-title span,body.light #fjordBambuProfileBar #fjordProfileBarStatus{color:#3e6e85}
+body.light #fjordBambuProfileBar label{color:#295975}
+body.light #fjordBambuProfileBar select{background:#fff;color:#214960;border-color:#9dc8df}
+@media(max-width:1024px){#fjordBambuProfileBar{grid-template-columns:1fr}#fjordBambuProfileBar .fjord-profiles-title{display:flex;align-items:center;gap:12px}#fjordBambuProfileBar #fjordProfileBarStatus{grid-column:1}#fjordBambuProfileBar .fjord-profile-picks{grid-template-columns:repeat(3,minmax(0,1fr))}#fjordBambuProfileBar #fjordProfilePrepare{max-width:none;grid-column:1/-1;min-height:42px}}
+@media(max-width:650px){#fjordBambuProfileBar{padding:9px 11px;gap:7px}#fjordBambuProfileBar .fjord-profile-picks{grid-template-columns:1fr 1fr;gap:8px}#fjordBambuProfileBar .fjord-profile-picks label:first-child{grid-column:1/-1}#fjordBambuProfileBar #fjordProfilePrepare{grid-column:1/-1;width:100%}#fjordBambuProfileBar select{font-size:16px;min-height:44px}#fjordBambuProfileBar #fjordProfileBarStatus{font-size:10px}}
+@media(prefers-reduced-motion:reduce){#fjordBambuProfileBar #fjordProfilePrepare{transition:none}}
