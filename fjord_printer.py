@@ -304,7 +304,7 @@ def verify_sliced_bambu_3mf(raw):
             plates = [int(m.group(1)) for n in names
                       if (m := re.fullmatch(r"Metadata/plate_(\d{1,3})\.gcode", n))]
             if not plates:
-                raise PrinterError("Ce 3MF ne contient aucune plaque Bambu tranchée. Ouvre-le dans Bambu Studio, fais « Trancher », puis exporte le fichier tranché.")
+                raise PrinterError("Ce 3MF ne contient aucune plaque tranchée compatible Bambu. Ouvre-le dans Bambu Studio, fais « Trancher », puis exporte le fichier tranché.")
             if 1 not in plates:
                 raise PrinterError("Le fichier n'a pas de plaque 1 tranchée.")
             plate = archive.getinfo("Metadata/plate_1.gcode")
