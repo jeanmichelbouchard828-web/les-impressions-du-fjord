@@ -92,3 +92,20 @@ body.light .fjord-admin-insights small{color:#245b77}
 .fjord-preview .fjm-quote-form button[type=submit]:disabled{opacity:.6;cursor:not-allowed;box-shadow:none!important;transform:none!important}
 body.light.fjord-preview .fjord-preview-notice{background:#fff5e0;color:#5a4218!important;border-color:#dcb869}
 body.light.fjord-preview .fjord-preview-notice strong{color:#593b11}
+
+/* Client sketches and reference photos: optional, privacy-first upload preview. */
+.fjm-files{border:1px solid #306c8b;border-radius:16px;background:#0c2a3c;padding:18px;margin:10px 0 23px}
+.fjm-files>label{margin:11px 0}
+.fjm-files .fjord-field-help{line-height:1.5}
+.fjord-reference-preview{display:flex;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid #366b8a;border-radius:13px;padding:12px;background:#092032;margin:9px 0 17px}
+.fjord-reference-preview[hidden]{display:none!important}
+.fjord-reference-preview img{height:100px;width:120px;object-fit:contain;background:#071522;border-radius:8px}
+.fjord-reference-preview span{font-size:13px;flex:1 1 150px;overflow-wrap:anywhere}
+.fjord-reference-preview button{min-height:40px;padding:8px 12px;font-size:13px;border:1px solid #6ebadb;background:#143950;color:#e3f7fc}
+.fjord-reference-admin{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 12px;background:#0e3c53;border:1px solid #3884a2;border-radius:11px}
+.fjord-reference-admin a{text-decoration:underline;font-weight:800}
+.fjord-reference-admin span{font-size:12px;color:#c4e2ee}
+body.light .fjm-files{background:#f1faff;border-color:#aad6e7}
+body.light .fjord-reference-preview{background:#fff;border-color:#b4dbea}
+body.light .fjord-reference-admin{background:#e7f5fc;border-color:#a5cbdc}
+@media(max-width:520px){.fjm-files{padding:12px}.fjord-reference-preview img{height:85px;width:100px}}
