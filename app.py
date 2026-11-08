@@ -1022,7 +1022,9 @@ def submission(kind):
   if not filename.lower().endswith((".stl",".3mf")):abort(400)
   data=f.read(8*1024*1024+1)
   if len(data)>8*1024*1024:abort(413)
-  if filename.lower().endswith(".3mf") and not data.startswith(b"PK"):abort(400)
+  if filename.lower().endswith(".3mf"):
+   from zipfile import is_zipfile
+   if not is_zipfile(io.BytesIO(data)):abort(400)
   if filename.lower().endswith(".stl") and len(data)<84:abort(400)
  with db() as c:request_id=c.execute("INSERT INTO requests(kind,name,email,phone,material,description,filename,filedata) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",(kind,name,email,phone,material,description,filename,data)).fetchone()["id"]
  notify(kind,name,email)
