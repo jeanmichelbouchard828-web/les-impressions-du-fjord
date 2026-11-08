@@ -7,7 +7,7 @@
     if (!body) return;
 
     // A discreet, useful mobile ordering shortcut on public storefront pages.
-    if (["/","/galerie","/contact"].includes(path) || /^\\/galerie\\/\\d+$/.test(path)) {
+    if (["/","/galerie","/contact"].includes(path) || /^\/galerie\/\d+$/.test(path)) {
       const wrap=document.createElement("nav");
       wrap.className="fjord-mobile-actions";
       wrap.setAttribute("aria-label","Actions rapides");
@@ -32,7 +32,7 @@
       const empty=document.getElementById("fjmGalleryNoMatch");
       const all=document.getElementById("fjmGalleryAll");
       let category="";
-      const simplify=value=>String(value||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase("fr-CA");
+      const simplify=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr-CA");
       const categories=Array.from(new Set(cards.map(c=>c.querySelector(".fjm-project-content span")?.textContent.trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr-CA"));
       const chips=[];
       const apply=()=>{
@@ -81,7 +81,7 @@
           const selected=file.files&&file.files[0];
           if(!selected){info.textContent="STL ou 3MF · Maximum 8 Mo";info.removeAttribute("data-status");file.setCustomValidity("");return;}
           const size=(selected.size/(1024*1024)).toLocaleString("fr-CA",{maximumFractionDigits:1});
-          const allowed=/\\.(stl|3mf)$/i.test(selected.name);
+          const allowed=/\.(stl|3mf)$/i.test(selected.name);
           const valid=allowed&&selected.size<=8*1024*1024;
           info.textContent=valid?"✓ "+selected.name+" ("+size+" Mo)":"Fichier non accepté. Choisissez un STL ou 3MF de 8 Mo maximum.";
           info.dataset.status=valid?"ready":"error";
