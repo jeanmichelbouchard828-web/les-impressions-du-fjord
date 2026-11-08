@@ -31,3 +31,20 @@ body.light>header :is(#quote,.primary){color:#fff}
  body>header .top-actions .fjord-studio-link{display:block;width:100%;white-space:normal;text-align:left}
 }
 @media(prefers-reduced-motion:reduce){body>header .fjord-home-link{transition:none}}
+
+/* Palette : distinguish chosen swatch, whole-part vs face painting, on all devices. */
+#fjordPaintPanel .fjord-paint-whole{display:block;width:100%;min-height:48px;margin:12px 0 6px;padding:10px 12px;background:#087fac;border:2px solid #63ddff;color:#fff;font-weight:850;border-radius:10px;white-space:normal;text-align:center}
+#fjordPaintPanel .fjord-paint-whole:hover{background:#096e98}
+#fjordPaintPanel .fjord-paint-whole:focus-visible{outline:3px solid #9beefe;outline-offset:3px}
+#fjordPaintPanel .fjord-paint-whole[aria-pressed="true"]{background:#146952;border-color:#85f5c7}
+#fjordPaintPanel .fjord-paint-whole-note{margin:5px 0 0;font-size:11px;line-height:1.5;color:#b6ddeb}
+#fjordPaintPanel .fjord-paint-swatch{border:2px solid #57778d;outline-offset:2px;min-width:35px;min-height:35px}
+#fjordPaintPanel .fjord-paint-swatch[aria-pressed="true"]{outline:3px solid #fce482;border-color:#fff;box-shadow:0 0 0 2px #0008}
+#fjordPaintPanel .fjord-paint-swatch:focus-visible{outline:3px solid #80dcff}
+body.light #fjordPaintPanel .fjord-paint-whole-note{color:#355c77}
+body.light #fjordPaintPanel .fjord-paint-swatch{border-color:#769cb4}
+body.light #fjordPaintPanel .fjord-paint-swatch[aria-pressed="true"]{outline-color:#096894;border-color:#fff;box-shadow:0 0 0 2px #a0c4d9}
+body.light #fjordPaintPanel #fjordPaintColorLabel{color:#1b526a}
+body.light #fjordPaintPanel .fjord-paint-whole{color:#fff;background:#087fac}
+body.light #fjordPaintPanel #fjordPaintStatus{color:#1d506a}
+@media(max-width:760px){#fjordPaintPanel .fjord-paint-whole{min-height:50px;font-size:14px}}
