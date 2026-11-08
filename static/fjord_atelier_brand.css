@@ -1,0 +1,33 @@
+/* Fjord 3D Studio — unified visual accents; editor functions remain unchanged. */
+:root{--fjord-studio-ice:#8ee7ff;--fjord-studio-accent:#14a9dd}
+body>header{background:linear-gradient(110deg,#07162a,#103854)!important;border-bottom:1px solid #2787bb!important;box-shadow:0 7px 20px #00111f66}
+body>header .brand{font-size:clamp(17px,2vw,22px)!important;letter-spacing:-.02em}
+body>header .fjord-home-link{display:inline-flex;align-items:center;gap:8px;min-height:38px;font-weight:900;color:#d9f7ff!important;text-decoration:none;max-width:100%}
+body>header .fjord-home-link:hover{text-shadow:0 0 12px #44d6ff88}
+body>header .subtitle{font-size:12px;color:#a9d9f1!important}
+body>header .top-actions a,body>header .top-actions button{border-radius:10px;min-height:40px}
+body>header :is(#quote,.primary){background:linear-gradient(112deg,#078aba,#12b5da);border:1px solid #67dff8;color:white;box-shadow:0 3px 14px #0485be33}
+.fjord-menubar{background:#081e30!important;border-bottom:1px solid #23759b!important}
+.fjord-menubar summary:hover,.fjord-menubar a:hover{color:#9ce9ff}
+body:not(.light) .sidebar{background:linear-gradient(180deg,#0b263c,#081827)}
+body:not(.light) .sidebar h2{color:#c6f0ff}
+body:not(.light) .stage{background:radial-gradient(circle at center,#162c45 0%,#0c1827 72%)}
+body:not(.light) .sidebar :is(button,select,input){border-color:#386581}
+body:not(.light) .sidebar button:hover{border-color:#79dfff}
+body:not(.light) .sidebar .primary{background:#087caf;border-color:#59cce8}
+body:not(.light) .quickbar{border-color:#246e96}
+body.light>header{background:linear-gradient(115deg,#e7f5fc,#d5ecf8)!important;border-color:#97cadd!important}
+body.light>header .fjord-home-link{color:#184c6b!important}
+body.light>header .subtitle{color:#466879!important}
+body.light .fjord-menubar{background:#e5f4fa!important;border-color:#b1d5e6!important}
+body.light .sidebar{background:#f8fcff}
+body.light .sidebar h2{color:#214760}
+body.light>header :is(#quote,.primary){color:#fff}
+.fjord-studio-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 11px;border-radius:9px;text-decoration:none;white-space:nowrap;font-weight:750}
+@media(max-width:760px){
+ body>header .brand{font-size:17px!important}
+ body>header .fjord-home-link{font-size:17px!important}
+ body>header .subtitle{font-size:11px!important}
+ body>header .top-actions .fjord-studio-link{display:block;width:100%;white-space:normal;text-align:left}
+}
+@media(prefers-reduced-motion:reduce){body>header .fjord-home-link{transition:none}}
