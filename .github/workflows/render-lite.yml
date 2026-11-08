@@ -25,6 +25,13 @@ jobs:
         run: |
           docker run --rm -v "$PWD/tests:/app/tests:ro" fjord-render-lite-ci \
             python -m unittest discover -s tests -p 'test_storefront_integrity.py' -v
+      - name: Validate core quote, payment-link and X2D safety routines offline
+        run: |
+          docker run --rm -v "$PWD/tests:/app/tests:ro" fjord-render-lite-ci \
+            sh -ec "python -m unittest discover -s tests -p 'test_private_fjord.py' -v && \
+                    python -m unittest discover -s tests -p 'test_fjord_printer.py' -v && \
+                    python -m unittest discover -s tests -p 'test_quote_estimator.py' -v && \
+                    python -m unittest discover -s tests -p 'test_fjord_preview_guard.py' -v"
       - name: Read-only live Render smoke check
         run: |
           python - <<'PY'
