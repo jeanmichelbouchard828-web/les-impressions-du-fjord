@@ -498,6 +498,18 @@ def _fjord_error_page(code):
   title="Cette page est introuvable"
   heading="Oups, on ne trouve pas cette page."
   message="Le lien a peut-être changé ou la page n’existe plus."
+ elif code==413:
+  title="Fichier trop volumineux"
+  heading="Votre pièce jointe dépasse la limite."
+  message="La demande accepte un modèle STL/3MF de 16 Mo maximum et une photo de 4 Mo. Réduisez le fichier, puis renvoyez votre demande."
+ elif code==429:
+  title="Demande temporairement limitée"
+  heading="Un instant avant de réessayer."
+  message="Plusieurs demandes ont été envoyées en peu de temps. Attendez un moment, puis réessayez ou écrivez-nous."
+ elif code==400:
+  title="Vérifiez votre demande"
+  heading="Un renseignement ou fichier doit être corrigé."
+  message="Vérifiez les champs et les formats de fichiers, puis renvoyez le formulaire. Si le problème continue, écrivez-nous."
  else:
   title="Une erreur est survenue"
   heading="Un petit pépin est survenu."
@@ -521,14 +533,27 @@ def _fjord_error_page(code):
  <div class="fjord-error-actions">
   <button type="button" onclick="window.location.reload()">↻ Réessayer</button>
   <a class="fjord-error-home" href="/">⌂ Retour à l’accueil</a>
-  <a class="fjord-error-home" href="mailto:lesimpressionsdufjord@gmail.com">✉ Nous écrire</a>
+  <a href="/soumission">✉ Demander une soumission</a>
+  <a class="fjord-error-home" href="mailto:lesimpressionsdufjord@gmail.com">Nous écrire</a>
  </div>
 </main>"""
  return page(title,body,error_code=code,heading=heading,message=message),code
 
+@app.errorhandler(400)
+def fjord_bad_request(_error):
+ return _fjord_error_page(400)
+
 @app.errorhandler(404)
 def fjord_not_found(_error):
  return _fjord_error_page(404)
+
+@app.errorhandler(413)
+def fjord_file_too_large(_error):
+ return _fjord_error_page(413)
+
+@app.errorhandler(429)
+def fjord_rate_limited(_error):
+ return _fjord_error_page(429)
 
 @app.errorhandler(500)
 def fjord_server_error(_error):
