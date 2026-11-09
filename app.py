@@ -1504,7 +1504,53 @@ def image_uploads(files):
   if not mime:abort(400)
   images.append((data,mime))
  return images
-GALLERY_FORM='''<h1>{{heading}}</h1><form method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Titre<input name="title" value="{{item.title if item else ''}}" maxlength="120" required></label><label>Catégorie<input name="category" value="{{item.category if item else ''}}" maxlength="120" required></label><label>Description<textarea name="description" maxlength="2000" required>{{item.description if item else ''}}</textarea></label><label>Ajouter des photos (6 à la fois, 5 Mo chacune)<input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp"></label><button>Enregistrer</button></form>{% for p in photos %}<div class="row"><img src="/gallery/image/{{p.id}}" width="85"><form method="post" action="/admin/photo/delete/{{p.id}}">{{csrf|safe}}<button>Supprimer cette photo</button></form></div>{% endfor %}'''
+GALLERY_FORM='''<section class="fjord-gallery-manage"><h1>{{heading}}</h1>
+ <p>Chaque photo peut être liée à un STL/3MF. Associez un modèle commun à toute la réalisation, ou remplacez-le par un modèle propre à une photo.</p>
+ <form method="post" enctype="multipart/form-data">
+ {{csrf|safe}}
+ <label>Titre<input name="title" value="{{item.title if item else ''}}" maxlength="120" required></label>
+ <label>Catégorie<input name="category" value="{{item.category if item else ''}}" maxlength="120" required></label>
+ <label>Description<textarea name="description" maxlength="2000" required>{{item.description if item else ''}}</textarea></label>
+ <label>Modèle STL/3MF commun à cette réalisation (20 Mo maximum)
+ <input type="file" name="default_model" accept=".stl,.3mf"></label>
+ {% if item and item.model_filename %}
+ <p class="fjord-gallery-model-ready">✓ Modèle commun associé : <strong>{{item.model_filename}}</strong>
+ <a href="/admin/gallery/model/{{item.id}}">Télécharger</a>
+ <a href="/admin/atelier-3d?galerie={{item.id}}&photo={{main_photo}}">Ouvrir dans l'Atelier 3D</a></p>
+ {% endif %}
+ <label>Ajouter des photos (6 à la fois, 5 Mo chacune)
+ <input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp"></label>
+ <button type="submit">Enregistrer la réalisation</button>
+ </form>
+ {% if item %}
+ <h2>Photos et modèles de cette réalisation</h2>
+ <p>Les modèles associés restent privés. Le client peut sélectionner une photo, et sa soumission reprendra la photo et le fichier 3D correspondant.</p>
+ {% if item.has_photo %}<article class="fjord-gallery-photo-model">
+ <img src="/photo/{{item.id}}" width="120" alt="Photo principale">
+ <div><strong>Photo principale</strong><p>{{'✓ Modèle associé : '+item.model_filename if item.model_filename else '⚠ Aucun STL/3MF associé'}}</p>
+ <a href="/soumission?galerie={{item.id}}&photo=0">Tester la soumission</a></div></article>{% endif %}
+ {% for p in photos %}
+ <article class="fjord-gallery-photo-model">
+ <img src="/gallery/image/{{p.id}}" width="120" alt="Photo de galerie {{loop.index}}">
+ <div class="fjord-gallery-photo-content"><strong>Photo {{loop.index}}</strong>
+ {% if p.model_filename %}<p>✓ Modèle propre à cette photo : {{p.model_filename}}</p>
+ {% elif item.model_filename %}<p>✓ Modèle commun de la réalisation : {{item.model_filename}}</p>
+ {% else %}<p>⚠ Pas encore de STL/3MF associé</p>{% endif %}
+ <div class="fjord-gallery-photo-actions">
+ <a href="/soumission?galerie={{item.id}}&photo={{p.id}}">Tester la soumission</a>
+ {% if p.model_filename or item.model_filename %}
+ <a href="/admin/gallery/model/{{item.id}}?photo={{p.id}}">Télécharger le modèle</a>
+ <a href="/admin/atelier-3d?galerie={{item.id}}&photo={{p.id}}">🖨️ Ouvrir dans l'Atelier</a>{% endif %}</div>
+ <form method="post" enctype="multipart/form-data" action="/admin/galerie/photo/{{p.id}}/modele">
+ {{csrf|safe}}
+ <label>STL/3MF pour cette photo <input type="file" name="model" accept=".stl,.3mf" required></label>
+ <button type="submit">Associer / remplacer le modèle</button></form>
+ </div>
+ <form method="post" action="/admin/photo/delete/{{p.id}}">{{csrf|safe}}
+ <button type="submit" class="secondary-btn">Supprimer la photo</button></form>
+ </article>{% endfor %}
+ {% endif %}</section>'''
+
 @app.route("/admin/new",methods=["GET","POST"])
 @admin_required
 def new():return gallery_edit(None)
@@ -1513,7 +1559,7 @@ def new():return gallery_edit(None)
 def edit(id):return gallery_edit(id)
 def gallery_edit(id):
  with db() as c:
-  item=c.execute("SELECT id,title,category,description FROM gallery WHERE id=%s",(id,)).fetchone() if id else None
+  item=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo,model_filename FROM gallery WHERE id=%s",(id,)).fetchone() if id else None
   if id and not item:abort(404)
   if request.method=="POST":
    verify()
@@ -1522,12 +1568,28 @@ def gallery_edit(id):
    files=request.files.getlist("photos")
    if len(files)>6:abort(400)
    images=image_uploads(files)
-   if id:c.execute("UPDATE gallery SET title=%s,category=%s,description=%s WHERE id=%s",(title,category,description,id))
-   else:id=c.execute("INSERT INTO gallery(title,category,description) VALUES(%s,%s,%s) RETURNING id",(title,category,description)).fetchone()["id"]
+   model_name,model_data=fjord_gallery_model_upload(request.files.get("default_model"))
+   if id:
+    if model_data:
+     c.execute("""UPDATE gallery SET title=%s,category=%s,description=%s,
+                        model_filename=%s,model_data=%s WHERE id=%s""",
+               (title,category,description,model_name,model_data,id))
+    else:
+     c.execute("UPDATE gallery SET title=%s,category=%s,description=%s WHERE id=%s",
+               (title,category,description,id))
+   else:
+    id=c.execute("""INSERT INTO gallery(title,category,description,model_filename,model_data)
+                    VALUES(%s,%s,%s,%s,%s) RETURNING id""",
+                 (title,category,description,model_name,model_data)).fetchone()["id"]
    for data,mime in images:c.execute("INSERT INTO gallery_photos(gallery_id,photo,mime) VALUES(%s,%s,%s)",(id,data,mime))
    return redirect("/admin/edit/"+str(id))
-  photos=c.execute("SELECT id FROM gallery_photos WHERE gallery_id=%s ORDER BY id",(id,)).fetchall() if id else []
- return page("Galerie",GALLERY_FORM,heading="Modifier la réalisation" if id else "Nouvelle réalisation",item=item,photos=photos,csrf=csrfinput())
+  photos=c.execute("""SELECT id,model_filename FROM gallery_photos
+                       WHERE gallery_id=%s ORDER BY id""",(id,)).fetchall() if id else []
+  if id: item=c.execute("""SELECT id,title,category,description,photo IS NOT NULL AS has_photo,
+                                  model_filename FROM gallery WHERE id=%s""",(id,)).fetchone()
+ return page("Galerie",GALLERY_FORM,heading="Modifier la réalisation" if id else "Nouvelle réalisation",
+             item=item,photos=photos,csrf=csrfinput(),
+             main_photo=0 if item and item["has_photo"] else (photos[0]["id"] if photos else 0))
 @app.post("/admin/photo/delete/<int:id>")
 @admin_required
 def remove_photo(id):
@@ -1535,6 +1597,34 @@ def remove_photo(id):
  with db() as c:r=c.execute("DELETE FROM gallery_photos WHERE id=%s RETURNING gallery_id",(id,)).fetchone()
  if not r:abort(404)
  return redirect("/admin/edit/"+str(r["gallery_id"]))
+@app.post("/admin/galerie/photo/<int:photo_id>/modele")
+@admin_required
+def fjord_assign_model_to_photo(photo_id):
+ verify()
+ filename,data=fjord_gallery_model_upload(request.files.get("model"))
+ if not data:abort(400,description="Choisissez un STL ou 3MF.")
+ with db() as c:
+  row=c.execute("""UPDATE gallery_photos SET model_filename=%s,model_data=%s
+                   WHERE id=%s RETURNING gallery_id""",
+                (filename,data,photo_id)).fetchone()
+ if not row:abort(404)
+ return redirect("/admin/edit/"+str(row["gallery_id"]))
+
+@app.get("/admin/gallery/model/<int:gallery_id>")
+@admin_required
+def fjord_private_gallery_model(gallery_id):
+ raw=request.args.get("photo","0")
+ if not raw.isdigit() or len(raw)>18:abort(400)
+ with db() as c:asset=fjord_gallery_asset(c,gallery_id,int(raw))
+ if not asset or not asset["model_data"]:abort(404)
+ return send_file(io.BytesIO(asset["model_data"]),mimetype="application/octet-stream",
+                  as_attachment=True,download_name=asset["model_filename"],
+                  max_age=0,conditional=False),200,{
+                   "Cache-Control":"no-store, private",
+                   "X-Robots-Tag":"noindex, nofollow",
+                   "X-Content-Type-Options":"nosniff",
+                   "X-Fjord-Model-Name":asset["model_filename"]}
+
 @app.get("/photo/<int:id>")
 def photo(id):
  with db() as c:r=c.execute("SELECT photo,mime FROM gallery WHERE id=%s",(id,)).fetchone()
