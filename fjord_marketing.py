@@ -3,8 +3,8 @@ MARKETING_CSS = r"""<style>
 /* Vitrine : lisibilite, confiance et conversion, sans bibliotheques externes. */
 .fjm-home{overflow:clip;display:flex;flex-direction:column}
 .fjm-home>.fjm-hero{order:0}
-.fjm-home>#atelier{order:1}
-.fjm-home>#realisations{order:2}
+.fjm-home>#realisations{order:1}
+.fjm-home>#atelier{order:2}
 .fjm-home>#services{order:3}
 .fjm-home>.fji-section{order:4}
 .fjm-home>#fonctionnement{order:5}
@@ -39,7 +39,7 @@ body.light .fjm-proof-eyebrow{color:#087fa9!important}
 @media(max-width:1050px){.fjm-hero-photo-grid img{height:clamp(150px,28vw,240px)!important}}
 @media(max-width:690px){.fjm-hero-photo-grid{grid-template-columns:1.1fr .9fr;gap:7px}.fjm-hero-photo-grid img{height:clamp(130px,42vw,190px)!important}.fjm-hero-proof{padding:12px!important}}
 .fjm-section{margin:clamp(26px,4vw,52px) 0}
-.fjm-home>#atelier{margin:0 0 28px;order:1}
+.fjm-home>#atelier{margin:0 0 28px;order:2}
 .fjm-atelier{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr) auto;align-items:center;gap:20px;padding:22px 25px;border:1px solid #46bfe6;border-radius:20px;overflow:hidden;background:radial-gradient(circle at 8% 50%,#0f9bc54a,transparent 32%),linear-gradient(110deg,#103b57,#0a2238 72%);box-shadow:0 16px 38px #00132155}
 .fjm-atelier-mark{display:grid;place-items:center;width:68px;height:68px;border:1px solid #65d5f3;border-radius:19px;background:linear-gradient(145deg,#167aa0,#0b3b59);font-size:34px;box-shadow:0 0 28px #21b8e533}
 .fjm-atelier-copy{min-width:0}
@@ -180,10 +180,9 @@ body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65
 .fjm-home .fjm-points{display:none}
 .fjm-home .fjm-hero-actions{display:flex;flex-direction:row!important;align-items:center;flex-wrap:nowrap;gap:10px}
 .fjm-home .fjm-hero-actions .btn{white-space:nowrap;padding:13px 16px;font-size:14px}
-.fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important;grid-template-rows:260px!important;grid-auto-rows:260px!important;height:260px!important;min-height:0!important}
-.fjm-home .fjm-hero-photo-grid>a:first-child{display:none!important}
-html body main .fjm-home .fjm-hero .fjm-hero-photo-grid>a:nth-child(2){display:block;width:100%;height:260px!important;min-height:0!important}
-html body main .fjm-home .fjm-hero .fjm-hero-photo-grid>a:nth-child(2)>img{display:block;width:100%;height:260px!important;max-height:none!important;min-height:0!important;object-fit:cover}
+.fjm-home .fjm-hero-photo-grid{grid-template-columns:1.1fr .9fr!important;grid-template-rows:220px!important;grid-auto-rows:220px!important;height:220px!important;min-height:0!important}
+.fjm-home .fjm-hero-photo-grid>a{display:block;width:100%;height:220px!important;min-height:0!important}
+.fjm-home .fjm-hero-photo-grid img{display:block;width:100%;height:220px!important;max-height:none!important;min-height:0!important;object-fit:cover}
 .fjm-home .fjm-proof-eyebrow{margin:12px 4px 4px}
 .fjm-home .fjm-hero-proof h2{font-size:clamp(18px,2vw,24px);margin:4px}
 .fjm-home .fjm-hero-proof>p:last-child{margin:4px;font-size:14px}
