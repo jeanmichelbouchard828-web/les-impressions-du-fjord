@@ -1,0 +1,23 @@
+/* Navigation de l'Atelier 3D : projets distincts, mesure seule et propriétés. */
+#toolsPanel .fjord-projects-panel h3,#toolsPanel .fjord-measure-tools h3{font-size:18px;margin:4px 0 12px}
+#toolsPanel .fjord-project-actions{display:grid;grid-template-columns:1fr;gap:9px}
+#toolsPanel .fjord-project-actions button{display:block;width:100%;min-height:44px;text-align:left;padding:11px 12px;border:1px solid #44728e;border-radius:10px;background:#15384f;color:#ebf9ff;font-size:14px;font-weight:750}
+#toolsPanel .fjord-project-actions button:hover,#toolsPanel .fjord-project-actions button:focus-visible{background:#225376;border-color:#77c7eb}
+#toolsPanel .fjord-measure-tools .tools{display:grid;grid-template-columns:1fr}
+#toolsPanel .fjord-measure-tools #measure{width:100%;min-height:49px}
+#toolsPanel .fjord-measure-tools #fjordMeasureWorkspace{display:block;max-width:100%;margin:13px 0 0}
+#toolsPanel .fjord-measure-tools #fjordMeasureWorkspace select{min-height:46px;width:100%}
+#toolsPanel .fjord-profile-admin-link{display:block;text-align:center;padding:13px;border-radius:10px;border:1px solid #55b8e1;background:#145478;color:#f1fcff;text-decoration:none;font-size:14px;font-weight:750}
+#fjordWorkspace.fjord-properties-focused #propertiesPanel{outline:2px solid #58c9f0;outline-offset:-2px}
+#fjordWorkspace.fjord-properties-focused #propertiesPanel h2{color:#8ce2ff}
+body.light #toolsPanel .fjord-project-actions button{background:#fff;color:#224e69;border-color:#9cc4d9}
+body.light #toolsPanel .fjord-project-actions button:hover{background:#e6f3fc}
+body.light #toolsPanel .fjord-profile-admin-link{color:#fff}
+body.light #fjordWorkspace.fjord-properties-focused #propertiesPanel h2{color:#076c98}
+@media(max-width:760px){
+ #mobileMenuContent .fjord-project-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+ #mobileMenuContent .fjord-project-actions button{font-size:13px;min-height:46px}
+ #mobileMenuContent .fjord-measure-tools{padding:8px}
+ #mobileMenuContent .fjord-measure-tools #fjordMeasureWorkspace{margin-top:12px}
+}
+@media(max-width:390px){#mobileMenuContent .fjord-project-actions{grid-template-columns:1fr}}
