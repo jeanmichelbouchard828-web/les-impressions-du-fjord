@@ -136,7 +136,7 @@ body.light .fjm-hero{box-shadow:0 24px 58px #0a719a24,inset 0 1px 0 #fff!importa
 body.light .fjm-hero-proof{box-shadow:0 15px 34px #0a719a20!important}
 body.light .fjm-hero-actions .btn:first-child{background:linear-gradient(115deg,#06a6d7,#087eb2)!important;color:#fff!important;border-color:#62c8e9!important}
 @media(max-width:690px){.fjm-hero-photo-grid img{height:clamp(140px,39vw,190px)!important}.fjm-hero-actions{margin-top:19px}}
-</style>""""
+</style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
 <section class="fjm-hero" aria-labelledby="fjm-hero-title">
