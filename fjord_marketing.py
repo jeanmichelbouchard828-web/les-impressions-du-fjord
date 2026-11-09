@@ -92,6 +92,18 @@ body.light #fjmFeaturedCounter{color:#28556e}
 @media(max-width:1000px){.fjm-home .fjm-featured-track .fjm-project{flex-basis:calc((100% - 15px)/2)}}
 @media(max-width:650px){.fjm-showcase-toolbar{justify-content:center}.fjm-home .fjm-featured-track .fjm-project{flex-basis:100%}}
 @media(prefers-reduced-motion:reduce){.fjm-home .fjm-featured-track{scroll-behavior:auto!important}}
+.fjm-home .fjm-project-image-link{display:block;color:inherit;text-decoration:none}
+.fjm-home .fjm-project-content{display:flex;flex-direction:column;gap:8px;flex:1}
+.fjm-home .fjm-project-content strong{margin:0}
+.fjm-home .fjm-project-model-state{min-height:34px;color:#b9d6e3;font-size:12px;line-height:1.4}
+.fjm-home .fjm-project-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:auto;padding-top:9px}
+.fjm-home .fjm-project-actions a{display:flex;align-items:center;justify-content:center;min-height:43px;padding:9px 11px;border:1px solid #448caf;border-radius:10px;background:#10344b;color:#eafaff;text-align:center;text-decoration:none;font-size:13px;font-weight:800;line-height:1.35}
+.fjm-home .fjm-project-actions .fjm-project-quote{background:#0786b8;border-color:#54c7ee;color:#fff}
+.fjm-home .fjm-project-actions a:hover{filter:brightness(1.15)}
+.fjm-home .fjm-project-actions a:focus-visible{outline:3px solid #a5efff;outline-offset:2px}
+body.light .fjm-home .fjm-project-model-state{color:#365d72}
+body.light .fjm-home .fjm-project-actions a{background:#edf8fd;color:#194963;border-color:#9cc9dd}
+body.light .fjm-home .fjm-project-actions .fjm-project-quote{background:#087dab;color:#fff;border-color:#087dab}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
@@ -124,7 +136,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="From our workshop">Directement de notre atelier</span><h2 data-fjm-en="Discover our latest projects">Découvrez nos dernières réalisations</h2><p data-fjm-en="Real work from our gallery, not stock images.">Des projets provenant de notre véritable galerie, pas des images génériques.</p></div>
  <div class="fjm-showcase-toolbar" aria-label="Commandes du diaporama des réalisations"><button type="button" id="fjmFeaturedPrev" aria-label="Réalisations précédentes">‹</button><span id="fjmFeaturedCounter" aria-live="off">1–3</span><button type="button" id="fjmFeaturedNext" aria-label="Réalisations suivantes">›</button><button type="button" id="fjmFeaturedPause" aria-label="Mettre le diaporama en pause" aria-pressed="false">Ⅱ</button></div>
  <div class="fjm-showcase"><div class="fjm-gallery fjm-featured-track" id="fjmFeaturedTrack" tabindex="0" role="region" aria-roledescription="carrousel" aria-label="Réalisations récentes">
- {% for item in featured %}<a class="fjm-project" href="/galerie/{{item.id}}" aria-label="Voir {{item.title}}">{% if item.has_photo %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250">{% else %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fjm-project-noimage',textContent:'🧩'}))">{% endif %}<div class="fjm-project-content"><span>{{item.category}}</span><strong>{{item.title}}</strong><small data-fjm-en="See this project →">Voir cette réalisation →</small></div></a>
+ {% for item in featured %}<article class="fjm-project" aria-label="Réalisation : {{item.title}}"><a class="fjm-project-image-link" href="/galerie/{{item.id}}" aria-label="Voir les photos de {{item.title}}"><img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250"></a><div class="fjm-project-content"><span>{{item.category}}</span><strong>{{item.title}}</strong><small class="fjm-project-model-state">{% if item.has_model %}✓ Le modèle 3D sera joint à votre demande{% else %}La photo sera jointe à votre demande{% endif %}</small><div class="fjm-project-actions"><a class="fjm-project-details" href="/galerie/{{item.id}}"><span data-fjm-en="See photos">Voir les photos</span></a><a class="fjm-project-quote" href="/soumission?galerie={{item.id}}&amp;photo={{item.quote_photo_id}}"><span data-fjm-en="Request a quote">Demander une soumission</span></a></div></div></article>
  {% else %}<div class="card"><h3 data-fjm-en="Projects coming soon">Nos créations arrivent bientôt</h3><p data-fjm-en="In the meantime, tell us about your project.">En attendant, parlez-nous de votre projet.</p><a class="btn" href="/soumission" data-fjm-en="Request a quote">Demander une soumission</a></div>{% endfor %}
  </div></div><div class="fjm-section-actions"><a class="btn fjm-outline" href="/galerie" data-fjm-en="See the full gallery">Voir toute la galerie</a></div>
 </section>
