@@ -909,7 +909,19 @@ def home():
  # Les donnees publiques viennent de la galerie reelle et des commandes autorisees.
  with db() as c:
   public_jobs=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
-  featured=c.execute("SELECT id,title,category,photo IS NOT NULL AS has_photo FROM gallery ORDER BY id DESC LIMIT 6").fetchall()
+  featured=c.execute("""SELECT g.id,g.title,g.category,
+       (g.photo IS NOT NULL OR p.id IS NOT NULL) AS has_photo,
+       CASE WHEN g.photo IS NOT NULL THEN 0 ELSE COALESCE(p.id,0) END AS quote_photo_id,
+       CASE WHEN g.photo IS NOT NULL THEN (g.model_data IS NOT NULL)
+            ELSE (g.model_data IS NOT NULL OR COALESCE(p.model_data IS NOT NULL,FALSE))
+       END AS has_model
+       FROM gallery g
+       LEFT JOIN LATERAL (
+         SELECT id,model_data FROM gallery_photos
+         WHERE gallery_id=g.id ORDER BY id LIMIT 1
+       ) p ON TRUE
+       WHERE g.photo IS NOT NULL OR p.id IS NOT NULL
+       ORDER BY g.id DESC LIMIT 6""").fetchall()
  return page("Accueil",MARKETING_HOME_START.replace(
   '<section class="fjm-section" id="fonctionnement">',
   fjord_inspiration_html() + '<section class="fjm-section" id="fonctionnement">', 1)
