@@ -265,6 +265,18 @@ body.light .tool-btn.active{background:#e1f4fc;color:#094864}
  .fjord-panel-controls button{min-height:28px}
 }
 
+/* Flyouts stay visible until deliberate dismissal, anchored beside their icon. */
+@media(min-width:761px){
+ #toolsPanel [data-tool-panel]:not(.fjord-category-hidden){
+  overscroll-behavior:contain;
+  pointer-events:auto;
+  scrollbar-gutter:stable;
+  border-radius:0 12px 12px 0;
+ }
+ #toolsPanel .fjord-workspace-nav button[aria-pressed="true"]{
+  box-shadow:inset 3px 0 #5bbaf5;
+ }
+}
 /* Barre latérale compacte à icônes, style de la référence fournie. */
 @media(min-width:761px){
  #toolsPanel .fjord-workspace-nav{gap:2px!important;padding:7px 0!important;align-items:stretch!important}
@@ -5098,6 +5110,20 @@ function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();i
 (()=>{const left=document.getElementById('toolsPanel');
 const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
 const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
+// Dock a flyout beside the actual icon, rather than at the top of the sidebar.
+function positionCategoryPanel(name,panel){
+ const navButton=categoryButtons.find(button=>button.dataset.fjordPanel===name);
+ if(!navButton||!panel||!window.matchMedia('(min-width:761px)').matches)return;
+ const sidebar=left.getBoundingClientRect();
+ const anchor=navButton.getBoundingClientRect();
+ const maxHeight=Math.max(140,Math.min(left.clientHeight-16,window.innerHeight*.76));
+ panel.style.maxHeight=Math.round(maxHeight)+'px';
+ const wantedHeight=Math.min(maxHeight,Math.max(150,panel.scrollHeight+4));
+ const idealTop=anchor.top-sidebar.top-6;
+ const top=Math.max(4,Math.min(idealTop,left.clientHeight-wantedHeight-7));
+ panel.style.top=Math.round(top)+'px';
+ panel.style.left='88px';
+}
 function selectCategory(name){
  const target=name;
  const panel=categorySections.find(p=>p.dataset.toolPanel===target);
@@ -5122,7 +5148,9 @@ function selectCategory(name){
   b.setAttribute('aria-pressed',String(selected));
  });
  categorySections.forEach(p=>p.classList.toggle('fjord-category-hidden',p!==panel));
- left.scrollTop=0;
+ positionCategoryPanel(name,panel);
+ // Keep the flyout open while the pointer travels from its icon to the tools.
+ // The visitor closes it by clicking outside or pressing Escape.
  const handle=document.getElementById('fjordDrawerLeft');
  if(handle){handle.textContent='‹';handle.setAttribute('aria-expanded','true');}
 }
@@ -5135,41 +5163,58 @@ document.querySelectorAll('[data-fjord-project-action]').forEach(button=>
 
 const desktopCategory=window.matchMedia('(min-width:761px)');
 const navArea=left.querySelector('.fjord-workspace-nav');
-let pinnedCategory=false;
-let dismissTimer=null;
-function hideCategoryDrawer(force=false){
- if(!desktopCategory.matches||(!force&&pinnedCategory))return;
- categorySections.forEach(p=>p.classList.add('fjord-category-hidden'));
- categoryButtons.forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});
+function hideCategoryDrawer(){
+ if(!desktopCategory.matches)return;
+ categorySections.forEach(panel=>panel.classList.add('fjord-category-hidden'));
+ categoryButtons.forEach(button=>{
+  button.classList.remove('selected');
+  button.setAttribute('aria-pressed','false');
+ });
  const handle=document.getElementById('fjordDrawerLeft');
  if(handle){handle.textContent='›';handle.setAttribute('aria-expanded','false');}
 }
-window.fjordCloseCategoryDrawer=()=>{if(!desktopCategory.matches)return;pinnedCategory=false;hideCategoryDrawer(true);};
+window.fjordCloseCategoryDrawer=hideCategoryDrawer;
 window.fjordToggleCategoryDrawer=()=>{
  const opened=categorySections.some(panel=>!panel.classList.contains('fjord-category-hidden'));
- if(opened){pinnedCategory=false;hideCategoryDrawer(true);}
- else{selectCategory('shapes');}
+ if(opened)hideCategoryDrawer();
+ else selectCategory('shapes');
 };
-function scheduleCategoryDismiss(){
- clearTimeout(dismissTimer);
- dismissTimer=setTimeout(()=>{
-  if(left.matches(':hover')||left.contains(document.activeElement)&&document.activeElement?.closest('[data-tool-panel]'))return;
-  hideCategoryDrawer();
- },180);
-}
-if(navArea){
- navArea.addEventListener('pointerenter',()=>clearTimeout(dismissTimer));
- navArea.addEventListener('pointerleave',scheduleCategoryDismiss);
-}
-categorySections.forEach(panel=>{
- panel.addEventListener('pointerenter',()=>clearTimeout(dismissTimer));
- panel.addEventListener('pointerleave',scheduleCategoryDismiss);
- panel.addEventListener('focusin',()=>{pinnedCategory=true;clearTimeout(dismissTimer);});
- panel.addEventListener('focusout',()=>{setTimeout(()=>{pinnedCategory=!!left.querySelector('[data-tool-panel]:focus-within');if(!pinnedCategory)scheduleCategoryDismiss();},0);});
+// IMPORTANT: Never auto-dismiss on pointerleave or with a 180-ms timer.
+// The side panel remains available even when the icon and flyout are not
+// immediate pointer siblings, or the nav itself scrolls.
+document.addEventListener('pointerdown',event=>{
+ if(!desktopCategory.matches)return;
+ const target=event.target;
+ if(!(target instanceof Element))return;
+ if(target.closest('#toolsPanel [data-tool-panel], #toolsPanel [data-fjord-panel], #fjordDrawerLeft'))return;
+ hideCategoryDrawer();
 });
-categoryButtons.forEach(b=>b.addEventListener('pointerenter',()=>{pinnedCategory=false;clearTimeout(dismissTimer);}));
-desktopCategory.addEventListener('change',()=>{pinnedCategory=false;if(desktopCategory.matches)hideCategoryDrawer();else selectCategory('shapes');});
-if(desktopCategory.matches)hideCategoryDrawer();else selectCategory('shapes');
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&desktopCategory.matches)hideCategoryDrawer();
+});
+window.addEventListener('resize',()=>{
+ if(!desktopCategory.matches)return;
+ const active=categoryButtons.find(button=>button.classList.contains('selected'));
+ if(active){
+  const panel=categorySections.find(node=>node.dataset.toolPanel===active.dataset.fjordPanel);
+  if(panel&&!panel.classList.contains('fjord-category-hidden'))
+   positionCategoryPanel(active.dataset.fjordPanel,panel);
+ }
+});
+navArea?.addEventListener('scroll',()=>{
+ const active=categoryButtons.find(button=>button.classList.contains('selected'));
+ if(active){
+  const panel=categorySections.find(node=>node.dataset.toolPanel===active.dataset.fjordPanel);
+  if(panel&&!panel.classList.contains('fjord-category-hidden'))
+   positionCategoryPanel(active.dataset.fjordPanel,panel);
+ }
+},{passive:true});
+desktopCategory.addEventListener('change',()=>{
+ if(desktopCategory.matches)hideCategoryDrawer();
+ else selectCategory('shapes');
+});
+if(desktopCategory.matches)hideCategoryDrawer();
+else selectCategory('shapes');
 document.querySelectorAll('[data-fjord-target]').forEach(b=>b.addEventListener('click',()=>{document.getElementById(b.dataset.fjordTarget)?.click();b.closest('details').open=false}));
 document.querySelectorAll('[data-fjord-quick]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('[data-quick-action="'+b.dataset.fjordQuick+'"]')?.click();b.closest('details').open=false}));
 document.querySelector('[data-fjord-help]')?.addEventListener('click',()=>alert('Clic gauche : sélectionner une pièce. Clic droit : menu contextuel. Clic droit maintenu : déplacer la vue. Molette : zoom. Utilisez les outils de gauche pour modifier la pièce.'));
