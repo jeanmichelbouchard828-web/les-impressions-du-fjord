@@ -21,10 +21,15 @@ jobs:
         run: |
           node --check static/fjord_sitewide.js
           node --check static/fjord_atelier_enhancements.js
+          node --check static/fjord_inspirations.js
       - name: Run site-wide regression tests in container
         run: |
           docker run --rm -v "$PWD/tests:/app/tests:ro" fjord-render-lite-ci \
             python -m unittest discover -s tests -p 'test_storefront_integrity.py' -v
+      - name: Verify licensed 3D inspiration examples and customer quote links
+        run: |
+          docker run --rm -v "$PWD/tests:/app/tests:ro" fjord-render-lite-ci \
+            python -m unittest discover -s tests -p 'test_fjord_inspirations.py' -v
       - name: Verify detailed Bambu X2D layer preview and unmodified staged 3MF
         run: |
           docker run --rm -v "$PWD/tests:/app/tests:ro" fjord-render-lite-ci \
