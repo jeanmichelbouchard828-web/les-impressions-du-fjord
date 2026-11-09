@@ -76,7 +76,7 @@ def html_fragment():
         license_url=html.escape(idea["license_url"],quote=True)
         license_name=html.escape(idea["license"])
         category=html.escape(idea["category"])
-        quote_url=html.escape("/soumission?"+urlencode({"projet":idea["title"]}),quote=True)
+        quote_url=html.escape("/soumission?"+urlencode({"inspiration":i}),quote=True)
         cards.append(
             '<article class="fji-card" data-fji-category="'
             +html.escape(idea["category"],quote=True)+'" role="group" aria-label="'
