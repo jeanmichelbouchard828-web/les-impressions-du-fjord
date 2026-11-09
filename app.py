@@ -1585,7 +1585,7 @@ def submission(kind):
   request_id=c.execute("""INSERT INTO requests(kind,name,email,phone,material,description,filename,filedata,reference_filename,reference_photo,reference_mime)
       VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",(kind,name,email,phone,material,description,filename,data,ref_name,ref_photo,ref_mime)).fetchone()["id"]
  notify(kind,name,email)
- return page("Merci",'''<section class="fjord-thanks"><span class="fjord-thanks-symbol" aria-hidden="true">✓</span><p class="fjord-steps-tag">Message reçu</p><h1>Merci pour votre demande!</h1><p>Votre message a été enregistré. Nous vous répondrons dès que possible.</p><p>Votre numéro de référence : <strong>#{{request_id}}</strong></p>{% if is_quote %}<p class="fjord-source-verified">Conservez ce numéro et le courriel utilisé pour retrouver votre suivi après la prise en charge.</p>{% endif %}<div class="fjm-hero-actions"><a class="btn" href="/">Retour à l’accueil</a>{% if is_quote %}<a class="btn secondary-btn" href="/suivi">Suivre ma demande</a>{% endif %}</div></section>''',request_id=request_id,is_quote=kind=="Soumission")
+ return page("Merci",'''<section class="fjord-thanks"><span class="fjord-thanks-symbol" aria-hidden="true">✓</span><p class="fjord-steps-tag">Message reçu</p><h1>Merci pour votre demande!</h1><p>Votre message a été enregistré. Nous vous répondrons dès que possible.</p><p>Votre numéro de référence : <strong>#{{request_id}}</strong></p>{% if is_quote %}<p class="fjord-source-verified">Conservez ce numéro et le courriel utilisé pour retrouver votre suivi après la prise en charge.</p><div class="fjm-nextsteps"><h2>Et maintenant?</h2><ol><li>Nous examinons les détails et les fichiers joints.</li><li>Nous vous transmettons une soumission à approuver.</li><li>La production commence après votre accord.</li></ol></div>{% endif %}<div class="fjm-hero-actions"><a class="btn" href="/">Retour à l’accueil</a>{% if is_quote %}<a class="btn secondary-btn" href="/suivi">Suivre ma demande</a>{% endif %}</div></section>''',request_id=request_id,is_quote=kind=="Soumission")
 @app.route("/soumission",methods=["GET","POST"])
 def quote():return submission("Soumission")
 @app.route("/contact",methods=["GET","POST"])
@@ -2292,4 +2292,8 @@ register_stripe_payments(app,db)
 from bambu_presets import register_bambu_preset_library
 register_bambu_preset_library(app,db,admin_required,verify,csrfinput,page)
 
-# Pr
+# Private X2D print console (OctoEverywhere capabilities verified at runtime).
+from fjord_printer import register_printer_admin
+register_printer_admin(app,admin_required,verify,csrfinput,page,db=db)
+from fjord_bambu_connect import register_bridge as register_bambu_connect_bridge
+register_bambu_connect_bridge(app,db,admin_required,verify,csrfinput,page)
