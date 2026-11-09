@@ -1063,10 +1063,19 @@ def fjord_gallery_quote_image(photo,mime):
 @app.get("/galerie/<int:id>")
 def gallery_item(id):
  with db() as c:
-  item=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo FROM gallery WHERE id=%s",(id,)).fetchone()
+  item=c.execute("""SELECT id,title,category,description,photo IS NOT NULL AS has_photo,
+                            model_data IS NOT NULL AS has_model
+                     FROM gallery WHERE id=%s""",(id,)).fetchone()
   if not item:abort(404)
-  photos=c.execute("SELECT id FROM gallery_photos WHERE gallery_id=%s ORDER BY id",(id,)).fetchall()
- urls=(["/photo/"+str(id)] if item["has_photo"] else [])+["/gallery/image/"+str(p["id"]) for p in photos]
+  photos=c.execute("""SELECT id,model_data IS NOT NULL AS has_model
+                      FROM gallery_photos WHERE gallery_id=%s ORDER BY id""",
+                   (id,)).fetchall()
+ assets=([{"photo_id":0,"url":"/photo/"+str(id),"has_model":item["has_model"]}]
+         if item["has_photo"] else [])
+ assets.extend({"photo_id":int(p["id"]),"url":"/gallery/image/"+str(p["id"]),
+                "has_model":p["has_model"] or item["has_model"]} for p in photos)
+ urls=[asset["url"] for asset in assets]
+ default_photo=assets[0]["photo_id"] if assets else 0
  description=(item["description"] or "").strip()
  summary=(item["title"]+" — "+(description or "Réalisation d'impression 3D sur mesure")+" | Les Impressions du Fjord, Saguenay.")[:195]
  origin=seo_metadata()["public_origin"]
@@ -1077,7 +1086,56 @@ def gallery_item(id):
   "creator":{"@type":"Organization","name":"Les Impressions du Fjord"},
   "url":origin+"/galerie/"+str(id),
   "image":[origin+u for u in urls[:15]] if urls else [origin+"/identite/logo"]}
- return page(item["title"],'''<div class="gallery-detail"><a href="/galerie">← Galerie</a><h1>{{item.title}}</h1><div class="eyebrow">{{item.category}}</div><p>{{item.description}}</p><div class="fjord-gallery-detail-cta"><a class="btn" href="/soumission?projet={{item.title|urlencode}}">Demander un projet similaire</a><a class="btn secondary-btn" href="/atelier-3d">Ouvrir l'Atelier 3D</a><button type="button" class="fjord-share-project" data-fjord-share-title="{{item.title}}" aria-describedby="fjordShareResult">Partager cette réalisation</button><span class="fjord-share-result" id="fjordShareResult" role="status" aria-live="polite"></span></div><p class="muted">Touchez une photo pour l’agrandir.</p><div class="gallery-grid">{% for url in urls %}<a href="{{url}}" class="gallery-photo-link" data-photo-index="{{loop.index0}}" aria-label="Agrandir la photo {{loop.index}}"><img loading="lazy" src="{{url}}" alt="{{item.title}} — photo {{loop.index}}"></a>{% endfor %}</div><dialog id="viewer" class="zoom" aria-label="Photo agrandie"><div class="row"><button type="button" id="previousPhoto" aria-label="Photo précédente">❮</button><span id="photoCounter"></span><button type="button" id="nextPhoto" aria-label="Photo suivante">❯</button><button type="button" id="closeViewer">Fermer ✕</button></div><img id="largePhoto" alt="{{item.title}}"></dialog><script>(function(){const links=Array.from(document.querySelectorAll(".gallery-photo-link"));const viewer=document.getElementById("viewer");const large=document.getElementById("largePhoto");const counter=document.getElementById("photoCounter");let position=0;function update(){large.src=links[position].href;counter.textContent=(position+1)+" / "+links.length}function change(delta){position=(position+delta+links.length)%links.length;update()}links.forEach((link,i)=>link.addEventListener("click",function(event){if(typeof viewer.showModal!=="function")return;event.preventDefault();position=i;update();viewer.showModal()}));document.getElementById("previousPhoto").addEventListener("click",()=>change(-1));document.getElementById("nextPhoto").addEventListener("click",()=>change(1));document.getElementById("closeViewer").addEventListener("click",()=>viewer.close());viewer.addEventListener("click",e=>{if(e.target===viewer)viewer.close()});document.addEventListener("keydown",e=>{if(!viewer.open)return;if(e.key==="ArrowRight")change(1);if(e.key==="ArrowLeft")change(-1)})})();</script></div>''',item=item,urls=urls,seo_description=summary,seo_image=social_image,seo_gallery_schema=gallery_schema)
+ return page(item["title"],'''<div class="gallery-detail"><a href="/galerie">← Galerie</a><h1>{{item.title}}</h1>
+ <div class="eyebrow">{{item.category}}</div><p>{{item.description}}</p>
+ <div class="fjord-gallery-detail-cta">
+ <a class="btn" href="/soumission?galerie={{item.id}}&photo={{default_photo}}">Demander une soumission pour cette réalisation</a>
+ <a class="btn secondary-btn" href="/atelier-3d">Ouvrir l'Atelier 3D</a>
+ <button type="button" class="fjord-share-project" data-fjord-share-title="{{item.title}}" aria-describedby="fjordShareResult">Partager cette réalisation</button>
+ <span class="fjord-share-result" id="fjordShareResult" role="status" aria-live="polite"></span></div>
+ <p class="muted">Choisissez une photo pour demander précisément la pièce montrée. Un modèle STL/3MF est joint à la demande lorsqu'il a été associé par l'atelier.</p>
+ <div class="gallery-grid fjord-gallery-linked">{% for asset in assets %}
+ <div class="fjord-gallery-linked-item">
+ <a href="{{asset.url}}" class="gallery-photo-link" data-photo-index="{{loop.index0}}" aria-label="Agrandir la photo {{loop.index}}">
+ <img loading="lazy" src="{{asset.url}}" alt="{{item.title}} — photo {{loop.index}}"></a>
+ <p class="fjord-gallery-linked-state">{{'✓ Fichier 3D associé' if asset.has_model else 'Photo de référence'}}</p>
+ <a class="fjord-gallery-linked-quote" href="/soumission?galerie={{item.id}}&photo={{asset.photo_id}}">Demander cette pièce</a>
+ </div>{% endfor %}</div>
+ <dialog id="viewer" class="zoom" aria-label="Photo agrandie">
+ <div class="row"><button type="button" id="previousPhoto" aria-label="Photo précédente">❮</button>
+ <span id="photoCounter"></span><button type="button" id="nextPhoto" aria-label="Photo suivante">❯</button>
+ <button type="button" id="closeViewer">Fermer ✕</button></div>
+ <img id="largePhoto" alt="{{item.title}}">
+ <p><a class="btn" id="quoteThisGalleryPhoto" href="/soumission?galerie={{item.id}}&photo={{default_photo}}">Demander une soumission pour cette photo</a></p>
+ </dialog>
+ <script>(function(){
+ const links=Array.from(document.querySelectorAll(".gallery-photo-link"));
+ const viewer=document.getElementById("viewer"),large=document.getElementById("largePhoto");
+ const counter=document.getElementById("photoCounter"),quote=document.getElementById("quoteThisGalleryPhoto");
+ if(!links.length||!viewer)return;
+ let position=0;
+ function update(){
+  large.src=links[position].href;
+  counter.textContent=(position+1)+" / "+links.length;
+  quote.href=links[position].closest(".fjord-gallery-linked-item").querySelector(".fjord-gallery-linked-quote").href;
+ }
+ function change(delta){position=(position+delta+links.length)%links.length;update()}
+ links.forEach((link,i)=>link.addEventListener("click",function(event){
+  if(typeof viewer.showModal!=="function")return;
+  event.preventDefault();position=i;update();viewer.showModal()
+ }));
+ document.getElementById("previousPhoto").addEventListener("click",()=>change(-1));
+ document.getElementById("nextPhoto").addEventListener("click",()=>change(1));
+ document.getElementById("closeViewer").addEventListener("click",()=>viewer.close());
+ viewer.addEventListener("click",e=>{if(e.target===viewer)viewer.close()});
+ document.addEventListener("keydown",e=>{
+  if(!viewer.open)return;
+  if(e.key==="ArrowRight")change(1);
+  if(e.key==="ArrowLeft")change(-1)
+ });
+ })();</script></div>''',item=item,assets=assets,urls=urls,
+ default_photo=default_photo,seo_description=summary,seo_image=social_image,seo_gallery_schema=gallery_schema)
+
 
 FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p>{% if quote %}{{marketing_help|safe}}{% else %}<div class="fjord-client-contact" aria-label="Nous joindre"><a href="mailto:lesimpressionsdufjord@gmail.com">✉ Courriel<small>lesimpressionsdufjord@gmail.com</small></a><a href="tel:+15819980831">☎ Téléphone<small>581-998-0831</small></a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Facebook<small>Nous écrire sur notre page</small></a><a href="/galerie">✨ Nos réalisations<small>Découvrir ce que nous fabriquons</small></a></div>{% endif %}<form class="fjm-quote-form" method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Votre nom<input name="name" maxlength="120" required></label><label>Courriel<input type="email" name="email" maxlength="200" required></label><label>Téléphone (facultatif)<input name="phone" maxlength="40"></label>{% if quote %}<section class="fjord-brief" aria-labelledby="fjordBriefTitle"><h2 id="fjordBriefTitle">Parlez-nous de votre création</h2><p>Quelques détails suffisent pour préparer une soumission plus précise. Si vous hésitez, choisissez « À déterminer ».</p>
 <div class="fjord-brief-grid">
