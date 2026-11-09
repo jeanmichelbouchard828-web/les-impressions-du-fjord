@@ -1015,7 +1015,7 @@ def home():
   inspiration_rows=c.execute("""SELECT source FROM fjord_inspiration_models
        WHERE rights_confirmed=TRUE AND octet_length(model_data)>0""").fetchall()
   public_inspirations=fjord_inspiration_html({row["source"] for row in inspiration_rows})
-  makerworld_rows=c.execute("SELECT id,title,source_url FROM fjord_makerworld_slides ORDER BY id DESC").fetchall()
+  makerworld_rows=c.execute("""SELECT id,title,source_url FROM fjord_makerworld_slides WHERE rights_confirmed=TRUE AND octet_length(model_data)>0 ORDER BY id DESC""").fetchall()
   public_makerworld=fjord_makerworld_html(makerworld_rows)
  return page("Accueil",MARKETING_HOME_START.replace(
   '<section class="fjm-section" id="fonctionnement">',
@@ -2229,6 +2229,20 @@ def fjord_makerworld_slide_photo(slide_id):
  with db() as c:slide=c.execute("SELECT image,image_mime FROM fjord_makerworld_slides WHERE id=%s",(slide_id,)).fetchone()
  if not slide:abort(404)
  return send_file(io.BytesIO(slide["image"]),mimetype=slide["image_mime"],max_age=3600)
+
+@app.get("/inspirations/makerworld/<int:slide_id>/modele")
+def fjord_public_makerworld_model(slide_id):
+ with db() as c:
+  slide=c.execute("""SELECT model_filename,model_data FROM fjord_makerworld_slides
+    WHERE id=%s AND rights_confirmed=TRUE AND octet_length(model_data)>0""",(slide_id,)).fetchone()
+ if not slide:abort(404)
+ return send_file(io.BytesIO(slide["model_data"]),mimetype="application/octet-stream",
+                  as_attachment=True,download_name=slide["model_filename"],
+                  max_age=0,conditional=False),200,{
+                   "Cache-Control":"no-store",
+                   "X-Robots-Tag":"noindex, nofollow",
+                   "X-Content-Type-Options":"nosniff",
+                   "X-Fjord-Model-Name":slide["model_filename"]}
 
 @app.get("/admin/inspirations/makerworld/<int:slide_id>/modele")
 @admin_required
