@@ -1229,6 +1229,7 @@ body.light .fjord-menu-options{background:#fff}
 <button type="button" data-open-tools="size" data-i18n="mobileSize" aria-expanded="false">📏 Taille</button>
 <button type="button" data-open-tools="freehand" aria-expanded="false" title="Outils de modification et création">✎ Main levée</button>
 <button type="button" data-open-tools="measure" aria-expanded="false">📐 Mesurer</button>
+<button type="button" data-open-tools="profiles" aria-expanded="false">⚙ Profils X2D</button>
 <button type="button" data-open-tools="paint" aria-expanded="false">🎨 Peinture 3D</button>
 <button type="button" data-open-tools="projects" aria-expanded="false">📁 Projets</button>
 <button type="button" data-open-tools="cut" data-i18n="mobileCut" aria-expanded="false">✂️ Couper</button>
@@ -1261,9 +1262,22 @@ body.light .fjord-menu-options{background:#fff}
 <button data-fjord-panel="edit" aria-label="Modifier"><span class="fjord-nav-icon">✥</span><span>Modifier</span></button>
 <button data-fjord-panel="cut" aria-label="Découpe"><span class="fjord-nav-icon">✂</span><span>Découpe</span></button>
 <button data-fjord-panel="size" aria-label="Dimensions"><span class="fjord-nav-icon">⤢</span><span>Dimensions</span></button>
-<button data-fjord-panel="measure" aria-label="Mesure"><span class="fjord-nav-icon">⌁</span><span>Mesure</span></button>
+<button data-fjord-panel="measure" aria-label="Outils de mesure"><span class="fjord-nav-icon">⌁</span><span>Mesure</span></button>
+<button data-fjord-panel="profiles" aria-label="Configurations X2D"><span class="fjord-nav-icon">⚙</span><span>Profils X2D</span></button>
 <button data-fjord-panel="properties" aria-label="Propriétés"><span class="fjord-nav-icon">☷</span><span>Propriétés</span></button>
 </div>
+<section data-tool-panel="projects" class="fjord-projects-panel" aria-label="Projets">
+<h3>📁 Projets</h3><p class="tool-note">Ouvre, enregistre ou exporte ton projet. Le menu « Pièces » sert uniquement à gérer les objets du plateau.</p>
+<div class="fjord-project-actions">
+<button type="button" data-fjord-project-action="new">✚ Nouveau projet</button>
+<button type="button" data-fjord-project-action="open">📂 Ouvrir un projet</button>
+<button type="button" data-fjord-project-action="import">📥 Importer STL / 3MF</button>
+<button type="button" data-fjord-project-action="save">💾 Enregistrer le projet</button>
+<button type="button" data-fjord-project-action="export">⬇ Exporter STL</button>
+<button type="button" data-fjord-project-action="exportColor3MF">🌈 Exporter 3MF couleurs</button>
+<button type="button" data-fjord-project-action="sliceTop">▥ Trancher le modèle</button>
+</div>
+</section>
 <section data-tool-panel="text" class="fjord-text-tools">
 <h2>🔠 Texte 3D imprimable</h2>
 <p class="tool-note">Crée des lettres en relief, déplace-les, tourne-les et regroupe-les avec une autre pièce.</p>
@@ -1314,7 +1328,12 @@ body.light .fjord-menu-options{background:#fff}
 <button id="remove" data-i18n="remove">Supprimer</button><button id="undo" data-i18n="undo">↶ Annuler</button>
 <button id="redo" data-i18n="redo">↷ Rétablir</button>
 <button id="resetProject" data-i18n="resetProject">⟲ Réinitialiser</button>
-<button id="measure" class="tool-btn" data-i18n="measure">📏 Mesurer</button></div>
+</div>
+<div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
+</div></section>
+<section data-tool-panel="measure" class="fjord-measure-tools" aria-label="Outils de mesure">
+<h3>📏 Mesurer</h3><p class="tool-note">Distance, rayon et diamètre, sans mélanger les commandes de modification.</p>
+<div class="tools"><button id="measure" class="tool-btn" data-i18n="measure">📏 Mesurer</button></div>
 <div id="fjordMeasureWorkspace" class="fjord-measure-workspace">
 <label for="fjordMeasureMode">Type de mesure</label>
 <select id="fjordMeasureMode" aria-label="Type de mesure 3D">
@@ -1333,8 +1352,12 @@ body.light .fjord-menu-options{background:#fff}
 </div>
 <p class="fjord-measure-disclaimer">Contour plan détecté en un clic, comme dans Bambu Studio. Si nécessaire, utilise le mode manuel à 3 points. Les mesures de STL restent approximatives : vérifie les cotes critiques au pied à coulisse.</p>
 <button id="fjordMeasureClear" type="button" title="Effacer les repères de mesure">✕ Effacer la mesure</button>
-</div><div class="tool-row"><button id="rotX90" data-i18n="rotX90">↻ X 90°</button><button id="rotY90" data-i18n="rotY90">↻ Y 90°</button><button id="rotZ90" data-i18n="rotZ90">↻ Z 90°</button>
 </div></section>
+<section data-tool-panel="profiles" id="fjordBambuPublicHelp" aria-label="Configurations X2D">
+<h3>⚙ Profils X2D</h3>
+<p class="tool-note">Sélectionne tes profils Imprimante, Process et Filament depuis l’Atelier administrateur.</p>
+<a class="fjord-profile-admin-link" href="/admin/atelier-3d">Ouvrir les configurations X2D</a>
+</section>
 <section data-tool-panel="size"><h3 data-i18n="toolSize">Taille rapide</h3><div class="tools"><button id="half" data-i18n="half">½ Réduire</button><button id="double" data-i18n="double">×2 Agrandir</button>
 <button id="fitBed" data-i18n="fitBed">Ajuster X2D</button><button id="centerXY" data-i18n="centerXY">Centrer XY</button>
 <button id="dropToBed" data-i18n="dropToBed">Poser au sol</button><button id="layFace" class="tool-btn" data-i18n="layFace" aria-pressed="false">▱ Poser sur une face</button><button id="mirrorX" data-i18n="mirrorX">Miroir X</button>
@@ -4958,7 +4981,7 @@ function openMobileMenu(kind,trigger){
  if(!isCompactEditor())return;
  if(mobileMenuActive===kind){closeMobileMenu();return}
  if(mobileMenuActive)closeMobileMenu();
- const panelKind=({measure:"edit",projects:"parts"})[kind]||kind;
+ const panelKind=kind;
  const node=document.querySelector('[data-tool-panel="'+panelKind+'"]');
  if(!node)return;
  mobileMenuReturnFocus=trigger||null;
@@ -4973,7 +4996,7 @@ function openMobileMenu(kind,trigger){
  if(button){button.setAttribute('aria-expanded','true');$('mobileMenuTitle').textContent=button.textContent}
  mobileMenuBody.scrollTop=0;
  // Place the active tool within reach when a mobile category shares a desktop panel.
- const focusTool=({measure:'#fjordMeasureWorkspace',projects:'#sceneList',freehand:'#fjordSketchCanvas'})[kind];
+ const focusTool=({measure:'#fjordMeasureWorkspace',parts:'#sceneList',freehand:'#fjordSketchCanvas'})[kind];
  if(focusTool){const target=mobileMenuBody.querySelector(focusTool);if(target){const panelRect=mobileMenuBody.getBoundingClientRect(),targetRect=target.getBoundingClientRect();mobileMenuBody.scrollTop+=targetRect.top-panelRect.top-12;}}
  $('mobileMenuClose').focus({preventScroll:true});
 }
@@ -5076,8 +5099,22 @@ function animate(){requestAnimationFrame(animate);fjordUpdateOrientationCube();i
 const categoryButtons=[...document.querySelectorAll('[data-fjord-panel]')];
 const categorySections=[...left.querySelectorAll('[data-tool-panel]')];
 function selectCategory(name){
- const target=({measure:'edit',projects:'parts'})[name]||name;
+ const target=name;
  const panel=categorySections.find(p=>p.dataset.toolPanel===target);
+ if(name==='properties'){
+  categoryButtons.forEach(b=>{const active=b.dataset.fjordPanel===name;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));});
+  categorySections.forEach(p=>p.classList.add('fjord-category-hidden'));
+  const shell=document.getElementById('fjordWorkspace');
+  shell?.classList.remove('fjord-hide-right');
+  shell?.classList.add('fjord-properties-focused');
+  const properties=document.getElementById('propertiesPanel');
+  if(properties)properties.scrollTop=0;
+  const handle=document.getElementById('fjordDrawerRight');
+  if(handle){handle.textContent='›';handle.setAttribute('aria-expanded','true');}
+  window.dispatchEvent(new Event('resize'));
+  return;
+ }
+ document.getElementById('fjordWorkspace')?.classList.remove('fjord-properties-focused');
  if(!panel)return;
  categoryButtons.forEach(b=>{
   const selected=b.dataset.fjordPanel===name;
@@ -5090,6 +5127,12 @@ function selectCategory(name){
  if(handle){handle.textContent='‹';handle.setAttribute('aria-expanded','true');}
 }
 categoryButtons.forEach(b=>b.addEventListener('click',()=>selectCategory(b.dataset.fjordPanel)));
+document.querySelectorAll('[data-fjord-project-action]').forEach(button=>
+ button.addEventListener('click',()=>{
+  const target=document.getElementById(button.dataset.fjordProjectAction);
+  if(target)target.click();
+ }));
+
 const desktopCategory=window.matchMedia('(min-width:761px)');
 const navArea=left.querySelector('.fjord-workspace-nav');
 let pinnedCategory=false;
