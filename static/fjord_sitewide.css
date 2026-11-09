@@ -194,3 +194,7 @@ body.light .fjord-gallery-linked-item,body.light .fjord-quote-gallery-ref,body.l
 body.light .fjord-gallery-linked-state,body.light .fjord-quote-gallery-ref p{color:#365e71}
 body.light .fjord-gallery-model-ready{background:#e4f8ef;color:#1a5640}
 @media(max-width:650px){.fjord-gallery-linked{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.fjord-gallery-linked-item .gallery-photo-link img{height:130px}.fjord-quote-gallery-ref{grid-template-columns:100px minmax(0,1fr);gap:11px;padding:11px}.fjord-quote-gallery-ref strong{font-size:14px}.fjord-gallery-photo-model{grid-template-columns:75px minmax(0,1fr);padding:11px;gap:10px}.fjord-gallery-photo-model>img{width:75px;height:80px}.fjord-gallery-photo-model form{grid-column:1/-1}.fjord-gallery-photo-actions{flex-direction:column;gap:7px}}
+
+/* Présentation plus concentrée du formulaire de soumission sur grand écran. */
+@media(min-width:980px){body.fjord-public main:has(.fjm-quote-form){max-width:960px}}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form{width:100%;max-width:760px!important}
