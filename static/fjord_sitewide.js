@@ -31,7 +31,8 @@
       const search=document.getElementById("fjmGallerySearch");
       const empty=document.getElementById("fjmGalleryNoMatch");
       const all=document.getElementById("fjmGalleryAll");
-      let category="";
+      const ready=document.getElementById("fjmGalleryReady");
+      let category="",readyOnly=false;
       const simplify=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr-CA");
       const categories=Array.from(new Set(cards.map(c=>c.querySelector(".fjm-project-content span")?.textContent.trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr-CA"));
       const chips=[];
@@ -40,12 +41,13 @@
         let visible=0;
         cards.forEach(c=>{
           const cat=c.querySelector(".fjm-project-content span")?.textContent.trim()||"";
-          const matches=(category===""||cat===category)&&simplify(c.dataset.search||c.textContent).includes(query);
+          const matches=(category===""||cat===category)&&(!readyOnly||c.dataset.ready==="1")&&simplify(c.dataset.search||c.textContent).includes(query);
           c.hidden=!matches;
           if(matches) visible++;
         });
         if(empty)empty.hidden=visible!==0||cards.length===0;
-        if(all)all.setAttribute("aria-pressed", String(!category));
+        if(all)all.setAttribute("aria-pressed", String(!category&&!readyOnly));
+        if(ready)ready.setAttribute("aria-pressed",String(readyOnly));
         chips.forEach(({button,name})=>button.setAttribute("aria-pressed",String(category===name)));
       };
       if (categories.length>1 && categories.length<=16) {
@@ -61,7 +63,8 @@
         });
       }
       search?.addEventListener("input",apply);
-      all?.addEventListener("click",()=>{category="";apply()});
+      all?.addEventListener("click",()=>{category="";readyOnly=false;apply()});
+      ready?.addEventListener("click",()=>{readyOnly=!readyOnly;apply()});
       apply();
     }
 
@@ -75,18 +78,24 @@
         info.id="fjordFileState";
         info.setAttribute("role","status");
         info.setAttribute("aria-live","polite");
-        info.textContent="STL ou 3MF · Maximum 8 Mo";
-        file.closest("label")?.after(info);
-        file.addEventListener("change",()=>{
-          const selected=file.files&&file.files[0];
-          if(!selected){info.textContent="STL ou 3MF · Maximum 8 Mo";info.removeAttribute("data-status");file.setCustomValidity("");return;}
-          const size=(selected.size/(1024*1024)).toLocaleString("fr-CA",{maximumFractionDigits:1});
+        const fileEnglish=()=>document.getElementById("fjord-lang")?.value==="en";
+        const updateFileState=()=>{
+          const selected=file.files&&file.files[0],english=fileEnglish();
+          if(!selected){
+            info.textContent=english?"STL or 3MF · 16 MB maximum":"STL ou 3MF · Maximum 16 Mo";
+            info.removeAttribute("data-status");file.setCustomValidity("");return;
+          }
+          const size=(selected.size/(1024*1024)).toLocaleString(english?"en-CA":"fr-CA",{maximumFractionDigits:1});
           const allowed=/\.(stl|3mf)$/i.test(selected.name);
-          const valid=allowed&&selected.size<=8*1024*1024;
-          info.textContent=valid?"✓ "+selected.name+" ("+size+" Mo)":"Fichier non accepté. Choisissez un STL ou 3MF de 8 Mo maximum.";
+          const valid=allowed&&selected.size<=16*1024*1024;
+          info.textContent=valid?"✓ "+selected.name+" ("+size+(english?" MB)":" Mo)"):(english?"File not accepted. Choose an STL or 3MF up to 16 MB.":"Fichier refusé. Choisissez un STL ou 3MF de 16 Mo maximum.");
           info.dataset.status=valid?"ready":"error";
-          file.setCustomValidity(valid?"":"Fichier invalide ou trop volumineux (maximum 8 Mo).");
-        });
+          file.setCustomValidity(valid?"":(english?"Invalid file or too large (16 MB maximum).":"Fichier invalide ou trop volumineux (maximum 16 Mo)."));
+        };
+        info.textContent="STL ou 3MF · Maximum 16 Mo";
+        file.closest("label")?.after(info);
+        file.addEventListener("change",updateFileState);
+        document.getElementById("fjord-lang")?.addEventListener("change",updateFileState);
       }
       // Instant private preview; the photo stays local until the user submits the form.
       const photo=quoteForm.querySelector('input[name="reference_photo"]');
