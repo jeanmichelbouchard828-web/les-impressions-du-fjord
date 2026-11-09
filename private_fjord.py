@@ -1956,8 +1956,16 @@ window.addEventListener('load',async()=>{
   if(typeof window.fjordImportGalleryModelFile!=='function')
     throw Error('L’éditeur ne peut pas encore importer le modèle.');
   await window.fjordImportGalleryModelFile(new File([blob],filename,{type:'application/octet-stream'}),filename);
-  status.textContent='✓ Modèle 3D importé. Vérifie les dimensions, les couleurs, les profils X2D et le tranchage avant toute impression.';
-  params.delete('galerie');params.delete('photo');params.delete('inspiration');params.delete('demande');
+  const openPrintPreparation=demande!==null&&params.get('preparer')==='1';
+  status.textContent=openPrintPreparation
+   ?'✓ Modèle chargé. Ouverture de la préparation X2D…'
+   :'✓ Modèle 3D importé. Vérifie les dimensions, les couleurs, les profils X2D et le tranchage avant toute impression.';
+  params.delete('galerie');params.delete('photo');params.delete('inspiration');params.delete('demande');params.delete('preparer');
+  if(openPrintPreparation){
+   const launch=()=>document.getElementById('fjordAutoPrintLauncher')?.click();
+   if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(launch,250));
+   else setTimeout(launch,400);
+  }
   history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:'')+location.hash);
  }catch(error){
   status.textContent='⚠ '+String(error.message||error);
