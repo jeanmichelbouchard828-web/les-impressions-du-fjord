@@ -176,8 +176,34 @@
         links[1].textContent=english?"☎ Call us":"☎ Nous appeler";
       }
     }
+    const optionTranslations={
+      "À déterminer":"Not sure yet",
+      "Pièce de remplacement":"Replacement part",
+      "Support ou accessoire":"Bracket or accessory",
+      "Cadeau personnalisé":"Custom gift",
+      "Décoration":"Decor",
+      "Autre projet":"Other project",
+      "À discuter":"To discuss",
+      "Ramassage local au Saguenay (à confirmer)":"Local pickup in Saguenay (to be confirmed)",
+      "Expédition (prix et disponibilité à confirmer)":"Shipping (price and availability to be confirmed)",
+      "Dès que possible (selon disponibilité)":"As soon as possible (subject to availability)",
+      "Dans les 2 prochaines semaines":"Within the next 2 weeks",
+      "À une date précise (indiquer en description)":"On a specific date (add details in the description)",
+      "Autre / à discuter":"Other / to discuss",
+      "Noir":"Black","Blanc":"White","Gris":"Gray","Rouge":"Red","Bleu":"Blue","Autre":"Other"
+    };
+    function translateOptions(){
+      const english=lang?.value==="en";
+      document.querySelectorAll("form select option").forEach(option=>{
+        if(!option.dataset.fjordOriginal)option.dataset.fjordOriginal=option.textContent;
+        const original=option.dataset.fjordOriginal;
+        option.textContent=english?(optionTranslations[original]||original):original;
+      });
+    }
     lang?.addEventListener("change",translateMobile);
+    lang?.addEventListener("change",translateOptions);
     translateMobile();
+    translateOptions();
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init);
   else init();
