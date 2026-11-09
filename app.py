@@ -501,7 +501,10 @@ def _fjord_error_page(code):
  elif code==413:
   title="Fichier trop volumineux"
   heading="Votre pièce jointe dépasse la limite."
-  message="La demande accepte un modèle STL/3MF de 16 Mo maximum et une photo de 4 Mo. Réduisez le fichier, puis renvoyez votre demande."
+  if request.path=="/soumission":
+   message="La demande accepte un modèle STL/3MF de 16 Mo maximum et une photo de 4 Mo. Réduisez le fichier, puis renvoyez votre demande."
+  else:
+   message="Réduisez le fichier, puis réessayez. La limite dépend de l’outil utilisé."
  elif code==429:
   title="Demande temporairement limitée"
   heading="Un instant avant de réessayer."
@@ -509,7 +512,10 @@ def _fjord_error_page(code):
  elif code==400:
   title="Vérifiez votre demande"
   heading="Un renseignement ou fichier doit être corrigé."
-  message="Vérifiez les champs et les formats de fichiers, puis renvoyez le formulaire. Si le problème continue, écrivez-nous."
+  if request.path=="/soumission":
+   message="Vérifiez les champs et les formats de fichiers, puis renvoyez le formulaire. Si le problème continue, écrivez-nous."
+  else:
+   message="La demande n’a pas pu être traitée. Vérifiez les informations, puis réessayez."
  else:
   title="Une erreur est survenue"
   heading="Un petit pépin est survenu."
