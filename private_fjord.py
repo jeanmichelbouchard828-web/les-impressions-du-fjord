@@ -1920,6 +1920,45 @@ if(fjordAutoButton){
 }
 </style>
 """
+    # The gallery supplies a private STL/3MF only after authentication.
+    # This merely imports it into the current bed; starting the X2D always
+    # requires the existing separate slicing and safety confirmation steps.
+    gallery_handoff = """<script>
+window.addEventListener('load',async()=>{
+ const params=new URLSearchParams(location.search);
+ const id=params.get('galerie'),photo=params.get('photo')||'0';
+ if(!id||!/^\\d{1,18}$/.test(id)||!/^\\d{1,18}$/.test(photo))return;
+ const status=document.createElement('div');
+ status.id='fjordGalleryImportNotice';
+ status.setAttribute('role','status');
+ status.setAttribute('aria-live','polite');
+ status.style.cssText='position:fixed;z-index:21000;bottom:15px;left:15px;right:15px;max-width:560px;margin:auto;padding:13px 18px;border-radius:12px;border:1px solid #69c9e9;background:#133a50;color:#fff;font-weight:700';
+ status.textContent='Chargement du modèle associé à la photo…';
+ document.body.append(status);
+ try{
+  const response=await fetch('/admin/gallery/model/'+id+'?photo='+photo,{
+   credentials:'same-origin',cache:'no-store',headers:{Accept:'application/octet-stream'}});
+  if(!response.ok)throw Error(response.status===404?'Aucun STL/3MF associé à cette photo.':'Accès au modèle impossible.');
+  const filename=response.headers.get('X-Fjord-Model-Name')||'creation-galerie.3mf';
+  const blob=await response.blob();
+  if(blob.size>20*1024*1024||blob.size<84)throw Error('Fichier trop volumineux ou incomplet.');
+  if(typeof window.fjordImportGalleryModelFile!=='function')
+    throw Error('L’éditeur ne peut pas encore importer le modèle.');
+  await window.fjordImportGalleryModelFile(new File([blob],filename,{type:'application/octet-stream'}),filename);
+  status.textContent='✓ Modèle de la galerie importé. Vérifie la pièce, les profils X2D et le tranchage avant toute impression.';
+  params.delete('galerie');params.delete('photo');
+  history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:'')+location.hash);
+ }catch(error){
+  status.textContent='⚠ '+String(error.message||error);
+ }
+ const close=document.createElement('button');
+ close.type='button';close.textContent='✕';close.title='Fermer';
+ close.style.cssText='float:right;margin-left:12px;padding:0 8px;background:transparent;color:inherit;border:0';
+ close.addEventListener('click',()=>status.remove());
+ status.prepend(close);
+});
+</script>"""
+    html=html.replace("</body>",gallery_handoff+"</body>",1)
     html = html.replace("</head>", styles + "</head>", 1)
     return html.replace("/* End parametric generators */", injection + "\n" + open_model + "\n" + auto_print_launcher + "\n/* End parametric generators */", 1)
 
