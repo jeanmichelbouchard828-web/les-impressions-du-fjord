@@ -93,6 +93,14 @@ body.light .fjm-ready-count{background:#e8f8ed;color:#17623b;border-color:#a6dbb
 .fjm-faq details p{margin:12px 0 0;font-size:14px}
 .fjm-final{padding:clamp(22px,4vw,46px);margin:58px 0 0;border:1px solid #3c9fc6;border-radius:23px;background:linear-gradient(115deg,#105077,#0a263d);display:flex;justify-content:space-between;align-items:center;gap:26px}
 .fjm-final h2{margin:0 0 8px;color:#f2fbff}.fjm-final p{margin:0}.fjm-final .btn{flex-shrink:0;white-space:normal;text-align:center}
+.fjord-gallery-detail-cta{display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;margin:22px 0}
+.fjord-gallery-detail-cta>.btn,.fjord-gallery-detail-cta>button{display:flex;flex:1 1 220px;min-width:min(100%,220px);min-height:54px;align-items:center;justify-content:center;text-align:center;white-space:normal;line-height:1.25}
+.fjord-gallery-detail-cta>.secondary-btn,.fjord-gallery-detail-cta>.fjord-share-project{border:1px solid #4a91b6!important;background:#163e59!important;color:#f2faff!important;font-weight:800}
+.fjord-gallery-detail-cta>.fjord-share-project{border-radius:10px;padding:13px 20px;cursor:pointer;font:inherit}
+.fjord-gallery-detail-cta>.secondary-btn:hover,.fjord-gallery-detail-cta>.fjord-share-project:hover{background:#215b7d!important}
+.fjord-gallery-detail-cta .fjord-share-result{flex-basis:100%;color:#b6f5ce;font-size:14px}
+body.light .fjord-gallery-detail-cta>.secondary-btn,body.light .fjord-gallery-detail-cta>.fjord-share-project{background:#e5f5fd!important;color:#17425b!important;border-color:#8dbed5!important}
+@media(max-width:640px){.fjord-gallery-detail-cta{display:grid;grid-template-columns:1fr;gap:9px}.fjord-gallery-detail-cta>.btn,.fjord-gallery-detail-cta>button{width:100%;min-width:0;min-height:48px;padding:12px 15px}}
 .fjm-gallery-controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px;align-items:center}
 .fjm-gallery-controls input{max-width:360px;min-width:200px;margin:0}
 .fjm-filter{min-height:42px;padding:9px 14px;border:1px solid #4285a5;border-radius:99px;background:#0e3249;color:#e8f9ff;font:inherit;font-size:14px;cursor:pointer}
