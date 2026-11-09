@@ -2457,8 +2457,13 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('pagehide',fjordFlushDraft);
 (async()=>{
  try{
+  const params=new URLSearchParams(location.search);
+  const incomingModel=['galerie','inspiration','demande'].some(key=>params.has(key));
   const draft=await fjordDraftRead();
-  if(draft&&draft.version===2&&Array.isArray(draft.beds)){
+  if(incomingModel){
+   fjordAutosaveEnabled=true;
+   fjordHideDraftNotice();
+  }else if(draft&&draft.version===2&&Array.isArray(draft.beds)){
    try{
     fjordApplyProject(draft);
     fjordHideDraftNotice();
