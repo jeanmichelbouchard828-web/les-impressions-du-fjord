@@ -136,6 +136,14 @@ body.light .fjm-hero{box-shadow:0 24px 58px #0a719a24,inset 0 1px 0 #fff!importa
 body.light .fjm-hero-proof{box-shadow:0 15px 34px #0a719a20!important}
 body.light .fjm-hero-actions .btn:first-child{background:linear-gradient(115deg,#06a6d7,#087eb2)!important;color:#fff!important;border-color:#62c8e9!important}
 @media(max-width:690px){.fjm-hero-photo-grid img{height:clamp(140px,39vw,190px)!important}.fjm-hero-actions{margin-top:19px}}
+.fjm-process-strip{display:flex;align-items:center;justify-content:center;gap:10px 16px;flex-wrap:wrap;margin:27px 0 0;padding:14px 17px;border:1px solid #2d6989;border-radius:14px;background:#0b2438;color:#e9f7ff}
+.fjm-process-label{width:100%;color:#78d9f5;font-size:10px;font-weight:900;letter-spacing:.12em;text-align:center}
+.fjm-process-strip strong{font-size:13px;line-height:1.35}.fjm-process-arrow{color:#63d5f2;font-weight:900}
+.fjm-final{margin-top:22px!important;padding:16px 21px!important;border-radius:15px!important;gap:14px!important}
+.fjm-final .fjm-kicker{display:none}.fjm-final h2{font-size:clamp(19px,2.5vw,26px)!important;margin:0!important}.fjm-final p{display:none}
+.fjm-final .btn{min-height:44px;padding:10px 16px}
+body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65}body.light .fjm-process-label{color:#087dab}
+@media(max-width:650px){.fjm-process-strip{display:grid;grid-template-columns:1fr;justify-items:start;gap:7px;margin-top:20px}.fjm-process-label{text-align:left}.fjm-process-arrow{display:none}.fjm-process-strip strong{font-size:13px}.fjm-final{display:flex!important;align-items:stretch!important;flex-direction:column!important}.fjm-final .btn{width:100%;margin:0!important}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
@@ -169,11 +177,13 @@ MARKETING_HOME_START = """<div class="fjm-home">
  {% else %}<div class="card"><h3 data-fjm-en="Printable projects coming soon">Projets avec fichier 3D à venir</h3><p data-fjm-en="You can still request a custom project.">Vous pouvez aussi demander une création sur mesure.</p><a class="btn" href="/soumission" data-fjm-en="Request a quote">Demander une soumission</a></div>{% endfor %}
  </div></div><div class="fjm-section-actions"><a class="btn fjm-outline" href="/galerie" data-fjm-en="See the full gallery">Voir toute la galerie</a></div>
 </section>
-<section class="fjm-section" id="fonctionnement">
- <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Simple as 1, 2, 3">Simple comme 1, 2, 3</span><h2 data-fjm-en="How to place an order">Comment commander?</h2></div>
- <div class="fjm-steps"><article class="fjm-step"><span class="fjm-step-number">01</span><h3 data-fjm-en="Tell us your idea">Décrivez votre idée</h3><p data-fjm-en="Send us your needs, a picture, or your STL/3MF model through our quote form.">Envoyez vos besoins et, si vous en avez un, votre fichier STL/3MF avec le formulaire.</p></article>
- <article class="fjm-step"><span class="fjm-step-number">02</span><h3 data-fjm-en="Get a quote">Recevez une soumission</h3><p data-fjm-en="We discuss materials, finish, pricing and available options before any commitment.">On discute du matériau, de la finition, du prix et des options avant tout engagement.</p></article>
- <article class="fjm-step"><span class="fjm-step-number">03</span><h3 data-fjm-en="We make your part">On fabrique votre projet</h3><p data-fjm-en="Once approved, your project moves into production. You can follow its progress online.">Après votre approbation, votre projet passe en fabrication. Vous pouvez suivre son avancement en ligne.</p></article></div>
+<section class="fjm-process-strip" id="fonctionnement" aria-label="Comment commander">
+ <span class="fjm-process-label" data-fjm-en="Simple ordering">SIMPLE ET RAPIDE</span>
+ <strong data-fjm-en="1. Choose a model or describe your idea">1. Choisissez un modèle ou décrivez votre idée</strong>
+ <span class="fjm-process-arrow" aria-hidden="true">→</span>
+ <strong data-fjm-en="2. Get a free quote">2. Recevez une soumission gratuite</strong>
+ <span class="fjm-process-arrow" aria-hidden="true">→</span>
+ <strong data-fjm-en="3. We print after your approval">3. Nous imprimons après votre approbation</strong>
 </section>
 """
 
