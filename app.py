@@ -1479,7 +1479,7 @@ def submission(kind):
               gallery_photo_id=chosen_photo_id,gallery_photo_url=chosen_photo_url,
               makerworld_selected=makerworld_selected,
               inspiration_selected=inspiration_selected,inspiration_index=inspiration_index,
-              inspiration_has_model=inspiration_has_model,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,project_types=PROJECT_TYPES,remise_options=REMISE_OPTIONS,delai_options=DELAI_OPTIONS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=prefill
+              inspiration_has_model=inspiration_has_model,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,project_types=PROJECT_TYPES,remise_options=REMISE_OPTIONS,delai_options=DELAI_OPTIONS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=prefill)
  verify()
  name=request.form.get("name","").strip();email=request.form.get("email","").strip().lower();description=request.form.get("description","").strip();phone=request.form.get("phone","").strip()[:40]
  if not name or len(name)>120 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",email) or len(email)>200 or not description or len(description)>5000:abort(400)
