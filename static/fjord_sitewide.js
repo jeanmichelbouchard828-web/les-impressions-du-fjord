@@ -32,7 +32,7 @@
       const empty=document.getElementById("fjmGalleryNoMatch");
       const all=document.getElementById("fjmGalleryAll");
       const ready=document.getElementById("fjmGalleryReady");
-      let category="",readyOnly=false;
+      let category="",readyOnly=new URLSearchParams(window.location.search).get("prets")==="1";
       const simplify=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr-CA");
       const categories=Array.from(new Set(cards.map(c=>c.querySelector(".fjm-project-content span")?.textContent.trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr-CA"));
       const chips=[];
@@ -63,8 +63,13 @@
         });
       }
       search?.addEventListener("input",apply);
-      all?.addEventListener("click",()=>{category="";readyOnly=false;apply()});
-      ready?.addEventListener("click",()=>{readyOnly=!readyOnly;apply()});
+      const syncReadyUrl=enabled=>{
+        const url=new URL(window.location.href);
+        if(enabled)url.searchParams.set("prets","1");else url.searchParams.delete("prets");
+        window.history.replaceState({}, "", url);
+      };
+      all?.addEventListener("click",()=>{category="";readyOnly=false;syncReadyUrl(false);apply()});
+      ready?.addEventListener("click",()=>{readyOnly=!readyOnly;syncReadyUrl(readyOnly);apply()});
       apply();
     }
 
