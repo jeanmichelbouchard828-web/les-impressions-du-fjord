@@ -3,13 +3,14 @@ MARKETING_CSS = r"""<style>
 /* Vitrine : lisibilite, confiance et conversion, sans bibliotheques externes. */
 .fjm-home{overflow:clip;display:flex;flex-direction:column}
 .fjm-home>.fjm-hero{order:0}
-.fjm-home>#realisations{order:1}
-.fjm-home>#services{order:2}
-.fjm-home>.fji-section{order:3}
-.fjm-home>#fonctionnement{order:4}
-.fjm-home>#questions{order:5}
-.fjm-home>.fjord-board{order:6}
-.fjm-home>.fjm-final{order:7}
+.fjm-home>#atelier{order:1}
+.fjm-home>#realisations{order:2}
+.fjm-home>#services{order:3}
+.fjm-home>.fji-section{order:4}
+.fjm-home>#fonctionnement{order:5}
+.fjm-home>#questions{order:6}
+.fjm-home>.fjord-board{order:7}
+.fjm-home>.fjm-final{order:8}
 .fjm-hero{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(245px,.65fr);align-items:center;gap:clamp(22px,4vw,60px);padding:clamp(27px,5vw,66px)!important;margin-bottom:16px;min-height:430px;background:radial-gradient(circle at 80% 18%,#1579ab75,transparent 41%),linear-gradient(120deg,#0d304e,#071a30 70%)!important;border:1px solid #368bb5;border-radius:24px;box-shadow:0 20px 55px #0004}
 .fjm-kicker{display:block;font-weight:850;letter-spacing:.13em;text-transform:uppercase;color:#80e2ff;font-size:12px}
 .fjm-hero h1{font-size:clamp(36px,5.5vw,70px)!important;line-height:1.04!important;letter-spacing:-.055em;margin:16px 0 18px;max-width:930px}
@@ -38,6 +39,28 @@ body.light .fjm-proof-eyebrow{color:#087fa9!important}
 @media(max-width:1050px){.fjm-hero-photo-grid img{height:clamp(150px,28vw,240px)!important}}
 @media(max-width:690px){.fjm-hero-photo-grid{grid-template-columns:1.1fr .9fr;gap:7px}.fjm-hero-photo-grid img{height:clamp(130px,42vw,190px)!important}.fjm-hero-proof{padding:12px!important}}
 .fjm-section{margin:clamp(26px,4vw,52px) 0}
+.fjm-home>#atelier{margin:0 0 28px;order:1}
+.fjm-atelier{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr) auto;align-items:center;gap:20px;padding:22px 25px;border:1px solid #46bfe6;border-radius:20px;overflow:hidden;background:radial-gradient(circle at 8% 50%,#0f9bc54a,transparent 32%),linear-gradient(110deg,#103b57,#0a2238 72%);box-shadow:0 16px 38px #00132155}
+.fjm-atelier-mark{display:grid;place-items:center;width:68px;height:68px;border:1px solid #65d5f3;border-radius:19px;background:linear-gradient(145deg,#167aa0,#0b3b59);font-size:34px;box-shadow:0 0 28px #21b8e533}
+.fjm-atelier-copy{min-width:0}
+.fjm-atelier-copy .fjm-kicker{font-size:10px}
+.fjm-atelier-copy h2{margin:5px 0 5px;color:#f0fbff;font-size:clamp(19px,2.5vw,27px);line-height:1.2}
+.fjm-atelier-copy p{margin:0;color:#c7e2ee;font-size:14px;line-height:1.5;max-width:66ch}
+.fjm-atelier-actions{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:13px}
+.fjm-atelier-actions .btn{min-height:43px;padding:10px 16px;background:linear-gradient(110deg,#7be8ff,#26bbe7)!important;border:1px solid #a0efff!important;color:#05283a!important;font-size:14px;font-weight:900}
+.fjm-atelier-secondary{font-size:13px;font-weight:800;color:#d8f5ff;text-underline-offset:4px}
+.fjm-atelier-note{display:grid;gap:4px;min-width:126px;padding:13px 15px;border:1px solid #347b9a;border-radius:13px;background:#071d2d99;color:#e8f8ff}
+.fjm-atelier-note strong{font-size:12px}
+.fjm-atelier-note span{font-size:11px;color:#9dd8ed}
+body.light .fjm-atelier{background:linear-gradient(110deg,#e4f7ff,#c9ebfa);border-color:#73c4e2;box-shadow:0 14px 32px #0b719a18}
+body.light .fjm-atelier-copy h2{color:#153d53}
+body.light .fjm-atelier-copy p,body.light .fjm-atelier-secondary{color:#315e74}
+body.light .fjm-atelier-mark{background:linear-gradient(145deg,#b8eaff,#e8f8ff);border-color:#93cce3}
+body.light .fjm-atelier-note{background:#f7fcff;border-color:#b2d9e9;color:#174861}
+body.light .fjm-atelier-note span{color:#3a7087}
+@media(max-width:760px){.fjm-home>#atelier{margin-bottom:20px}.fjm-atelier{grid-template-columns:54px minmax(0,1fr);gap:13px;padding:17px;border-radius:16px}.fjm-atelier-mark{width:52px;height:52px;border-radius:14px;font-size:27px}.fjm-atelier-note{grid-column:2;display:flex;align-items:center;gap:8px;min-width:0;width:fit-content;padding:7px 10px}.fjm-atelier-note strong{font-size:11px}.fjm-atelier-note span{font-size:11px}}
+@media(max-width:460px){.fjm-atelier{grid-template-columns:1fr;gap:10px}.fjm-atelier-mark{width:46px;height:46px;font-size:24px}.fjm-atelier-note{grid-column:1}.fjm-atelier-actions{display:grid;grid-template-columns:1fr}.fjm-atelier-actions .btn{text-align:center}.fjm-atelier-secondary{text-align:center}}
+
 .fjm-heading{max-width:800px;margin-bottom:23px}
 .fjm-heading h2{margin:8px 0 10px;font-size:clamp(27px,3.5vw,40px)}
 .fjm-heading p{margin:0}
@@ -192,6 +215,16 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <h2 data-fjm-en="See what your idea can become">Une vraie pièce. Faite ici.</h2>
   <p data-fjm-en="No 3D file? A photo, sketch, or simple description is enough to start.">Un projet concret, une fabrication locale et un service personnalisé.</p>
  </aside>
+</section>
+<section class="fjm-atelier" id="atelier" aria-labelledby="fjm-atelier-title">
+ <div class="fjm-atelier-mark" aria-hidden="true">🧊</div>
+ <div class="fjm-atelier-copy">
+  <span class="fjm-kicker" data-fjm-en="YOUR 3D WORKSHOP, ONLINE">VOTRE ATELIER 3D, EN LIGNE</span>
+  <h2 id="fjm-atelier-title" data-fjm-en="See your model take shape">Visualisez votre pièce avant sa fabrication</h2>
+  <p data-fjm-en="Open the 3D workshop to import an STL or 3MF, inspect your model and explore its production settings before requesting a quote.">Ouvrez l’Atelier 3D pour importer un STL ou 3MF, examiner votre modèle et explorer ses réglages avant de demander une soumission.</p>
+  <div class="fjm-atelier-actions"><a class="btn" href="/atelier-3d" data-fjm-en="Open the 3D workshop">🧊 Ouvrir l’Atelier 3D</a><a class="fjm-atelier-secondary" href="/soumission" data-fjm-en="I need help with my project">Je veux de l’aide pour mon projet</a></div>
+ </div>
+ <div class="fjm-atelier-note"><strong data-fjm-en="Have a 3D file?">Vous avez un fichier 3D?</strong><span>STL · 3MF</span></div>
 </section>
 <section class="fjm-section" id="realisations">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Ready for production">Prêts à produire</span><h2 data-fjm-en="Browse projects with an available 3D model">Choisissez un projet avec son fichier 3D disponible</h2><p data-fjm-en="Only projects with an associated STL or 3MF are shown here. The file follows your quote request automatically.">Seuls les projets avec un STL ou 3MF associé apparaissent ici. Le fichier suit automatiquement votre demande de soumission.</p></div>
