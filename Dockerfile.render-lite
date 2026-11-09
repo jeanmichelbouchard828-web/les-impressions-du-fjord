@@ -12,6 +12,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py atelier3d.html ./
+# Fifty verified Wikimedia Commons inspiration photos, with authors and licensing.
+COPY fjord_inspirations_manifest.json ./
 COPY static ./static
 # Run a single Gunicorn worker to cap memory use. Actual 3D slicing must
 # be handled by a separate authorized worker, not faked on the web host.
