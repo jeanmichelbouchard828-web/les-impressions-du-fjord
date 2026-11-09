@@ -3172,6 +3172,9 @@ $('projectFile').addEventListener('change',async e=>{
  }catch(error){fjordReportImportError(f.name,error)}
  finally{buttons.forEach(b=>b.disabled=false)}
 });
+// Only the authenticated owner can obtain linked gallery models. The
+// shared importer never launches a print or deletes existing objects.
+window.fjordImportGalleryModelFile=async (file,label)=>importModelFile(file,label);
 // Shared importer for local files AND private library downloads.
 // Imports never erase parts already on the bed. "Ouvrir projet" remains a deliberate replace.
 function fjordReportImportError(context,error){
