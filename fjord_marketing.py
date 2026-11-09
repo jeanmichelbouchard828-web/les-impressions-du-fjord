@@ -75,6 +75,23 @@ body.light .fjm-final{background:linear-gradient(110deg,#dbf2ff,#b3e4fb)}
 @media(max-width:690px){.fjm-hero{padding:25px 18px!important;min-height:0}.fjm-hero h1{font-size:clamp(35px,9vw,53px)!important}.fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-hero-actions a{width:100%}.fjm-hero-panel{padding:16px}.fjm-steps,.fjm-gallery{grid-template-columns:1fr 1fr}.fjm-project img,.fjm-project .fjm-project-noimage{height:155px}.fjm-faq{grid-template-columns:1fr}.fjm-final{display:block}.fjm-final .btn{margin-top:18px;width:100%}}
 @media(max-width:460px){.fjm-services,.fjm-steps,.fjm-gallery{grid-template-columns:1fr}.fjm-project img,.fjm-project .fjm-project-noimage{height:230px}.fjm-service{padding:19px}.fjm-hero-panel{grid-template-columns:65px 1fr}.fjm-hero-panel img{width:60px;height:60px}.fjm-gallery-controls input{width:100%;max-width:100%;min-width:0}}
 @media(prefers-reduced-motion:reduce){.fjm-project{transition:none}}
+
+/* Real workshop pieces are presented as a touch-friendly sales carousel. */
+.fjm-showcase{position:relative}
+.fjm-showcase-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0 0 12px}
+.fjm-showcase-toolbar button{min-width:42px;min-height:42px;border:1px solid #66b4d5;border-radius:11px;background:#123b56;color:#f2fbff;font:inherit;font-size:22px;font-weight:800;cursor:pointer}
+.fjm-showcase-toolbar button:hover:not(:disabled){background:#17668a}
+.fjm-showcase-toolbar button:disabled{opacity:.45;cursor:not-allowed}
+.fjm-showcase-toolbar button:focus-visible,.fjm-featured-track:focus-visible{outline:3px solid #a5efff;outline-offset:3px}
+#fjmFeaturedCounter{min-width:70px;text-align:center;color:#d8edf7;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.fjm-home .fjm-featured-track{display:flex;gap:15px;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x mandatory;scroll-padding:2px;scrollbar-width:thin;padding:2px 2px 13px;scroll-behavior:smooth}
+.fjm-home .fjm-featured-track .fjm-project{flex:0 0 calc((100% - 30px)/3);scroll-snap-align:start;scroll-snap-stop:always}
+.fjm-home .fjm-featured-track .fjm-project[hidden]{display:none!important}
+body.light .fjm-showcase-toolbar button{background:#fff;color:#174963;border-color:#a3cbdf}
+body.light #fjmFeaturedCounter{color:#28556e}
+@media(max-width:1000px){.fjm-home .fjm-featured-track .fjm-project{flex-basis:calc((100% - 15px)/2)}}
+@media(max-width:650px){.fjm-showcase-toolbar{justify-content:center}.fjm-home .fjm-featured-track .fjm-project{flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.fjm-home .fjm-featured-track{scroll-behavior:auto!important}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
@@ -105,10 +122,11 @@ MARKETING_HOME_START = """<div class="fjm-home">
 </section>
 <section class="fjm-section" id="realisations">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="From our workshop">Directement de notre atelier</span><h2 data-fjm-en="Discover our latest projects">Découvrez nos dernières réalisations</h2><p data-fjm-en="Real work from our gallery, not stock images.">Des projets provenant de notre véritable galerie, pas des images génériques.</p></div>
- <div class="fjm-gallery">
+ <div class="fjm-showcase-toolbar" aria-label="Commandes du diaporama des réalisations"><button type="button" id="fjmFeaturedPrev" aria-label="Réalisations précédentes">‹</button><span id="fjmFeaturedCounter" aria-live="off">1–3</span><button type="button" id="fjmFeaturedNext" aria-label="Réalisations suivantes">›</button><button type="button" id="fjmFeaturedPause" aria-label="Mettre le diaporama en pause" aria-pressed="false">Ⅱ</button></div>
+ <div class="fjm-showcase"><div class="fjm-gallery fjm-featured-track" id="fjmFeaturedTrack" tabindex="0" role="region" aria-roledescription="carrousel" aria-label="Réalisations récentes">
  {% for item in featured %}<a class="fjm-project" href="/galerie/{{item.id}}" aria-label="Voir {{item.title}}">{% if item.has_photo %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250">{% else %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fjm-project-noimage',textContent:'🧩'}))">{% endif %}<div class="fjm-project-content"><span>{{item.category}}</span><strong>{{item.title}}</strong><small data-fjm-en="See this project →">Voir cette réalisation →</small></div></a>
  {% else %}<div class="card"><h3 data-fjm-en="Projects coming soon">Nos créations arrivent bientôt</h3><p data-fjm-en="In the meantime, tell us about your project.">En attendant, parlez-nous de votre projet.</p><a class="btn" href="/soumission" data-fjm-en="Request a quote">Demander une soumission</a></div>{% endfor %}
- </div><div class="fjm-section-actions"><a class="btn fjm-outline" href="/galerie" data-fjm-en="See the full gallery">Voir toute la galerie</a></div>
+ </div></div><div class="fjm-section-actions"><a class="btn fjm-outline" href="/galerie" data-fjm-en="See the full gallery">Voir toute la galerie</a></div>
 </section>
 <section class="fjm-section" id="questions">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Good to know">Bon à savoir</span><h2 data-fjm-en="Frequently asked questions">Questions fréquentes</h2></div>
@@ -130,4 +148,56 @@ MARKETING_GALLERY = """<section class="fjm-section" style="margin-top:0"><div cl
 
 MARKETING_FORM_HELP = """<div class="fjm-quote-helper"><strong data-fjm-en="A clear quote with no obligation">Une soumission claire, sans obligation d'achat</strong><p data-fjm-en="To help us evaluate your project, please include:">Pour bien évaluer votre projet, indiquez idéalement :</p><ul><li data-fjm-en="The part's intended use and approximate size">L'utilisation de la pièce et ses dimensions approximatives</li><li data-fjm-en="Desired quantity and preferred colour/material">La quantité, la couleur et le matériau souhaités</li><li data-fjm-en="A photo, sketch or STL/3MF model, if available">Une photo ou un croquis, ou un fichier STL/3MF si vous en avez un</li></ul></div>"""
 
-MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelectorAll('[data-fjm-en]')];if(!nodes.length)return;for(const n of nodes)n.dataset.fjmFr=n.textContent;function apply(){let lang='fr';try{lang=localStorage.getItem('fjord-lang')==='en'?'en':'fr'}catch(e){}for(const n of nodes)n.textContent=lang==='en'?n.dataset.fjmEn:n.dataset.fjmFr;const search=document.getElementById('fjmGallerySearch');if(search)search.placeholder=lang==='en'?'Search projects…':'Rechercher une création…';}const sel=document.getElementById('fjord-lang');if(sel)sel.addEventListener('change',()=>setTimeout(apply,0));apply();})();</script>"""
+MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelectorAll('[data-fjm-en]')];if(!nodes.length)return;for(const n of nodes)n.dataset.fjmFr=n.textContent;function apply(){let lang='fr';try{lang=localStorage.getItem('fjord-lang')==='en'?'en':'fr'}catch(e){}for(const n of nodes)n.textContent=lang==='en'?n.dataset.fjmEn:n.dataset.fjmFr;const search=document.getElementById('fjmGallerySearch');if(search)search.placeholder=lang==='en'?'Search projects…':'Rechercher une création…';}const sel=document.getElementById('fjord-lang');if(sel)sel.addEventListener('change',()=>setTimeout(apply,0));apply();
+ /* Carousel of real Fjord work: automatically advances only while visible,
+    and pauses for reduced motion, pointer use, or keyboard focus. */
+ const track=document.getElementById('fjmFeaturedTrack');
+ if(track){
+  const cards=[...track.querySelectorAll('.fjm-project')];
+  const previous=document.getElementById('fjmFeaturedPrev');
+  const next=document.getElementById('fjmFeaturedNext');
+  const pause=document.getElementById('fjmFeaturedPause');
+  const counter=document.getElementById('fjmFeaturedCounter');
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  let userPaused=reduced.matches,hovered=false,focused=false,inView=false,manualUntil=0,timer=0;
+  const perPage=()=>window.matchMedia('(max-width:650px)').matches?1:
+   window.matchMedia('(max-width:1000px)').matches?2:3;
+  const cardStep=()=>{const card=cards[0];return card?card.getBoundingClientRect().width+(parseFloat(getComputedStyle(track).gap)||0):1};
+  const maxStart=()=>Math.max(0,cards.length-perPage());
+  const startIndex=()=>Math.max(0,Math.min(maxStart(),Math.round(track.scrollLeft/Math.max(cardStep(),1))));
+  function sync(){
+   const start=startIndex(),size=perPage(),first=cards.length?start+1:0,last=Math.min(cards.length,start+size);
+   if(counter)counter.textContent=cards.length?first+'–'+last+' / '+cards.length:'0 / 0';
+   if(previous)previous.disabled=start===0;
+   if(next)next.disabled=start>=maxStart();
+   if(pause){pause.textContent=userPaused?'▶':'Ⅱ';pause.setAttribute('aria-pressed',String(userPaused));pause.setAttribute('aria-label',userPaused?'Reprendre le diaporama':'Mettre le diaporama en pause');}
+  }
+  function go(delta,manual=false){
+   if(!cards.length)return;
+   if(manual)manualUntil=Date.now()+12000;
+   const current=startIndex(),size=perPage();
+   const target=delta>0?(current>=maxStart()?0:Math.min(maxStart(),current+size)):Math.max(0,current-size);
+   track.scrollTo({left:target*cardStep(),behavior:reduced.matches?'instant':'smooth'});
+   requestAnimationFrame(sync);
+  }
+  previous?.addEventListener('click',()=>go(-1,true));
+  next?.addEventListener('click',()=>go(1,true));
+  pause?.addEventListener('click',()=>{userPaused=!userPaused;sync();});
+  track.addEventListener('scroll',sync,{passive:true});
+  track.addEventListener('pointerdown',()=>{manualUntil=Date.now()+12000;},{passive:true});
+  track.addEventListener('keydown',event=>{
+   if(event.target.closest('a,button,input,select,textarea'))return;
+   if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();go(event.key==='ArrowRight'?1:-1,true);}
+  });
+  track.addEventListener('mouseenter',()=>{hovered=true;});
+  track.addEventListener('mouseleave',()=>{hovered=false;});
+  track.addEventListener('focusin',()=>{focused=true;});
+  track.addEventListener('focusout',()=>{focused=track.contains(document.activeElement);});
+  reduced.addEventListener('change',event=>{userPaused=event.matches;sync();});
+  window.addEventListener('resize',sync,{passive:true});
+  if('IntersectionObserver' in window){new IntersectionObserver(entries=>{inView=entries.some(entry=>entry.isIntersecting);},{threshold:.12}).observe(track);}else{inView=true;}
+  timer=window.setInterval(()=>{if(inView&&!userPaused&&!hovered&&!focused&&!document.hidden&&Date.now()>=manualUntil)go(1);},7000);
+  window.addEventListener('pagehide',()=>window.clearInterval(timer),{once:true});
+  sync();
+ }
+})();</script>"""
