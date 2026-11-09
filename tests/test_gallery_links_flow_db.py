@@ -90,8 +90,12 @@ class GalleryModelTests(TestCase):
                  (gallery,jpeg((100,120,20)),"image/jpeg")).fetchone()["id"]
         page=self.get(f"/galerie/{gallery}")
         self.assertEqual(page.status_code,200)
-        self.assertRegex(page.get_data(as_text=True),r'/soumission\\?galerie='+str(gallery)+r'(?:&amp;|&#34;|&|&#38;)photo='+str(first))
-        self.assertRegex(page.get_data(as_text=True),r'/soumission\\?galerie='+str(gallery)+r'(?:&amp;|&#34;|&|&#38;)photo='+str(second))
+        self.assertIn(f"/soumission?galerie={gallery}&photo={first}",
+                      [__import__('html').unescape(link) for link in
+                       re.findall(r'href="([^"]+)"',page.get_data(as_text=True))])
+        self.assertIn(f"/soumission?galerie={gallery}&photo={second}",
+                      [__import__('html').unescape(link) for link in
+                       re.findall(r'href="([^"]+)"',page.get_data(as_text=True))])
         self.assertNotIn("piece-unique.stl",page.get_data(as_text=True))
         view=self.get(f"/soumission?galerie={gallery}&photo={first}")
         self.assertEqual(view.status_code,200)
@@ -146,6 +150,60 @@ class GalleryModelTests(TestCase):
         self.assertEqual(editor.status_code,200)
         self.assertIn("fjordImportGalleryModelFile",editor.get_data(as_text=True))
         self.assertIn("'/admin/gallery/model/'",editor.get_data(as_text=True))
+
+    def test_one_upload_links_named_3mf_to_correct_photo_and_library_file(self):
+        self.owner()
+        manual=stl()
+        with db() as conn:
+            conn.execute("""INSERT INTO private_models(name,filename,filedata)
+                VALUES(%s,%s,%s)""",("Support manette","support_manette.stl",manual))
+        page=self.get("/admin/new")
+        self.assertEqual(page.status_code,200)
+        self.assertIn('name="models"',page.get_data(as_text=True))
+        body={
+            "csrf":get_csrf(page.get_data(as_text=True)),
+            "title":"Supports pour atelier",
+            "category":"Accessoires",
+            "description":"Support 3D avec les photos exactes",
+            "photos":[
+                (io.BytesIO(jpeg((20,30,100))),"Support manette photo 1.jpg"),
+                (io.BytesIO(jpeg((120,30,70))),"boitier-axe-photo-2.jpg"),
+                (io.BytesIO(jpeg((90,40,50))),"inconnu.jpg")
+            ],
+            "models":[(io.BytesIO(zip3mf()),"boitier_axe.3mf")]
+        }
+        response=self.post("/admin/new",body)
+        self.assertEqual(response.status_code,302,response.get_data(as_text=True)[:350])
+        gid=int(response.location.rsplit("/",1)[-1])
+        with db() as conn:
+            photos=conn.execute("""SELECT original_filename,model_filename,model_data
+                       FROM gallery_photos WHERE gallery_id=%s ORDER BY id""",(gid,)).fetchall()
+        self.assertEqual(len(photos),3)
+        self.assertEqual(photos[0]["model_filename"],"support_manette.stl")
+        self.assertEqual(photos[0]["model_data"],manual)
+        self.assertEqual(photos[1]["model_filename"],"boitier_axe.3mf")
+        self.assertEqual(photos[1]["model_data"],zip3mf())
+        self.assertIsNone(photos[2]["model_data"])
+
+    def test_auto_pair_existing_images_only_when_unique_filename(self):
+        self.owner()
+        with db() as conn:
+            gid=conn.execute("""INSERT INTO gallery(title,category,description)
+                VALUES('Auto test','Utilitaire','Double vérification') RETURNING id""").fetchone()["id"]
+            pid=conn.execute("""INSERT INTO gallery_photos(gallery_id,photo,mime,original_filename)
+                VALUES(%s,%s,'image/jpeg','unique-support_photo_1.jpg')
+                RETURNING id""",(gid,jpeg())).fetchone()["id"]
+            conn.execute("""INSERT INTO private_models(name,filename,filedata)
+                VALUES('Unique support','unique-support.stl',%s)""",(stl(),))
+        page=self.get(f"/admin/edit/{gid}")
+        response=self.post(f"/admin/galerie/{gid}/associer-automatiquement",{
+            "csrf":get_csrf(page.get_data(as_text=True))
+        })
+        self.assertEqual(response.status_code,302)
+        with db() as conn:
+            row=conn.execute("SELECT model_filename,model_data FROM gallery_photos WHERE id=%s",(pid,)).fetchone()
+        self.assertEqual(row["model_filename"],"unique-support.stl")
+        self.assertEqual(row["model_data"],stl())
 
     def test_invalid_cross_gallery_photo_is_refused(self):
         with db() as c:
