@@ -1,7 +1,15 @@
 """Vitrine commerciale Les Impressions du Fjord, sans modifier le flux des commandes."""
 MARKETING_CSS = r"""<style>
 /* Vitrine : lisibilite, confiance et conversion, sans bibliotheques externes. */
-.fjm-home{overflow:clip}
+.fjm-home{overflow:clip;display:flex;flex-direction:column}
+.fjm-home>.fjm-hero{order:0}
+.fjm-home>#realisations{order:1}
+.fjm-home>#services{order:2}
+.fjm-home>.fji-section{order:3}
+.fjm-home>#fonctionnement{order:4}
+.fjm-home>#questions{order:5}
+.fjm-home>.fjord-board{order:6}
+.fjm-home>.fjm-final{order:7}
 .fjm-hero{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(245px,.65fr);align-items:center;gap:clamp(22px,4vw,60px);padding:clamp(27px,5vw,66px)!important;margin-bottom:16px;min-height:430px;background:radial-gradient(circle at 80% 18%,#1579ab75,transparent 41%),linear-gradient(120deg,#0d304e,#071a30 70%)!important;border:1px solid #368bb5;border-radius:24px;box-shadow:0 20px 55px #0004}
 .fjm-kicker{display:block;font-weight:850;letter-spacing:.13em;text-transform:uppercase;color:#80e2ff;font-size:12px}
 .fjm-hero h1{font-size:clamp(36px,5.5vw,70px)!important;line-height:1.04!important;letter-spacing:-.055em;margin:16px 0 18px;max-width:930px}
@@ -123,7 +131,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">🧰</span><h3 data-fjm-en="Useful custom parts">Pièces pratiques sur mesure</h3><p data-fjm-en="Brackets, adapters, organizers and hard-to-find parts, designed around your needs.">Supports, adaptateurs, rangements et pièces difficiles à trouver, adaptés à vos besoins.</p><a href="/soumission" data-fjm-en="Request a price">Demander un prix</a></article>
   <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">🎁</span><h3 data-fjm-en="Gifts and personalization">Cadeaux et personnalisation</h3><p data-fjm-en="Personalized creations, decorative pieces and unique objects for every occasion.">Créations personnalisées, décorations et objets uniques pour toutes les occasions.</p><a href="/galerie" data-fjm-en="Browse ideas">Voir des idées</a></article>
   <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">⚙️</span><h3 data-fjm-en="Prototyping">Prototypage</h3><p data-fjm-en="Visualize, test and refine an idea with a tangible physical part.">Visualisez, testez et améliorez une idée avec une pièce physique.</p><a href="/soumission" data-fjm-en="Discuss my project">Parler de mon projet</a></article>
-  <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">🎨</span><h3 data-fjm-en="Interactive 3D Studio">Atelier 3D interactif</h3><p data-fjm-en="Import an STL or 3MF file or explore the online modeling tools.">Importez un fichier STL ou 3MF et explorez nos outils de création en ligne.</p><a href="/atelier-3d" data-fjm-en="Open the Studio">Ouvrir l'Atelier</a></article>
+
  </div>
 </section>
 <section class="fjm-section" id="fonctionnement">
