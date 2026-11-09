@@ -297,6 +297,32 @@ body.light .fjm-nextsteps ol{color:#31586d}
  .fjm-filter{min-height:46px;padding:8px 10px;font-size:13px}
  .fjm-project-actions a{flex-basis:100%;min-height:46px}
 }
+/* Mobile storefront: lead with a real printed part, then a short path to order. */
+@media(max-width:640px){
+ .fjm-home .fjm-hero{display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:18px 16px 17px!important;margin:0 -1px 14px;border-radius:20px;background:radial-gradient(ellipse at 82% 0%,#126f9b88,transparent 52%),linear-gradient(155deg,#0d304b,#071a2c 72%)!important;border-color:#45c8ef!important;box-shadow:0 16px 42px #00111f77!important}
+ .fjm-home .fjm-hero>div{display:contents}
+ .fjm-home .fjm-hero .fjm-kicker{grid-row:1;font-size:10px;letter-spacing:.12em}
+ .fjm-home .fjm-hero h1{grid-row:2;max-width:12ch;margin:9px 0 13px;font-size:clamp(39px,11vw,49px)!important;line-height:.99;letter-spacing:-.055em}
+ .fjm-home .fjm-hero-proof{display:block!important;grid-row:3;margin:0 0 14px;padding:8px!important;border-radius:15px;background:#061727!important}
+ .fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important;grid-template-rows:190px!important;grid-auto-rows:190px!important;height:190px!important;overflow:hidden;border-radius:11px}
+ .fjm-home .fjm-hero-photo-grid>a{grid-column:1;grid-row:1;width:100%;height:190px!important;min-height:190px!important}
+ .fjm-home .fjm-hero-photo-grid>a:nth-child(n+2){display:none}
+ .fjm-home .fjm-hero-photo-grid img{width:100%;height:190px!important;min-height:190px!important;object-fit:cover}
+ .fjm-home .fjm-proof-eyebrow{margin:9px 3px 2px!important;font-size:9px!important}
+ .fjm-home .fjm-hero-proof h2{margin:3px!important;font-size:17px!important}
+ .fjm-home .fjm-hero-proof>p:last-child{display:none}
+ .fjm-home .fjm-hero-lead{grid-row:4;margin:0 0 12px;font-size:15px;line-height:1.48;color:#d9edf7}
+ .fjm-home .fjm-hero-actions{grid-row:5;display:grid;grid-template-columns:1fr;gap:8px;margin:0}
+ .fjm-home .fjm-hero-actions .btn{width:100%;min-height:48px;padding:11px 13px;white-space:normal;text-align:center;font-size:14px}
+ .fjm-home .fjm-hero-sub{grid-row:6;margin:10px 0 0;font-size:12px;line-height:1.45;color:#b7d8e9}
+ .fjm-home .fjm-points{display:none}
+ .fjm-home #atelier{margin-top:15px}
+ .fjm-home .fjm-atelier{padding:15px;border-radius:17px}
+ .fjm-home #services{margin-top:25px}
+ .fjm-home .fjm-heading{margin-bottom:13px}
+ .fjm-home .fjm-offer{padding:16px;border-radius:15px}
+ .fjm-home #realisations{margin-top:25px}
+}
 @media(prefers-reduced-motion:reduce){.fjm-project,.fjm-project img,.fjm-quote-form .fjm-form-submit{transition:none!important}}
 </style>"""
 
