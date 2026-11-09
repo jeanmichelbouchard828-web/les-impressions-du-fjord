@@ -1,0 +1,24 @@
+name: Fjord Studio sidebar navigation browser checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [migration/render-fjord-20261104]
+    paths:
+      - tests/verify_fjord_atelier_panels.py
+      - .github/workflows/fjord-atelier-panels.yml
+jobs:
+  sidebar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install playwright==1.58.0
+          python -m playwright install --with-deps chromium
+      - name: Validate editor navigation on desktop and mobile
+        env:
+          FJORD_TEST_BASE: https://fjord-render-apercu-20261104.onrender.com
+        run: python tests/verify_fjord_atelier_panels.py
