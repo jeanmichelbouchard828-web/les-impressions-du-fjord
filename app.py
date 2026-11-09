@@ -1288,7 +1288,7 @@ def gallery_item(id):
   "url":origin+"/galerie/"+str(id),
   "image":[origin+u for u in urls[:15]] if urls else [origin+"/identite/logo"]}
  return page(item["title"],'''<div class="gallery-detail"><a href="/galerie">← Galerie</a><h1>{{item.title}}</h1>
- <div class="eyebrow">{{item.category}}</div><p>{{item.description}}</p>
+ <div class="eyebrow">{{item.category}}</div>{% if atelier_photo is not none %}<p class="fjord-model-ready" data-fjm-en="✓ STL/3MF file linked — it will be included with your quote request">✓ Fichier STL/3MF associé — il sera joint à votre demande de soumission</p>{% endif %}<p>{{item.description}}</p>
  <div class="fjord-gallery-detail-cta">
  <a class="btn" href="/soumission?galerie={{item.id}}&photo={{default_photo}}">Demander une soumission pour cette réalisation</a>
  {% if atelier_photo is not none %}<a class="btn secondary-btn" href="/atelier-3d?galerie={{item.id}}&amp;photo={{atelier_photo}}">Ouvrir l’Atelier 3D</a>{% endif %}
