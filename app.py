@@ -1295,13 +1295,18 @@ def gallery_item(id):
  summary=(item["title"]+" — "+(description or "Réalisation d'impression 3D sur mesure")+" | Les Impressions du Fjord, Saguenay.")[:195]
  origin=seo_metadata()["public_origin"]
  social_image="/gallery/thumb/"+str(id) if urls else "/identite/logo"
- gallery_schema={"@context":"https://schema.org","@type":"CreativeWork",
-  "name":item["title"],"description":description[:1200] or "Création 3D sur mesure",
-  "genre":item["category"] or "Impression 3D",
-  "creator":{"@type":"Organization","name":"Les Impressions du Fjord"},
-  "url":origin+"/galerie/"+str(id),
-  "image":[origin+u for u in urls[:15]] if urls else [origin+"/identite/logo"]}
- return page(item["title"],'''<div class="gallery-detail"><a href="/galerie">← Galerie</a><h1>{{item.title}}</h1>
+ gallery_schema={"@context":"https://schema.org","@graph":[
+  {"@type":"CreativeWork","name":item["title"],
+   "description":description[:1200] or "Création 3D sur mesure",
+   "genre":item["category"] or "Impression 3D",
+   "creator":{"@type":"Organization","name":"Les Impressions du Fjord"},
+   "url":origin+"/galerie/"+str(id),
+   "image":[origin+u for u in urls[:15]] if urls else [origin+"/identite/logo"]},
+  {"@type":"BreadcrumbList","itemListElement":[
+   {"@type":"ListItem","position":1,"name":"Accueil","item":origin+"/"},
+   {"@type":"ListItem","position":2,"name":"Galerie","item":origin+"/galerie"},
+   {"@type":"ListItem","position":3,"name":item["title"],"item":origin+"/galerie/"+str(id)}]}]}
+ return page(item["title"],'''<div class="gallery-detail"><nav class="fjord-breadcrumbs" aria-label="Fil d’Ariane"><a href="/">Accueil</a><span aria-hidden="true">›</span><a href="/galerie">Galerie</a><span aria-hidden="true">›</span><span aria-current="page">{{item.title}}</span></nav><h1>{{item.title}}</h1>
  <div class="eyebrow">{{item.category}}</div>{% if atelier_photo is not none %}<p class="fjord-model-ready" data-fjm-en="✓ STL/3MF file linked — it will be included with your quote request">✓ Fichier STL/3MF associé — il sera joint à votre demande de soumission</p>{% endif %}<p>{{item.description}}</p>
  <div class="fjord-gallery-detail-cta">
  <a class="btn" href="/soumission?galerie={{item.id}}&photo={{default_photo}}">Demander une soumission pour cette réalisation</a>
@@ -1352,7 +1357,7 @@ def gallery_item(id):
  default_photo=default_photo,atelier_photo=atelier_photo,seo_description=summary,seo_image=social_image,seo_gallery_schema=gallery_schema)
 
 
-FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p>{% if quote %}{{marketing_help|safe}}{% if gallery_selected %}
+FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p>{% if quote %}{{marketing_help|safe}}{% if not gallery_selected and not inspiration_selected and not makerworld_selected %}<nav class="fjm-quote-start" aria-label="Choisissez comment commencer votre demande"><a href="#fjordModelFile"><strong data-fjm-en="I have a 3D file">📦 J’ai un fichier 3D</strong><span data-fjm-en="STL or 3MF">STL ou 3MF</span></a><a href="#fjordProjectDescription"><strong data-fjm-en="I have a photo or an idea">📷 J’ai une photo ou une idée</strong><span data-fjm-en="A sketch or description is enough to start">Un croquis ou une description suffit pour commencer</span></a><a href="/galerie?prets=1"><strong data-fjm-en="I want to choose a model">🧊 Je veux choisir un modèle</strong><span data-fjm-en="Browse ready-to-print projects">Parcourir les projets prêts à produire</span></a></nav>{% endif %}{% if gallery_selected %}
 <section class="fjord-quote-gallery-ref" aria-label="Photo choisie dans la galerie" data-gallery-title="{{gallery_selected.title}}">
  <img src="{{gallery_photo_url}}" loading="eager" alt="Photo de la réalisation {{gallery_selected.title}}">
  <div><strong><span data-fjm-en="Selected project:">Votre réalisation :</span> {{gallery_selected.title}}</strong>
@@ -1384,10 +1389,10 @@ FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p
 <label>Dimensions approximatives (facultatif)<input name="dimensions" maxlength="120" placeholder="Ex. 120 × 80 × 30 mm" autocomplete="off"><small class="fjord-field-help">Longueur × largeur × hauteur, idéalement en millimètres.</small></label>
 <label>Remise souhaitée<select name="remise">{% for option in remise_options %}<option value="{{option}}">{{option}}</option>{% endfor %}</select></label>
 <label>Délai souhaité<select name="delai">{% for option in delai_options %}<option value="{{option}}">{{option}}</option>{% endfor %}</select><small class="fjord-field-help">La disponibilité et les frais éventuels seront confirmés dans la soumission.</small></label>
-</div></section><label>Matériau souhaité<select name="material">{% for m in materials %}<option value="{{m}}">{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help" data-fjm-en="Enter the total number of parts, including for a small batch.">Indiquez le nombre total de pièces, y compris pour une petite série.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option value="{{col}}">{{col}}</option>{% endfor %}</select></label></details>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<div class="fjm-files">
-<label>📷 Photo ou croquis de référence (facultatif)<input type="file" name="reference_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="fjordReferenceHelp"><small id="fjordReferenceHelp" class="fjord-field-help">Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).</small></label>
+</div></section><label>Matériau souhaité<select name="material">{% for m in materials %}<option value="{{m}}">{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help" data-fjm-en="Enter the total number of parts, including for a small batch.">Indiquez le nombre total de pièces, y compris pour une petite série.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option value="{{col}}">{{col}}</option>{% endfor %}</select></label></details>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea id="fjordProjectDescription" name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<div class="fjm-files">
+<label>📷 Photo ou croquis de référence (facultatif)<input id="fjordReferencePhoto" type="file" name="reference_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="fjordReferenceHelp"><small id="fjordReferenceHelp" class="fjord-field-help">Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).</small></label>
 <div id="fjordReferencePreview" class="fjord-reference-preview" hidden><img alt="Aperçu de votre photo de référence" id="fjordReferenceImage"><span id="fjordReferenceFilename"></span><button type="button" id="fjordReferenceRemove">Retirer la photo</button></div>
-<label>📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)<input type="file" name="model" accept=".stl,.3mf"></label><small id="fjordStudioFileStatus" class="fjord-file-state" role="status" aria-live="polite"></small>
+<label>📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)<input id="fjordModelFile" type="file" name="model" accept=".stl,.3mf"></label><small id="fjordStudioFileStatus" class="fjord-file-state" role="status" aria-live="polite"></small>
 <p class="fjord-field-help">Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.</p></div>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else ('Envoyer ma demande de soumission gratuite' if quote else 'Envoyer ma demande')}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p>{% if quote %}<script>
 (function(){
  const params=new URLSearchParams(location.search);
