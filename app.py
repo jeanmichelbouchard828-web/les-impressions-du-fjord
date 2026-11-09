@@ -8,7 +8,7 @@ from psycopg.rows import dict_row
 from werkzeug.utils import secure_filename
 app=Flask(__name__)
 from fjord_marketing import (MARKETING_CSS, MARKETING_HOME_START, MARKETING_HOME_END, MARKETING_GALLERY, MARKETING_FORM_HELP, MARKETING_SCRIPT)
-from fjord_inspirations import html_fragment as fjord_inspiration_html
+from fjord_inspirations import html_fragment as fjord_inspiration_html, IDEAS as FJORD_INSPIRATIONS
 from fjord_seo import seo_metadata, register_seo_routes, BUSINESS_SCHEMA
 from fjord_preview_guard import install_preview_guard
 install_preview_guard(app)
@@ -53,6 +53,10 @@ def init():
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_data BYTEA")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_filename TEXT")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_data BYTEA")
+  c.execute("""CREATE TABLE IF NOT EXISTS fjord_inspiration_models(
+       source TEXT PRIMARY KEY, model_filename TEXT NOT NULL, model_data BYTEA NOT NULL,
+       rights_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+       updated TIMESTAMPTZ DEFAULT NOW())""")
 init()
 # Compteur historique conservé; présence estimée dans une fenêtre de 5 min.
 # Seul un hachage de cookie aléatoire est conservé, pas l'adresse IP.
@@ -1060,6 +1064,38 @@ def fjord_gallery_quote_image(photo,mime):
  except (OSError,ValueError,UnidentifiedImageError,Image.DecompressionBombError):
   abort(400,description="Photo de galerie illisible.")
 
+def fjord_inspiration_by_index(index):
+ """Resolve a fixed source in the curated, license-attributed inspiration manifest."""
+ if not isinstance(index,int) or index<0 or index>=len(FJORD_INSPIRATIONS):return None
+ return FJORD_INSPIRATIONS[index]
+
+def fjord_inspiration_model(conn,idea):
+ if not idea:return None
+ return conn.execute("""SELECT model_filename,model_data,rights_confirmed
+                        FROM fjord_inspiration_models WHERE source=%s""",
+                     (idea["source"],)).fetchone()
+
+def fjord_inspiration_image_copy(idea):
+ """Best-effort safe reference copy, limited to pre-verified Wikimedia media hosts."""
+ import urllib.request as req
+ from urllib.parse import urlsplit
+ from werkzeug.exceptions import HTTPException
+ url=idea["image"]
+ parsed=urlsplit(url)
+ if parsed.scheme!="https" or parsed.hostname not in ("upload.wikimedia.org","thumb.wikimedia.org") or parsed.username or parsed.password:
+  return None
+ try:
+  request_obj=req.Request(url,headers={"User-Agent":"Fjord-Quote-Reference/1.0","Accept":"image/jpeg,image/png,image/webp"})
+  with req.urlopen(request_obj,timeout=4) as resp:
+   dest=urlsplit(resp.geturl())
+   if dest.scheme!="https" or dest.hostname not in ("upload.wikimedia.org","thumb.wikimedia.org"):
+    return None
+   photo=resp.read(4*1024*1024+1)
+  if not photo or len(photo)>4*1024*1024:return None
+  return fjord_gallery_quote_image(photo,"image/jpeg")
+ except (OSError,ValueError,HTTPException):
+  return None
+
 @app.get("/galerie/<int:id>")
 def gallery_item(id):
  with db() as c:
@@ -1390,7 +1426,7 @@ def admin():
 <article class="admin-control-card"><div class="admin-card-top"><h2>Soumissions PRO</h2><span class="admin-icon" aria-hidden="true">📄</span></div><div class="admin-metric">{{quotes_stats.unpaid}}</div><div class="admin-metric-label">à traiter ou à payer</div><div class="admin-mini-metric"><strong>{{quotes_stats.paid}}</strong> payée(s) dans l’historique</div><div class="admin-card-actions"><a class="primary" href="/admin/soumissions-pro#soumissions-enregistrees">Gérer les soumissions</a></div></article>
 <article class="admin-control-card"><div class="admin-card-top"><h2>Demandes récentes</h2><span class="admin-icon" aria-hidden="true">📥</span></div><div class="admin-metric">{{reqs_count}}</div><div class="admin-metric-label">demande(s) au total</div><p>Les 12 dernières sont listées plus bas.</p><div class="admin-card-actions"><a href="#admin-requests">Voir les demandes</a></div></article>
 </section>
-<section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
+<section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><a href="/admin/inspirations">🖼️ Modèles du diaporama</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
 <section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div><a class="btn" href="/admin/demandes">🔎 Voir toutes les demandes et rechercher</a></div>
 <div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.reference_filename %}<p class="fjord-reference-admin"><a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Voir la photo ou le croquis</a><span>— {{r.reference_filename}}</span></p>{% endif %}{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
 (async function(){const box=document.getElementById('fjord-admin-printer-status');if(!box)return;try{const r=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const s=await r.json();if(!s.ok)throw Error();const state=String(s.state||'inconnu').replace(/_/g,' ');const parts=[({'printing':'En impression','paused':'En pause','idle':'Prête','finished':'Terminée','failed':'Erreur'}[s.state]||state),s.file?'Fichier : '+s.file:'Aucun fichier en cours'];if(typeof s.progress==='number')parts.push(Math.round(s.progress)+' %');box.textContent=parts.join(' · ');}catch(_){box.textContent='État non disponible. Ouvre le contrôle X2D pour actualiser.'}})();
@@ -1624,6 +1660,60 @@ def fjord_private_gallery_model(gallery_id):
                    "X-Robots-Tag":"noindex, nofollow",
                    "X-Content-Type-Options":"nosniff",
                    "X-Fjord-Model-Name":asset["model_filename"]}
+
+@app.route("/admin/inspirations",methods=["GET"])
+@admin_required
+def fjord_admin_inspirations():
+ with db() as c:
+  rows=c.execute("SELECT source,model_filename,rights_confirmed FROM fjord_inspiration_models").fetchall()
+ linked={row["source"]:row for row in rows}
+ items=[{"index":i,**idea,"model":linked.get(idea["source"])}
+        for i,idea in enumerate(FJORD_INSPIRATIONS)]
+ return page("Modèles du diaporama",'''<section class="fjord-inspiration-admin">
+ <p><a href="/admin">← Retour à l'administration</a></p>
+ <h1>Les 50 inspirations et leurs modèles 3D</h1>
+ <p>Associez uniquement des STL/3MF que vous êtes autorisé à reproduire. Les photos Wikimedia sont des références visuelles et leurs licences ne donnent pas automatiquement les droits sur les pièces.</p>
+ <p>{{linked_count}} modèle(s) associé(s) sur {{items|length}} inspirations.</p>
+ <div class="fjord-inspiration-admin-grid">{% for item in items %}
+ <article><img src="{{item.image}}" loading="lazy" alt="{{item.title}}" referrerpolicy="no-referrer">
+ <h2>#{{item.index+1}} {{item.title}}</h2><p>Photo : <a href="{{item.source}}" target="_blank" rel="noopener noreferrer">{{item.author}}</a> · {{item.license}}</p>
+ {% if item.model %}<p>✓ {{item.model.model_filename}}</p>
+ <a href="/admin/inspirations/{{item.index}}/modele">Télécharger le modèle</a> ·
+ <a href="/admin/atelier-3d?inspiration={{item.index}}">🖨️ Ouvrir dans l'Atelier</a>
+ {% else %}<p>⚠ Aucun fichier STL/3MF associé.</p>{% endif %}
+ <form method="post" enctype="multipart/form-data" action="/admin/inspirations/{{item.index}}/modele">
+ {{csrf|safe}}<label>Modèle STL/3MF<input type="file" name="model" accept=".stl,.3mf" required></label>
+ <label class="fjord-rights-check"><input type="checkbox" name="rights_ok" value="yes" required> Je confirme avoir les droits nécessaires pour utiliser et reproduire ce modèle.</label>
+ <button type="submit">{{'Remplacer le modèle' if item.model else 'Associer le modèle'}}</button></form>
+ </article>{% endfor %}</div>
+ </section>''',items=items,linked_count=len(linked),csrf=csrfinput())
+
+@app.route("/admin/inspirations/<int:index>/modele",methods=["GET","POST"])
+@admin_required
+def fjord_admin_inspiration_model(index):
+ idea=fjord_inspiration_by_index(index)
+ if not idea:abort(404)
+ if request.method=="POST":
+  verify()
+  if request.form.get("rights_ok")!="yes":abort(400,description="Confirmation des droits requise.")
+  name,data=fjord_gallery_model_upload(request.files.get("model"))
+  if not data:abort(400)
+  with db() as c:
+   c.execute("""INSERT INTO fjord_inspiration_models(source,model_filename,model_data,rights_confirmed)
+                VALUES(%s,%s,%s,TRUE)
+                ON CONFLICT(source) DO UPDATE SET
+                model_filename=EXCLUDED.model_filename,model_data=EXCLUDED.model_data,
+                rights_confirmed=TRUE,updated=NOW()""",(idea["source"],name,data))
+  return redirect("/admin/inspirations")
+ with db() as c:row=fjord_inspiration_model(c,idea)
+ if not row or not row["rights_confirmed"]:abort(404)
+ return send_file(io.BytesIO(row["model_data"]),mimetype="application/octet-stream",
+                  as_attachment=True,download_name=row["model_filename"],
+                  max_age=0,conditional=False),200,{
+                   "Cache-Control":"no-store, private",
+                   "X-Robots-Tag":"noindex, nofollow",
+                   "X-Content-Type-Options":"nosniff",
+                   "X-Fjord-Model-Name":row["model_filename"]}
 
 @app.get("/photo/<int:id>")
 def photo(id):
