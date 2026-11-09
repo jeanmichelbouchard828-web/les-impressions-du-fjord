@@ -1,0 +1,35 @@
+name: Build 50 copyright-credited Commons inspiration photos
+on:
+  workflow_dispatch:
+  push:
+    branches: [migration/render-fjord-20261104]
+    paths:
+      - "tools/build_fjord_inspirations.py"
+      - ".github/workflows/fjord-build-50-inspirations.yml"
+permissions:
+  contents: write
+jobs:
+  Wikimedia-50:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve actual Commons licences and authors for 50 photographs
+        run: python tools/build_fjord_inspirations.py
+      - name: Commit the verified static inspiration manifest
+        run: |
+          git config user.name "fjord-inspiration-bot"
+          git config user.email "fjord-inspiration-bot@users.noreply.github.com"
+          git add fjord_inspirations_manifest.json
+          if git diff --staged --quiet; then
+            echo "No new image/licence changes"
+          else
+            git commit -m "Expand inspirations to 50 curated, credited Commons photographs"
+            git push origin HEAD:migration/render-fjord-20261104
+          fi
