@@ -46,6 +46,13 @@ def init():
       sent_at DOUBLE PRECISION NOT NULL
   )""")
   c.execute("""CREATE TABLE IF NOT EXISTS gallery_photos(id BIGSERIAL PRIMARY KEY,gallery_id BIGINT REFERENCES gallery(id) ON DELETE CASCADE,photo BYTEA NOT NULL,mime TEXT NOT NULL)""")
+  # A published photograph can have its own original STL/3MF; the project
+  # default is used only when the photo doesn't have a dedicated model.
+  # Historical photographs and customer orders are preserved as-is.
+  c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_filename TEXT")
+  c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_data BYTEA")
+  c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_filename TEXT")
+  c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_data BYTEA")
 init()
 # Compteur historique conservé; présence estimée dans une fenêtre de 5 min.
 # Seul un hachage de cookie aléatoire est conservé, pas l'adresse IP.
@@ -991,6 +998,67 @@ def fjord_gallery_thumbnail(id):
   app.logger.warning("Invalid public gallery thumbnail for item %s",id)
   abort(404)
  return send_file(output,mimetype="image/webp",max_age=3600)
+
+def fjord_gallery_model_upload(upload):
+ """Limit and validate a private, owner-provided gallery STL/3MF."""
+ if not upload or not upload.filename:return None,None
+ filename=secure_filename(upload.filename)[:150]
+ if not filename or not filename.lower().endswith((".stl",".3mf")):
+  abort(400,description="Fichier galerie : seulement STL ou 3MF.")
+ data=upload.read(20*1024*1024+1)
+ if not data or len(data)>20*1024*1024:abort(413,description="Modèle vide ou de plus de 20 Mo.")
+ if filename.lower().endswith(".3mf"):
+  from zipfile import is_zipfile
+  if not is_zipfile(io.BytesIO(data)):abort(400,description="Le fichier 3MF est endommagé.")
+ elif len(data)<84:
+  abort(400,description="Fichier STL trop court.")
+ return filename,data
+
+def fjord_gallery_asset(conn,gallery_id,photo_id=0,with_photo=False):
+ """Return only data from a real, matching gallery image. Never trust a file name from a URL."""
+ item=conn.execute("""SELECT id,title,description,photo,mime,model_filename,model_data
+                       FROM gallery WHERE id=%s""",(gallery_id,)).fetchone()
+ if not item:return None
+ image=item["photo"]
+ mime=item["mime"]
+ model_name=item["model_filename"]
+ model_data=item["model_data"]
+ if photo_id:
+  image_row=conn.execute("""SELECT photo,mime,model_filename,model_data
+                             FROM gallery_photos WHERE id=%s AND gallery_id=%s""",
+                         (photo_id,gallery_id)).fetchone()
+  if not image_row:return None
+  image=image_row["photo"]
+  mime=image_row["mime"]
+  if image_row["model_data"]:
+   model_name=image_row["model_filename"]
+   model_data=image_row["model_data"]
+ elif image is None:
+  # Older galleries may only use the gallery_photos table. Photo=0 is not a
+  # real photograph for those galleries: require the exact photo id.
+  return None
+ return dict(id=item["id"],title=item["title"],description=item["description"],
+             photo=image if with_photo else None,mime=mime,
+             model_filename=model_name,model_data=model_data)
+
+def fjord_gallery_quote_image(photo,mime):
+ """Store a clean, scaled reference copy; never reveal gallery original EXIF."""
+ from PIL import Image,ImageOps,UnidentifiedImageError
+ try:
+  with Image.open(io.BytesIO(photo)) as raw:
+   if raw.format not in ("JPEG","PNG","WEBP") or raw.width*raw.height>25_000_000:
+    abort(400,description="Image de galerie non valide.")
+   raw.load()
+   image=ImageOps.exif_transpose(raw).convert("RGB")
+   image.thumbnail((1600,1600),Image.Resampling.LANCZOS)
+   output=io.BytesIO()
+   image.save(output,format="JPEG",quality=80,optimize=True)
+   result=output.getvalue()
+   if not result or len(result)>4*1024*1024:
+    abort(413,description="Photo de galerie trop volumineuse.")
+   return result
+ except (OSError,ValueError,UnidentifiedImageError,Image.DecompressionBombError):
+  abort(400,description="Photo de galerie illisible.")
 
 @app.get("/galerie/<int:id>")
 def gallery_item(id):
