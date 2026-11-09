@@ -436,7 +436,7 @@ const translations={
 "Galerie de réalisations":"Our creations","Appuyez sur une création pour agrandir ses photos.":"Select a creation to view its photos.",
 "Demande reçue":"Request received","Soumission envoyée":"Quote sent","En impression":"Printing","Terminée":"Completed",
 "Votre nom":"Your name","Courriel":"Email","Téléphone (facultatif)":"Phone (optional)","Description de votre projet":"Describe your project",
-"Description de votre message":"Your message","Envoyer la demande":"Send request",
+"Description de votre message":"Your message","Envoyer la demande":"Send request","Envoyer ma demande de soumission gratuite":"Send my free quote request",
 "Nous contacter":"Contact us","Envoyez-nous votre message directement depuis ce formulaire.":"Send your message directly from this form.",
 "Décrivez votre projet et joignez votre modèle 3D si vous en avez un.":"Describe your project and attach your 3D model if available.",
 "Matériau souhaité":"Preferred material","Fichier STL ou 3MF (facultatif, maximum 8 Mo)":"STL or 3MF file (optional, 16 MB maximum)",
@@ -510,7 +510,7 @@ document.getElementById('fjord-lang').addEventListener('change',e=>{localStorage
 document.getElementById('fjord-theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);apply()});
 apply();
 })();
-</script><script src="/static/fjord_sitewide.js?v=20261109-sales-bundle2" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
+</script><script src="/static/fjord_sitewide.js?v=20261109-sales-bundle3" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
 def page(title,body,**kwargs):
  from flask import render_template_string
  # SEO parameters are reserved and never leaked into the individual body template.
@@ -1340,7 +1340,7 @@ FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p
 <label>📷 Photo ou croquis de référence (facultatif)<input type="file" name="reference_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="fjordReferenceHelp"><small id="fjordReferenceHelp" class="fjord-field-help">Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).</small></label>
 <div id="fjordReferencePreview" class="fjord-reference-preview" hidden><img alt="Aperçu de votre photo de référence" id="fjordReferenceImage"><span id="fjordReferenceFilename"></span><button type="button" id="fjordReferenceRemove">Retirer la photo</button></div>
 <label>📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)<input type="file" name="model" accept=".stl,.3mf"></label>
-<p class="fjord-field-help">Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.</p></div>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else 'Envoyer ma demande'}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p></form>'''
+<p class="fjord-field-help">Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.</p></div>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else ('Envoyer ma demande de soumission gratuite' if quote else 'Envoyer ma demande')}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p></form>'''
 def fjord_reference_image(upload):
  """Validate, orient, reduce and scrub metadata from a customer reference image."""
  from PIL import Image,ImageOps,UnidentifiedImageError
