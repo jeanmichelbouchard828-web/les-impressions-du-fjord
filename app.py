@@ -986,6 +986,7 @@ def starlink_referral():
 def gallery_page():
  with db() as c:
   items=c.execute("""SELECT g.id,g.title,g.category,g.description,g.photo IS NOT NULL AS has_photo,
+      (g.model_data IS NOT NULL OR p.model_data IS NOT NULL) AS has_model,
       CASE WHEN g.photo IS NOT NULL AND g.model_data IS NOT NULL THEN 0
            WHEN p.id IS NOT NULL AND p.model_data IS NOT NULL THEN p.id
            WHEN g.photo IS NOT NULL THEN 0 ELSE COALESCE(p.id,0) END AS quote_photo_id
