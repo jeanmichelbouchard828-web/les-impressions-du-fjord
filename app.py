@@ -543,10 +543,14 @@ def page(title,body,**kwargs):
  meta=seo_metadata()
  # Only same-site image paths can be used in public social metadata.
  image=meta["public_origin"]+custom_image if isinstance(custom_image,str) and custom_image.startswith("/") and not custom_image.startswith("//") else meta["public_origin"]+"/identite/logo"
+ rendered_body=render_template_string(body,**kwargs)
+ # Keep the next step visible while mobile shoppers browse projects.
+ if request.path=="/" or request.path=="/galerie" or request.path.startswith("/galerie/"):
+  rendered_body += '<a class="fjord-mobile-quote-cta" href="/soumission" aria-label="Demander une soumission gratuite">🧾 Demander une soumission gratuite</a>'
  return render_template_string(
   BASE,title=title,meta_description=(str(custom_description or description)[:230]),
   og_image=image,gallery_schema=gallery_schema,
-  body=render_template_string(body,**kwargs),business_schema=BUSINESS_SCHEMA,
+  body=rendered_body,business_schema=BUSINESS_SCHEMA,
   fjord_is_preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",**meta)
 
 def _fjord_error_page(code):
@@ -2288,8 +2292,4 @@ register_stripe_payments(app,db)
 from bambu_presets import register_bambu_preset_library
 register_bambu_preset_library(app,db,admin_required,verify,csrfinput,page)
 
-# Private X2D print console (OctoEverywhere capabilities verified at runtime).
-from fjord_printer import register_printer_admin
-register_printer_admin(app,admin_required,verify,csrfinput,page,db=db)
-from fjord_bambu_connect import register_bridge as register_bambu_connect_bridge
-register_bambu_connect_bridge(app,db,admin_required,verify,csrfinput,page)
+# Pr
