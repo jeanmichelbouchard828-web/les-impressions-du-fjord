@@ -7,6 +7,7 @@ on:
       - "app.py"
       - "fjord_gallery_pairing.py"
       - "fjord_inspirations.py"
+      - "private_fjord.py"
       - "tests/verify_fjord_public_forms_db.py"
       - "tests/test_gallery_links_flow_db.py"
       - ".github/workflows/fjord-forms-db.yml"
