@@ -35,3 +35,14 @@ body.light #fji-counter{color:#28556e}
 @media(max-width:1000px){.fji-card{flex-basis:calc((100% - 16px)/2)}}
 @media(max-width:650px){.fji-card{flex-basis:100%}.fji-heading{align-items:start}.fji-section{padding:16px 13px}.fji-controls{margin-left:0}.fji-photo{aspect-ratio:5/3}.fji-card-body{padding:15px}.fji-heading h2{font-size:27px}}
 @media(prefers-reduced-motion:reduce){.fji-track{scroll-behavior:auto!important}.fji-card{scroll-snap-stop:normal}}
+
+/* Browse 50 real examples by category without rendering 50 cards at once. */
+.fji-filters{display:flex;align-items:center;gap:9px;overflow-x:auto;scrollbar-width:thin;padding:0 0 14px;margin:0 0 10px;overscroll-behavior-inline:contain}
+.fji-filter{white-space:nowrap;flex-shrink:0;min-height:39px;padding:7px 13px;border-radius:99px;background:#16384d;color:#cbe6f3;border:1px solid #4688a6;cursor:pointer;font-size:13px;font-weight:750}
+.fji-filter[aria-pressed="true"]{background:#0b82ae;color:#fff;border-color:#8bd9f6}
+.fji-filter:focus-visible{outline:3px solid #9becff;outline-offset:2px}
+.fji-card[hidden]{display:none!important}
+.fji-controls button:disabled{opacity:.45;cursor:not-allowed}
+body.light .fji-filter{background:#fff;color:#2b5b75;border-color:#a3cbdf}
+body.light .fji-filter[aria-pressed="true"]{background:#087dab;color:#fff;border-color:#087dab}
+@media(max-width:650px){.fji-filter{min-height:43px;font-size:12px;padding:8px 12px}.fji-filters{margin:0 0 11px}}
