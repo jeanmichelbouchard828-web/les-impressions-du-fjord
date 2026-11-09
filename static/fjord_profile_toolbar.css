@@ -24,3 +24,25 @@ body.light #fjordBambuProfileBar select{background:#fff;color:#214960;border-col
 #fjordBambuProfileBar #fjordProfileImport:hover{background:#144b67}
 body.light #fjordBambuProfileBar #fjordProfileImport{color:#125778;border-color:#79b6d1}
 @media(max-width:1024px){#fjordBambuProfileBar #fjordProfileImport{grid-column:1;justify-self:start}}
+
+/* Bambu Studio configuration lives in the left tool drawer, CLOSED by default. */
+#toolsPanel #fjordBambuProfileBar{box-sizing:border-box;display:block;grid-template-columns:none;min-width:0;color:#e8f8ff;background:#102a3e;border:1px solid #3d748f;padding:15px 12px}
+#toolsPanel #fjordBambuProfileBar .fjord-profiles-title{display:grid;grid-template-columns:1fr;gap:4px;margin-bottom:16px}
+#toolsPanel #fjordBambuProfileBar .fjord-profiles-title strong{font-size:18px}
+#toolsPanel #fjordBambuProfileBar .fjord-profiles-title span{font-size:12px}
+#toolsPanel #fjordBambuProfileBar .fjord-profile-picks{display:grid;grid-template-columns:minmax(0,1fr)!important;gap:15px;width:100%}
+#toolsPanel #fjordBambuProfileBar .fjord-profile-picks label{display:grid;min-width:0;font-size:13px;gap:7px}
+#toolsPanel #fjordBambuProfileBar select{min-width:0;width:100%;max-width:100%;height:49px;font-size:14px;white-space:nowrap;text-overflow:ellipsis;padding:8px 30px 8px 10px}
+#toolsPanel #fjordBambuProfileBar #fjordProfilePrepare{width:100%;max-width:none;grid-column:auto;min-height:48px;font-size:13px}
+#toolsPanel #fjordBambuProfileBar #fjordProfileBarStatus{grid-column:auto;line-height:1.6;font-size:12px;margin:14px 0}
+#toolsPanel #fjordBambuProfileBar #fjordProfileImport{grid-column:auto;display:flex;justify-self:stretch;justify-content:center;text-align:center;font-size:12px;min-height:43px;padding:10px 7px}
+body.light #toolsPanel #fjordBambuProfileBar{background:#f4fbff;border-color:#add3e4;color:#16445e}
+@media(min-width:761px){
+ #toolsPanel #fjordBambuProfileBar{position:absolute;top:0;left:88px;width:min(310px,calc(100vw - 115px));max-height:100%;overflow-y:auto;z-index:26}
+}
+@media(max-width:760px){
+ #toolsPanel #fjordBambuProfileBar,#mobileMenuContent #fjordBambuProfileBar{position:static!important;display:block;max-width:none;width:100%;max-height:none;overflow:visible;box-shadow:none;border:0;padding:12px;background:transparent}
+ #mobileMenuContent #fjordBambuProfileBar .fjord-profile-picks{grid-template-columns:1fr!important;gap:12px}
+ #mobileMenuContent #fjordBambuProfileBar #fjordProfilePrepare{grid-column:auto;max-width:none;width:100%}
+ #mobileMenuContent #fjordBambuProfileBar #fjordProfileImport{grid-column:auto;justify-self:stretch}
+}
