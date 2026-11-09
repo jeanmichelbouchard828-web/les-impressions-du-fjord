@@ -1182,6 +1182,14 @@ FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p
  </div>
  <input type="hidden" name="gallery_id" value="{{gallery_selected.id}}">
  <input type="hidden" name="gallery_photo_id" value="{{gallery_photo_id}}">
+</section>{% endif %}
+{% if inspiration_selected %}
+<section class="fjord-quote-gallery-ref" aria-label="Inspiration du diaporama sélectionnée">
+<img src="{{inspiration_selected.image}}" loading="eager" alt="Inspiration : {{inspiration_selected.title}}" referrerpolicy="no-referrer">
+<div><strong>Inspiration #{{inspiration_index+1}} : {{inspiration_selected.title}}</strong>
+<p>Cette photo sera identifiée dans la demande avec son lien et ses crédits. Une copie est jointe lorsque la source est accessible.{% if inspiration_has_model %} Un STL/3MF autorisé est également associé et sera joint automatiquement.{% else %} Aucun STL/3MF n'est disponible pour imprimer directement cet exemple.{% endif %}</p>
+<p class="small">Photo : <a target="_blank" rel="noopener noreferrer" href="{{inspiration_selected.source}}">{{inspiration_selected.author}}</a> · {{inspiration_selected.license}}. Les droits de reproduction du modèle sont à vérifier séparément.</p></div>
+<input type="hidden" name="inspiration_id" value="{{inspiration_index}}">
 </section>{% endif %}{% else %}<div class="fjord-client-contact" aria-label="Nous joindre"><a href="mailto:lesimpressionsdufjord@gmail.com">✉ Courriel<small>lesimpressionsdufjord@gmail.com</small></a><a href="tel:+15819980831">☎ Téléphone<small>581-998-0831</small></a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Facebook<small>Nous écrire sur notre page</small></a><a href="/galerie">✨ Nos réalisations<small>Découvrir ce que nous fabriquons</small></a></div>{% endif %}<form class="fjm-quote-form" method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Votre nom<input name="name" maxlength="120" required></label><label>Courriel<input type="email" name="email" maxlength="200" required></label><label>Téléphone (facultatif)<input name="phone" maxlength="40"></label>{% if quote %}<section class="fjord-brief" aria-labelledby="fjordBriefTitle"><h2 id="fjordBriefTitle">Parlez-nous de votre création</h2><p>Quelques détails suffisent pour préparer une soumission plus précise. Si vous hésitez, choisissez « À déterminer ».</p>
 <div class="fjord-brief-grid">
 <label>Type de projet<select name="project_type">{% for p in project_types %}<option value="{{p}}">{{p}}</option>{% endfor %}</select></label>
@@ -1242,10 +1250,25 @@ def submission(kind):
    if not chosen:abort(404)
    chosen_photo_url=("/photo/"+str(chosen["id"]) if chosen_photo_id==0
                      else "/gallery/image/"+str(chosen_photo_id))
+  inspiration_selected=None
+  inspiration_index=0
+  inspiration_has_model=False
+  if kind=="Soumission" and request.args.get("inspiration") is not None:
+   raw=request.args.get("inspiration","")
+   if not raw.isdigit() or len(raw)>3:abort(400)
+   inspiration_index=int(raw)
+   inspiration_selected=fjord_inspiration_by_index(inspiration_index)
+   if inspiration_selected is None:abort(404)
+   with db() as c:
+    row=fjord_inspiration_model(c,inspiration_selected)
+    inspiration_has_model=bool(row and row["rights_confirmed"])
   return page(kind,FORM + MARKETING_SCRIPT,gallery_selected=chosen,
-              gallery_photo_id=chosen_photo_id,gallery_photo_url=chosen_photo_url,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,project_types=PROJECT_TYPES,remise_options=REMISE_OPTIONS,delai_options=DELAI_OPTIONS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=("Je souhaite une création semblable à « "+chosen["title"][:120]+" » (photo de la galerie). "
- if chosen else ("Je souhaite une création similaire à « "+request.args.get("projet","")[:160]+" ». "
- if kind=="Soumission" and request.args.get("projet") else "")))
+              gallery_photo_id=chosen_photo_id,gallery_photo_url=chosen_photo_url,
+              inspiration_selected=inspiration_selected,inspiration_index=inspiration_index,
+              inspiration_has_model=inspiration_has_model,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,project_types=PROJECT_TYPES,remise_options=REMISE_OPTIONS,delai_options=DELAI_OPTIONS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=("Je souhaite une création semblable à « "+chosen["title"][:120]+" » (photo de la galerie). "
+ if chosen else ("Je voudrais discuter d'une création inspirée de « "+inspiration_selected["title"][:120]+" ». "
+ if inspiration_selected else ("Je souhaite une création similaire à « "+request.args.get("projet","")[:160]+" ». "
+ if kind=="Soumission" and request.args.get("projet") else ""))))
  verify()
  name=request.form.get("name","").strip();email=request.form.get("email","").strip().lower();description=request.form.get("description","").strip();phone=request.form.get("phone","").strip()[:40]
  if not name or len(name)>120 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",email) or len(email)>200 or not description or len(description)>5000:abort(400)
@@ -1280,6 +1303,8 @@ def submission(kind):
    if not is_zipfile(io.BytesIO(data)):abort(400)
   if filename.lower().endswith(".stl") and len(data)<84:abort(400)
  ref_name,ref_photo,ref_mime=fjord_reference_image(request.files.get("reference_photo")) if kind=="Soumission" else (None,None,None)
+ if kind=="Soumission" and request.form.get("gallery_id") and request.form.get("inspiration_id") is not None:
+  abort(400,description="Choisissez une seule réalisation ou inspiration.")
  if kind=="Soumission" and request.form.get("gallery_id"):
   raw=request.form.get("gallery_id","")
   pic=request.form.get("gallery_photo_id","0")
@@ -1296,6 +1321,30 @@ def submission(kind):
    filename=gallery_ref["model_filename"]
   description=("Référence galerie #"+str(gallery_ref["id"])+
                ", photo #"+str(pic)+" — "+gallery_ref["title"][:120]+"\n\n"+description)
+ if kind=="Soumission" and request.form.get("inspiration_id") is not None:
+  raw=request.form.get("inspiration_id","")
+  if not raw.isdigit() or len(raw)>3:abort(400)
+  idea_index=int(raw)
+  idea=fjord_inspiration_by_index(idea_index)
+  if idea is None:abort(400,description="Inspiration inconnue.")
+  with db() as c:linked=fjord_inspiration_model(c,idea)
+  if not data and linked and linked["rights_confirmed"]:
+   filename=linked["model_filename"]
+   data=linked["model_data"]
+  if not ref_photo:
+   picture=fjord_inspiration_image_copy(idea)
+   if picture:
+    ref_photo=picture
+    ref_name="inspiration-"+str(idea_index+1)+".jpg"
+    ref_mime="image/jpeg"
+  description=("Inspiration du diaporama #"+str(idea_index+1)+
+               " — "+idea["title"][:120]+"\n"+
+               "Photo de référence : "+idea["image"]+"\n"+
+               "Source : "+idea["source"]+"\n"+
+               "Crédit photo : "+idea["author"]+" — "+idea["license"]+
+               " ("+idea["license_url"]+")\n"+
+               "Modèle 3D associé : "+("oui (fichier lié)" if linked and linked["rights_confirmed"] else "non")+
+               "\n\n"+description)
  with db() as c:
   request_id=c.execute("""INSERT INTO requests(kind,name,email,phone,material,description,filename,filedata,reference_filename,reference_photo,reference_mime)
       VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",(kind,name,email,phone,material,description,filename,data,ref_name,ref_photo,ref_mime)).fetchone()["id"]
