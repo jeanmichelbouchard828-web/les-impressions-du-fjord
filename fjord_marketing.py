@@ -93,6 +93,8 @@ body.light .fjm-ready-count{background:#e8f8ed;color:#17623b;border-color:#a6dbb
 .fjm-faq details p{margin:12px 0 0;font-size:14px}
 .fjm-final{padding:clamp(22px,4vw,46px);margin:58px 0 0;border:1px solid #3c9fc6;border-radius:23px;background:linear-gradient(115deg,#105077,#0a263d);display:flex;justify-content:space-between;align-items:center;gap:26px}
 .fjm-final h2{margin:0 0 8px;color:#f2fbff}.fjm-final p{margin:0}.fjm-final .btn{flex-shrink:0;white-space:normal;text-align:center}
+.fjord-model-ready{display:table;width:fit-content;max-width:100%;margin:14px 0;padding:8px 12px;border:1px solid #58c78c;border-radius:999px;background:#103c30;color:#b6f5ce;font-size:13px;font-weight:800;line-height:1.35}
+body.light .fjord-model-ready{background:#e8f8ed;color:#17623b;border-color:#a6dbb8}
 .fjord-gallery-detail-cta{display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;margin:22px 0}
 .fjord-gallery-detail-cta>.btn,.fjord-gallery-detail-cta>button{display:flex;flex:1 1 220px;min-width:min(100%,220px);min-height:54px;align-items:center;justify-content:center;text-align:center;white-space:normal;line-height:1.25}
 .fjord-gallery-detail-cta>.secondary-btn,.fjord-gallery-detail-cta>.fjord-share-project{border:1px solid #4a91b6!important;background:#163e59!important;color:#f2faff!important;font-weight:800}
