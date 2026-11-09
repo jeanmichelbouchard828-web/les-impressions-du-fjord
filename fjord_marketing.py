@@ -150,15 +150,6 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <p data-fjm-en="No 3D file? A photo, sketch, or simple description is enough to start.">Pas de fichier 3D? Une photo, un croquis ou une simple description suffit pour commencer.</p>
  </aside>
 </section>
-<section class="fjm-section" id="services">
- <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="What we create">Ce qu'on réalise</span><h2 data-fjm-en="3D printing solutions for all your ideas">L'impression 3D pour toutes vos idées</h2><p data-fjm-en="One part, a gift, a prototype or a small production run: every project starts with a conversation.">Une pièce, un cadeau, un prototype ou une petite série : chaque projet commence par une conversation.</p></div>
- <div class="fjm-services">
-  <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">🧰</span><h3 data-fjm-en="Useful custom parts">Pièces pratiques sur mesure</h3><p data-fjm-en="Brackets, adapters, organizers and hard-to-find parts, designed around your needs.">Supports, adaptateurs, rangements et pièces difficiles à trouver, adaptés à vos besoins.</p><a href="/soumission" data-fjm-en="Request a price">Demander un prix</a></article>
-  <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">🎁</span><h3 data-fjm-en="Gifts and personalization">Cadeaux et personnalisation</h3><p data-fjm-en="Personalized creations, decorative pieces and unique objects for every occasion.">Créations personnalisées, décorations et objets uniques pour toutes les occasions.</p><a href="/galerie" data-fjm-en="Browse ideas">Voir des idées</a></article>
-  <article class="fjm-service"><span class="fjm-icon" aria-hidden="true">⚙️</span><h3 data-fjm-en="Prototyping">Prototypage</h3><p data-fjm-en="Visualize, test and refine an idea with a tangible physical part.">Visualisez, testez et améliorez une idée avec une pièce physique.</p><a href="/soumission" data-fjm-en="Discuss my project">Parler de mon projet</a></article>
-
- </div>
-</section>
 <section class="fjm-section" id="fonctionnement">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Simple as 1, 2, 3">Simple comme 1, 2, 3</span><h2 data-fjm-en="How to place an order">Comment commander?</h2></div>
  <div class="fjm-steps"><article class="fjm-step"><span class="fjm-step-number">01</span><h3 data-fjm-en="Tell us your idea">Décrivez votre idée</h3><p data-fjm-en="Send us your needs, a picture, or your STL/3MF model through our quote form.">Envoyez vos besoins et, si vous en avez un, votre fichier STL/3MF avec le formulaire.</p></article>
@@ -173,13 +164,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  {% else %}<div class="card"><h3 data-fjm-en="Printable projects coming soon">Projets avec fichier 3D à venir</h3><p data-fjm-en="You can still request a custom project.">Vous pouvez aussi demander une création sur mesure.</p><a class="btn" href="/soumission" data-fjm-en="Request a quote">Demander une soumission</a></div>{% endfor %}
  </div></div><div class="fjm-section-actions"><a class="btn fjm-outline" href="/galerie" data-fjm-en="See the full gallery">Voir toute la galerie</a></div>
 </section>
-<section class="fjm-section" id="questions">
- <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Good to know">Bon à savoir</span><h2 data-fjm-en="Frequently asked questions">Questions fréquentes</h2></div>
- <div class="fjm-faq"><details><summary data-fjm-en="Will the selected STL/3MF be attached to my quote?">Le fichier STL/3MF du projet choisi sera-t-il joint à ma demande?</summary><p data-fjm-en="Yes. For a gallery project marked with an STL/3MF file, we attach its model to your quote request automatically. We confirm printability, permitted use, price and timing before production.">Oui. Pour un projet de la galerie indiqué avec un fichier STL/3MF, le modèle est joint automatiquement à votre demande. Nous confirmons la faisabilité, les droits d’utilisation, le prix et le délai avant la production.</p></details><details><summary data-fjm-en="Do I need an STL or 3MF file?">Faut-il avoir un fichier STL ou 3MF?</summary><p data-fjm-en="Not necessarily. Tell us about your project and we can discuss the available options.">Pas nécessairement. Décrivez-nous votre projet et nous pourrons discuter des options possibles.</p></details>
- <details><summary data-fjm-en="Can I request a one-off part?">Est-ce possible de commander une seule pièce?</summary><p data-fjm-en="Yes. We take requests for individual parts and discuss small runs based on your needs.">Oui. Nous acceptons les demandes pour une pièce unique et discutons aussi des petites séries selon vos besoins.</p></details>
- <details><summary data-fjm-en="Which materials do you offer?">Quels matériaux offrez-vous?</summary><p data-fjm-en="Depending on the project, we can discuss PLA, PETG, ASA, TPU and other compatible options.">Selon le projet, nous pouvons discuter des options comme le PLA, PETG, ASA, TPU et d'autres matériaux compatibles.</p></details>
- <details><summary data-fjm-en="What are the price and delivery time?">Quel est le prix et quel est le délai?</summary><p data-fjm-en="Each project is different. We confirm price, material, turnaround and pickup/shipping options with your quote.">Chaque projet est différent. Nous confirmons le prix, le matériau, le délai et les options de remise ou d'expédition lors de la soumission.</p></details></div>
-</section>"""
+"""
 
 MARKETING_HOME_END = """
 <section class="fjm-final" aria-label="Commencer un projet"><div><span class="fjm-kicker" data-fjm-en="Ready to get started?">Prêt à créer quelque chose?</span><h2 data-fjm-en="Let's bring your idea to life.">On donne vie à votre idée.</h2><p data-fjm-en="Tell us what you need. Your quote request comes with no obligation.">Expliquez-nous votre besoin. Une demande de soumission ne vous engage à rien.</p></div><a href="/soumission" class="btn" data-fjm-en="Request my free quote">Demander ma soumission gratuite</a></section>
