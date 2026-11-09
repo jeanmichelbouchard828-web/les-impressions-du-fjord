@@ -471,7 +471,27 @@ const translations={
 "↻ Réessayer":"↻ Try again",
 "✉ Demander une soumission":"✉ Request a quote",
 "Nous écrire":"Contact us",
-"← Retour à l'accueil":"← Back to home"
+"← Retour à l'accueil":"← Back to home",
+"Type de projet":"Project type",
+"Dimensions approximatives (facultatif)":"Approximate dimensions (optional)",
+"Longueur × largeur × hauteur, idéalement en millimètres.":"Length × width × height, ideally in millimetres.",
+"Remise souhaitée":"Preferred delivery",
+"Ramassage local au Saguenay (à confirmer)":"Local pickup in Saguenay (to be confirmed)",
+"Expédition (prix et disponibilité à confirmer)":"Shipping (price and availability to be confirmed)",
+"Délai souhaité":"Preferred timeframe",
+"Dès que possible (selon disponibilité)":"As soon as possible (subject to availability)",
+"Dans les 2 prochaines semaines":"Within the next 2 weeks",
+"À une date précise (indiquer en description)":"On a specific date (add details in the description)",
+"La disponibilité et les frais éventuels seront confirmés dans la soumission.":"Availability and any applicable fees will be confirmed in the quote.",
+"Quantité souhaitée":"Quantity",
+"Indiquez le nombre de pièces désirées.":"Enter the number of parts requested.",
+"Couleur souhaitée":"Preferred colour",
+"Autre / à discuter":"Other / to discuss",
+"📷 Photo ou croquis de référence (facultatif)":"📷 Reference photo or sketch (optional)",
+"Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).":"Don't have a 3D model? Send a photo, screenshot or sketch (JPG, PNG or WebP, up to 4 MB).",
+"📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)":"📦 STL or 3MF file (optional, up to 16 MB)",
+"Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.":"You can attach a photo, a 3D file, both, or just your description.",
+"Vos coordonnées servent uniquement à répondre à votre demande.":"Your contact information will only be used to respond to your request."
 };
 const originals=new WeakMap();
 function apply(){
@@ -490,7 +510,7 @@ document.getElementById('fjord-lang').addEventListener('change',e=>{localStorage
 document.getElementById('fjord-theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);apply()});
 apply();
 })();
-</script><script src="/static/fjord_sitewide.js?v=20261109-upload16" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
+</script><script src="/static/fjord_sitewide.js?v=20261109-form-i18n2" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
 def page(title,body,**kwargs):
  from flask import render_template_string
  # SEO parameters are reserved and never leaked into the individual body template.
@@ -1316,7 +1336,7 @@ FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p
 <label>Dimensions approximatives (facultatif)<input name="dimensions" maxlength="120" placeholder="Ex. 120 × 80 × 30 mm" autocomplete="off"><small class="fjord-field-help">Longueur × largeur × hauteur, idéalement en millimètres.</small></label>
 <label>Remise souhaitée<select name="remise">{% for option in remise_options %}<option value="{{option}}">{{option}}</option>{% endfor %}</select></label>
 <label>Délai souhaité<select name="delai">{% for option in delai_options %}<option value="{{option}}">{{option}}</option>{% endfor %}</select><small class="fjord-field-help">La disponibilité et les frais éventuels seront confirmés dans la soumission.</small></label>
-</div></section><label>Matériau souhaité<select name="material">{% for m in materials %}<option>{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help">Indiquez le nombre de pièces désirées.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option>{{col}}</option>{% endfor %}</select></label>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<div class="fjm-files">
+</div></section><label>Matériau souhaité<select name="material">{% for m in materials %}<option value="{{m}}">{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help">Indiquez le nombre de pièces désirées.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option value="{{col}}">{{col}}</option>{% endfor %}</select></label>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<div class="fjm-files">
 <label>📷 Photo ou croquis de référence (facultatif)<input type="file" name="reference_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="fjordReferenceHelp"><small id="fjordReferenceHelp" class="fjord-field-help">Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).</small></label>
 <div id="fjordReferencePreview" class="fjord-reference-preview" hidden><img alt="Aperçu de votre photo de référence" id="fjordReferenceImage"><span id="fjordReferenceFilename"></span><button type="button" id="fjordReferenceRemove">Retirer la photo</button></div>
 <label>📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)<input type="file" name="model" accept=".stl,.3mf"></label>
