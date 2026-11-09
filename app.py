@@ -510,7 +510,7 @@ document.getElementById('fjord-lang').addEventListener('change',e=>{localStorage
 document.getElementById('fjord-theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);apply()});
 apply();
 })();
-</script><script src="/static/fjord_sitewide.js?v=20261109-sales-bundle3" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
+</script><script src="/static/fjord_sitewide.js?v=20261109-sales-bundle4" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
 def page(title,body,**kwargs):
  from flask import render_template_string
  # SEO parameters are reserved and never leaked into the individual body template.
@@ -1314,11 +1314,11 @@ def gallery_item(id):
 
 
 FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p>{{intro}}</p>{% if quote %}{{marketing_help|safe}}{% if gallery_selected %}
-<section class="fjord-quote-gallery-ref" aria-label="Photo choisie dans la galerie">
+<section class="fjord-quote-gallery-ref" aria-label="Photo choisie dans la galerie" data-gallery-title="{{gallery_selected.title}}">
  <img src="{{gallery_photo_url}}" loading="eager" alt="Photo de la réalisation {{gallery_selected.title}}">
- <div><strong>Votre réalisation : {{gallery_selected.title}}</strong>
+ <div><strong><span data-fjm-en="Selected project:">Votre réalisation :</span> {{gallery_selected.title}}</strong>
  {% if gallery_selected.model_filename %}<p data-fjm-en="The photo and its associated 3D model are already included in your quote request. No need to upload the same file again. Add another STL/3MF only if you want us to review a different version.">La photo et son modèle 3D associé sont déjà joints à votre demande. Pas besoin de téléverser le même fichier. Ajoutez un autre STL/3MF seulement si vous voulez faire évaluer une version différente.</p>{% else %}<p data-fjm-en="This photo will be included with your quote request. No 3D file is linked yet; add your STL/3MF below if you have one.">Cette photo sera jointe à votre demande. Aucun fichier 3D n'est encore associé; ajoutez votre STL/3MF ci-dessous si vous en avez un.</p>{% endif %}
- <p class="small">Vous pouvez également ajouter votre propre photo ou un autre modèle STL/3MF ci-dessous.</p>
+ <p class="small">Vous pouvez également ajouter votre propre photo ou un autre modèle STL/3MF ci-dessous.</p><p class="small"><a class="fjord-other-ready-models" href="/galerie?prets=1" data-fjm-en="Browse other ready-to-print models">Choisir un autre modèle prêt à imprimer</a></p>
  </div>
  <input type="hidden" name="gallery_id" value="{{gallery_selected.id}}" form="fjordQuoteForm">
  <input type="hidden" name="gallery_photo_id" value="{{gallery_photo_id}}" form="fjordQuoteForm">
