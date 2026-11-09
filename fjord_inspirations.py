@@ -50,16 +50,18 @@ def _load_ideas():
 
 IDEAS = _load_ideas()
 
-def html_fragment():
-    if not IDEAS:
+def html_fragment(allowed_sources=None):
+    ideas=[(i,idea) for i,idea in enumerate(IDEAS)
+           if allowed_sources is None or idea["source"] in allowed_sources]
+    if not ideas:
         return ""
     categories={name:en for name,en in CATEGORIES}
     chips=[
         '<button type="button" class="fji-filter" data-fji-filter="all" '
-        'aria-pressed="true" data-fjm-en="All 50 ideas">Toutes les 50 idées</button>'
+        'aria-pressed="true" data-fjm-en="Ready-to-print models">Modèles imprimables</button>'
     ]
     for category,en in CATEGORIES:
-        count=sum(x["category"]==category for x in IDEAS)
+        count=sum(x["category"]==category for _,x in ideas)
         if count:
             chips.append(
                 '<button type="button" class="fji-filter" data-fji-filter="'
@@ -68,7 +70,7 @@ def html_fragment():
                 +html.escape(category)+' <span aria-hidden="true">('+str(count)+')</span>'
                 '</button>')
     cards=[]
-    for i,idea in enumerate(IDEAS):
+    for i,idea in ideas:
         title=html.escape(idea["title"])
         image=html.escape(idea["image"],quote=True)
         author=html.escape(idea["author"])
@@ -80,7 +82,7 @@ def html_fragment():
         cards.append(
             '<article class="fji-card" data-fji-category="'
             +html.escape(idea["category"],quote=True)+'" role="group" aria-label="'
-            +html.escape(f"Idée {i+1} sur {len(IDEAS)} : {idea['title']}",quote=True)+'">'
+            +html.escape(f"Idée {i+1} sur {len(ideas)} : {idea['title']}",quote=True)+'">'
             '<div class="fji-photo"><img src="'+image+'" loading="lazy" decoding="async" '
             'fetchpriority="low" referrerpolicy="no-referrer" width="480" height="360" '
             'alt="Inspiration 3D : '+title+'"><span class="fji-photo-fallback" '
@@ -103,18 +105,18 @@ def html_fragment():
         'data-fjm-en="Ideas from the 3D printing world">Inspirations trouvées sur Internet</span>'
         '<h2 id="fji-heading" data-fjm-en="What could we create for you?">'
         'Et si on fabriquait quelque chose pour vous?</h2>'
-        '<p data-fjm-en="Explore 50 examples and ask about your own version.">'
-        'Explorez 50 idées d’objets 3D. Faites défiler, puis demandez votre version personnalisée.</p>'
+        '<p data-fjm-en="Explore printable projects with an STL or 3MF file linked to your quote.">'
+        'Explorez les projets imprimables associés à un fichier STL ou 3MF. Votre demande reprend automatiquement ce fichier.</p>'
         '</div><div class="fji-controls" aria-label="Navigation du diaporama">'
         '<button type="button" id="fji-prev" aria-label="Image précédente">‹</button>'
-        '<span id="fji-counter" aria-live="off">1 / '+str(len(IDEAS))+'</span>'
+        '<span id="fji-counter" aria-live="off">1 / '+str(len(ideas))+'</span>'
         '<button type="button" id="fji-next" aria-label="Image suivante">›</button>'
         '</div></div>'
         '<div class="fji-filters" role="group" aria-label="Catégories d’inspirations">'
         +''.join(chips)+'</div>'
         '<div class="fji-track" id="fji-track" tabindex="0" '
         'role="region" aria-roledescription="carousel" '
-        'aria-label="50 inspirations d’objets fabriqués par impression 3D">'
+        'aria-label="Projets imprimables avec fichier STL ou 3MF associé">'
         +''.join(cards)+'</div>'
         '<p class="fji-disclaimer" data-fjm-en="50 photos from Wikimedia Commons, '
         'showing work by other creators, not items sold or made by our workshop. '
