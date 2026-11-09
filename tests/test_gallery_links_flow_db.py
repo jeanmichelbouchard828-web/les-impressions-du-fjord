@@ -122,6 +122,28 @@ class GalleryModelTests(TestCase):
         self.assertEqual(row2["filedata"],model2)
         self.assertEqual(self.get(f"/admin/gallery/model/{gallery}?photo={first}").status_code,302)
 
+    def test_customer_request_one_click_preparation_stays_private_and_non_printing(self):
+        request_result=self.quote({"email":"fjord-quick-prep@example.invalid",
+            "model":(io.BytesIO(stl()),"photo-linked.stl")})
+        self.assertEqual(request_result.status_code,200)
+        with db() as conn:
+            record=conn.execute("SELECT id,filename,filedata FROM requests WHERE email=%s",
+                                ("fjord-quick-prep@example.invalid",)).fetchone()
+        self.assertEqual(record["filename"],"photo-linked.stl")
+        path=f"/admin/demandes/model/{record['id']}"
+        self.assertEqual(self.get(path).status_code,302)
+        self.owner()
+        file_response=self.get(path)
+        self.assertEqual(file_response.status_code,200)
+        self.assertEqual(file_response.data,stl())
+        self.assertEqual(file_response.headers.get("X-Fjord-Model-Name"),"photo-linked.stl")
+        self.assertIn("no-store",file_response.headers.get("Cache-Control",""))
+        admin=self.get("/admin")
+        self.assertIn(f"/admin/atelier-3d?demande={record['id']}",admin.get_data(as_text=True))
+        atelier=self.get(f"/admin/atelier-3d?demande={record['id']}")
+        self.assertEqual(atelier.status_code,200)
+        self.assertIn("'/admin/demandes/model/'",atelier.get_data(as_text=True))
+
     def test_owner_can_assign_models_per_photo_and_open_in_atelier(self):
         self.owner()
         with db() as c:
