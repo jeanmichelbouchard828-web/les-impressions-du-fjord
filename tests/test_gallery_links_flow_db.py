@@ -90,8 +90,8 @@ class GalleryModelTests(TestCase):
                  (gallery,jpeg((100,120,20)),"image/jpeg")).fetchone()["id"]
         page=self.get(f"/galerie/{gallery}")
         self.assertEqual(page.status_code,200)
-        self.assertIn(f"/soumission?galerie={gallery}&amp;photo={first}",page.get_data(as_text=True))
-        self.assertIn(f"/soumission?galerie={gallery}&amp;photo={second}",page.get_data(as_text=True))
+        self.assertRegex(page.get_data(as_text=True),r'/soumission\\?galerie='+str(gallery)+r'(?:&amp;|&#34;|&|&#38;)photo='+str(first))
+        self.assertRegex(page.get_data(as_text=True),r'/soumission\\?galerie='+str(gallery)+r'(?:&amp;|&#34;|&|&#38;)photo='+str(second))
         self.assertNotIn("piece-unique.stl",page.get_data(as_text=True))
         view=self.get(f"/soumission?galerie={gallery}&photo={first}")
         self.assertEqual(view.status_code,200)
@@ -168,7 +168,7 @@ class GalleryModelTests(TestCase):
         self.owner()
         admin=self.get("/admin/inspirations")
         self.assertEqual(admin.status_code,200)
-        self.assertIn("Confirmation",admin.get_data(as_text=True).replace("confirmation","Confirmation"))
+        self.assertIn("Je confirme avoir les droits",admin.get_data(as_text=True))
         no_rights=self.post("/admin/inspirations/0/modele",{
             "csrf":get_csrf(admin.get_data(as_text=True)),
             "model":(io.BytesIO(stl()),"gift.stl")})
