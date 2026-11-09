@@ -76,6 +76,21 @@
     // Files are still checked server-side; this gives quick, clear user feedback.
     const quoteForm=document.querySelector("form.fjm-quote-form");
     if (quoteForm) {
+      const galleryRef=document.querySelector(".fjord-quote-gallery-ref[data-gallery-title]");
+      const description=quoteForm.querySelector('textarea[name="description"]');
+      const languagePicker=document.getElementById("fjord-lang");
+      if(galleryRef&&description){
+        const title=galleryRef.dataset.galleryTitle||"";
+        const frenchPrefill="Je souhaite une création semblable à « "+title+" » (photo de la galerie). ";
+        const englishPrefill="I'd like a similar print of “"+title+"” (gallery photo). ";
+        const translatePrefill=()=>{
+          const current=description.value;
+          if(current!==frenchPrefill&&current!==englishPrefill)return;
+          description.value=languagePicker?.value==="en"?englishPrefill:frenchPrefill;
+        };
+        translatePrefill();
+        languagePicker?.addEventListener("change",translatePrefill);
+      }
       const file=quoteForm.querySelector('input[name="model"]');
       if (file) {
         const info=document.createElement("p");
@@ -210,7 +225,7 @@
     translateMobile();
     translateOptions();
     const pageTranslations={
-      "Une idée de création 3D? Écrivez-nous par courriel, sur Facebook ou appelez-nous!":"Have a 3D idea? Email us, message us on Facebook, or call!",
+      "Parlons de votre projet":"Let's discuss your project","Une idée de création 3D? Écrivez-nous par courriel, sur Facebook ou appelez-nous!":"Have a 3D idea? Email us, message us on Facebook, or call!",
       "Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».":"For Messenger, open our Facebook page and select “Send message”."
     };
     const translatedNodes=new WeakMap();
