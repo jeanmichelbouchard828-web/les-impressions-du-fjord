@@ -25,20 +25,20 @@ MARKETING_CSS = r"""<style>
 .fjm-hero-panel h2{color:#f1fbff;margin:15px 0 8px;font-size:clamp(22px,2.4vw,29px)}
 .fjm-hero-panel p{margin:0 0 18px;color:#c6dfec;font-size:15px}
 .fjm-hero-panel a{font-weight:800;text-decoration:underline;text-underline-offset:4px}
-.fjm-section{margin:clamp(37px,5.5vw,74px) 0}
+.fjm-section{margin:clamp(26px,4vw,52px) 0}
 .fjm-heading{max-width:800px;margin-bottom:23px}
 .fjm-heading h2{margin:8px 0 10px;font-size:clamp(27px,3.5vw,40px)}
 .fjm-heading p{margin:0}
 .fjm-services{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.fjm-service{display:flex;flex-direction:column;gap:9px;padding:23px;border:1px solid #2f7098;border-radius:19px;background:linear-gradient(150deg,#15364d,#0c2235)}
-.fjm-service .fjm-icon{display:grid;place-items:center;width:51px;height:51px;border-radius:14px;background:#16577a;font-size:24px}
-.fjm-service h3{font-size:19px;margin:8px 0 0;color:#edfbff}.fjm-service p{font-size:14px;line-height:1.6;margin:0}
-.fjm-service a{margin-top:auto;padding-top:11px;font-weight:850;text-decoration:underline;text-underline-offset:4px}
-.fjm-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.fjm-step{padding:23px;border:1px solid #306f91;border-radius:18px;background:#0d273c}
+.fjm-service{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;align-items:center;column-gap:12px;row-gap:2px;padding:13px;border:1px solid #2f7098;border-radius:14px;background:linear-gradient(150deg,#15364d,#0c2235)}
+.fjm-service .fjm-icon{grid-row:1/3;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#16577a;font-size:20px}
+.fjm-service h3{font-size:16px;margin:0;color:#edfbff}.fjm-service p{font-size:12px;line-height:1.35;margin:0}
+.fjm-service a{margin-top:0;padding-top:2px;font-size:12px;font-weight:850;text-decoration:underline;text-underline-offset:3px}
+.fjm-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fjm-step{padding:14px;border:1px solid #306f91;border-radius:14px;background:#0d273c}
 .fjm-step-number{display:grid;place-items:center;width:37px;height:37px;border:1px solid #50bde9;border-radius:12px;color:#90e9ff;font-weight:900}
-.fjm-step h3{font-size:18px;color:#ebfaff;margin:14px 0 8px}
-.fjm-step p{margin:0;font-size:14px}
+.fjm-step h3{font-size:16px;color:#ebfaff;margin:9px 0 5px}
+.fjm-step p{margin:0;font-size:12px;line-height:1.4}
 .fjm-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
 .fjm-project{display:flex;flex-direction:column;min-width:0;overflow:hidden;border:1px solid #2c7396;border-radius:18px;background:#102e43;color:#eefaff!important;text-decoration:none!important;transition:border-color .15s,transform .15s}
 .fjm-project:hover{border-color:#69d6f6;transform:translateY(-2px)}
@@ -79,9 +79,9 @@ body.light .fjm-faq summary,body.light .fjm-quote-helper strong{color:#164863}
 body.light .fjm-filter{background:#fff;color:#1b4c67}
 body.light .fjm-filter[aria-pressed=true]{background:#087cae;color:#fff}
 body.light .fjm-final{background:linear-gradient(110deg,#dbf2ff,#b3e4fb)}
-@media(max-width:1050px){.fjm-services{grid-template-columns:repeat(2,minmax(0,1fr))}.fjm-hero{grid-template-columns:1fr}.fjm-hero-panel{display:grid;grid-template-columns:90px 1fr;column-gap:17px;align-items:center}.fjm-hero-panel img{grid-row:1/4}.fjm-hero-panel h2{margin:0 0 5px}}
+@media(max-width:1050px){.fjm-services{grid-template-columns:repeat(2,minmax(0,1fr))}.fjm-hero{grid-template-columns:1fr}.fjm-hero-panel{display:block;padding:16px}.fjm-hero-panel h2{margin:0 0 5px}}
 @media(max-width:690px){.fjm-hero{padding:25px 18px!important;min-height:0}.fjm-hero h1{font-size:clamp(35px,9vw,53px)!important}.fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-hero-actions a{width:100%}.fjm-hero-panel{padding:16px}.fjm-steps,.fjm-gallery{grid-template-columns:1fr 1fr}.fjm-project img,.fjm-project .fjm-project-noimage{height:155px}.fjm-faq{grid-template-columns:1fr}.fjm-final{display:block}.fjm-final .btn{margin-top:18px;width:100%}}
-@media(max-width:460px){.fjm-services,.fjm-steps,.fjm-gallery{grid-template-columns:1fr}.fjm-project img,.fjm-project .fjm-project-noimage{height:230px}.fjm-service{padding:19px}.fjm-hero-panel{grid-template-columns:65px 1fr}.fjm-hero-panel img{width:60px;height:60px}.fjm-gallery-controls input{width:100%;max-width:100%;min-width:0}}
+@media(max-width:460px){.fjm-services,.fjm-steps,.fjm-gallery{grid-template-columns:1fr}.fjm-project img,.fjm-project .fjm-project-noimage{height:230px}.fjm-service{padding:11px}.fjm-gallery-controls input{width:100%;max-width:100%;min-width:0}}
 @media(prefers-reduced-motion:reduce){.fjm-project{transition:none}}
 
 /* Real workshop pieces are presented as a touch-friendly sales carousel. */
@@ -123,7 +123,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <p class="fjm-hero-sub" data-fjm-en="No obligation to order · STL and 3MF models accepted">Sans obligation d'achat · Modèles STL et 3MF acceptés</p>
  <ul class="fjm-points"><li data-fjm-en="📍 Made in Saguenay">📍 Fabriqué au Saguenay</li><li data-fjm-en="🧩 Custom projects">🧩 Projets personnalisés</li><li data-fjm-en="💬 Real human support">💬 Contact humain</li></ul>
  </div>
- <aside class="fjm-hero-panel"><img src="/identite/logo" width="89" height="89" alt="Logo Les Impressions du Fjord" loading="eager"><h2 data-fjm-en="From idea to object">De l'idée à l'objet</h2><p data-fjm-en="No 3D file? No problem. Describe your needs and we can discuss a solution together.">Pas de fichier 3D? Aucun problème. Expliquez-nous votre besoin et discutons d'une solution.</p><a href="/atelier-3d" data-fjm-en="Try our online 3D Studio">Essayer notre Atelier 3D en ligne</a></aside>
+ <aside class="fjm-hero-panel"><h2 data-fjm-en="No 3D model yet?">Pas de fichier 3D?</h2><p data-fjm-en="A photo, sketch, or description is enough to start a quote request.">Une photo, un croquis ou une description suffit pour démarrer la demande.</p></aside>
 </section>
 <section class="fjm-section" id="services">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="What we create">Ce qu'on réalise</span><h2 data-fjm-en="3D printing solutions for all your ideas">L'impression 3D pour toutes vos idées</h2><p data-fjm-en="One part, a gift, a prototype or a small production run: every project starts with a conversation.">Une pièce, un cadeau, un prototype ou une petite série : chaque projet commence par une conversation.</p></div>
