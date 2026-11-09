@@ -301,7 +301,7 @@ body.light .contact-section{background:#edf7fb;border-color:#c4dce9}body.light .
 @media(max-width:640px){.site-header{gap:8px;padding:9px 12px}.site-header .brand{grid-template-columns:45px auto;column-gap:8px;font-size:14px}.site-header .brand img{width:44px!important;height:44px!important}.site-header .fjord-brand-tagline{font-size:7px;letter-spacing:.12em}.site-header nav{display:none!important;grid-template-columns:1fr 1fr;gap:6px}.site-header.menu-open nav{display:grid!important}.site-header nav a{min-height:42px;white-space:normal}.site-header .pref-controls{grid-column:1/-1;grid-row:2;justify-content:flex-end}.site-header .pref-controls select{min-width:0;max-width:125px}.site-nav-toggle{min-height:40px;padding:8px 10px}body>main{padding:20px 12px 44px!important}.hero{padding:32px 16px!important}main .card{padding:16px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style>"""
-BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{title}} | Les Impressions du Fjord"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><meta property="og:url" content="{{canonical_url}}"><meta property="og:locale" content="fr_CA"><meta property="og:site_name" content="Les Impressions du Fjord"><meta property="og:image" content="{{og_image}}"><meta property="og:image:alt" content="{{title}} — Les Impressions du Fjord"><meta name="twitter:card" content="summary_large_image"><meta name="robots" content="{{meta_robots}}"><link rel="canonical" href="{{canonical_url}}"><link rel="icon" type="image/jpeg" href="/identite/logo"><title>{{title}} | Les Impressions du Fjord</title><script type="application/ld+json">{{business_schema|safe}}</script>{% if gallery_schema %}<script type="application/ld+json">{{gallery_schema|tojson}}</script>{% endif %}"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+FJORD_FINISHING+FJORD_VISITOR_STYLE+FJORD_DONATION_STYLE+FJORD_PRO_REDESIGN+MARKETING_CSS+"""<style>
+BASE="""<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{{meta_description}}"><meta property="og:title" content="{{seo_title}}"><meta property="og:description" content="{{meta_description}}"><meta property="og:type" content="website"><meta property="og:url" content="{{canonical_url}}"><meta property="og:locale" content="fr_CA"><meta property="og:site_name" content="Les Impressions du Fjord"><meta property="og:image" content="{{og_image}}"><meta property="og:image:alt" content="{{title}} — Les Impressions du Fjord"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{{seo_title}}"><meta name="twitter:description" content="{{meta_description}}"><meta name="twitter:image" content="{{og_image}}"><meta name="robots" content="{{meta_robots}}"><link rel="canonical" href="{{canonical_url}}"><link rel="icon" type="image/jpeg" href="/identite/logo"><title>{{seo_title}}</title><script type="application/ld+json">{{business_schema|safe}}</script>{% if gallery_schema %}<script type="application/ld+json">{{gallery_schema|tojson}}</script>{% endif %}"""+STYLE+GLOBAL_FJORD_THEME+FJORD_SITE_PREMIUM+FJORD_FULL_BRANDING+FJORD_LAYOUT_SIDEBAR+FJORD_FINISHING+FJORD_VISITOR_STYLE+FJORD_DONATION_STYLE+FJORD_PRO_REDESIGN+MARKETING_CSS+"""<style>
 @media(max-width:650px){
  header nav{width:100%;display:none;flex-wrap:wrap;gap:8px;align-items:center}
  header nav a{padding:8px 9px;min-height:40px;display:inline-flex;align-items:center}
@@ -531,6 +531,7 @@ def page(title,body,**kwargs):
  from flask import render_template_string
  # SEO parameters are reserved and never leaked into the individual body template.
  custom_description=kwargs.pop("seo_description",None)
+ custom_seo_title=kwargs.pop("seo_title",None)
  custom_image=kwargs.pop("seo_image",None)
  gallery_schema=kwargs.pop("seo_gallery_schema",None)
  description={
@@ -541,6 +542,13 @@ def page(title,body,**kwargs):
   "Parrainage Starlink":"Découvrez un lien de parrainage Starlink pour les nouveaux abonnés admissibles au Canada. Parrainage personnel et transparent."
  }.get(title,"Les Impressions du Fjord — impression 3D sur mesure au Saguenay.")
  meta=seo_metadata()
+ seo_titles={
+  "Accueil":"Impression 3D à Saguenay | Les Impressions du Fjord",
+  "Galerie":"Galerie de réalisations en impression 3D | Les Impressions du Fjord",
+  "Soumission":"Soumission gratuite en impression 3D | Les Impressions du Fjord",
+  "Contact":"Contact impression 3D à Saguenay | Les Impressions du Fjord",
+ }
+ seo_title=str(custom_seo_title or seo_titles.get(title,title+" | Les Impressions du Fjord"))[:100]
  # Only same-site image paths can be used in public social metadata.
  image=meta["public_origin"]+custom_image if isinstance(custom_image,str) and custom_image.startswith("/") and not custom_image.startswith("//") else meta["public_origin"]+"/identite/logo"
  rendered_body=render_template_string(body,**kwargs)
@@ -548,7 +556,7 @@ def page(title,body,**kwargs):
  if request.path=="/" or request.path=="/galerie" or request.path.startswith("/galerie/"):
   rendered_body += '<a class="fjord-mobile-quote-cta" href="/soumission" aria-label="Demander une soumission gratuite">🧾 Demander une soumission gratuite</a>'
  return render_template_string(
-  BASE,title=title,meta_description=(str(custom_description or description)[:230]),
+  BASE,title=title,seo_title=seo_title,meta_description=(str(custom_description or description)[:230]),
   og_image=image,gallery_schema=gallery_schema,
   body=rendered_body,business_schema=BUSINESS_SCHEMA,
   fjord_is_preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",**meta)
