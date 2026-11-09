@@ -112,6 +112,21 @@ class IsolatedBusinessFlow(unittest.TestCase):
         self.assertNotIn("fjord-x2d-profile-preferences-v1",text)
         public=self.get("/atelier-3d").get_data(as_text=True)
         self.assertNotIn('id="fjordBambuProfileBar"',public)
+        # Sidebar placement: menu must be inside the LEFT drawer, never above
+        # the workspace or duplicated in the top header.
+        self.assertEqual(text.count('id="fjordBambuProfileBar"'),1)
+        self.assertIn('data-tool-panel="profiles" id="fjordBambuProfileBar"',text)
+        self.assertIn('data-fjord-panel="profiles"',text)
+        self.assertGreater(text.index('id="fjordBambuProfileBar"'),
+                           text.index('id="toolsPanel"'))
+        self.assertLess(text.index('id="fjordBambuProfileBar"'),
+                        text.index('</aside>\n<div class="stage"'))
+        self.assertIn('id="fjordProfileImport"',text)
+        for section in ('data-tool-panel="projects"','data-tool-panel="parts"',
+                        'data-tool-panel="measure"'):
+            self.assertIn(section,text)
+        self.assertIn('data-tool-panel="profiles" id="fjordBambuPublicHelp"',public)
+        self.assertNotIn('data-tool-panel="profiles" id="fjordBambuPublicHelp"',text)
 
     def test_quote_submission_and_private_tracking(self):
         page=self.get("/soumission")
