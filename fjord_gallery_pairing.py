@@ -8,7 +8,7 @@ import re
 import unicodedata
 from pathlib import PurePath
 
-PHOTO_SUFFIX = re.compile(r"(?:[-_ ](?:photo|image|img|vue|angle|render|preview)(?:[-_ ]?\\d{1,2})?)$",re.I)
+PHOTO_SUFFIX = re.compile(r"(?:[-_ ](?:photo|image|img|vue|angle|render|preview)(?:[-_ ]?\d{1,2})?)$",re.I)
 
 def model_stem(name):
     name=unicodedata.normalize("NFKD",str(name or ""))
