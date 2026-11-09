@@ -112,26 +112,28 @@
         if(preview)preview.hidden=true;
       }
       if(photo&&preview&&photoImage){
-        photo.addEventListener("change",()=>{
+        const updatePhotoPreview=()=>{
           if(photoUrl){URL.revokeObjectURL(photoUrl);photoUrl=null;}
-          const file=photo.files?.[0];
+          const file=photo.files?.[0],english=document.getElementById("fjord-lang")?.value==="en";
           if(!file){clearPhoto();return;}
           const types=["image/jpeg","image/png","image/webp"];
           const valid=types.includes(file.type)&&file.size<=4*1024*1024&&file.size>0;
-          photo.setCustomValidity(valid?"":"Choisissez une image JPG, PNG ou WebP de 4 Mo maximum.");
-          if(!valid){if(photoLabel)photoLabel.textContent="Format ou taille de photo non acceptés";photoImage.removeAttribute("src");preview.hidden=false;return;}
+          photo.setCustomValidity(valid?"":(english?"Choose a JPG, PNG or WebP image up to 4 MB.":"Choisissez une image JPG, PNG ou WebP de 4 Mo maximum."));
+          if(!valid){if(photoLabel)photoLabel.textContent=english?"Photo format or size not accepted":"Format ou taille de photo non acceptés";photoImage.removeAttribute("src");preview.hidden=false;return;}
           photoUrl=URL.createObjectURL(file);
           photoImage.src=photoUrl;
-          if(photoLabel)photoLabel.textContent=file.name+" · "+(file.size/(1024*1024)).toLocaleString("fr-CA",{maximumFractionDigits:1})+" Mo";
+          if(photoLabel)photoLabel.textContent=file.name+" · "+(file.size/(1024*1024)).toLocaleString(english?"en-CA":"fr-CA",{maximumFractionDigits:1})+(english?" MB":" Mo");
           preview.hidden=false;
-        });
+        };
+        photo.addEventListener("change",updatePhotoPreview);
+        document.getElementById("fjord-lang")?.addEventListener("change",()=>{if(photo.files?.[0])updatePhotoPreview();});
         photoRemove?.addEventListener("click",clearPhoto);
         window.addEventListener("pagehide",()=>{if(photoUrl)URL.revokeObjectURL(photoUrl);});
       }
       const button=quoteForm.querySelector('button[type="submit"]');
       quoteForm.addEventListener("submit",()=>{
         if(!quoteForm.checkValidity())return;
-        if(button){button.disabled=true;button.textContent="Envoi en cours…";}
+        if(button){button.disabled=true;button.textContent=document.getElementById("fjord-lang")?.value==="en"?"Sending…":"Envoi en cours…";}
       });
     }
 
