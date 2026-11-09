@@ -985,7 +985,15 @@ def starlink_referral():
 @app.get("/galerie")
 def gallery_page():
  with db() as c:
-  items=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo FROM gallery ORDER BY id DESC").fetchall()
+  items=c.execute("""SELECT g.id,g.title,g.category,g.description,g.photo IS NOT NULL AS has_photo,
+      CASE WHEN g.photo IS NOT NULL AND g.model_data IS NOT NULL THEN 0
+           WHEN p.id IS NOT NULL AND p.model_data IS NOT NULL THEN p.id
+           WHEN g.photo IS NOT NULL THEN 0 ELSE COALESCE(p.id,0) END AS quote_photo_id
+      FROM gallery g
+      LEFT JOIN LATERAL (SELECT id,model_data FROM gallery_photos
+                         WHERE gallery_id=g.id
+                         ORDER BY (model_data IS NOT NULL) DESC,id LIMIT 1) p ON TRUE
+      ORDER BY g.id DESC""").fetchall()
  return page("Galerie",MARKETING_GALLERY + MARKETING_SCRIPT,items=items)
 @app.get("/gallery/cover/<int:id>")
 def cover(id):
