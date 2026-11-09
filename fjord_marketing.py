@@ -203,29 +203,63 @@ body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65
 /* Présentation plus concentrée du formulaire de soumission sur grand écran. */
 @media(min-width:980px){body.fjord-public main:has(.fjm-quote-form){max-width:960px!important}}
 body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form{width:100%;max-width:760px!important}
+/* Conversion refresh: clearer purchase paths, real catalogue imagery and more useful project guidance. */
+.fjm-home{gap:0}
+.fjm-home .fjm-hero{min-height:450px;grid-template-columns:minmax(0,1.12fr) minmax(290px,.88fr);gap:clamp(24px,4vw,54px);padding:clamp(28px,4vw,56px)!important}
+.fjm-home .fjm-hero h1{max-width:11ch;font-size:clamp(44px,5.5vw,74px);line-height:.99;letter-spacing:-.06em}
+.fjm-home .fjm-hero h1 .fjm-accent{display:block;color:#6cddff}
+.fjm-home .fjm-hero-lead{max-width:54ch;font-size:clamp(17px,1.65vw,20px)}
+.fjm-home .fjm-hero-sub{margin:11px 0 0;color:#b7d3e2;font-size:13px}
+.fjm-home .fjm-hero-actions .btn:first-child{min-height:54px;padding:13px 20px;font-size:15px}
+.fjm-home .fjm-hero-actions .fjm-outline{background:transparent!important;color:#e8f9ff!important}
+.fjm-home .fjm-hero-proof{padding:14px!important}
+.fjm-home .fjm-hero-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:clamp(150px,18vw,220px);height:auto!important;min-height:0!important}
+.fjm-home .fjm-hero-photo-grid>a{height:auto!important;min-height:150px!important}
+.fjm-home .fjm-hero-photo-grid img{height:100%!important;min-height:150px!important;max-height:none!important;aspect-ratio:1/1;object-fit:cover}
+.fjm-home .fjm-hero-photo-placeholder{display:grid;place-items:center;min-height:150px;border:1px dashed #4384a0;border-radius:13px;background:#0a263b;color:#a9dced;font-weight:800;text-align:center}
+.fjm-home .fjm-offers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.fjm-home .fjm-offer{display:flex;flex-direction:column;min-height:220px;padding:21px;border:1px solid #2e7191;border-radius:17px;background:linear-gradient(150deg,#12344d,#0b2033);transition:transform .18s,border-color .18s,box-shadow .18s}
+.fjm-home .fjm-offer:hover{transform:translateY(-3px);border-color:#59c8e9;box-shadow:0 13px 27px #00152266}
+.fjm-home .fjm-offer-icon{display:grid;place-items:center;width:43px;height:43px;border:1px solid #448db0;border-radius:13px;background:#124769;color:#b5efff;font-size:20px}
+.fjm-home .fjm-offer h3{margin:14px 0 6px;color:#f0fbff;font-size:17px}
+.fjm-home .fjm-offer p{margin:0 0 14px;color:#bfd5e2;font-size:13px;line-height:1.55}
+.fjm-home .fjm-offer a{margin-top:auto;color:#83e1fa;font-size:13px;font-weight:850;text-decoration:underline;text-underline-offset:3px}
+.fjm-home .fjm-faq{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fjm-home .fjm-faq summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.fjm-home .fjm-faq summary::-webkit-details-marker{display:none}
+.fjm-home .fjm-faq summary:after{content:"+";flex:0 0 26px;display:grid;place-items:center;width:26px;height:26px;border:1px solid #367997;border-radius:50%;color:#83e1fa;font-size:20px;line-height:1}
+.fjm-home .fjm-faq details[open] summary:after{content:"−"}
+.fjm-home .fjm-faq details p{max-width:64ch}
+.fjm-home .fjm-final{box-shadow:0 18px 44px #00111f55}
+body.light .fjm-home .fjm-offer{background:linear-gradient(150deg,#fff,#eaf6fc);border-color:#b4d8e8}
+body.light .fjm-home .fjm-offer h3{color:#173d54}
+body.light .fjm-home .fjm-offer p{color:#466679}
+body.light .fjm-home .fjm-offer-icon{background:#e4f5fc;color:#12648a;border-color:#aad6e8}
+body.light .fjm-home .fjm-hero-actions .fjm-outline{background:#fff!important;color:#15516e!important;border-color:#8dbbd1!important}
+body.light .fjm-home .fjm-hero-sub{color:#426276}
+@media(max-width:980px){.fjm-home .fjm-offers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:1fr;min-height:0;padding:26px 21px!important}.fjm-home .fjm-hero h1{font-size:clamp(44px,10vw,62px)}.fjm-home .fjm-hero-proof{display:block!important}.fjm-home .fjm-hero-photo-grid{grid-auto-rows:clamp(145px,35vw,210px)}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-home .fjm-hero-actions .btn{width:100%;white-space:normal}.fjm-home .fjm-faq{grid-template-columns:1fr}}
+@media(max-width:460px){.fjm-home .fjm-offers{grid-template-columns:1fr}.fjm-home .fjm-offer{min-height:0}.fjm-home .fjm-hero h1{font-size:44px}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
 <section class="fjm-hero" aria-labelledby="fjm-hero-title">
  <div><span class="fjm-kicker" data-fjm-en="Custom 3D printing in Saguenay, Québec">Impression 3D sur mesure · Saguenay, Québec</span>
- <h1 id="fjm-hero-title" data-fjm-en="Your idea. Printed here.">Votre idée. <span class="fjm-accent">Imprimée ici.</span></h1>
- <p class="fjm-hero-lead" data-fjm-en="Useful parts, gifts and custom creations printed in Saguenay. Choose a ready-to-print model, send an STL/3MF, or start with a photo or sketch.">Pièces utiles, cadeaux et créations sur mesure imprimés au Saguenay. Choisissez un modèle prêt à produire ou commencez avec une photo, un croquis ou un fichier STL/3MF.</p>
- <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Ready-to-print models">Modèles prêts à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Custom quote">Soumission sur mesure</a></div>
- <p class="fjm-hero-sub" data-fjm-en="No 3D file? A photo or sketch is enough to start · Free quote">Pas de fichier 3D? Une photo ou un croquis suffit · Soumission gratuite</p>
+ <h1 id="fjm-hero-title"><span data-fjm-en="Your idea.">Votre idée.</span> <span class="fjm-accent" data-fjm-en="Printed here.">Imprimée ici.</span></h1>
+ <p class="fjm-hero-lead" data-fjm-en="Useful parts, gifts and custom creations made in Saguenay. Pick a ready-to-print model, send an STL/3MF, or start with a photo or sketch.">Pièces utiles, cadeaux et créations sur mesure fabriqués au Saguenay. Choisissez un modèle prêt à imprimer, envoyez un STL/3MF ou commencez avec une photo ou un croquis.</p>
+ <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Shop ready-to-print models">Voir les modèles prêts à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Request a custom quote">Demander une soumission</a></div>
+ <p class="fjm-hero-sub" data-fjm-en="No 3D file? A photo, sketch or description is enough to start · No-obligation quote">Pas de fichier 3D? Une photo, un croquis ou une description suffit · Soumission sans obligation</p>
  <ul class="fjm-points"><li data-fjm-en="⚡ Automatic STL/3MF attachment">⚡ Fichier STL/3MF joint automatiquement</li><li data-fjm-en="📍 Printed in Saguenay">📍 Imprimé au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
  </div>
  <aside class="fjm-hero-panel fjm-hero-proof">
-  <div class="fjm-hero-photo-grid" aria-label="Exemples réels de pièces imprimées">
-   <a href="/galerie/3" aria-label="Voir le porte essuie-tout bouvier bernois">
-    <img src="/gallery/thumb/3" alt="Porte essuie-tout bouvier bernois imprimé, photographié dans une cuisine" width="420" height="260" loading="eager" fetchpriority="high">
-   </a>
-   <a href="/galerie/8" aria-label="Voir le couvercle imprimé avec trappe">
-    <img src="/gallery/thumb/8" alt="Couvercle jaune imprimé avec logo et trappe" width="240" height="260" loading="eager">
-   </a>
+  <div class="fjm-hero-photo-grid" aria-label="Exemples de projets disponibles">
+   {% for item in featured[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir {{item.title}}">
+    <img src="/gallery/thumb/{{item.id}}" alt="{{item.title}}{% if item.is_real_photo %} — pièce imprimée en photo{% else %} — aperçu du modèle 3D{% endif %}" width="420" height="260" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
+   </a>{% else %}<a href="/galerie" class="fjm-hero-photo-placeholder" aria-label="Découvrir la galerie">🧊<br>Projets sur mesure<br>faits au Saguenay</a>{% endfor %}
   </div>
-  <p class="fjm-proof-eyebrow" data-fjm-en="MADE HERE · REAL PRINTED PARTS">FABRIQUÉ AU SAGUENAY</p>
-  <h2 data-fjm-en="See what your idea can become">Une vraie pièce. Faite ici.</h2>
-  <p data-fjm-en="No 3D file? A photo, sketch, or simple description is enough to start.">Un projet concret, une fabrication locale et un service personnalisé.</p>
+  <p class="fjm-proof-eyebrow" data-fjm-en="MADE IN SAGUENAY · CUSTOM 3D PRINTING">FABRIQUÉ AU SAGUENAY · IMPRESSION SUR MESURE</p>
+  <h2 data-fjm-en="From a quick idea to a finished part">De votre idée à la pièce finie</h2>
+  <p data-fjm-en="Start with a model, file, photo or sketch. We will confirm the project details before printing.">Modèle, fichier, photo ou croquis : on valide les détails de votre projet avant l’impression.</p>
  </aside>
 </section>
 <section class="fjm-atelier" id="atelier" aria-labelledby="fjm-atelier-title">
@@ -237,6 +271,15 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <div class="fjm-atelier-actions"><a class="btn" href="/atelier-3d" data-fjm-en="Open the 3D workshop">🧊 Ouvrir l’Atelier 3D</a><a class="fjm-atelier-secondary" href="/soumission" data-fjm-en="I need help with my project">Je veux de l’aide pour mon projet</a></div>
  </div>
  <div class="fjm-atelier-note"><strong data-fjm-en="Have a 3D file?">Vous avez un fichier 3D?</strong><span>STL · 3MF</span></div>
+</section>
+<section class="fjm-section" id="services" aria-labelledby="fjm-services-title">
+ <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="What we make">CE QU’ON FABRIQUE</span><h2 id="fjm-services-title" data-fjm-en="Practical parts, prototypes and one-of-a-kind creations">Pièces utiles, prototypes et créations uniques</h2><p data-fjm-en="Tell us what the part needs to do. We will help choose a practical model, material and finish for your project.">Expliquez-nous à quoi doit servir la pièce. On vous aidera à choisir un modèle, un matériau et une finition adaptés à votre projet.</p></div>
+ <div class="fjm-offers">
+  <article class="fjm-offer"><span class="fjm-offer-icon" aria-hidden="true">⚙</span><h3 data-fjm-en="Replacement parts">Pièces de remplacement</h3><p data-fjm-en="A broken clip, cover, spacer or bracket? Share a photo and the approximate measurements.">Clip, couvercle, entretoise ou support brisé? Envoyez une photo et des dimensions approximatives.</p><a href="/soumission" data-fjm-en="Describe the part →">Décrire la pièce →</a></article>
+  <article class="fjm-offer"><span class="fjm-offer-icon" aria-hidden="true">⬡</span><h3 data-fjm-en="Custom accessories">Accessoires sur mesure</h3><p data-fjm-en="Mounts, holders and adapters designed around your equipment and how you use it.">Supports, porte-objets et adaptateurs pensés pour votre équipement et votre usage.</p><a href="/soumission" data-fjm-en="Start a custom quote →">Demander une soumission →</a></article>
+  <article class="fjm-offer"><span class="fjm-offer-icon" aria-hidden="true">✳</span><h3 data-fjm-en="Gifts and decor">Cadeaux et décoration</h3><p data-fjm-en="Personalized keepsakes, home accents and small-batch ideas made to order.">Souvenirs personnalisés, objets déco et petites séries fabriqués à la demande.</p><a href="/galerie" data-fjm-en="Browse the gallery →">Voir les réalisations →</a></article>
+  <article class="fjm-offer"><span class="fjm-offer-icon" aria-hidden="true">▱</span><h3 data-fjm-en="Print from your file">Impression depuis votre fichier</h3><p data-fjm-en="Have an STL or 3MF? Attach it to your request and tell us the quantity, colour and intended use.">Vous avez un STL ou un 3MF? Joignez-le et indiquez la quantité, la couleur et l’utilisation.</p><a href="/soumission" data-fjm-en="Send my 3D file →">Envoyer mon fichier 3D →</a></article>
+ </div>
 </section>
 <section class="fjm-section" id="realisations">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Ready for production">Prêts à produire</span><h2 data-fjm-en="Choose a part and we will handle the printing">Choisissez une pièce, nous nous occupons de l’impression</h2><span class="fjm-ready-count" data-fjm-en="{{featured|length}} models ready with STL/3MF">✓ {{featured|length}} modèles avec fichier STL/3MF</span><p data-fjm-en="Every piece shown has an STL or 3MF already linked. Request a quote and the right model will follow automatically.">Chaque pièce présentée a son STL ou 3MF déjà associé. Demandez une soumission : le bon modèle suivra automatiquement.</p></div>
@@ -253,6 +296,15 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <strong data-fjm-en="2. Get a free quote">2. Recevez une soumission gratuite</strong>
  <span class="fjm-process-arrow" aria-hidden="true">→</span>
  <strong data-fjm-en="3. We print after your approval">3. Nous imprimons après votre approbation</strong>
+</section>
+<section class="fjm-section" id="questions" aria-labelledby="fjm-faq-title">
+ <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Good to know">BON À SAVOIR</span><h2 id="fjm-faq-title" data-fjm-en="Questions before you order?">Des questions avant de commander?</h2><p data-fjm-en="A few details to make starting your project easier.">Quelques réponses pour vous aider à démarrer votre projet.</p></div>
+ <div class="fjm-faq">
+  <details><summary data-fjm-en="Do I need a 3D model?">Est-ce que j’ai besoin d’un modèle 3D?</summary><p data-fjm-en="No. A photo, sketch or written description is enough to begin a custom quote. If you have an STL or 3MF, you can attach it too.">Non. Une photo, un croquis ou une description suffit pour commencer une demande sur mesure. Si vous avez un STL ou un 3MF, vous pouvez aussi le joindre.</p></details>
+  <details><summary data-fjm-en="How is the price determined?">Comment le prix est-il déterminé?</summary><p data-fjm-en="It depends on the part, dimensions, material, quantity and any finishing needed. Send the details and we will confirm a quote before production.">Il dépend de la pièce, de ses dimensions, du matériau, de la quantité et de la finition souhaitée. Envoyez les détails et on confirmera le prix avant la production.</p></details>
+  <details><summary data-fjm-en="Can I order a model from the gallery?">Puis-je commander un modèle de la galerie?</summary><p data-fjm-en="Yes. Models marked ready to print include an STL or 3MF that is attached automatically when you request a quote.">Oui. Les modèles identifiés « Prêts à produire » ont un STL ou un 3MF joint automatiquement à votre demande de soumission.</p></details>
+  <details><summary data-fjm-en="What if I am not sure which material to choose?">Et si je ne sais pas quel matériau choisir?</summary><p data-fjm-en="Tell us how the part will be used, including any heat, outdoor or impact exposure. We will discuss suitable options with you.">Indiquez comment la pièce sera utilisée, notamment si elle sera exposée à la chaleur, à l’extérieur ou aux chocs. On discutera des options qui conviennent.</p></details>
+ </div>
 </section>
 """
 
