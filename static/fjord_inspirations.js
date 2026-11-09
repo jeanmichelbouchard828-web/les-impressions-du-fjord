@@ -1,23 +1,46 @@
-/* Lightweight carousel: 5 curated Wikimedia photos, no visitor tracking. */
+/* 50 credited and reusable Commons photos; keyboard, touch, and category filters. */
 (()=>{
  const track=document.getElementById('fji-track');
  if(!track)return;
  const cards=[...track.querySelectorAll('.fji-card')];
+ const chips=[...document.querySelectorAll('.fji-filter')];
  if(!cards.length)return;
- const prev=document.getElementById('fji-prev'),next=document.getElementById('fji-next');
- const count=document.getElementById('fji-counter');
+ const prev=document.getElementById('fji-prev');
+ const next=document.getElementById('fji-next');
+ const counter=document.getElementById('fji-counter');
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
  let inView=false,paused=false,manualUntil=0,timer;
+ const visible=()=>cards.filter(card=>!card.hidden);
  const gap=()=>parseFloat(getComputedStyle(track).columnGap)||16;
- const step=()=>cards[0].getBoundingClientRect().width+gap();
- const position=()=>Math.max(0,Math.min(cards.length-1,Math.round(track.scrollLeft/Math.max(step(),1))));
- function sync(){if(count)count.textContent=(position()+1)+' / '+cards.length;}
+ const step=()=>{const first=visible()[0];return first?first.getBoundingClientRect().width+gap():1};
+ const position=()=>{
+  const count=visible().length;
+  return Math.max(0,Math.min(count-1,Math.round(track.scrollLeft/Math.max(step(),1))));
+ };
+ function sync(){
+  const count=visible().length;
+  if(counter)counter.textContent=count?(position()+1)+' / '+count:'0 / 0';
+  if(prev)prev.disabled=count<2;
+  if(next)next.disabled=count<2;
+ }
  function move(delta,manual=false){
+  const count=visible().length;
+  if(count<2)return;
   if(manual)manualUntil=Date.now()+12000;
-  const nextIndex=(position()+delta+cards.length)%cards.length;
+  const nextIndex=(position()+delta+count)%count;
   track.scrollTo({left:nextIndex*step(),behavior:reduced.matches?'instant':'smooth'});
   if(reduced.matches)sync();
  }
+ function filter(category){
+  manualUntil=Date.now()+12000;
+  for(const card of cards)
+   card.hidden=category!=='all'&&card.getAttribute('data-fji-category')!==category;
+  for(const chip of chips)
+   chip.setAttribute('aria-pressed',String(chip.getAttribute('data-fji-filter')===category));
+  track.scrollTo({left:0,behavior:'instant'});
+  requestAnimationFrame(sync);
+ }
+ chips.forEach(chip=>chip.addEventListener('click',()=>filter(chip.dataset.fjiFilter||'all')));
  prev?.addEventListener('click',()=>move(-1,true));
  next?.addEventListener('click',()=>move(1,true));
  track.addEventListener('keydown',event=>{
