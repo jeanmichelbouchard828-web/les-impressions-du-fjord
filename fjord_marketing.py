@@ -145,24 +145,31 @@ body.light .fjm-hero-actions .btn:first-child{background:linear-gradient(115deg,
 body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65}body.light .fjm-process-label{color:#087dab}
 @media(max-width:650px){.fjm-process-strip{display:grid;grid-template-columns:1fr;justify-items:start;gap:7px;margin-top:20px}.fjm-process-label{text-align:left}.fjm-process-arrow{display:none}.fjm-process-strip strong{font-size:13px}.fjm-final{display:flex!important;align-items:stretch!important;flex-direction:column!important}.fjm-final .btn{width:100%;margin:0!important}}
 
-/* Accueil plus simple : les pièces réelles sont montrées dans le carrousel, sans doublon dans le bandeau. */
-.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);min-height:0;padding:clamp(26px,4vw,48px)!important;margin-bottom:20px;box-shadow:none}
-.fjm-home .fjm-hero-proof{display:none!important}
-.fjm-home .fjm-hero>div{max-width:940px}
-.fjm-home .fjm-hero h1{max-width:14ch;font-size:clamp(38px,5.5vw,72px);margin:12px 0}
-.fjm-home .fjm-hero-lead{max-width:62ch;margin-bottom:18px}
+/* Accueil vendeur et équilibré : accroche courte, photo réelle et chemin d’achat clair. */
+.fjm-home .fjm-hero{grid-template-columns:minmax(0,1.18fr) minmax(260px,.82fr);min-height:0;padding:clamp(24px,4vw,48px)!important;margin-bottom:18px;gap:clamp(22px,3.5vw,44px)}
+.fjm-home .fjm-hero-proof{display:block!important;padding:12px;background:#061626b8;border:1px solid #348bb3;border-radius:18px;box-shadow:0 12px 30px #0003}
+.fjm-home .fjm-hero>div{max-width:none}
+.fjm-home .fjm-hero h1{max-width:13ch;font-size:clamp(40px,5vw,64px);line-height:1.02;margin:12px 0}
+.fjm-home .fjm-hero-lead{max-width:50ch;margin-bottom:18px}
 .fjm-home .fjm-points{display:none}
 .fjm-home .fjm-hero-actions{display:flex;flex-wrap:wrap;gap:10px}
-.fjm-home #realisations{margin-top:20px}
+.fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important}
+.fjm-home .fjm-hero-photo-grid>a:first-child{display:none!important}
+.fjm-home .fjm-hero-photo-grid>a:nth-child(2){display:block;width:100%;height:clamp(210px,26vw,320px)}
+.fjm-home .fjm-hero-photo-grid img{width:100%;height:100%;object-fit:cover}
+.fjm-home .fjm-proof-eyebrow{margin:12px 4px 4px}
+.fjm-home .fjm-hero-proof h2{font-size:clamp(18px,2vw,24px);margin:4px}
+.fjm-home .fjm-hero-proof>p:last-child{margin:4px;font-size:14px}
+.fjm-home #realisations{margin-top:18px}
 .fjm-home #realisations .fjm-heading{max-width:760px;margin-bottom:16px}
-@media(max-width:760px){.fjm-home .fjm-hero{padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(36px,10vw,54px);line-height:1.04}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-home .fjm-hero-actions .btn{width:100%;text-align:center}.fjm-home #realisations{margin-top:12px}}
+@media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(40px,10vw,54px)}.fjm-home .fjm-hero-proof{display:none!important}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-home .fjm-hero-actions .btn{width:100%;text-align:center}.fjm-home #realisations{margin-top:12px}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
 <section class="fjm-hero" aria-labelledby="fjm-hero-title">
  <div><span class="fjm-kicker" data-fjm-en="Custom 3D printing in Saguenay, Québec">Impression 3D sur mesure · Saguenay, Québec</span>
- <h1 id="fjm-hero-title">Votre idée mérite de <span class="fjm-accent">prendre forme.</span></h1>
- <p class="fjm-hero-lead" data-fjm-en="Useful parts, gifts and prototypes printed in Saguenay. Choose a ready-to-print model: its STL/3MF file is attached to your quote automatically.">Pièces utiles, cadeaux et prototypes imprimés au Saguenay. Choisissez un modèle prêt à produire : son fichier STL/3MF sera joint automatiquement à votre demande.</p>
+ <h1 id="fjm-hero-title" data-fjm-en="Your idea. Printed here.">Votre idée. <span class="fjm-accent">Imprimée ici.</span></h1>
+ <p class="fjm-hero-lead" data-fjm-en="Useful parts, gifts and prototypes printed in Saguenay. Choose a ready-to-print model: its STL/3MF file is attached to your quote automatically.">Pièces utiles, cadeaux et créations sur mesure imprimés au Saguenay. Choisissez un modèle prêt à produire ou envoyez votre fichier STL/3MF.</p>
  <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Browse ready-to-print models">Voir les modèles prêts à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Request a custom quote">Demander une soumission sur mesure</a></div>
  <p class="fjm-hero-sub" data-fjm-en="No obligation to order · STL and 3MF models accepted">Sans obligation d'achat · Modèles STL et 3MF acceptés</p>
  <ul class="fjm-points"><li data-fjm-en="⚡ Automatic STL/3MF attachment">⚡ Fichier STL/3MF joint automatiquement</li><li data-fjm-en="📍 Printed in Saguenay">📍 Imprimé au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
@@ -176,9 +183,9 @@ MARKETING_HOME_START = """<div class="fjm-home">
     <img src="/gallery/thumb/8" alt="Couvercle jaune imprimé avec logo et trappe" width="240" height="260" loading="eager">
    </a>
   </div>
-  <p class="fjm-proof-eyebrow" data-fjm-en="MADE HERE · REAL PRINTED PARTS">FABRIQUÉ ICI · VRAIES PIÈCES IMPRIMÉES</p>
-  <h2 data-fjm-en="See what your idea can become">Voyez ce qu’une idée peut devenir</h2>
-  <p data-fjm-en="No 3D file? A photo, sketch, or simple description is enough to start.">Pas de fichier 3D? Une photo, un croquis ou une simple description suffit pour commencer.</p>
+  <p class="fjm-proof-eyebrow" data-fjm-en="MADE HERE · REAL PRINTED PARTS">FABRIQUÉ AU SAGUENAY</p>
+  <h2 data-fjm-en="See what your idea can become">Une vraie pièce. Faite ici.</h2>
+  <p data-fjm-en="No 3D file? A photo, sketch, or simple description is enough to start.">Un projet concret, une fabrication locale et un service personnalisé.</p>
  </aside>
 </section>
 <section class="fjm-section" id="realisations">
