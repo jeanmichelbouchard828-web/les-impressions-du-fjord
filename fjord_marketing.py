@@ -252,6 +252,16 @@ body.light .fjm-home .fjm-hero-sub{color:#426276}
 .fjm-quote-form>label:first-of-type{margin-top:0}
 .fjm-quote-form input:not([type=file]),.fjm-quote-form select,.fjm-quote-form textarea{min-height:46px}
 .fjm-quote-form textarea{min-height:150px;resize:vertical}
+.fjm-quote-options{margin:15px 0 18px;border:1px solid #397b99;border-radius:13px;background:#091f31}
+.fjm-quote-options summary{padding:13px 15px;cursor:pointer;color:#a6e9fb;font-weight:800;line-height:1.4}
+.fjm-quote-options[open] summary{border-bottom:1px solid #397b99}
+.fjm-quote-options>.fjord-brief{margin:14px 14px 18px}
+.fjm-quote-options>label{display:grid;margin:13px 15px;gap:6px}
+.fjm-quote-options>label:last-of-type{margin-bottom:17px}
+.fjm-quote-options select,.fjm-quote-options input{width:100%}
+body.light .fjm-quote-options{background:#f2faff;border-color:#add3e3}
+body.light .fjm-quote-options summary{color:#155b79}
+body.light .fjm-quote-options[open] summary{border-color:#add3e3}
 .fjm-quote-form .fjm-form-submit{margin-top:18px;border-radius:12px;font-size:16px;font-weight:850;box-shadow:0 8px 20px #005b7844;transition:transform .15s,filter .15s}
 .fjm-quote-form .fjm-form-submit:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.07)}
 .fjm-gallery-empty{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px}
@@ -337,6 +347,8 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <details><summary data-fjm-en="How is the price determined?">Comment le prix est-il déterminé?</summary><p data-fjm-en="It depends on the part, dimensions, material, quantity and any finishing needed. Send the details and we will confirm a quote before production.">Il dépend de la pièce, de ses dimensions, du matériau, de la quantité et de la finition souhaitée. Envoyez les détails et on confirmera le prix avant la production.</p></details>
   <details><summary data-fjm-en="Can I order a model from the gallery?">Puis-je commander un modèle de la galerie?</summary><p data-fjm-en="Yes. Models marked ready to print include an STL or 3MF that is attached automatically when you request a quote.">Oui. Les modèles identifiés « Prêts à produire » ont un STL ou un 3MF joint automatiquement à votre demande de soumission.</p></details>
   <details><summary data-fjm-en="What if I am not sure which material to choose?">Et si je ne sais pas quel matériau choisir?</summary><p data-fjm-en="Tell us how the part will be used, including any heat, outdoor or impact exposure. We will discuss suitable options with you.">Indiquez comment la pièce sera utilisée, notamment si elle sera exposée à la chaleur, à l’extérieur ou aux chocs. On discutera des options qui conviennent.</p></details>
+  <details><summary data-fjm-en="Which 3D files can I attach?">Quels fichiers 3D puis-je joindre?</summary><p data-fjm-en="The quote form accepts STL and 3MF files. If you do not have a 3D file, start with a photo, sketch or description instead.">Le formulaire accepte les fichiers STL et 3MF. Si vous n’avez pas de fichier 3D, commencez plutôt avec une photo, un croquis ou une description.</p></details>
+  <details><summary data-fjm-en="Can I ask about just one part?">Puis-je demander l’impression d’une seule pièce?</summary><p data-fjm-en="Yes. Enter the quantity you need in the quote form. We review each request based on the part, its use and the details you provide.">Oui. Indiquez la quantité souhaitée dans le formulaire. Nous évaluons chaque demande selon la pièce, son usage et les détails fournis.</p></details>
  </div>
 </section>
 """
