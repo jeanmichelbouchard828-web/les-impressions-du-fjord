@@ -166,7 +166,7 @@ html body main .fjm-home .fjm-hero .fjm-hero-photo-grid>a:nth-child(2)>img{displ
 @media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(40px,10vw,54px)}.fjm-home .fjm-hero-proof{display:none!important}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr;flex-direction:column!important;flex-wrap:wrap}.fjm-home .fjm-hero-actions .btn{width:100%;white-space:normal;text-align:center}.fjm-home #realisations{margin-top:12px}}
 
 /* Présentation plus concentrée du formulaire de soumission sur grand écran. */
-@media(min-width:980px){body.fjord-public main:has(.fjm-quote-form){max-width:960px}}
+@media(min-width:980px){body.fjord-public main:has(.fjm-quote-form){max-width:960px!important}}
 body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form{width:100%;max-width:760px!important}
 </style>"""
 
