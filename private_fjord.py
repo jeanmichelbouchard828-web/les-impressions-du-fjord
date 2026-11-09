@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         # Bambu-Studio-like profile selection is visible on the private
         # Atelier itself. Only authenticated users can load real preset names.
         profile_toolbar = """
-<section id="fjordBambuProfileBar" aria-label="Mes profils Bambu Studio X2D">
+<section data-tool-panel="profiles" id="fjordBambuProfileBar" aria-label="Mes profils Bambu Studio X2D">
  <div class="fjord-profiles-title"><strong>🖨️ Profils X2D</strong>
  <span>Imprimante · Process · Filament</span></div>
  <div class="fjord-profile-picks">
@@ -283,10 +283,17 @@ document.addEventListener("DOMContentLoaded",()=>{
 <a id="fjordProfileImport" href="/admin/profils-bambu" title="Importer mes fichiers BBCFG, puis revenir sélectionner les profils">📥 Importer mes BBCFG</a>
 </section>
 """
-        html = html.replace('<div class="shell" id="fjordWorkspace">',
-                            profile_toolbar + '<div class="shell" id="fjordWorkspace">', 1)
+        # Replace the public X2D explanation with the protected full menu
+        # inside the left category drawer. Never put the giant toolbar over
+        # the workspace again.
+        target = _re.search(
+            r'<section data-tool-panel="profiles" id="fjordBambuPublicHelp".*?</section>',
+            html, _re.S)
+        if not target:
+            raise ValueError("Panneau Profils X2D introuvable dans le menu latéral.")
+        html = html[:target.start()] + profile_toolbar + html[target.end():]
         html = html.replace('</head>',
-            '<link rel="stylesheet" href="/static/fjord_profile_toolbar.css?v=20261108v1"></head>', 1)
+            '<link rel="stylesheet" href="/static/fjord_profile_toolbar.css?v=20261108-sidebar2"></head>', 1)
         # Print controls belong to the Slice panel, not the crowded header.
         slice_entry = (
             '<div class="fjord-slice-print-entry" role="group" aria-label="Impression X2D">'
