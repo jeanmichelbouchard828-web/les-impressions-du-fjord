@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 app=Flask(__name__)
 from fjord_marketing import (MARKETING_CSS, MARKETING_HOME_START, MARKETING_HOME_END, MARKETING_GALLERY, MARKETING_FORM_HELP, MARKETING_SCRIPT)
 from fjord_inspirations import html_fragment as fjord_inspiration_html, IDEAS as FJORD_INSPIRATIONS
+from fjord_makerworld import html_fragment as fjord_makerworld_html
 from fjord_gallery_pairing import unique_photo_match
 from fjord_seo import seo_metadata, register_seo_routes, BUSINESS_SCHEMA
 from fjord_preview_guard import install_preview_guard
@@ -62,6 +63,7 @@ def init():
        source TEXT PRIMARY KEY, model_filename TEXT NOT NULL, model_data BYTEA NOT NULL,
        rights_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
        updated TIMESTAMPTZ DEFAULT NOW())""")
+  c.execute("""CREATE TABLE IF NOT EXISTS fjord_makerworld_slides(id BIGSERIAL PRIMARY KEY,title TEXT NOT NULL,source_url TEXT NOT NULL,image BYTEA NOT NULL,image_mime TEXT NOT NULL,model_filename TEXT NOT NULL,model_data BYTEA NOT NULL,rights_confirmed BOOLEAN NOT NULL DEFAULT FALSE,created TIMESTAMPTZ DEFAULT NOW())""")
 init()
 # Compteur historique conservé; présence estimée dans une fenêtre de 5 min.
 # Seul un hachage de cookie aléatoire est conservé, pas l'adresse IP.
@@ -1007,9 +1009,11 @@ def home():
   inspiration_rows=c.execute("""SELECT source FROM fjord_inspiration_models
        WHERE rights_confirmed=TRUE AND octet_length(model_data)>0""").fetchall()
   public_inspirations=fjord_inspiration_html({row["source"] for row in inspiration_rows})
+  makerworld_rows=c.execute("SELECT id,title,source_url FROM fjord_makerworld_slides ORDER BY id DESC").fetchall()
+  public_makerworld=fjord_makerworld_html(makerworld_rows)
  return page("Accueil",MARKETING_HOME_START.replace(
   '<section class="fjm-section" id="fonctionnement">',
-  public_inspirations + '<section class="fjm-section" id="fonctionnement">', 1)
+  public_inspirations + public_makerworld + '<section class="fjm-section" id="fonctionnement">', 1)
   + '''<section class="tracking-billboard fjord-board" aria-label="Tableau interactif de production" hidden><div class="fjord-board-inner"><div class="fjord-board-heading"><strong>LES IMPRESSIONS DU FJORD</strong><span class="fjord-board-badge">Production</span></div><h2>Suivi de production</h2><p>Consultez les progressions partagées par l’atelier.</p><div id="fjordProductionLive" role="tabpanel" aria-live="polite"><p>Chargement du tableau de production…</p></div><div class="fjord-board-footer"><p class="production-updated" id="fjordProductionUpdated">Mise à jour automatique toutes les 30 secondes.</p><div class="fjord-board-actions"><a class="btn fjord-board-see" href="/voir-mon-impression">📍 Suivre ma soumission</a><p class="fjord-board-private">Votre suivi individuel reste privé.</p></div></div></div></section><style>
 .fjord-board[hidden]{display:none!important}.fjord-board{display:block;padding:24px;background:#0b1725;border-color:#3a6076}.fjord-board-inner{width:100%}.fjord-board-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:18px}.fjord-board-badge{background:#103c27;color:#50d78a;border-radius:30px;padding:5px 12px;font-size:14px}.fjord-board h2{font-size:clamp(24px,3vw,30px);margin:22px 0 6px}.fjord-board-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0}.fjord-board-tab{background:transparent;border:0;border-radius:30px;color:#c4d5e0;font:inherit;font-weight:700;padding:12px 5px;cursor:pointer}.fjord-board-tab.active{background:#304151;color:white}.fjord-board-tab:focus-visible{outline:2px solid #64d9ff;outline-offset:2px}.fjord-board .public-print-list{margin:0}.fjord-board .public-print-job{background:#10283b;display:block}.fjord-board .public-print-job strong{display:block}.fjord-board .public-print-job span{display:block;margin:8px 0}.fjord-board .tracking-progress{height:12px}.fjord-board .tracking-progress span{margin:0;background:#24b46a}.fjord-board-see{display:inline-block;margin-top:12px}.fjord-board-private{font-size:13px;margin:8px 0 0}.fjord-board .production-updated{font-size:13px;margin:14px 0 0}@media(max-width:480px){.fjord-board{padding:16px}.fjord-board-tab{font-size:13px;padding:10px 3px}}
 .fjord-board{padding:20px 24px}.fjord-board h2{margin:12px 0 3px}.fjord-board-inner>p{margin:6px 0 12px}.fjord-board-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;flex-wrap:wrap}.fjord-board-actions{display:flex;align-items:center;gap:12px;margin-left:auto}.fjord-board .fjord-board-see{margin:0;padding:10px 16px;font-size:14px;white-space:nowrap}.fjord-board .fjord-board-private{margin:0;max-width:185px;font-size:11px;line-height:1.3;color:#a9c3d4}.fjord-board .production-updated{margin:0}.fjord-public-table{display:grid;gap:5px}.fjord-public-row{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,1.5fr) minmax(100px,1fr);gap:12px;align-items:center;padding:8px 12px;border:1px solid #37546a;border-radius:8px}.fjord-public-head{border:0;color:#c5d9e8}.fjord-public-empty{color:#a9c3d4;background:#0e2334}.fjord-public-progress{display:grid;gap:5px}.fjord-public-progress .tracking-progress{height:6px}@media(max-width:520px){.fjord-public-row{grid-template-columns:minmax(80px,1fr) minmax(110px,1.4fr) minmax(70px,1fr);gap:7px;padding:7px;font-size:12px}}
@@ -1989,11 +1993,28 @@ def fjord_public_gallery_model(gallery_id):
 def fjord_admin_inspirations():
  with db() as c:
   rows=c.execute("SELECT source,model_filename,rights_confirmed FROM fjord_inspiration_models").fetchall()
+  makerworld_items=c.execute("SELECT id,title,source_url,model_filename FROM fjord_makerworld_slides ORDER BY id DESC").fetchall()
  linked={row["source"]:row for row in rows}
  items=[{"index":i,**idea,"model":linked.get(idea["source"])}
         for i,idea in enumerate(FJORD_INSPIRATIONS)]
  return page("Modèles du diaporama",'''<section class="fjord-inspiration-admin">
  <p><a href="/admin">← Retour à l'administration</a></p>
+ <h1>Ajouter un modèle MakerWorld au diaporama</h1>
+ <p>Ouvre la page MakerWorld, télécharge son image et son fichier 3MF, puis importe-les ici. MakerWorld peut demander une connexion pour le téléchargement.</p>
+ <form method="post" enctype="multipart/form-data" action="/admin/inspirations/makerworld">
+ {{csrf|safe}}
+ <label>Nom du modèle<input name="title" maxlength="120" required></label>
+ <label>Lien MakerWorld<input type="url" name="source_url" placeholder="https://makerworld.com/fr/models/..." required></label>
+ <label>Photo du modèle (JPEG, PNG ou WebP)<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label>
+ <label>Fichier 3MF téléchargé de MakerWorld (20 Mo maximum)<input type="file" name="model" accept=".3mf" required></label>
+ <label class="fjord-rights-check"><input type="checkbox" name="rights_ok" value="yes" required> Je confirme avoir le droit de publier cette photo et de partager ce fichier 3D.</label>
+ <button type="submit">Ajouter au diaporama</button></form>
+ {% if makerworld_items %}<h2>Modèles MakerWorld ajoutés</h2><div class="fjord-inspiration-admin-grid">{% for item in makerworld_items %}<article>
+ <img src="/inspirations/makerworld/{{item.id}}/photo" loading="lazy" alt="{{item.title}}"><h3>{{item.title}}</h3>
+ <p><a href="{{item.source_url}}" target="_blank" rel="noopener noreferrer">Ouvrir sur MakerWorld</a></p><p>✓ {{item.model_filename}}</p>
+ <a href="/admin/inspirations/makerworld/{{item.id}}/modele">Télécharger le 3MF</a>
+ <form method="post" action="/admin/inspirations/makerworld/{{item.id}}/supprimer">{{csrf|safe}}<button type="submit">Retirer du diaporama</button></form>
+ </article>{% endfor %}</div>{% endif %}
  <h1>Les 50 inspirations et leurs modèles 3D</h1>
  <p>Associez uniquement des STL/3MF que vous êtes autorisé à reproduire. Les photos Wikimedia sont des références visuelles et leurs licences ne donnent pas automatiquement les droits sur les pièces.</p>
  <p>{{linked_count}} modèle(s) associé(s) sur {{items|length}} inspirations.</p>
@@ -2009,7 +2030,7 @@ def fjord_admin_inspirations():
  <label class="fjord-rights-check"><input type="checkbox" name="rights_ok" value="yes" required> Je confirme avoir les droits nécessaires pour utiliser et reproduire ce modèle.</label>
  <button type="submit">{{'Remplacer le modèle' if item.model else 'Associer le modèle'}}</button></form>
  </article>{% endfor %}</div>
- </section>''',items=items,linked_count=len(linked),csrf=csrfinput())
+ </section>''',items=items,linked_count=len(linked),makerworld_items=makerworld_items,csrf=csrfinput())
 
 @app.route("/admin/inspirations/<int:index>/modele",methods=["GET","POST"])
 @admin_required
@@ -2128,6 +2149,51 @@ def fjord_health_ready():
                 temporary_preview_database=database_name.startswith("fjord_render_apercu")),200,{"Cache-Control":"no-store"}
 
 register_seo_routes(app,db)
+
+
+@app.post("/admin/inspirations/makerworld")
+@admin_required
+def fjord_admin_add_makerworld_slide():
+ verify()
+ title=request.form.get("title","").strip()
+ source_url=request.form.get("source_url","").strip()
+ try:
+  parsed=urlparse(source_url)
+  if not title or len(title)>120 or parsed.scheme!="https" or parsed.hostname not in ("makerworld.com","www.makerworld.com") or not parsed.path.startswith(("/en/models/","/fr/models/","/models/")) or parsed.username:
+   raise ValueError
+  source_url=parsed._replace(fragment="",query="").geturl()
+ except (TypeError,ValueError):
+  abort(400,description="Vérifie le nom et le lien public MakerWorld.")
+ if request.form.get("rights_ok")!="yes":abort(400,description="Confirmation des droits requise.")
+ images=image_uploads([request.files.get("image")])
+ if not images:abort(400,description="Ajoute la photo du modèle.")
+ filename,model_data=fjord_gallery_model_upload(request.files.get("model"))
+ if not filename or not filename.lower().endswith(".3mf"):abort(400,description="Le fichier MakerWorld doit être un 3MF.")
+ image_data,image_mime=images[0]
+ with db() as c:
+  c.execute("""INSERT INTO fjord_makerworld_slides(title,source_url,image,image_mime,model_filename,model_data,rights_confirmed)
+               VALUES(%s,%s,%s,%s,%s,%s,TRUE)""",(title,source_url,image_data,image_mime,filename,model_data))
+ return redirect("/admin/inspirations")
+
+@app.get("/inspirations/makerworld/<int:slide_id>/photo")
+def fjord_makerworld_slide_photo(slide_id):
+ with db() as c:slide=c.execute("SELECT image,image_mime FROM fjord_makerworld_slides WHERE id=%s",(slide_id,)).fetchone()
+ if not slide:abort(404)
+ return send_file(io.BytesIO(slide["image"]),mimetype=slide["image_mime"],max_age=3600)
+
+@app.get("/admin/inspirations/makerworld/<int:slide_id>/modele")
+@admin_required
+def fjord_admin_makerworld_model(slide_id):
+ with db() as c:slide=c.execute("SELECT model_filename,model_data FROM fjord_makerworld_slides WHERE id=%s",(slide_id,)).fetchone()
+ if not slide:abort(404)
+ return send_file(io.BytesIO(slide["model_data"]),mimetype="application/octet-stream",as_attachment=True,download_name=slide["model_filename"],max_age=0,conditional=False)
+
+@app.post("/admin/inspirations/makerworld/<int:slide_id>/supprimer")
+@admin_required
+def fjord_admin_delete_makerworld_slide(slide_id):
+ verify()
+ with db() as c:c.execute("DELETE FROM fjord_makerworld_slides WHERE id=%s",(slide_id,))
+ return redirect("/admin/inspirations")
 
 @app.get("/admin/atelier-3d")
 @admin_required
