@@ -152,17 +152,18 @@ body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65
 .fjm-home .fjm-hero h1{max-width:13ch;font-size:clamp(40px,5vw,64px);line-height:1.02;margin:12px 0}
 .fjm-home .fjm-hero-lead{max-width:50ch;margin-bottom:18px}
 .fjm-home .fjm-points{display:none}
-.fjm-home .fjm-hero-actions{display:flex;flex-direction:row!important;align-items:center;flex-wrap:wrap;gap:10px}
-.fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important;grid-template-rows:1fr;height:260px}
+.fjm-home .fjm-hero-actions{display:flex;flex-direction:row!important;align-items:center;flex-wrap:nowrap;gap:10px}
+.fjm-home .fjm-hero-actions .btn{white-space:nowrap;padding:13px 16px;font-size:14px}
+.fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important;grid-template-rows:260px!important;grid-auto-rows:260px!important;height:260px!important;min-height:0!important}
 .fjm-home .fjm-hero-photo-grid>a:first-child{display:none!important}
-.fjm-home .fjm-hero-photo-grid>a:nth-child(2){display:block;width:100%;height:260px!important}
-.fjm-home .fjm-hero-photo-grid>a:nth-child(2) img{display:block;width:100%;height:100%!important;max-height:none!important;object-fit:cover}
+html body main .fjm-home .fjm-hero .fjm-hero-photo-grid>a:nth-child(2){display:block;width:100%;height:260px!important;min-height:0!important}
+html body main .fjm-home .fjm-hero .fjm-hero-photo-grid>a:nth-child(2)>img{display:block;width:100%;height:260px!important;max-height:none!important;min-height:0!important;object-fit:cover}
 .fjm-home .fjm-proof-eyebrow{margin:12px 4px 4px}
 .fjm-home .fjm-hero-proof h2{font-size:clamp(18px,2vw,24px);margin:4px}
 .fjm-home .fjm-hero-proof>p:last-child{margin:4px;font-size:14px}
 .fjm-home #realisations{margin-top:18px}
 .fjm-home #realisations .fjm-heading{max-width:760px;margin-bottom:16px}
-@media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(40px,10vw,54px)}.fjm-home .fjm-hero-proof{display:none!important}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr;flex-direction:column!important}.fjm-home .fjm-hero-actions .btn{width:100%;text-align:center}.fjm-home #realisations{margin-top:12px}}
+@media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(40px,10vw,54px)}.fjm-home .fjm-hero-proof{display:none!important}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr;flex-direction:column!important;flex-wrap:wrap}.fjm-home .fjm-hero-actions .btn{width:100%;white-space:normal;text-align:center}.fjm-home #realisations{margin-top:12px}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
@@ -170,7 +171,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <div><span class="fjm-kicker" data-fjm-en="Custom 3D printing in Saguenay, Québec">Impression 3D sur mesure · Saguenay, Québec</span>
  <h1 id="fjm-hero-title" data-fjm-en="Your idea. Printed here.">Votre idée. <span class="fjm-accent">Imprimée ici.</span></h1>
  <p class="fjm-hero-lead" data-fjm-en="Useful parts, gifts and prototypes printed in Saguenay. Choose a ready-to-print model: its STL/3MF file is attached to your quote automatically.">Pièces utiles, cadeaux et créations sur mesure imprimés au Saguenay. Choisissez un modèle prêt à produire ou envoyez votre fichier STL/3MF.</p>
- <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Browse ready-to-print models">Voir les modèles prêts à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Request a custom quote">Demander une soumission sur mesure</a></div>
+ <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Ready-to-print models">Modèles prêts à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Custom quote">Soumission sur mesure</a></div>
  <p class="fjm-hero-sub" data-fjm-en="No obligation to order · STL and 3MF models accepted">Sans obligation d'achat · Modèles STL et 3MF acceptés</p>
  <ul class="fjm-points"><li data-fjm-en="⚡ Automatic STL/3MF attachment">⚡ Fichier STL/3MF joint automatiquement</li><li data-fjm-en="📍 Printed in Saguenay">📍 Imprimé au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
  </div>
