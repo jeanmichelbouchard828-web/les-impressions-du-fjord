@@ -268,7 +268,11 @@ MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelector
   const allButton=document.getElementById('fjmGalleryAll');
   const readyButton=document.getElementById('fjmGalleryReady');
   const empty=document.getElementById('fjmGalleryNoMatch');
-  const count=document.getElementById('fjmGalleryCount');
+  let count=document.getElementById('fjmGalleryCount');
+  if(!count){
+   const controls=document.querySelector('.fjm-gallery-controls');
+   if(controls){count=document.createElement('span');count.id='fjmGalleryCount';count.className='fjm-gallery-count';count.setAttribute('aria-live','polite');controls.append(count);}
+  }
   let readyOnly=new URLSearchParams(location.search).get('prets')==='1';
   function filterGallery(){
    const query=(search?.value||'').trim().toLocaleLowerCase();
