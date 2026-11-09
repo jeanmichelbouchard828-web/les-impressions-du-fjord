@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 app=Flask(__name__)
 from fjord_marketing import (MARKETING_CSS, MARKETING_HOME_START, MARKETING_HOME_END, MARKETING_GALLERY, MARKETING_FORM_HELP, MARKETING_SCRIPT)
 from fjord_inspirations import html_fragment as fjord_inspiration_html, IDEAS as FJORD_INSPIRATIONS
+from fjord_gallery_pairing import unique_photo_match
 from fjord_seo import seo_metadata, register_seo_routes, BUSINESS_SCHEMA
 from fjord_preview_guard import install_preview_guard
 install_preview_guard(app)
@@ -53,6 +54,7 @@ def init():
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_data BYTEA")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_filename TEXT")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_data BYTEA")
+  c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS original_filename TEXT")
   c.execute("""CREATE TABLE IF NOT EXISTS fjord_inspiration_models(
        source TEXT PRIMARY KEY, model_filename TEXT NOT NULL, model_data BYTEA NOT NULL,
        rights_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1018,6 +1020,44 @@ def fjord_gallery_model_upload(upload):
   abort(400,description="Fichier STL trop court.")
  return filename,data
 
+def fjord_gallery_library_candidates(conn):
+ """Candidate metadata only; never read the 3D bytes until a unique match."""
+ return conn.execute("""SELECT id,name,filename FROM private_models
+   WHERE (lower(filename) LIKE '%%.stl' OR lower(filename) LIKE '%%.3mf')
+     AND octet_length(filedata) <= %s
+   ORDER BY id DESC LIMIT 1500""",(20*1024*1024,)).fetchall()
+
+def fjord_gallery_model_for_photo(conn,photo_name,uploads,library):
+ """Unique uploaded basename wins; otherwise unique private library basename.
+
+ Returns (filename,bytes,source), or None when ambiguous/not found.
+ No semantic/visual guessing, no invented 3D geometry.
+ """
+ direct=unique_photo_match(photo_name,uploads)
+ if direct:
+  return direct["filename"],direct["data"],"upload"
+ model=unique_photo_match(photo_name,library)
+ if not model:return None
+ row=conn.execute("SELECT filename,filedata FROM private_models WHERE id=%s",(model["id"],)).fetchone()
+ if not row or not row["filedata"]:return None
+ return row["filename"],row["filedata"],"bibliothèque"
+
+def fjord_gallery_fill_missing_links(conn,gallery_id,uploads=()):
+ """Link only previously unlinked photos when their source filename is known."""
+ candidates=fjord_gallery_library_candidates(conn)
+ existing=conn.execute("""SELECT id,original_filename FROM gallery_photos
+     WHERE gallery_id=%s AND model_data IS NULL AND original_filename IS NOT NULL
+     ORDER BY id""",(gallery_id,)).fetchall()
+ linked=0
+ for photo in existing:
+  found=fjord_gallery_model_for_photo(conn,photo["original_filename"],uploads,candidates)
+  if not found:continue
+  filename,blob,_=found
+  conn.execute("""UPDATE gallery_photos SET model_filename=%s,model_data=%s
+     WHERE id=%s AND model_data IS NULL""",(filename,blob,photo["id"]))
+  linked+=1
+ return linked,len(existing)
+
 def fjord_gallery_asset(conn,gallery_id,photo_id=0,with_photo=False):
  """Return only data from a real, matching gallery image. Never trust a file name from a URL."""
  item=conn.execute("""SELECT id,title,description,photo,mime,model_filename,model_data
@@ -1603,11 +1643,19 @@ GALLERY_FORM='''<section class="fjord-gallery-manage"><h1>{{heading}}</h1>
  <a href="/admin/gallery/model/{{item.id}}">Télécharger</a>
  <a href="/admin/atelier-3d?galerie={{item.id}}&photo={{main_photo}}">Ouvrir dans l'Atelier 3D</a></p>
  {% endif %}
- <label>Ajouter des photos (6 à la fois, 5 Mo chacune)
+ <label>Associer automatiquement des fichiers STL/3MF (même nom que la photo)
+<input type="file" name="models" multiple accept=".stl,.3mf">
+<small>Exemple : support_photo_1.jpg et support.3mf. Si un fichier existe déjà dans ta bibliothèque, le site essaie aussi de le retrouver. Un nom ambigu n'est jamais associé au hasard.</small></label>
+<label>Ajouter des photos (6 à la fois, 5 Mo chacune)
  <input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp"></label>
- <button type="submit">Enregistrer la réalisation</button>
+ <button type="submit">Enregistrer et associer automatiquement</button>
  </form>
  {% if item %}
+ <form method="post" action="/admin/galerie/{{item.id}}/associer-automatiquement" class="fjord-gallery-auto-form">
+ {{csrf|safe}}
+ <button type="submit">⚡ Associer les photos existantes à ma bibliothèque</button>
+ <small>Compare les noms exacts des fichiers. Rien n'est supprimé ni remplacé.</small>
+ </form>
  <h2>Photos et modèles de cette réalisation</h2>
  <p>Les modèles associés restent privés. Le client peut sélectionner une photo, et sa soumission reprendra la photo et le fichier 3D correspondant.</p>
  {% if item.has_photo %}<article class="fjord-gallery-photo-model">
@@ -1653,6 +1701,14 @@ def gallery_edit(id):
    files=request.files.getlist("photos")
    if len(files)>6:abort(400)
    images=image_uploads(files)
+   photo_inputs=[f for f in files if f and f.filename]
+   if len(photo_inputs)!=len(images):abort(400)
+   multi=request.files.getlist("models")
+   if len(multi)>8:abort(400,description="Maximum 8 modèles par lot.")
+   uploads=[]
+   for f in multi:
+    name,blob=fjord_gallery_model_upload(f)
+    if blob:uploads.append({"name":name,"filename":name,"data":blob})
    model_name,model_data=fjord_gallery_model_upload(request.files.get("default_model"))
    if id:
     if model_data:
@@ -1666,7 +1722,20 @@ def gallery_edit(id):
     id=c.execute("""INSERT INTO gallery(title,category,description,model_filename,model_data)
                     VALUES(%s,%s,%s,%s,%s) RETURNING id""",
                  (title,category,description,model_name,model_data)).fetchone()["id"]
-   for data,mime in images:c.execute("INSERT INTO gallery_photos(gallery_id,photo,mime) VALUES(%s,%s,%s)",(id,data,mime))
+   library=fjord_gallery_library_candidates(c)
+   auto_count=0
+   for uploaded,(data,mime) in zip(photo_inputs,images):
+    linked=fjord_gallery_model_for_photo(c,uploaded.filename,uploads,library)
+    photo_model,photo_blob=(linked[0],linked[1]) if linked else (None,None)
+    c.execute("""INSERT INTO gallery_photos
+       (gallery_id,photo,mime,original_filename,model_filename,model_data)
+       VALUES(%s,%s,%s,%s,%s,%s)""",
+       (id,data,mime,secure_filename(uploaded.filename)[:150],photo_model,photo_blob))
+    if linked:auto_count+=1
+   extra,total=fjord_gallery_fill_missing_links(c,id,uploads)
+   auto_count+=extra
+   if len(images)>0 or uploads:
+    flash("⚡ "+str(auto_count)+" photo(s) associée(s) automatiquement à un modèle. Les autres restent à vérifier.")
    return redirect("/admin/edit/"+str(id))
   photos=c.execute("""SELECT id,model_filename FROM gallery_photos
                        WHERE gallery_id=%s ORDER BY id""",(id,)).fetchall() if id else []
@@ -1675,6 +1744,17 @@ def gallery_edit(id):
  return page("Galerie",GALLERY_FORM,heading="Modifier la réalisation" if id else "Nouvelle réalisation",
              item=item,photos=photos,csrf=csrfinput(),
              main_photo=0 if item and item["has_photo"] else (photos[0]["id"] if photos else 0))
+@app.post("/admin/galerie/<int:gallery_id>/associer-automatiquement")
+@admin_required
+def fjord_auto_associate_gallery(gallery_id):
+ verify()
+ with db() as c:
+  exists=c.execute("SELECT 1 FROM gallery WHERE id=%s",(gallery_id,)).fetchone()
+  if not exists:abort(404)
+  count,total=fjord_gallery_fill_missing_links(c,gallery_id)
+ flash("⚡ "+str(count)+" association(s) trouvée(s) sur "+str(total)+" photo(s) sans modèle. Les autres nécessitent un choix manuel.")
+ return redirect("/admin/edit/"+str(gallery_id))
+
 @app.post("/admin/photo/delete/<int:id>")
 @admin_required
 def remove_photo(id):
