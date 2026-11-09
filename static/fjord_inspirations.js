@@ -38,6 +38,9 @@
   for(const chip of chips)
    chip.setAttribute('aria-pressed',String(chip.getAttribute('data-fji-filter')===category));
   track.scrollTo({left:0,behavior:'instant'});
+  // Refresh immediately for screen readers and automated browsers;
+  // refresh once more after the browser has completed its layout.
+  sync();
   requestAnimationFrame(sync);
  }
  chips.forEach(chip=>chip.addEventListener('click',()=>filter(chip.dataset.fjiFilter||'all')));
