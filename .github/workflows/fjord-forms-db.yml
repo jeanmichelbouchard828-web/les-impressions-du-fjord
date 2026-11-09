@@ -35,4 +35,6 @@ jobs:
       - name: Install application requirements
         run: pip install -r requirements.txt
       - name: Verify full business request flow on isolated local database
-        run: python tests/verify_fjord_public_forms_db.py
+        run: |
+          python tests/verify_fjord_public_forms_db.py
+          python tests/test_gallery_links_flow_db.py
