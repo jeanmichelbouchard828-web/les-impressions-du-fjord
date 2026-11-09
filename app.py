@@ -1051,7 +1051,7 @@ def home():
  }
  refresh();setInterval(refresh,30000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh();});
 })();
-</script>''' + MARKETING_HOME_END + MARKETING_SCRIPT,public_jobs=public_jobs,featured=featured)
+</script>''' + MARKETING_HOME_END + MARKETING_SCRIPT,public_jobs=public_jobs,featured=featured,seo_image="/gallery/thumb/3")
 @app.get("/bons-plans/starlink")
 def starlink_referral():
  return page("Parrainage Starlink",'''<section class="referral-page"><div class="eyebrow">Bon plan partagé</div><h1>Parrainage Starlink</h1><p>Vous envisagez de vous abonner à Starlink au Canada? Voici un lien de parrainage personnel à consulter si cela vous intéresse.</p><div class="card referral-card"><h2>Découvrir Starlink</h2><p>Les nouveaux abonnés admissibles peuvent recevoir une récompense selon les conditions de parrainage en vigueur. La personne qui partage ce lien peut également recevoir une récompense.</p><a class="btn referral-cta" href="https://starlink.com/?referral=RC-4635519-65017-67&amp;app_source=share" target="_blank" rel="nofollow sponsored noopener noreferrer">Consulter mon lien de parrainage</a><p class="small muted referral-disclosure">Lien de parrainage personnel. Les Impressions du Fjord ne vendent pas de services Starlink et ne sont pas affiliées à Starlink. Vérifiez la disponibilité, les tarifs et les conditions directement sur le site Starlink.</p></div><p class="small"><a href="/">← Retour à l'accueil</a></p></section>''')
@@ -1255,7 +1255,9 @@ def gallery_item(id):
                 "has_model":p["has_model"] or item["has_model"]} for p in photos)
  urls=[asset["url"] for asset in assets]
  default_photo=assets[0]["photo_id"] if assets else 0
- description=(item["description"] or "").strip()
+ item=dict(item)
+  item["title"]=item["title"][:1].upper()+item["title"][1:]
+  description=(item["description"] or "").strip()
  summary=(item["title"]+" — "+(description or "Réalisation d'impression 3D sur mesure")+" | Les Impressions du Fjord, Saguenay.")[:195]
  origin=seo_metadata()["public_origin"]
  social_image="/gallery/thumb/"+str(id) if urls else "/identite/logo"
@@ -1342,8 +1344,30 @@ FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p
 </div></section><label>Matériau souhaité<select name="material">{% for m in materials %}<option value="{{m}}">{{m}}</option>{% endfor %}</select></label><label>Quantité souhaitée<input type="number" name="quantity" min="1" max="1000" step="1" inputmode="numeric" value="1" required><small class="fjord-field-help" data-fjm-en="Enter the total number of parts, including for a small batch.">Indiquez le nombre total de pièces, y compris pour une petite série.</small></label><label>Couleur souhaitée<select name="color">{% for col in colors %}<option value="{{col}}">{{col}}</option>{% endfor %}</select></label>{% endif %}<label>Description de votre {{'projet' if quote else 'message'}}<textarea name="description" maxlength="5000" placeholder="{{'Décrivez votre idée, ses dimensions et la quantité souhaitée…' if quote else 'Écrivez votre message ici…'}}" required>{{prefill}}</textarea></label>{% if quote %}<div class="fjm-files">
 <label>📷 Photo ou croquis de référence (facultatif)<input type="file" name="reference_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="fjordReferenceHelp"><small id="fjordReferenceHelp" class="fjord-field-help">Vous n'avez pas de modèle 3D? Envoyez simplement une photo, une capture d'écran ou un croquis (JPG, PNG ou WebP, maximum 4 Mo).</small></label>
 <div id="fjordReferencePreview" class="fjord-reference-preview" hidden><img alt="Aperçu de votre photo de référence" id="fjordReferenceImage"><span id="fjordReferenceFilename"></span><button type="button" id="fjordReferenceRemove">Retirer la photo</button></div>
-<label>📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)<input type="file" name="model" accept=".stl,.3mf"></label>
-<p class="fjord-field-help">Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.</p></div>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else ('Envoyer ma demande de soumission gratuite' if quote else 'Envoyer ma demande')}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p></form>'''
+<label>📦 Fichier STL ou 3MF (facultatif, maximum 16 Mo)<input type="file" name="model" accept=".stl,.3mf"></label><small id="fjordStudioFileStatus" class="fjord-file-state" role="status" aria-live="polite"></small>
+<p class="fjord-field-help">Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.</p></div>{% endif %}<button type="submit" class="fjm-form-submit" {% if preview %}disabled aria-disabled="true" title="Envoi désactivé sur cette préproduction"{% endif %}>{{'Envoi indisponible en mode aperçu' if preview else ('Envoyer ma demande de soumission gratuite' if quote else 'Envoyer ma demande')}}</button><p class="fjm-quote-note">Vos coordonnées servent uniquement à répondre à votre demande. <a href="/politique-confidentialite">Confidentialité</a>.</p>{% if quote %}<script>
+(function(){
+ const params=new URLSearchParams(location.search);
+ if(params.get("atelier")!=="1"||!window.opener)return;
+ const origin=location.origin,input=document.querySelector('#fjordQuoteForm input[name="model"]');
+ const state=document.getElementById("fjordStudioFileStatus");
+ if(!input)return;
+ window.addEventListener("message",event=>{
+  if(event.origin!==origin||event.source!==window.opener||event.data?.type!=="fjord-atelier-stl"||!(event.data.blob instanceof Blob))return;
+  const blob=event.data.blob,name=String(event.data.filename||"Creation-du-Fjord.stl");
+  if(!blob.size||blob.size>16*1024*1024){if(state){state.dataset.status="error";state.textContent="Le modèle dépasse la limite de 16 Mo."}return}
+  try{
+   const transfer=new DataTransfer();
+   transfer.items.add(new File([blob],name,{type:"model/stl"}));
+   input.files=transfer.files;
+   input.dispatchEvent(new Event("change",{bubbles:true}));
+   if(state){state.dataset.status="ready";state.textContent="✓ Le modèle créé dans l’Atelier est joint à cette demande."}
+   window.opener.postMessage({type:"fjord-atelier-attached"},origin);
+  }catch(error){if(state){state.dataset.status="error";state.textContent="Ajoutez le fichier STL téléchargé manuellement."}}
+ });
+ window.opener.postMessage({type:"fjord-quote-ready"},origin);
+})();
+</script>{% endif %}</form>'''
 def fjord_reference_image(upload):
  """Validate, orient, reduce and scrub metadata from a customer reference image."""
  from PIL import Image,ImageOps,UnidentifiedImageError
