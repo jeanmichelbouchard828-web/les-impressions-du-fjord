@@ -25,6 +25,18 @@ MARKETING_CSS = r"""<style>
 .fjm-hero-panel h2{color:#f1fbff;margin:15px 0 8px;font-size:clamp(22px,2.4vw,29px)}
 .fjm-hero-panel p{margin:0 0 18px;color:#c6dfec;font-size:15px}
 .fjm-hero-panel a{font-weight:800;text-decoration:underline;text-underline-offset:4px}
+.fjm-hero-proof{padding:16px!important;border-color:#49a6c8!important;background:linear-gradient(145deg,#08243b,#061726)!important}
+.fjm-hero-photo-grid{display:grid;grid-template-columns:1.16fr .84fr;gap:9px;align-items:stretch}
+.fjm-hero-photo-grid a{display:block;min-width:0;overflow:hidden;border:1px solid #397e9e;border-radius:13px;background:#071625}
+.fjm-hero-photo-grid img{display:block;width:100%!important;height:clamp(120px,17vw,195px)!important;object-fit:cover;border-radius:12px!important;box-shadow:none!important;transition:transform .25s ease}
+.fjm-hero-photo-grid a:hover img{transform:scale(1.035)}
+.fjm-proof-eyebrow{margin:14px 0 3px!important;color:#82e2fa!important;font-size:10px!important;font-weight:900;letter-spacing:.14em}
+.fjm-hero-proof h2{margin:4px 0 6px!important;font-size:clamp(19px,2vw,25px)!important}
+.fjm-hero-proof>p:last-child{margin:0!important}
+body.light .fjm-hero-proof{background:linear-gradient(145deg,#fff,#e9f7fd)!important}
+body.light .fjm-proof-eyebrow{color:#087fa9!important}
+@media(max-width:1050px){.fjm-hero-photo-grid img{height:clamp(150px,28vw,240px)!important}}
+@media(max-width:690px){.fjm-hero-photo-grid{grid-template-columns:1.1fr .9fr;gap:7px}.fjm-hero-photo-grid img{height:clamp(130px,42vw,190px)!important}.fjm-hero-proof{padding:12px!important}}
 .fjm-section{margin:clamp(26px,4vw,52px) 0}
 .fjm-heading{max-width:800px;margin-bottom:23px}
 .fjm-heading h2{margin:8px 0 10px;font-size:clamp(27px,3.5vw,40px)}
@@ -124,7 +136,19 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <p class="fjm-hero-sub" data-fjm-en="No obligation to order · STL and 3MF models accepted">Sans obligation d'achat · Modèles STL et 3MF acceptés</p>
  <ul class="fjm-points"><li data-fjm-en="📍 Made in Saguenay">📍 Fabriqué au Saguenay</li><li data-fjm-en="🧩 Custom projects">🧩 Projets personnalisés</li><li data-fjm-en="💬 Real human support">💬 Contact humain</li></ul>
  </div>
- <aside class="fjm-hero-panel"><h2 data-fjm-en="No 3D model yet?">Pas de fichier 3D?</h2><p data-fjm-en="A photo, sketch, or description is enough to start a quote request.">Une photo, un croquis ou une description suffit pour démarrer la demande.</p></aside>
+ <aside class="fjm-hero-panel fjm-hero-proof">
+  <div class="fjm-hero-photo-grid" aria-label="Exemples réels de pièces imprimées">
+   <a href="/galerie/3" aria-label="Voir le porte essuie-tout bouvier bernois">
+    <img src="/gallery/thumb/3" alt="Porte essuie-tout bouvier bernois imprimé, photographié dans une cuisine" width="420" height="260" loading="eager" fetchpriority="high">
+   </a>
+   <a href="/galerie/8" aria-label="Voir le couvercle imprimé avec trappe">
+    <img src="/gallery/thumb/8" alt="Couvercle jaune imprimé avec logo et trappe" width="240" height="260" loading="eager">
+   </a>
+  </div>
+  <p class="fjm-proof-eyebrow" data-fjm-en="MADE HERE · REAL PRINTED PARTS">FABRIQUÉ ICI · VRAIES PIÈCES IMPRIMÉES</p>
+  <h2 data-fjm-en="See what your idea can become">Voyez ce qu’une idée peut devenir</h2>
+  <p data-fjm-en="No 3D file? A photo, sketch, or simple description is enough to start.">Pas de fichier 3D? Une photo, un croquis ou une simple description suffit pour commencer.</p>
+ </aside>
 </section>
 <section class="fjm-section" id="services">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="What we create">Ce qu'on réalise</span><h2 data-fjm-en="3D printing solutions for all your ideas">L'impression 3D pour toutes vos idées</h2><p data-fjm-en="One part, a gift, a prototype or a small production run: every project starts with a conversation.">Une pièce, un cadeau, un prototype ou une petite série : chaque projet commence par une conversation.</p></div>
