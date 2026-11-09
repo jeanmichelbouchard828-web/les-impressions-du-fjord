@@ -46,7 +46,7 @@ class InspirationTests(unittest.TestCase):
         self.assertEqual(len(dom.images),50)
         self.assertEqual(len(dom.filters),7)
         self.assertEqual(dom.filters[0]["data-fji-filter"],"all")
-        for idea,image in zip(IDEAS,dom.images):
+        for index,(idea,image) in enumerate(zip(IDEAS,dom.images)):
             self.assertEqual(image["src"],idea["image"])
             self.assertEqual(image["loading"],"lazy")
             self.assertTrue(image["alt"])
@@ -55,7 +55,7 @@ class InspirationTests(unittest.TestCase):
             self.assertIn(idea["source"],dom.links)
             self.assertIn(idea["license_url"],dom.links)
             links=[x for x in dom.links if x.startswith("/soumission?")
-                   and parse_qs(urlparse(x).query).get("projet")==[idea["title"]]]
+                   and parse_qs(urlparse(x).query).get("inspiration")==[str(index)]]
             self.assertEqual(len(links),1)
 
     def test_no_unexpected_hosts_or_inline_scripts_in_source(self):
