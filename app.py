@@ -510,7 +510,7 @@ document.getElementById('fjord-lang').addEventListener('change',e=>{localStorage
 document.getElementById('fjord-theme').addEventListener('change',e=>{localStorage.setItem('fjord-theme',e.target.value);apply()});
 apply();
 })();
-</script><script src="/static/fjord_sitewide.js?v=20261109-sales-bundle5" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
+</script><script src="/static/fjord_sitewide.js?v=20261109-sales-bundle6" defer></script>{% if request.path == '/' %}<script src="/static/fjord_inspirations.js?v=20261108-ideas51" defer></script>{% endif %}</body></html>"""
 def page(title,body,**kwargs):
  from flask import render_template_string
  # SEO parameters are reserved and never leaked into the individual body template.
