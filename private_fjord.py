@@ -2011,6 +2011,41 @@ def public_studio(html):
       display:none!important;
     }
     </style>"""
+    gallery_handoff = """<script>
+window.addEventListener('load',async()=>{
+ const params=new URLSearchParams(location.search);
+ const id=params.get('galerie'),photo=params.get('photo')||'0';
+ if(!id)return;
+ const numeric=/^\\d{1,18}$/;
+ if(!numeric.test(id)||!numeric.test(photo))return;
+ const status=document.createElement('div');
+ status.id='fjordGalleryImportNotice';
+ status.setAttribute('role','status');
+ status.setAttribute('aria-live','polite');
+ status.style.cssText='position:fixed;z-index:21000;bottom:15px;left:15px;right:15px;max-width:560px;margin:auto;padding:13px 18px;border-radius:12px;border:1px solid #69c9e9;background:#133a50;color:#fff;font-weight:700';
+ status.textContent='Chargement de la pièce dans l’Atelier…';
+ document.body.append(status);
+ try{
+  const response=await fetch('/galerie/'+id+'/modele?photo='+photo,{
+   credentials:'same-origin',cache:'no-store',headers:{Accept:'application/octet-stream'}});
+  if(!response.ok)throw Error(response.status===404?'Aucun STL/3MF associé à cette pièce.':'Téléchargement du modèle impossible.');
+  const filename=response.headers.get('X-Fjord-Model-Name')||'creation-galerie.3mf';
+  const blob=await response.blob();
+  if(blob.size>20*1024*1024||blob.size<84)throw Error('Fichier trop volumineux ou incomplet.');
+  if(typeof window.fjordImportGalleryModelFile!=='function')throw Error('L’Atelier n’est pas encore prêt à importer cette pièce.');
+  await window.fjordImportGalleryModelFile(new File([blob],filename,{type:'application/octet-stream'}),filename);
+  status.textContent='✓ Pièce importée. Tu peux maintenant vérifier les dimensions, modifier le modèle et le trancher.';
+  params.delete('galerie');params.delete('photo');
+  history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:'')+location.hash);
+ }catch(error){
+  status.textContent='⚠ '+String(error.message||error);
+ }
+ const close=document.createElement('button');close.type='button';close.textContent='✕';close.title='Fermer';
+ close.style.cssText='float:right;margin-left:12px;padding:0 8px;background:transparent;color:inherit;border:0';
+ close.addEventListener('click',()=>status.remove());status.prepend(close);
+});
+</script>"""
+    html=html.replace("</body>",gallery_handoff+"</body>",1)
     return html.replace("</head>",style+"</head>",1)
 
 def register_private_fjord(app, db, admin_required, verify, csrfinput, csrf, page):
