@@ -51,6 +51,9 @@ def init():
   # default is used only when the photo doesn't have a dedicated model.
   # Historical photographs and customer orders are preserved as-is.
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_filename TEXT")
+  c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS is_real_photo BOOLEAN NOT NULL DEFAULT FALSE")
+  # Photos de pièces imprimées vérifiées visuellement dans la galerie actuelle.
+  c.execute("UPDATE gallery SET is_real_photo=TRUE WHERE id IN (3,8) AND photo IS NOT NULL")
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_data BYTEA")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_filename TEXT")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_data BYTEA")
@@ -980,7 +983,7 @@ def home():
  # Les donnees publiques viennent de la galerie reelle et des commandes autorisees.
  with db() as c:
   public_jobs=c.execute("SELECT progress FROM requests WHERE kind='Soumission' AND status='En impression' AND public_progress=TRUE ORDER BY id DESC LIMIT 4").fetchall()
-  featured=c.execute("""SELECT g.id,g.title,g.category,
+  featured=c.execute("""SELECT g.id,g.title,g.category,g.is_real_photo,
        (g.photo IS NOT NULL OR p.id IS NOT NULL) AS has_photo,
        CASE WHEN g.photo IS NOT NULL THEN 0 ELSE COALESCE(p.id,0) END AS quote_photo_id,
        CASE WHEN g.photo IS NOT NULL THEN (g.model_data IS NOT NULL)
@@ -995,7 +998,7 @@ def home():
          AND ((g.photo IS NOT NULL AND g.model_data IS NOT NULL)
               OR (g.photo IS NULL AND p.id IS NOT NULL
                   AND (g.model_data IS NOT NULL OR p.model_data IS NOT NULL)))
-       ORDER BY g.id DESC LIMIT 6""").fetchall()
+       ORDER BY g.is_real_photo DESC,g.id DESC LIMIT 6""").fetchall()
   inspiration_rows=c.execute("""SELECT source FROM fjord_inspiration_models
        WHERE rights_confirmed=TRUE AND octet_length(model_data)>0""").fetchall()
   public_inspirations=fjord_inspiration_html({row["source"] for row in inspiration_rows})
@@ -1056,7 +1059,7 @@ def starlink_referral():
 @app.get("/galerie")
 def gallery_page():
  with db() as c:
-  items=c.execute("""SELECT g.id,g.title,g.category,g.description,g.photo IS NOT NULL AS has_photo,
+  items=c.execute("""SELECT g.id,g.title,g.category,g.description,g.is_real_photo,g.photo IS NOT NULL AS has_photo,
       (g.model_data IS NOT NULL OR p.model_data IS NOT NULL) AS has_model,
       CASE WHEN g.photo IS NOT NULL AND g.model_data IS NOT NULL THEN 0
            WHEN p.id IS NOT NULL AND p.model_data IS NOT NULL THEN p.id
@@ -1065,7 +1068,7 @@ def gallery_page():
       LEFT JOIN LATERAL (SELECT id,model_data FROM gallery_photos
                          WHERE gallery_id=g.id
                          ORDER BY (model_data IS NOT NULL) DESC,id LIMIT 1) p ON TRUE
-      ORDER BY g.id DESC""").fetchall()
+      ORDER BY g.is_real_photo DESC,g.id DESC""").fetchall()
  return page("Galerie",MARKETING_GALLERY + MARKETING_SCRIPT,items=items)
 @app.get("/gallery/cover/<int:id>")
 def cover(id):
@@ -1755,6 +1758,7 @@ GALLERY_FORM='''<section class="fjord-gallery-manage"><h1>{{heading}}</h1>
  <label>Titre<input name="title" value="{{item.title if item else ''}}" maxlength="120" required></label>
  <label>Catégorie<input name="category" value="{{item.category if item else ''}}" maxlength="120" required></label>
  <label>Description<textarea name="description" maxlength="2000" required>{{item.description if item else ''}}</textarea></label>
+ <label class="fjord-real-photo-toggle"><input type="checkbox" name="is_real_photo" {% if item and item.is_real_photo %}checked{% endif %}> Photo réelle d’une pièce imprimée (à afficher en priorité)</label>
  <label>Modèle STL/3MF commun à cette réalisation (20 Mo maximum)
  <input type="file" name="default_model" accept=".stl,.3mf"></label>
  {% if item and item.model_filename %}
@@ -1811,11 +1815,11 @@ def new():return gallery_edit(None)
 def edit(id):return gallery_edit(id)
 def gallery_edit(id):
  with db() as c:
-  item=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo,model_filename FROM gallery WHERE id=%s",(id,)).fetchone() if id else None
+  item=c.execute("SELECT id,title,category,description,photo IS NOT NULL AS has_photo,model_filename,is_real_photo FROM gallery WHERE id=%s",(id,)).fetchone() if id else None
   if id and not item:abort(404)
   if request.method=="POST":
    verify()
-   title=request.form.get("title","").strip();category=request.form.get("category","").strip();description=request.form.get("description","").strip()
+   title=request.form.get("title","").strip();category=request.form.get("category","").strip();description=request.form.get("description","").strip();is_real_photo=request.form.get("is_real_photo")=="on"
    if not title or not category or not description or max(len(title),len(category))>120 or len(description)>2000:abort(400)
    files=request.files.getlist("photos")
    if len(files)>6:abort(400)
@@ -1832,15 +1836,15 @@ def gallery_edit(id):
    if id:
     if model_data:
      c.execute("""UPDATE gallery SET title=%s,category=%s,description=%s,
-                        model_filename=%s,model_data=%s WHERE id=%s""",
-               (title,category,description,model_name,model_data,id))
+                        model_filename=%s,model_data=%s,is_real_photo=%s WHERE id=%s""",
+               (title,category,description,model_name,model_data,is_real_photo,id))
     else:
-     c.execute("UPDATE gallery SET title=%s,category=%s,description=%s WHERE id=%s",
-               (title,category,description,id))
+     c.execute("UPDATE gallery SET title=%s,category=%s,description=%s,is_real_photo=%s WHERE id=%s",
+               (title,category,description,is_real_photo,id))
    else:
-    id=c.execute("""INSERT INTO gallery(title,category,description,model_filename,model_data)
-                    VALUES(%s,%s,%s,%s,%s) RETURNING id""",
-                 (title,category,description,model_name,model_data)).fetchone()["id"]
+    id=c.execute("""INSERT INTO gallery(title,category,description,model_filename,model_data,is_real_photo)
+                    VALUES(%s,%s,%s,%s,%s,%s) RETURNING id""",
+                 (title,category,description,model_name,model_data,is_real_photo)).fetchone()["id"]
    library=fjord_gallery_library_candidates(c)
    auto_count=0
    for uploaded,(data,mime) in zip(photo_inputs,images):
