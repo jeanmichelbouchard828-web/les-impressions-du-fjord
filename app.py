@@ -1355,6 +1355,15 @@ FORM='''<div class="eyebrow">Parlons de votre projet</div><h1>{{heading}}</h1><p
 <p>Cette photo sera identifiée dans la demande avec son lien et ses crédits. Une copie est jointe lorsque la source est accessible.{% if inspiration_has_model %} Un STL/3MF autorisé est également associé et sera joint automatiquement.{% else %} Aucun STL/3MF n'est disponible pour imprimer directement cet exemple.{% endif %}</p>
 <p class="small">Photo : <a target="_blank" rel="noopener noreferrer" href="{{inspiration_selected.source}}">{{inspiration_selected.author}}</a> · {{inspiration_selected.license}}. Les droits de reproduction du modèle sont à vérifier séparément.</p></div>
 <input type="hidden" name="inspiration_id" value="{{inspiration_index}}" form="fjordQuoteForm">
+</section>{% endif %}
+{% if makerworld_selected %}
+<section class="fjord-quote-gallery-ref" aria-label="Modèle MakerWorld choisi">
+ <img src="{{makerworld_selected.image}}" loading="eager" alt="Aperçu du modèle MakerWorld {{makerworld_selected.title}}">
+ <div><strong>Modèle MakerWorld : {{makerworld_selected.title}}</strong>
+ <p>Le fichier 3MF « {{makerworld_selected.model_filename}} » et cette image seront joints à votre demande automatiquement.</p>
+ <p class="small">Modèle et image importés dans le diaporama avec les droits de partage confirmés par l’atelier. <a href="{{makerworld_selected.source_url}}" target="_blank" rel="noopener noreferrer">Voir la source MakerWorld</a>.</p>
+ <p class="small"><a class="fjord-other-ready-models" href="/galerie?prets=1">Choisir un autre modèle prêt à imprimer</a></p></div>
+ <input type="hidden" name="makerworld_id" value="{{makerworld_selected.id}}" form="fjordQuoteForm">
 </section>{% endif %}{% else %}<div class="fjord-client-contact" aria-label="Nous joindre"><a href="mailto:lesimpressionsdufjord@gmail.com">✉ Courriel<small>lesimpressionsdufjord@gmail.com</small></a><a href="tel:+15819980831">☎ Téléphone<small>581-998-0831</small></a><a href="https://www.facebook.com/share/19oRAWKxCk/" target="_blank" rel="noopener noreferrer">💬 Facebook<small>Nous écrire sur notre page</small></a></div>{% endif %}<form id="fjordQuoteForm" class="fjm-quote-form" method="post" enctype="multipart/form-data">{{csrf|safe}}<label>Votre nom<input name="name" maxlength="120" required></label><label>Courriel<input type="email" name="email" maxlength="200" required></label><label>Téléphone (facultatif)<input name="phone" maxlength="40"></label>{% if quote %}<section class="fjord-brief" aria-labelledby="fjordBriefTitle"><h2 id="fjordBriefTitle">Parlez-nous de votre création</h2><p>Quelques détails suffisent pour préparer une soumission plus précise. Si vous hésitez, choisissez « À déterminer ».</p>
 <div class="fjord-brief-grid">
 <label>Type de projet<select name="project_type">{% for p in project_types %}<option value="{{p}}">{{p}}</option>{% endfor %}</select></label>
@@ -1425,6 +1434,7 @@ def fjord_reference_image(upload):
 
 def submission(kind):
  if request.method=="GET":
+  if kind=="Soumission" and sum(bool(request.args.get(key)) for key in ("galerie","inspiration","makerworld"))>1:abort(400)
   chosen=None
   chosen_photo_id=0
   chosen_photo_url=""
@@ -1437,6 +1447,17 @@ def submission(kind):
    if not chosen:abort(404)
    chosen_photo_url=("/photo/"+str(chosen["id"]) if chosen_photo_id==0
                      else "/gallery/image/"+str(chosen_photo_id))
+  makerworld_selected=None
+  if kind=="Soumission" and request.args.get("makerworld") is not None:
+   raw=request.args.get("makerworld","")
+   if not raw.isdigit() or len(raw)>18:abort(400)
+   with db() as c:
+    makerworld_selected=c.execute("""SELECT id,title,source_url,model_filename
+       FROM fjord_makerworld_slides WHERE id=%s AND rights_confirmed=TRUE
+       AND octet_length(model_data)>0""",(int(raw),)).fetchone()
+   if not makerworld_selected:abort(404)
+   makerworld_selected=dict(makerworld_selected)
+   makerworld_selected["image"]="/inspirations/makerworld/"+str(makerworld_selected["id"])+"/photo"
   inspiration_selected=None
   inspiration_index=0
   inspiration_has_model=False
@@ -1449,13 +1470,16 @@ def submission(kind):
    with db() as c:
     row=fjord_inspiration_model(c,inspiration_selected)
     inspiration_has_model=bool(row and row["rights_confirmed"])
+  if chosen:prefill="Je souhaite une création semblable à « "+chosen["title"][:120]+" » (photo de la galerie). "
+  elif makerworld_selected:prefill="Je souhaite une impression du modèle MakerWorld « "+makerworld_selected["title"][:120]+" ». "
+  elif inspiration_selected:prefill="Je voudrais discuter d’une création inspirée de « "+inspiration_selected["title"][:120]+" ». "
+  elif kind=="Soumission" and request.args.get("projet"):prefill="Je souhaite une création similaire à « "+request.args.get("projet","")[:160]+" ». "
+  else:prefill=""
   return page(kind,FORM + MARKETING_SCRIPT,gallery_selected=chosen,
               gallery_photo_id=chosen_photo_id,gallery_photo_url=chosen_photo_url,
+              makerworld_selected=makerworld_selected,
               inspiration_selected=inspiration_selected,inspiration_index=inspiration_index,
-              inspiration_has_model=inspiration_has_model,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,project_types=PROJECT_TYPES,remise_options=REMISE_OPTIONS,delai_options=DELAI_OPTIONS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=("Je souhaite une création semblable à « "+chosen["title"][:120]+" » (photo de la galerie). "
- if chosen else ("Je voudrais discuter d'une création inspirée de « "+inspiration_selected["title"][:120]+" ». "
- if inspiration_selected else ("Je souhaite une création similaire à « "+request.args.get("projet","")[:160]+" ». "
- if kind=="Soumission" and request.args.get("projet") else ""))))
+              inspiration_has_model=inspiration_has_model,heading="Demander une soumission" if kind=="Soumission" else "Nous contacter",intro="Décrivez votre projet et joignez votre modèle 3D si vous en avez un." if kind=="Soumission" else "Envoyez-nous votre message directement depuis ce formulaire.",quote=kind=="Soumission",materials=MATERIALS,csrf=csrfinput(),marketing_help=MARKETING_FORM_HELP,colors=COLORS,project_types=PROJECT_TYPES,remise_options=REMISE_OPTIONS,delai_options=DELAI_OPTIONS,preview=os.environ.get("FJORD_PREVIEW_MODE")=="1",prefill=prefill
  verify()
  name=request.form.get("name","").strip();email=request.form.get("email","").strip().lower();description=request.form.get("description","").strip();phone=request.form.get("phone","").strip()[:40]
  if not name or len(name)>120 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",email) or len(email)>200 or not description or len(description)>5000:abort(400)
@@ -1490,8 +1514,8 @@ def submission(kind):
    if not is_zipfile(io.BytesIO(data)):abort(400)
   if filename.lower().endswith(".stl") and len(data)<84:abort(400)
  ref_name,ref_photo,ref_mime=fjord_reference_image(request.files.get("reference_photo")) if kind=="Soumission" else (None,None,None)
- if kind=="Soumission" and request.form.get("gallery_id") and request.form.get("inspiration_id") is not None:
-  abort(400,description="Choisissez une seule réalisation ou inspiration.")
+ if kind=="Soumission" and sum((bool(request.form.get(key)) for key in ("gallery_id","inspiration_id","makerworld_id"))) > 1:
+  abort(400,description="Choisissez une seule réalisation, inspiration ou modèle MakerWorld.")
  if kind=="Soumission" and request.form.get("gallery_id"):
   raw=request.form.get("gallery_id","")
   pic=request.form.get("gallery_photo_id","0")
@@ -1532,6 +1556,25 @@ def submission(kind):
                " ("+idea["license_url"]+")\n"+
                "Modèle 3D associé : "+("oui (fichier lié)" if linked and linked["rights_confirmed"] else "non")+
                "\n\n"+description)
+ if kind=="Soumission" and request.form.get("makerworld_id"):
+  raw=request.form.get("makerworld_id","")
+  if not raw.isdigit() or len(raw)>18:abort(400)
+  with db() as c:
+   makerworld_ref=c.execute("""SELECT id,title,source_url,model_filename,model_data,image,image_mime
+       FROM fjord_makerworld_slides WHERE id=%s AND rights_confirmed=TRUE
+       AND octet_length(model_data)>0""",(int(raw),)).fetchone()
+  if not makerworld_ref:abort(400,description="Le modèle MakerWorld sélectionné n’est plus disponible.")
+  if not data:
+   filename=makerworld_ref["model_filename"]
+   data=makerworld_ref["model_data"]
+  if not ref_photo:
+   ref_photo=fjord_gallery_quote_image(makerworld_ref["image"],makerworld_ref["image_mime"])
+   if ref_photo:
+    ref_name="makerworld-"+str(makerworld_ref["id"])+".jpg"
+    ref_mime="image/jpeg"
+  description=("Modèle MakerWorld #"+str(makerworld_ref["id"])+" — "+makerworld_ref["title"][:120]+"\n"+
+               "Source : "+makerworld_ref["source_url"]+"\n"+
+               "Fichier associé : "+makerworld_ref["model_filename"]+" (automatiquement joint si aucun autre modèle n’a été téléversé)\n\n"+description)
  with db() as c:
   request_id=c.execute("""INSERT INTO requests(kind,name,email,phone,material,description,filename,filedata,reference_filename,reference_photo,reference_mime)
       VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",(kind,name,email,phone,material,description,filename,data,ref_name,ref_photo,ref_mime)).fetchone()["id"]
