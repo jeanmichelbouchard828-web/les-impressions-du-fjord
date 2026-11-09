@@ -204,6 +204,23 @@
     lang?.addEventListener("change",translateOptions);
     translateMobile();
     translateOptions();
+    const pageTranslations={
+      "Une idée de création 3D? Écrivez-nous par courriel, sur Facebook ou appelez-nous!":"Have a 3D idea? Email us, message us on Facebook, or call!",
+      "Pour Messenger, ouvrez notre page Facebook et choisissez « Envoyer un message ».":"For Messenger, open our Facebook page and select “Send message”."
+    };
+    const translatedNodes=new WeakMap();
+    function translateContactCopy(){
+      const english=lang?.value==="en";
+      const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+      while(walker.nextNode()){
+        const node=walker.currentNode;
+        if(!translatedNodes.has(node))translatedNodes.set(node,node.textContent);
+        const original=translatedNodes.get(node), key=original.trim();
+        if(pageTranslations[key])node.textContent=english?original.replace(key,pageTranslations[key]):original;
+      }
+    }
+    lang?.addEventListener("change",translateContactCopy);
+    translateContactCopy();
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init);
   else init();
