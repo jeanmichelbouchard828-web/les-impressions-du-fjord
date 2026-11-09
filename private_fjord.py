@@ -1927,11 +1927,12 @@ if(fjordAutoButton){
 window.addEventListener('load',async()=>{
  const params=new URLSearchParams(location.search);
  const id=params.get('galerie'),photo=params.get('photo')||'0';
- const inspiration=params.get('inspiration');
+ const inspiration=params.get('inspiration'),demande=params.get('demande');
  const numeric=/^\\d{1,18}$/;
- if(!id&&inspiration===null)return;
- if(id&&inspiration!==null)return;
+ const choices=Number(!!id)+Number(inspiration!==null)+Number(demande!==null);
+ if(choices!==1)return;
  if(id&&(!numeric.test(id)||!numeric.test(photo)))return;
+ if(demande!==null&&!numeric.test(demande))return;
  if(inspiration!==null&&(!/^\\d{1,3}$/.test(inspiration)||Number(inspiration)>49))return;
  const status=document.createElement('div');
  status.id='fjordGalleryImportNotice';
@@ -1941,9 +1942,11 @@ window.addEventListener('load',async()=>{
  status.textContent='Chargement du modèle associé à la photo…';
  document.body.append(status);
  try{
-  const endpoint=inspiration!==null
-    ?'/admin/inspirations/'+inspiration+'/modele'
-    :'/admin/gallery/model/'+id+'?photo='+photo;
+  const endpoint=demande!==null
+    ?'/admin/demandes/model/'+demande
+    :inspiration!==null
+      ?'/admin/inspirations/'+inspiration+'/modele'
+      :'/admin/gallery/model/'+id+'?photo='+photo;
   const response=await fetch(endpoint,{
    credentials:'same-origin',cache:'no-store',headers:{Accept:'application/octet-stream'}});
   if(!response.ok)throw Error(response.status===404?'Aucun STL/3MF associé à cette photo.':'Accès au modèle impossible.');
@@ -1953,8 +1956,8 @@ window.addEventListener('load',async()=>{
   if(typeof window.fjordImportGalleryModelFile!=='function')
     throw Error('L’éditeur ne peut pas encore importer le modèle.');
   await window.fjordImportGalleryModelFile(new File([blob],filename,{type:'application/octet-stream'}),filename);
-  status.textContent='✓ Modèle 3D importé depuis la galerie ou le diaporama. Vérifie les droits, la géométrie, les profils X2D et le tranchage avant toute impression.';
-  params.delete('galerie');params.delete('photo');params.delete('inspiration');
+  status.textContent='✓ Modèle 3D importé. Vérifie les dimensions, les couleurs, les profils X2D et le tranchage avant toute impression.';
+  params.delete('galerie');params.delete('photo');params.delete('inspiration');params.delete('demande');
   history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:'')+location.hash);
  }catch(error){
   status.textContent='⚠ '+String(error.message||error);
