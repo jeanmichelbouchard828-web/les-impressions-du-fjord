@@ -1005,7 +1005,7 @@ def home():
          AND ((g.photo IS NOT NULL AND g.model_data IS NOT NULL)
               OR (g.photo IS NULL AND p.id IS NOT NULL
                   AND (g.model_data IS NOT NULL OR p.model_data IS NOT NULL)))
-       ORDER BY g.is_real_photo DESC,g.id DESC LIMIT 6""").fetchall()
+       ORDER BY g.is_real_photo DESC,g.id DESC""").fetchall()
   inspiration_rows=c.execute("""SELECT source FROM fjord_inspiration_models
        WHERE rights_confirmed=TRUE AND octet_length(model_data)>0""").fetchall()
   public_inspirations=fjord_inspiration_html({row["source"] for row in inspiration_rows})
