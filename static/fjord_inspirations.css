@@ -1,0 +1,37 @@
+/* Inspiration carousel: external reusable photographs with visible credits.
+   This section must not be confused with the real Fjord creations gallery. */
+.fji-section{border:1px solid #2f6d90;border-radius:23px;background:linear-gradient(140deg,#0c2a42,#0a1d30);padding:clamp(17px,3.3vw,35px);overflow:hidden}
+.fji-heading{display:flex;align-items:end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:21px}
+.fji-heading h2{font-size:clamp(25px,3vw,38px);line-height:1.2;margin:8px 0 11px;color:#effaff}
+.fji-heading p{margin:0;color:#c6dcea;max-width:660px}
+.fji-controls{display:flex;align-items:center;gap:11px;margin-left:auto}
+.fji-controls button{min-width:44px;min-height:44px;padding:4px 10px;border:1px solid #66b4d5;border-radius:99px;background:#133b55;color:#eafaff;font-size:26px;line-height:1;cursor:pointer}
+.fji-controls button:hover{background:#1d5a7c}
+.fji-controls button:focus-visible,.fji-track:focus-visible,.fji-card a:focus-visible{outline:3px solid #a5efff;outline-offset:3px}
+#fji-counter{font-size:14px;font-variant-numeric:tabular-nums;font-weight:800;min-width:45px;text-align:center;color:#e1f3fc}
+.fji-track{display:flex;gap:16px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding-inline:1px;scrollbar-width:thin;padding:2px 0 12px;scroll-behavior:smooth}
+.fji-card{display:flex;flex:0 0 calc((100% - 32px)/3);min-width:0;flex-direction:column;overflow:hidden;border:1px solid #397ea1;border-radius:17px;background:#0e344c;scroll-snap-align:start;scroll-snap-stop:always}
+.fji-photo{position:relative;isolation:isolate;aspect-ratio:4/3;overflow:hidden;background:radial-gradient(circle at 55% 30%,#37638c,#102a45);display:grid;place-items:center}
+.fji-photo img{z-index:1;width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.fji-photo img[hidden]{display:none}
+.fji-photo-fallback{display:grid;place-items:center;width:100%;height:100%;color:#d7f1ff;font-size:21px;font-weight:850}
+.fji-card-body{display:flex;flex-direction:column;gap:8px;padding:15px;flex:1}
+.fji-card-type{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9bdfff;font-weight:800}
+.fji-card h3{font-size:19px;line-height:1.3;color:#f0f9ff;margin:0}
+.fji-card p{color:#cce5f1;margin:0;font-size:13px;line-height:1.55;min-height:39px}
+.fji-cta{display:block;margin-top:auto;padding:11px 9px;border-radius:10px;background:#0b8ebc;color:#fff!important;text-align:center;text-decoration:none!important;font-weight:800;font-size:13px;line-height:1.4}
+.fji-cta:hover{background:#0a729b}
+.fji-credit{display:block;margin-top:5px;color:#b7d3e0;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.fji-credit a{color:#a7e7ff;text-decoration:underline;text-underline-offset:2px}
+.fji-disclaimer{font-size:12px;line-height:1.55;color:#b7d9ea;margin:16px 0 0}
+body.light .fji-section{background:#e8f5fb;border-color:#b2d9e9}
+body.light .fji-heading h2,body.light .fji-card h3{color:#17415a}
+body.light .fji-heading p,body.light .fji-card p,body.light .fji-disclaimer,body.light .fji-credit{color:#375e75}
+body.light .fji-card{background:#fff;border-color:#b2d5e5}
+body.light .fji-card-type{color:#126f9c}
+body.light .fji-credit a{color:#116c98}
+body.light .fji-controls button{background:#fff;color:#174963}
+body.light #fji-counter{color:#28556e}
+@media(max-width:1000px){.fji-card{flex-basis:calc((100% - 16px)/2)}}
+@media(max-width:650px){.fji-card{flex-basis:100%}.fji-heading{align-items:start}.fji-section{padding:16px 13px}.fji-controls{margin-left:0}.fji-photo{aspect-ratio:5/3}.fji-card-body{padding:15px}.fji-heading h2{font-size:27px}}
+@media(prefers-reduced-motion:reduce){.fji-track{scroll-behavior:auto!important}.fji-card{scroll-snap-stop:normal}}
