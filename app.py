@@ -53,7 +53,7 @@ def init():
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_filename TEXT")
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS is_real_photo BOOLEAN NOT NULL DEFAULT FALSE")
   # Photos de pièces imprimées vérifiées visuellement dans la galerie actuelle.
-  c.execute("UPDATE gallery SET is_real_photo=TRUE WHERE id IN (3,8) AND photo IS NOT NULL")
+  c.execute("UPDATE gallery SET is_real_photo=TRUE WHERE id IN (3,8)")
   c.execute("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS model_data BYTEA")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_filename TEXT")
   c.execute("ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS model_data BYTEA")
