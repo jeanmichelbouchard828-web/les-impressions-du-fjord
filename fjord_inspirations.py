@@ -1,89 +1,100 @@
-"""Curated 3D inspiration examples with credits and verified re-use terms.
+"""50 attributed Wikimedia Commons inspiration photos for the Fjord storefront.
 
-Wikimedia photographs show independently made examples, NOT creations or
-commercial catalogue items from Les Impressions du Fjord. Their image licenses
-do not authorize reproduction of an unrelated third-party STL/design.
+The versioned JSON manifest contains verified credits and allowed licenses.
+Photos are only examples, never represented as Fjord products or licensed STL files.
 """
-import hashlib
 import html
-from urllib.parse import quote, urlencode
+import json
+import logging
+from pathlib import Path
+from urllib.parse import urlencode, urlsplit
 
-# These source pages were reviewed for reusable image licensing (November 2026).
-# Keep source/author/license links directly next to each photograph.
-IDEAS = (
-    {"title": "Dragon articulé", "english": "Articulated dragon",
-     "category":"Décoration et jouets", "en_category":"Decorations and toys",
-     "description":"Un exemple de pièce articulée imprimée d’un seul tenant.",
-     "file":"Technology_3D_print_dragon.jpg",
-     "author":"Jan Helebrant", "license":"CC0 1.0",
-     "license_url":"https://creativecommons.org/publicdomain/zero/1.0/"},
-    {"title":"Vase décoratif", "english":"Decorative vase",
-     "category":"Décoration", "en_category":"Home decor",
-     "description":"Formes originales et textures personnalisables.",
-     "file":"3D_Printed_Vase.jpg", "author":"D Eaketts",
-     "license":"CC BY-SA 4.0",
-     "license_url":"https://creativecommons.org/licenses/by-sa/4.0/"},
-    {"title":"Cache-pots", "english":"Planters",
-     "category":"Maison et jardin", "en_category":"Home and garden",
-     "description":"Exemples de pots imprimés en 3D pour la décoration.",
-     "file":"3D_printed_flower_pots.jpg", "author":"Aaaatu",
-     "license":"CC BY-SA 4.0",
-     "license_url":"https://creativecommons.org/licenses/by-sa/4.0/"},
-    {"title":"Porte-clés personnalisés", "english":"Custom keyrings",
-     "category":"Cadeaux", "en_category":"Gifts",
-     "description":"Petits objets cadeaux réalisés par impression 3D.",
-     "file":"Stampa_3D_di_portachiavi_03.jpg", "author":"Giacomo Alessandroni",
-     "license":"CC BY-SA 4.0",
-     "license_url":"https://creativecommons.org/licenses/by-sa/4.0/"},
-    {"title":"Mécanismes et engrenages", "english":"Gears and mechanisms",
-     "category":"Technique", "en_category":"Engineering",
-     "description":"Un exemple de mécanisme géométrique imprimé en 3D.",
-     "file":"Triple_Gear.jpg", "author":"Saul Schleimer et Henry Segerman",
-     "license":"CC BY-SA 3.0",
-     "license_url":"https://creativecommons.org/licenses/by-sa/3.0/"},
+MANIFEST = Path(__file__).with_name("fjord_inspirations_manifest.json")
+CATEGORIES = (
+    ("Animaux", "Animals"),
+    ("Objets utiles", "Useful items"),
+    ("Maison & déco", "Home and decor"),
+    ("Cadeaux & figurines", "Gifts and figurines"),
+    ("Technique", "Engineering"),
+    ("Bijoux & design", "Jewelry and design"),
 )
 
-def _src(file_name: str):
-    # Wikimedia's documented thumbnail URLs use the MD5 prefix of the file
-    # name; no scraping, visitor API keys or large originals required.
-    digest = hashlib.md5(file_name.encode("utf-8")).hexdigest()
-    escaped = quote(file_name, safe="_.-")
-    return ("https://thumb.wikimedia.org/wikipedia/commons/thumb/"
-            f"{digest[0]}/{digest[:2]}/{escaped}/960px-{escaped}")
+def _safe_url(value, hosts):
+    try:
+        u=urlsplit(str(value))
+        if u.scheme=="https" and u.hostname in hosts and not u.username:
+            return str(value)
+    except (TypeError,ValueError):
+        pass
+    return ""
+
+def _load_ideas():
+    try:
+        items=json.loads(MANIFEST.read_text(encoding="utf-8"))["items"]
+        good=[]
+        for idea in items:
+            if not isinstance(idea,dict) or not all(idea.get(k) for k in
+                ("title","english","category","author","license","license_url","image","source")):
+                continue
+            if not _safe_url(idea["image"],("upload.wikimedia.org","thumb.wikimedia.org")):
+                continue
+            if not _safe_url(idea["source"],("commons.wikimedia.org",)):
+                continue
+            if not _safe_url(idea["license_url"],("creativecommons.org","commons.wikimedia.org")):
+                continue
+            good.append(idea)
+        return tuple(good[:50])
+    except (OSError,KeyError,TypeError,ValueError) as exc:
+        logging.getLogger(__name__).warning("Fjord inspiration manifest not available: %s",exc)
+        return ()
+
+IDEAS = _load_ideas()
 
 def html_fragment():
-    cards = []
-    for i, idea in enumerate(IDEAS):
-        title = html.escape(idea["title"])
-        image = html.escape(_src(idea["file"]),quote=True)
-        source = ("https://commons.wikimedia.org/wiki/File:"
-                  + quote(idea["file"], safe="_.-"))
-        href = "/soumission?" + urlencode({"projet":idea["title"]})
+    if not IDEAS:
+        return ""
+    categories={name:en for name,en in CATEGORIES}
+    chips=[
+        '<button type="button" class="fji-filter" data-fji-filter="all" '
+        'aria-pressed="true" data-fjm-en="All 50 ideas">Toutes les 50 idées</button>'
+    ]
+    for category,en in CATEGORIES:
+        count=sum(x["category"]==category for x in IDEAS)
+        if count:
+            chips.append(
+                '<button type="button" class="fji-filter" data-fji-filter="'
+                +html.escape(category,quote=True)+'" aria-pressed="false"'
+                ' data-fjm-en="'+html.escape(en,quote=True)+'">'
+                +html.escape(category)+' <span aria-hidden="true">('+str(count)+')</span>'
+                '</button>')
+    cards=[]
+    for i,idea in enumerate(IDEAS):
+        title=html.escape(idea["title"])
+        image=html.escape(idea["image"],quote=True)
+        author=html.escape(idea["author"])
+        source=html.escape(idea["source"],quote=True)
+        license_url=html.escape(idea["license_url"],quote=True)
+        license_name=html.escape(idea["license"])
+        category=html.escape(idea["category"])
+        quote_url=html.escape("/soumission?"+urlencode({"projet":idea["title"]}),quote=True)
         cards.append(
-            '<article class="fji-card" role="group" aria-label="'
-            + html.escape(f"Idée {i+1} sur {len(IDEAS)} : {idea['title']}",quote=True)
-            + '">'
-            + '<div class="fji-photo"><img src="'+image+'" loading="lazy" '
-              'decoding="async" width="480" height="360" referrerpolicy="no-referrer" '
-              'alt="Exemple photographié : '+title+'">'
-              '<span aria-hidden="true" class="fji-photo-fallback">✦ Idée 3D</span>'
-              '</div>'
-            + '<div class="fji-card-body"><span class="fji-card-type" data-fjm-en="'
-            + html.escape(idea["en_category"],quote=True)+'">'
-            + html.escape(idea["category"])+'</span>'
-            + '<h3 data-fjm-en="'+html.escape(idea["english"],quote=True)+'">'
-            + title+'</h3>'
-            + '<p>'+html.escape(idea["description"])+'</p>'
-            + '<a class="fji-cta" href="'+html.escape(href,quote=True)
-            + '" data-fjm-en="Request a similar creation">Demander un objet semblable</a>'
-            + '<small class="fji-credit">Photo : <a href="'
-            + html.escape(source,quote=True)
-            + '" target="_blank" rel="noopener noreferrer">'
-            + html.escape(idea["author"])+'</a> · '
-            + '<a href="'+html.escape(idea["license_url"],quote=True)
-            + '" target="_blank" rel="noopener noreferrer">'
-            + html.escape(idea["license"])+'</a></small>'
-            + '</div></article>'
+            '<article class="fji-card" data-fji-category="'
+            +html.escape(idea["category"],quote=True)+'" role="group" aria-label="'
+            +html.escape(f"Idée {i+1} sur {len(IDEAS)} : {idea['title']}",quote=True)+'">'
+            '<div class="fji-photo"><img src="'+image+'" loading="lazy" decoding="async" '
+            'fetchpriority="low" referrerpolicy="no-referrer" width="480" height="360" '
+            'alt="Inspiration 3D : '+title+'"><span class="fji-photo-fallback" '
+            'aria-hidden="true">✦ Idée 3D</span></div>'
+            '<div class="fji-card-body"><span class="fji-card-type" data-fjm-en="'
+            +html.escape(categories.get(idea["category"],idea["category"]),quote=True)+'">'
+            +category+'</span>'
+            '<h3 data-fjm-en="'+html.escape(idea["english"],quote=True)+'">'+title+'</h3>'
+            '<a class="fji-cta" href="'+quote_url+'" '
+            'data-fjm-en="Request a similar creation">Demander un objet semblable</a>'
+            '<small class="fji-credit">Photo : <a href="'+source
+            +'" target="_blank" rel="noopener noreferrer">'+author+'</a> · '
+            '<a href="'+license_url+'" target="_blank" rel="noopener noreferrer">'
+            +license_name+'</a></small></div></article>'
         )
     return (
         '<section id="inspirations-3d" class="fjm-section fji-section" '
@@ -92,22 +103,26 @@ def html_fragment():
         'data-fjm-en="Ideas from the 3D printing world">Inspirations trouvées sur Internet</span>'
         '<h2 id="fji-heading" data-fjm-en="What could we create for you?">'
         'Et si on fabriquait quelque chose pour vous?</h2>'
-        '<p data-fjm-en="Explore 3D-printing examples and ask about your own version.">'
-        'Faites défiler des exemples d’objets imprimés en 3D, puis racontez-nous votre idée.</p>'
+        '<p data-fjm-en="Explore 50 examples and ask about your own version.">'
+        'Explorez 50 idées d’objets 3D. Faites défiler, puis demandez votre version personnalisée.</p>'
         '</div><div class="fji-controls" aria-label="Navigation du diaporama">'
         '<button type="button" id="fji-prev" aria-label="Image précédente">‹</button>'
         '<span id="fji-counter" aria-live="off">1 / '+str(len(IDEAS))+'</span>'
         '<button type="button" id="fji-next" aria-label="Image suivante">›</button>'
         '</div></div>'
+        '<div class="fji-filters" role="group" aria-label="Catégories d’inspirations">'
+        +''.join(chips)+'</div>'
         '<div class="fji-track" id="fji-track" tabindex="0" '
         'role="region" aria-roledescription="carousel" '
-        'aria-label="Exemples d’objets à imaginer en impression 3D">'
-        + ''.join(cards) + '</div>'
-        '<p class="fji-disclaimer" data-fjm-en="Inspiration photos from Wikimedia Commons, '
-        'not products made by our workshop. Availability, pricing and design rights '
-        'are confirmed before production.">'
-        'Photos d’inspiration provenant de Wikimedia Commons, '
-        'non de notre atelier. Faisabilité, prix et droits de reproduction '
-        'à confirmer avant toute fabrication.</p>'
-        '</section>'
+        'aria-label="50 inspirations d’objets fabriqués par impression 3D">'
+        +''.join(cards)+'</div>'
+        '<p class="fji-disclaimer" data-fjm-en="50 photos from Wikimedia Commons, '
+        'showing work by other creators, not items sold or made by our workshop. '
+        'Photo licenses do not grant rights to copy the underlying designs. '
+        'Feasibility and design rights are checked before production.">'
+        '50 photos provenant de Wikimedia Commons et d’autres créateurs : '
+        'ce ne sont pas des réalisations de notre atelier. '
+        'Les licences photo ne donnent pas automatiquement le droit '
+        'de reproduire les modèles 3D. Faisabilité et droits du modèle à confirmer '
+        'avant fabrication.</p></section>'
     )
