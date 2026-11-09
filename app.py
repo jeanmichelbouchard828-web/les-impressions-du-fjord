@@ -1256,8 +1256,8 @@ def gallery_item(id):
  urls=[asset["url"] for asset in assets]
  default_photo=assets[0]["photo_id"] if assets else 0
  item=dict(item)
-  item["title"]=item["title"][:1].upper()+item["title"][1:]
-  description=(item["description"] or "").strip()
+ item["title"]=item["title"][:1].upper()+item["title"][1:]
+ description=(item["description"] or "").strip()
  summary=(item["title"]+" — "+(description or "Réalisation d'impression 3D sur mesure")+" | Les Impressions du Fjord, Saguenay.")[:195]
  origin=seo_metadata()["public_origin"]
  social_image="/gallery/thumb/"+str(id) if urls else "/identite/logo"
