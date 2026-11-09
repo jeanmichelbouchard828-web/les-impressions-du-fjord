@@ -144,6 +144,18 @@ body.light .fjm-hero-actions .btn:first-child{background:linear-gradient(115deg,
 .fjm-final .btn{min-height:44px;padding:10px 16px}
 body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65}body.light .fjm-process-label{color:#087dab}
 @media(max-width:650px){.fjm-process-strip{display:grid;grid-template-columns:1fr;justify-items:start;gap:7px;margin-top:20px}.fjm-process-label{text-align:left}.fjm-process-arrow{display:none}.fjm-process-strip strong{font-size:13px}.fjm-final{display:flex!important;align-items:stretch!important;flex-direction:column!important}.fjm-final .btn{width:100%;margin:0!important}}
+
+/* Accueil plus simple : les pièces réelles sont montrées dans le carrousel, sans doublon dans le bandeau. */
+.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);min-height:0;padding:clamp(26px,4vw,48px)!important;margin-bottom:20px;box-shadow:none}
+.fjm-home .fjm-hero-proof{display:none!important}
+.fjm-home .fjm-hero>div{max-width:940px}
+.fjm-home .fjm-hero h1{max-width:14ch;font-size:clamp(38px,5.5vw,72px);margin:12px 0}
+.fjm-home .fjm-hero-lead{max-width:62ch;margin-bottom:18px}
+.fjm-home .fjm-points{display:none}
+.fjm-home .fjm-hero-actions{display:flex;flex-wrap:wrap;gap:10px}
+.fjm-home #realisations{margin-top:20px}
+.fjm-home #realisations .fjm-heading{max-width:760px;margin-bottom:16px}
+@media(max-width:760px){.fjm-home .fjm-hero{padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(36px,10vw,54px);line-height:1.04}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-home .fjm-hero-actions .btn{width:100%;text-align:center}.fjm-home #realisations{margin-top:12px}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
