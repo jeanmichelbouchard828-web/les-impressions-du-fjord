@@ -101,8 +101,8 @@ async def check_viewport(browser, label, width, height):
                 if not await cta.is_visible():raise AssertionError("Main quote CTA not visible")
                 result["cta_visible"]=True
                 ideas=page.locator("#fji-track .fji-card")
-                if await ideas.count()!=5:
-                    raise AssertionError("Expected five licensed inspiration images")
+                if await ideas.count()!=50:
+                    raise AssertionError("Expected fifty licensed inspiration images")
                 if not await page.locator("#fji-next").is_visible():
                     raise AssertionError("Inspiration carousel navigation missing")
                 first_href=await ideas.first.locator('a.fji-cta').get_attribute("href")
@@ -115,6 +115,24 @@ async def check_viewport(browser, label, width, height):
                     raise AssertionError("Inspiration slideshow does not advance: "+counter)
                 result["inspiration_slides"]=await ideas.count()
                 result["inspiration_next"]="working"
+                await page.locator('.fji-filter[data-fji-filter="Animaux"]').click()
+                if await page.locator("#fji-track .fji-card:visible").count()!=9:
+                    raise AssertionError("Animal filter must display 9 inspirations")
+                if not (await page.locator("#fji-counter").inner_text()).endswith(" / 9"):
+                    raise AssertionError("Filtered inspiration count does not update")
+                await page.locator('.fji-filter[data-fji-filter="all"]').click()
+                if await page.locator("#fji-track .fji-card:visible").count()!=50:
+                    raise AssertionError("All inspiration filter did not restore 50 cards")
+                result["inspiration_filter"]="working"
+                # All cards lead to a contact form; never post a real quote in smoke tests.
+                idea_href=await ideas.first.locator(".fji-cta").get_attribute("href")
+                await page.goto(BASE+idea_href,wait_until="domcontentloaded")
+                description=await page.locator('textarea[name="description"]').input_value()
+                if not description.startswith("Je souhaite une création similaire"):
+                    raise AssertionError("Inspirations did not prefill quote description")
+                result["inspiration_quote"]="working"
+                await page.goto(BASE,wait_until="domcontentloaded")
+
 
             if name=="atelier":
                 result["editor_canvas"]=await page.locator("canvas").count()
