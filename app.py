@@ -1517,7 +1517,8 @@ def admin():
 </section>
 <section class="admin-shortcut-panel" aria-labelledby="admin-tools-title"><h2 id="admin-tools-title">Accès directs</h2><nav class="admin-shortcuts" aria-label="Outils administrateur"><a href="/admin/atelier-3d">✦ Atelier 3D</a><a href="/admin/modeles">📚 Bibliothèque 3D</a><a href="/admin/profils-bambu">⚙️ Profils Bambu</a><a href="/admin/new">➕ Ajouter une réalisation</a><a href="/admin/inspirations">🖼️ Modèles du diaporama</a><form method="post" action="/admin/logout">{{csrf|safe}}<button>↪ Déconnexion</button></form></nav></section>
 <section id="admin-requests" class="admin-requests-section" aria-labelledby="admin-requests-title"><div class="admin-section-head"><div><h2 id="admin-requests-title">Demandes récentes</h2><p>Les plus récentes en premier · {{reqs|length}} affichée(s)</p></div><a class="btn" href="/admin/demandes">🔎 Voir toutes les demandes et rechercher</a></div>
-<div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.reference_filename %}<p class="fjord-reference-admin"><a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Voir la photo ou le croquis</a><span>— {{r.reference_filename}}</span></p>{% endif %}{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
+<div class="admin-request-grid">{% for r in reqs %}<article class="admin-request-card"><div class="admin-request-meta"><span>#{{r.id}}</span><span>·</span><span>{{r.kind}}</span><span>·</span><time>{{r.created.strftime('%Y-%m-%d')}}</time></div><h3>{{r.name}}</h3><p><a href="mailto:{{r.email}}">{{r.email}}</a>{% if r.phone %} · {{r.phone}}{% endif %}</p><p>Matériau : {{r.material or '—'}}</p><p style="white-space:pre-wrap">{{r.description}}</p>{% if r.reference_filename %}<p class="fjord-reference-admin"><a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Voir la photo ou le croquis</a><span>— {{r.reference_filename}}</span></p>{% endif %}{% if r.filename %}<p><a href="/admin/file/{{r.id}}">⬇ Télécharger {{r.filename}}</a> ·
+ <a href="/admin/atelier-3d?demande={{r.id}}">⚡ Préparer sur la X2D</a></p>{% if r.kind=='Soumission' %}<form method="post" action="/admin/modeles/import-demande/{{r.id}}">{{csrf|safe}}<button>📦 Importer le modèle et créer la soumission</button></form>{% endif %}{% elif r.kind=='Soumission' %}<p><a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Préparer une soumission PRO</a></p>{% endif %}<form method="post" action="/admin/status/{{r.id}}">{{csrf|safe}}<label>Statut<select name="status">{% for s in statuses %}<option {% if s==r.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label><label>Progression réelle (%)<input type="number" name="progress" min="0" max="100" value="{{r.progress if r.progress is not none else ''}}" placeholder="Non disponible"></label><label><input type="checkbox" name="public_progress" value="1" {% if r.public_progress %}checked{% endif %}> Afficher anonymement la progression sur l'accueil</label><label>Lien OctoEverywhere temporaire (oe.ink)<input type="url" name="live_url" maxlength="500" placeholder="https://oe.ink/l/..." value="{{r.live_url or ''}}"></label><label><input type="checkbox" name="live_enabled" value="1" {% if r.live_enabled %}checked{% endif %}> Autoriser la diffusion privée (à configurer)</label><button>Enregistrer</button></form></article>{% else %}<p class="admin-empty">Aucune demande pour le moment.</p>{% endfor %}</div></section></main><script>
 (async function(){const box=document.getElementById('fjord-admin-printer-status');if(!box)return;try{const r=await fetch('/api/admin/atelier/impression-etat?live='+Date.now(),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const s=await r.json();if(!s.ok)throw Error();const state=String(s.state||'inconnu').replace(/_/g,' ');const parts=[({'printing':'En impression','paused':'En pause','idle':'Prête','finished':'Terminée','failed':'Erreur'}[s.state]||state),s.file?'Fichier : '+s.file:'Aucun fichier en cours'];if(typeof s.progress==='number')parts.push(Math.round(s.progress)+' %');box.textContent=parts.join(' · ');}catch(_){box.textContent='État non disponible. Ouvre le contrôle X2D pour actualiser.'}})();
 (function(){const el=document.getElementById('adminLocalClock');if(!el)return;const update=()=>{el.textContent=new Intl.DateTimeFormat('fr-CA',{dateStyle:'full',timeStyle:'short'}).format(new Date())};update();setInterval(update,60000)})();
 </script>''',reqs=reqs,reqs_count=reqs_count,gallery=gallery,statuses=STATUSES,csrf=csrfinput(),bridge=bridge,quotes_stats=quotes_stats,commercial=commercial)
@@ -1590,7 +1591,8 @@ def fjord_admin_demandes():
  <details><summary>Voir la description</summary><p style="white-space:pre-wrap">{{r.description}}</p></details>
  <div class="fjord-history-actions">
  {% if r.reference_filename %}<a href="/admin/reference-photo/{{r.id}}" target="_blank" rel="noopener noreferrer">📷 Photo de référence</a>{% endif %}
- {% if r.filename %}<a href="/admin/file/{{r.id}}">⬇ Télécharger le modèle 3D</a>{% endif %}
+ {% if r.filename %}<a href="/admin/file/{{r.id}}">⬇ Télécharger le modèle 3D</a>
+ <a href="/admin/atelier-3d?demande={{r.id}}">⚡ Préparer sur la X2D</a>{% endif %}
  {% if r.kind=='Soumission' %}<a href="/admin/soumissions-pro?request_id={{r.id}}">📄 Soumission PRO</a>{% endif %}
  </div></article>{% else %}<p class="admin-empty">Aucune demande ne correspond à ces critères.</p>{% endfor %}</div>
  <nav class="fjord-history-pages" aria-label="Pages de l'historique">
@@ -1612,6 +1614,23 @@ def fjord_admin_reference_photo(id):
  return send_file(io.BytesIO(row["reference_photo"]),mimetype="image/jpeg",
                   as_attachment=False,download_name="reference-client.jpg",
                   max_age=0,conditional=False),200,{"Cache-Control":"no-store, private","X-Content-Type-Options":"nosniff","X-Robots-Tag":"noindex, nofollow"}
+
+@app.get("/admin/demandes/model/<int:id>")
+@admin_required
+def fjord_private_request_model_for_atelier(id):
+ """Return the exact customer STL/3MF, never by an untrusted filename."""
+ with db() as c:
+  model=c.execute("""SELECT filename,filedata FROM requests
+                     WHERE id=%s AND kind='Soumission'""",(id,)).fetchone()
+ if not model or not model["filedata"] or not model["filename"]:abort(404)
+ if not model["filename"].lower().endswith((".stl",".3mf")):abort(400)
+ return send_file(io.BytesIO(model["filedata"]),
+                  as_attachment=True,download_name=model["filename"],
+                  mimetype="application/octet-stream",max_age=0,conditional=False),200,{
+                   "Cache-Control":"no-store, private",
+                   "X-Robots-Tag":"noindex, nofollow",
+                   "X-Content-Type-Options":"nosniff",
+                   "X-Fjord-Model-Name":model["filename"]}
 
 @app.get("/admin/file/<int:id>")
 @admin_required
