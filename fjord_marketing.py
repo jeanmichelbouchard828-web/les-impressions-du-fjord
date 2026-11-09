@@ -152,17 +152,17 @@ body.light .fjm-process-strip{background:#fff;border-color:#c2dce9;color:#214d65
 .fjm-home .fjm-hero h1{max-width:13ch;font-size:clamp(40px,5vw,64px);line-height:1.02;margin:12px 0}
 .fjm-home .fjm-hero-lead{max-width:50ch;margin-bottom:18px}
 .fjm-home .fjm-points{display:none}
-.fjm-home .fjm-hero-actions{display:flex;flex-wrap:wrap;gap:10px}
-.fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important}
+.fjm-home .fjm-hero-actions{display:flex;flex-direction:row!important;align-items:center;flex-wrap:wrap;gap:10px}
+.fjm-home .fjm-hero-photo-grid{grid-template-columns:1fr!important;grid-template-rows:1fr;height:260px}
 .fjm-home .fjm-hero-photo-grid>a:first-child{display:none!important}
-.fjm-home .fjm-hero-photo-grid>a:nth-child(2){display:block;width:100%;height:clamp(210px,26vw,320px)}
-.fjm-home .fjm-hero-photo-grid img{width:100%;height:100%;object-fit:cover}
+.fjm-home .fjm-hero-photo-grid>a:nth-child(2){display:block;width:100%;height:260px!important}
+.fjm-home .fjm-hero-photo-grid>a:nth-child(2) img{display:block;width:100%;height:100%!important;max-height:none!important;object-fit:cover}
 .fjm-home .fjm-proof-eyebrow{margin:12px 4px 4px}
 .fjm-home .fjm-hero-proof h2{font-size:clamp(18px,2vw,24px);margin:4px}
 .fjm-home .fjm-hero-proof>p:last-child{margin:4px;font-size:14px}
 .fjm-home #realisations{margin-top:18px}
 .fjm-home #realisations .fjm-heading{max-width:760px;margin-bottom:16px}
-@media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(40px,10vw,54px)}.fjm-home .fjm-hero-proof{display:none!important}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr}.fjm-home .fjm-hero-actions .btn{width:100%;text-align:center}.fjm-home #realisations{margin-top:12px}}
+@media(max-width:760px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr);padding:24px 20px!important;border-radius:18px}.fjm-home .fjm-hero h1{font-size:clamp(40px,10vw,54px)}.fjm-home .fjm-hero-proof{display:none!important}.fjm-home .fjm-hero-actions{display:grid;grid-template-columns:1fr;flex-direction:column!important}.fjm-home .fjm-hero-actions .btn{width:100%;text-align:center}.fjm-home #realisations{margin-top:12px}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
