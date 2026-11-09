@@ -36,6 +36,8 @@ RUN ( timeout 30 /usr/local/bin/bambu-studio --help >/tmp/bambu-help.log 2>&1 &&
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py atelier3d.html ./
+# Fifty verified Wikimedia Commons inspiration photos, with authors and licensing.
+COPY fjord_inspirations_manifest.json ./
 COPY fjord_bambu_connect_bridge.ps1 ./
 COPY Lancer_Pont_Bambu_Connect.cmd ./
 # Fail the build if the X2D machine G-code or PETG factory profile cannot be
