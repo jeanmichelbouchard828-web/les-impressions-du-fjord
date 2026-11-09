@@ -100,6 +100,22 @@ async def check_viewport(browser, label, width, height):
                 cta=page.locator('.fjm-hero a[href="/soumission"]').first
                 if not await cta.is_visible():raise AssertionError("Main quote CTA not visible")
                 result["cta_visible"]=True
+                ideas=page.locator("#fji-track .fji-card")
+                if await ideas.count()!=5:
+                    raise AssertionError("Expected five licensed inspiration images")
+                if not await page.locator("#fji-next").is_visible():
+                    raise AssertionError("Inspiration carousel navigation missing")
+                first_href=await ideas.first.locator('a.fji-cta').get_attribute("href")
+                if not first_href or not first_href.startswith("/soumission?projet="):
+                    raise AssertionError("Inspiration quote link not connected")
+                await page.locator("#fji-next").click()
+                await page.wait_for_function("document.getElementById('fji-track').scrollLeft>8",timeout=6000)
+                counter=await page.locator("#fji-counter").inner_text()
+                if not counter.startswith("2 /"):
+                    raise AssertionError("Inspiration slideshow does not advance: "+counter)
+                result["inspiration_slides"]=await ideas.count()
+                result["inspiration_next"]="working"
+
             if name=="atelier":
                 result["editor_canvas"]=await page.locator("canvas").count()
                 if result["editor_canvas"] == 0:
