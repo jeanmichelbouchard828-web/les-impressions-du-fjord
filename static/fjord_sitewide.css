@@ -156,3 +156,41 @@ body.light .site-header nav a:not([href="/soumission"]){color:#144962}
 body.light .fjord-mobile-actions{background:#edf7fce8;border-color:#acd3e3}
 body.light .fjord-mobile-actions a:not(.fjord-mobile-main){background:#fff;color:#15506f}
 @media(max-width:650px){.fjord-brief-grid{grid-template-columns:1fr}.fjord-brief-grid select{font-size:16px}}
+
+/* Photo-to-quote and owner's per-image printable model associations. */
+.fjord-gallery-linked{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px;margin:22px 0}
+.fjord-gallery-linked-item{min-width:0;border:1px solid #356c89;background:#102b3e;border-radius:13px;overflow:hidden;padding:9px;display:flex;flex-direction:column;gap:8px}
+.fjord-gallery-linked-item .gallery-photo-link img{height:185px;object-fit:cover;width:100%;border-radius:9px}
+.fjord-gallery-linked-state{font-size:12px;margin:0!important;color:#c8e1ed}
+.fjord-gallery-linked-quote{display:grid;place-items:center;margin-top:auto;min-height:42px;padding:8px 11px;background:#157eab;color:#fff!important;font-weight:800;font-size:13px;border-radius:9px;text-align:center}
+.fjord-gallery-linked-quote:hover{background:#0f99c4}
+.fjord-quote-gallery-ref{display:grid;grid-template-columns:minmax(105px,170px) minmax(0,1fr);align-items:start;gap:15px;padding:16px;border:1px solid #377d9b;border-radius:15px;background:#102c42;margin:14px 0 25px}
+.fjord-quote-gallery-ref>img{width:100%;max-height:200px;object-fit:contain;border-radius:10px;background:#0a1a28}
+.fjord-quote-gallery-ref>div{min-width:0}
+.fjord-quote-gallery-ref strong{font-size:17px}
+.fjord-quote-gallery-ref p{font-size:13px;margin:9px 0 0;line-height:1.55}
+.fjord-gallery-manage{max-width:1100px;margin:0 auto}
+.fjord-gallery-model-ready{border:1px solid #4ea48a;padding:13px;border-radius:10px;background:#143f38}
+.fjord-gallery-model-ready a{display:inline-block;margin:4px 9px}
+.fjord-gallery-photo-model{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;margin:15px 0;padding:16px;border:1px solid #387996;border-radius:14px;background:#102b40}
+.fjord-gallery-photo-model>img{height:120px;width:120px;object-fit:contain;background:#061724;border-radius:9px}
+.fjord-gallery-photo-content{min-width:0}
+.fjord-gallery-photo-model p{font-size:13px;margin:7px 0}
+.fjord-gallery-photo-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.fjord-gallery-photo-model form{grid-column:2;max-width:100%;margin:6px 0}
+.fjord-gallery-photo-model form button{min-height:43px}
+.fjord-gallery-manage input[type=file]{padding:10px;min-width:0}
+.fjord-inspiration-admin{max-width:1260px;margin:auto}
+.fjord-inspiration-admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:15px;margin:20px 0}
+.fjord-inspiration-admin-grid article{min-width:0;border:1px solid #3a7b9a;border-radius:15px;padding:15px;background:#102b3d}
+.fjord-inspiration-admin-grid article>img{width:100%;height:185px;object-fit:contain;background:#071925;border-radius:10px}
+.fjord-inspiration-admin-grid h2{font-size:17px;margin:11px 0 7px;overflow-wrap:anywhere}
+.fjord-inspiration-admin-grid p{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.fjord-inspiration-admin-grid form{max-width:none}
+.fjord-inspiration-admin-grid input[type=file]{min-width:0}
+.fjord-rights-check{display:flex;gap:9px;align-items:flex-start;font-size:12px!important;line-height:1.4;margin:8px 0}
+.fjord-rights-check input{width:20px;height:20px;flex:0 0 auto;margin:0}
+body.light .fjord-gallery-linked-item,body.light .fjord-quote-gallery-ref,body.light .fjord-gallery-photo-model,body.light .fjord-inspiration-admin-grid article{background:#f4fbff;color:#17485e;border-color:#acd2e4}
+body.light .fjord-gallery-linked-state,body.light .fjord-quote-gallery-ref p{color:#365e71}
+body.light .fjord-gallery-model-ready{background:#e4f8ef;color:#1a5640}
+@media(max-width:650px){.fjord-gallery-linked{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.fjord-gallery-linked-item .gallery-photo-link img{height:130px}.fjord-quote-gallery-ref{grid-template-columns:100px minmax(0,1fr);gap:11px;padding:11px}.fjord-quote-gallery-ref strong{font-size:14px}.fjord-gallery-photo-model{grid-template-columns:75px minmax(0,1fr);padding:11px;gap:10px}.fjord-gallery-photo-model>img{width:75px;height:80px}.fjord-gallery-photo-model form{grid-column:1/-1}.fjord-gallery-photo-actions{flex-direction:column;gap:7px}}
