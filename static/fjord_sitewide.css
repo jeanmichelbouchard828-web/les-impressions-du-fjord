@@ -514,3 +514,22 @@ body.fjord-public .fjm-home .fjm-gallery-controls input[type=search]::placeholde
 body.fjord-public .fjm-home .fjm-section:not(#realisations){scroll-margin-top:90px}
 @media(max-width:690px){body.fjord-public .fjm-home #realisations{padding:17px 12px;border-radius:19px}body.fjord-public .fjm-home .fjm-project{border-radius:14px!important}body.fjord-public .fjm-home .fjm-project:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){body.fjord-public .fjm-home .fjm-project{transition:none!important}}
+
+
+/* Mobile 2026-11-10 : premier écran plus compact et lisible */
+@media(max-width:690px){
+body.fjord-public .fjm-home .fjm-hero{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:18px!important;min-height:0!important;padding:24px 17px!important;margin-top:0!important}
+body.fjord-public .fjm-home .fjm-hero>div:first-child{min-width:0!important}
+body.fjord-public .fjm-home .fjm-hero h1{font-size:clamp(34px,9.1vw,48px)!important;line-height:1.08!important;margin:14px 0!important;letter-spacing:-.045em!important}
+body.fjord-public .fjm-home .fjm-hero-lead{font-size:15px!important;line-height:1.5!important;margin:12px 0!important}
+body.fjord-public .fjm-home .fjm-kicker{font-size:10px!important;line-height:1.35!important;letter-spacing:.075em!important}
+body.fjord-public .fjm-home .fjm-hero-actions{margin-top:17px!important;gap:8px!important}
+body.fjord-public .fjm-home .fjm-hero-actions .btn{min-height:47px!important;padding:11px 12px!important;font-size:14px!important}
+body.fjord-public .fjm-home .fjm-points{margin-top:15px!important;gap:6px!important}
+body.fjord-public .fjm-home .fjm-points li{font-size:10px!important;padding:6px 9px!important}
+body.fjord-public .fjm-home .fjord-hero-studio{min-height:0!important}
+body.fjord-public .fjm-home .fjord-paths-trust{gap:5px!important}
+body.fjord-public .fjm-home .fjord-paths-trust span{font-size:10px!important;padding:6px 8px!important}
+body.fjord-public .fjord-mobile-quote-bar{padding-top:7px!important;padding-bottom:calc(7px + env(safe-area-inset-bottom,0px))!important}
+body.fjord-public .fjord-mobile-quote-bar a{min-height:45px!important}
+}
