@@ -83,7 +83,7 @@ body.light .fjm-ready-count{background:#e8f8ed;color:#17623b;border-color:#a6dbb
 .fjm-project:hover{border-color:#69d6f6;transform:translateY(-2px)}
 .fjm-project img{display:block;width:100%;height:210px;object-fit:cover;background:#16344a}
 .fjm-project .fjm-project-noimage{display:grid;place-items:center;height:210px;background:linear-gradient(135deg,#1d5275,#0b273c);font-size:48px}
-.fjm-project-content{padding:17px}.fjm-project-content span{display:block;color:#80d8f4;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:750}
+.fjm-project-content{padding:17px}.fjm-project-content>span:not(.fjm-photo-real-badge):not(.fjm-photo-render-badge){display:block;color:#80d8f4;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:750}
 .fjm-project-content strong{display:block;margin:7px 0;font-size:17px;overflow-wrap:anywhere}
 .fjm-project-content small{font-size:13px;color:#c3dce9;font-weight:750}.fjm-model-available{display:block;margin:8px 0;color:#8de6b2!important;font-size:12px!important;font-weight:800}.fjm-project-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.fjm-project-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 12px;border:1px solid #56bfe5;border-radius:10px;color:#e9f9ff;font-size:13px;font-weight:800;text-decoration:none;background:#0a263a}.fjm-project-actions a:last-child{background:#70d7f1;color:#08283a;border-color:#70d7f1}.fjm-project-actions a:hover{filter:brightness(1.12)}
 .fjm-section-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
@@ -478,7 +478,7 @@ body.fjord-public .fjm-home .fjm-offer h3{color:#f5f7ff!important}
 body.fjord-public .fjm-home .fjm-offer p{color:#bac4dc!important}
 body.fjord-public .fjm-home .fjm-offer a{color:#8beeff!important}
 body.fjord-public .fjm-home .fjm-featured-track .fjm-project{border-color:#343e60!important;background:linear-gradient(160deg,#171e33,#0f1523)!important}
-body.fjord-public .fjm-home .fjm-project-content span{color:#8beeff!important}
+body.fjord-public .fjm-home .fjm-project-content>span:not(.fjm-photo-real-badge):not(.fjm-photo-render-badge){color:#8beeff!important}
 body.fjord-public .fjm-home .fjm-model-available,body.fjord-public .fjm-home .fjm-ready-count{color:#dbff60!important}
 body.fjord-public .fjm-home .fjm-project-actions .fjm-project-quote{background:#d8ff43!important;border-color:#ecff9a!important;color:#11150a!important}
 body.fjord-public .fjord-visitor-counter{border-color:#44416d!important;border-radius:14px!important;background:#15192b!important;color:#dbe1f3!important}
