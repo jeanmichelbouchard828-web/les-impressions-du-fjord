@@ -403,3 +403,16 @@ body.fjord-public .fjm-home>.fjord-board{order:8}
 body.fjord-public .fjm-home>.fjm-final{order:9}
 body.fjord-public .fjm-home a:focus-visible,body.fjord-public .fjm-home button:focus-visible{outline:3px solid #9beeff;outline-offset:3px}
 @media(max-width:690px){body.fjord-public .fjm-home>.fjord-paths{margin-top:4px}body.fjord-public .fjm-home>.fjm-atelier{scroll-margin-top:75px}body.fjord-public .fjm-home>#realisations{scroll-margin-top:75px}}
+
+
+/* Barre de conversion mobile, seulement sur la page d'accueil */
+body.fjord-public .fjord-mobile-quote-bar{display:none}
+@media(max-width:690px){
+body.fjord-public:has(.fjord-mobile-quote-bar){padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+body.fjord-public .fjord-mobile-quote-bar{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:9px;position:fixed;z-index:100;left:0;right:0;bottom:0;padding:10px max(12px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-right,0px));background:#071c2cf2;border-top:1px solid #4694b5;box-shadow:0 -12px 28px #001b2b7a;backdrop-filter:blur(12px)}
+body.fjord-public .fjord-mobile-quote-bar a{display:flex;align-items:center;justify-content:center;min-width:0;min-height:48px;padding:10px 8px;border-radius:12px;text-align:center;text-decoration:none!important;font-size:13px;font-weight:900;line-height:1.2}
+body.fjord-public .fjord-mobile-quote-primary{background:#b8f5ff;color:#08304a!important}
+body.fjord-public .fjord-mobile-quote-secondary{background:#173c56;border:1px solid #61b8d7;color:#fff!important}
+body.fjord-public .fjord-mobile-quote-bar a:focus-visible{outline:3px solid #fff;outline-offset:2px}
+}
+@media print{body.fjord-public .fjord-mobile-quote-bar{display:none!important}}
