@@ -423,3 +423,21 @@ body.fjord-public .fjm-hero-actions .fjord-hero-gallery-link{display:inline-flex
 body.fjord-public .fjm-hero-actions .fjord-hero-gallery-link:hover{text-decoration-thickness:2px}
 body.light.fjord-public .fjm-hero-actions .fjord-hero-gallery-link{color:#08668d!important}
 @media(max-width:690px){body.fjord-public .fjm-hero-actions .fjord-hero-gallery-link{width:100%;font-size:14px;min-height:40px}}
+
+
+/* Série mobile: zones tactiles confortables, titres lisibles, formulaires clairs */
+@media(max-width:690px){
+body.fjord-public .fjm-home .fjm-hero h1{line-height:1.07!important;text-wrap:balance}
+body.fjord-public .fjm-home .fjm-hero-lead{line-height:1.6}
+body.fjord-public .fjm-home .fjm-hero-actions a{min-height:48px}
+body.fjord-public .fjm-home .fjord-path-card{min-height:138px}
+body.fjord-public .fjm-home .fjm-filter{min-height:44px}
+body.fjord-public .fjm-home .fjm-showcase-toolbar button{min-width:44px;min-height:44px}
+body.fjord-public .fjm-home .fjm-final .btn{min-height:52px}
+body.fjord-public .fjm-quote-form input,body.fjord-public .fjm-quote-form select,body.fjord-public .fjm-quote-form textarea{max-width:100%;font-size:16px}
+body.fjord-public .fjm-home .fjm-section{scroll-margin-top:75px}
+}
+@media(prefers-contrast:more){
+body.fjord-public .fjord-path-card{border-width:2px}
+body.fjord-public .fjord-studio-link{outline:2px solid currentColor}
+}
