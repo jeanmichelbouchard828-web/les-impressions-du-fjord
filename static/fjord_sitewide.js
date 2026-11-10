@@ -51,6 +51,7 @@
         if(all)all.setAttribute("aria-pressed", String(!category&&!readyOnly&&!realOnly));
         if(ready)ready.setAttribute("aria-pressed",String(readyOnly));
         if(real)real.setAttribute("aria-pressed",String(realOnly));
+        document.body.classList.toggle("fjm-real-gallery-only",realOnly);
         chips.forEach(({button,name})=>button.setAttribute("aria-pressed",String(category===name)));
       };
       const chipGroup=document.createElement("div");
