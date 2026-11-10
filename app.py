@@ -2088,20 +2088,11 @@ def fjord_admin_inspirations():
  <a href="/admin/inspirations/makerworld/{{item.id}}/modele">Télécharger le 3MF</a>
  <form method="post" action="/admin/inspirations/makerworld/{{item.id}}/supprimer">{{csrf|safe}}<button type="submit">Retirer du diaporama</button></form>
  </article>{% endfor %}</div>{% endif %}
- <h1>Les 50 inspirations et leurs modèles 3D</h1>
- <p>Associez uniquement des STL/3MF que vous êtes autorisé à reproduire. Les photos Wikimedia sont des références visuelles et leurs licences ne donnent pas automatiquement les droits sur les pièces.</p>
- <p>{{linked_count}} modèle(s) associé(s) sur {{items|length}} inspirations.</p>
+ <h1>Diaporama d’inspiration — 50 idées</h1>
+ <p>Ces images illustrent les possibilités de l’impression 3D. Les crédits et licences des photographies sont conservés. Une inspiration ne signifie pas qu’un modèle 3D est disponible ou autorisé à la reproduction.</p>
  <div class="fjord-inspiration-admin-grid">{% for item in items %}
  <article><img src="{{item.image}}" loading="lazy" alt="{{item.title}}" referrerpolicy="no-referrer">
  <h2>#{{item.index+1}} {{item.title}}</h2><p>Photo : <a href="{{item.source}}" target="_blank" rel="noopener noreferrer">{{item.author}}</a> · {{item.license}}</p>
- {% if item.model %}<p>✓ {{item.model.model_filename}}</p>
- <a href="/admin/inspirations/{{item.index}}/modele">Télécharger le modèle</a> ·
- <a href="/admin/atelier-3d?inspiration={{item.index}}">🖨️ Ouvrir dans l'Atelier</a>
- {% else %}<p>⚠ Aucun fichier STL/3MF associé.</p>{% endif %}
- <form method="post" enctype="multipart/form-data" action="/admin/inspirations/{{item.index}}/modele">
- {{csrf|safe}}<label>Modèle STL/3MF<input type="file" name="model" accept=".stl,.3mf" required></label>
- <label class="fjord-rights-check"><input type="checkbox" name="rights_ok" value="yes" required> Je confirme avoir les droits nécessaires pour utiliser et reproduire ce modèle.</label>
- <button type="submit">{{'Remplacer le modèle' if item.model else 'Associer le modèle'}}</button></form>
  </article>{% endfor %}</div>
  </section>''',items=items,linked_count=len(linked),makerworld_items=makerworld_items,csrf=csrfinput())
 
