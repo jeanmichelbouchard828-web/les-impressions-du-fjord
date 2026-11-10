@@ -767,6 +767,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <a class="fjord-path-card" href="/soumission"><span aria-hidden="true">✦</span><strong data-fjm-en="Create my custom part">Créer ma pièce sur mesure</strong><small data-fjm-en="Describe your idea or send a photo to request a quote.">Décrire mon idée ou envoyer une photo pour obtenir un prix.</small><b data-fjm-en="Request my quote →">Demander mon prix →</b></a>
   <a class="fjord-path-card" href="/galerie?prets=1"><span aria-hidden="true">◈</span><strong data-fjm-en="Find a ready-to-print creation">Choisir une création existante</strong><small data-fjm-en="Browse projects and find a piece you like.">Parcourir les réalisations et choisir une pièce.</small><b data-fjm-en="Explore the gallery →">Voir les créations →</b></a>
  </div>
+ <div class="fjord-project-guide" aria-label="Comment démarrer"><strong data-fjm-en="Not sure where to start?">Vous ne savez pas par où commencer?</strong><p data-fjm-en="A photo, a sketch, measurements or a simple description can help us understand your project. No 3D model is required to request a quote.">Une photo, un croquis, des dimensions ou une simple description peuvent nous aider à comprendre votre projet. Aucun modèle 3D requis pour demander une soumission.</p><a href="/soumission" data-fjm-en="Tell us about your idea →">Parlez-nous de votre idée →</a></div>
 </section>
 <section class="fjm-atelier" id="atelier" aria-labelledby="fjm-atelier-title">
  <div class="fjm-atelier-mark" aria-hidden="true">🧊</div>
