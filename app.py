@@ -1110,18 +1110,18 @@ def home():
  let groups={print:[],wait:[],done:[]};
  function render(){
   const board=root.closest(".fjord-board");
+  const all=[...groups.print,...groups.wait,...groups.done];
+  if(!all.length){
+   root.replaceChildren();
+   if(board)board.hidden=true;
+   return;
+  }
   root.replaceChildren();
   if(board)board.hidden=false;
-  const all=[...groups.print,...groups.wait,...groups.done];
   const table=document.createElement("div");table.className="fjord-public-table";
   const head=document.createElement("div");head.className="fjord-public-row fjord-public-head";
   for(const label of ["Soumission","État","Progression"]){const cell=document.createElement("strong");cell.textContent=label;head.append(cell);}
   table.append(head);
-  if(!all.length){
-   const line=document.createElement("div");line.className="fjord-public-row fjord-public-empty";
-   const empty=document.createElement("span");empty.textContent="Aucune progression publique pour le moment. Le suivi individuel de votre soumission demeure disponible ci-dessous.";empty.style.gridColumn="1 / -1";
-   line.append(empty);table.append(line);root.append(table);return;
-  }
   for(const key of ["print","wait","done"]){
    for(const job of groups[key]){
     const line=document.createElement("div");line.className="fjord-public-row";
