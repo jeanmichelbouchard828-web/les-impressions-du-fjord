@@ -398,6 +398,103 @@ body.fjord-public.light>footer a{color:#a9432c!important}
 body.fjord-public .fjord-mobile-quote-cta{border-color:#e78360!important;background:linear-gradient(115deg,#df6848,#c94f31)!important;color:#fffaf2!important;box-shadow:0 10px 28px #5f2a1d55!important}
 body.fjord-public :is(a,button,input,textarea,select):focus-visible{outline-color:#e9bd7d!important}
 @media(max-width:760px){body.fjord-public .fjord-mobile-quote-cta{min-height:54px;border-radius:16px!important}body.fjord-public main .fjm-home .fjm-hero{border-radius:22px!important}body.fjord-public main .fjm-home .fjm-hero-actions .btn{min-height:50px}}
+/* Electric studio redesign: kinetic purple, laser cyan and a lime order signal. */
+body.fjord-public{--e-ink:#f5f7ff;--e-muted:#b8c1d7;--e-bg:#080b15;--e-panel:#111729;--e-panel2:#171f34;--e-border:#303b59;--e-violet:#8b5cff;--e-cyan:#35e1ff;--e-lime:#d8ff43;--e-radius:22px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+body.fjord-public:not(.light){--fjord-bg:#080b15;--fjord-surface:#111729;--fjord-surface-2:#171f34;--fjord-text:#f5f7ff;--fjord-muted:#b8c1d7;--fjord-line:#303b59;--fjord-accent:#d8ff43;--fjord-accent-2:#35e1ff;background:radial-gradient(ellipse at 8% 4%,#782fff28,transparent 32%),radial-gradient(ellipse at 88% 16%,#00c9f629,transparent 30%),linear-gradient(155deg,#080b15,#0c1120 52%,#080b15)!important;color:#f5f7ff!important}
+body.fjord-public.light{--fjord-bg:#f4f5fb;--fjord-surface:#fff;--fjord-surface-2:#eceefa;--fjord-text:#17172b;--fjord-muted:#555d78;--fjord-line:#d8dbee;--fjord-accent:#638e00;--fjord-accent-2:#087bba;background:radial-gradient(ellipse at 8% 0%,#c8b6ff55,transparent 30%),radial-gradient(ellipse at 92% 20%,#a6f4ff70,transparent 31%),#f4f5fb!important;color:#17172b!important}
+body.fjord-public :is(h1,h2,h3){font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-weight:850;letter-spacing:-.045em}
+body.fjord-public:not(.light) main :is(h1,h2,h3){color:#f5f7ff;text-shadow:none}
+body.fjord-public.light main :is(h1,h2,h3){color:#17172b;text-shadow:none}
+body.fjord-public:not(.light) main p{color:#c0c9df}
+body.fjord-public.light main p{color:#555d78}
+body.fjord-public .site-header{background:#090d1bf2!important;border-bottom:1px solid #3a315f!important;box-shadow:0 8px 28px #03040b88!important}
+body.fjord-public .site-header .brand{color:#f5f7ff!important}
+body.fjord-public .site-header .brand-blue{color:#d8ff43!important;text-shadow:0 0 20px #d8ff4360!important}
+body.fjord-public .site-header .fjord-brand-tagline{color:#b8c1d7!important}
+body.fjord-public .site-header nav a{color:#cbd4ec!important;border-radius:12px!important}
+body.fjord-public .site-header nav a:hover,body.fjord-public .site-header nav a[aria-current=page]{background:#1c2340!important;border-color:#51457c!important;color:#fff!important}
+body.fjord-public .site-header nav a.nav-ready-cta,body.fjord-public .site-header nav a.nav-atelier-cta{background:#d8ff43!important;border-color:#edff9a!important;color:#11150a!important;box-shadow:0 0 18px #d8ff4344!important}
+body.fjord-public .site-header .pref-controls select,body.fjord-public .site-nav-toggle{border-color:#55517c!important;border-radius:12px!important;background:#141a2c!important;color:#f5f7ff!important}
+body.fjord-public.light .site-header{background:#fffefaed!important;border-color:#d9d9ed!important;box-shadow:0 8px 28px #29204a12!important}
+body.fjord-public.light .site-header .brand{color:#17172b!important}
+body.fjord-public.light .site-header .brand-blue{color:#608d00!important;text-shadow:none!important}
+body.fjord-public.light .site-header .fjord-brand-tagline{color:#5a607a!important}
+body.fjord-public.light .site-header nav a{color:#373650!important}
+body.fjord-public.light .site-header nav a:hover,body.fjord-public.light .site-header nav a[aria-current=page]{background:#efedff!important;border-color:#d2c9f6!important;color:#241b48!important}
+body.fjord-public.light .site-header nav a.nav-ready-cta,body.fjord-public.light .site-header nav a.nav-atelier-cta{background:#d8ff43!important;border-color:#badc45!important;color:#17172b!important}
+body.fjord-public.light .site-header .pref-controls select,body.fjord-public.light .site-nav-toggle{background:#fff!important;color:#24213d!important;border-color:#d2c9f6!important}
+body.fjord-public .fjord-side-nav{background:linear-gradient(180deg,#0e1020,#15182e)!important;border-color:#40356c!important}
+body.fjord-public .fjord-side-menu a{color:#e4e8f8!important}
+body.fjord-public .fjord-side-menu a[aria-current=page],body.fjord-public .fjord-side-menu a:hover{background:linear-gradient(100deg,#5430a5,#234c8d)!important;border-color:#8b5cff!important}
+body.fjord-public.light .fjord-side-nav{background:linear-gradient(180deg,#efedff,#e4eaff)!important;border-color:#d4d4ed!important}
+body.fjord-public.light .fjord-side-menu a{color:#302a4a!important}
+body.fjord-public.light .fjord-side-menu a[aria-current=page],body.fjord-public.light .fjord-side-menu a:hover{background:#fff!important;color:#302064!important;border-color:#b9a8f4!important}
+body.fjord-public main :is(.card,.gallery-tile,.tracking-result,.fjm-project,.fjm-service,.fjm-offer,.fjm-step,.fjm-faq details,.fjm-quote-helper,.fjm-quote-form,.contact-section,.atelier-feature,.fjord-support-panel,.fjord-board){border:1px solid #343c5c!important;border-radius:20px!important;background:linear-gradient(145deg,#151c31,#101626)!important;box-shadow:0 14px 34px #02040c77!important}
+body.fjord-public.light main :is(.card,.gallery-tile,.tracking-result,.fjm-project,.fjm-service,.fjm-offer,.fjm-step,.fjm-faq details,.fjm-quote-helper,.fjm-quote-form,.contact-section,.atelier-feature,.fjord-support-panel,.fjord-board){border-color:#dedff0!important;background:linear-gradient(145deg,#fff,#f6f5ff)!important;box-shadow:0 12px 30px #33266d12!important}
+body.fjord-public main .fjm-home .fjm-hero{position:relative;isolation:isolate;overflow:hidden;border:1px solid #48407a!important;border-radius:30px!important;background:radial-gradient(ellipse at 88% 14%,#8b5cff78,transparent 36%),radial-gradient(ellipse at 8% 100%,#00c9f638,transparent 38%),linear-gradient(125deg,#1b1735,#0f192d 72%)!important;box-shadow:0 28px 75px #03030caa,0 0 36px #6d48d422!important;animation:electric-breathe 8s ease-in-out infinite}
+body.fjord-public main .fjm-home .fjm-hero h1{color:#fbfaff!important}
+body.fjord-public main .fjm-home .fjm-accent{background:linear-gradient(95deg,#d8ff43 0%,#53edff 52%,#a98aff 100%);background-clip:text;-webkit-background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent}
+body.fjord-public main .fjm-home .fjm-kicker{color:#9df1ff!important}
+body.fjord-public main .fjm-home .fjm-hero-lead{color:#dbe2f5!important}
+body.fjord-public main .fjm-home .fjm-hero-proof{border-color:#4d4b84!important;background:linear-gradient(145deg,#151a30,#101522)!important;box-shadow:0 16px 40px #02040c88,0 0 25px #8b5cff22!important}
+body.fjord-public main .fjm-home .fjm-hero-proof h2{color:#f5f7ff!important}
+body.fjord-public main .fjm-home .fjm-hero-proof p{color:#c1cbe1!important}
+body.fjord-public main .fjm-home .fjm-proof-eyebrow{color:#8fefff!important}
+body.fjord-public.light main .fjm-home .fjm-hero{background:radial-gradient(ellipse at 86% 10%,#a98aff66,transparent 35%),radial-gradient(ellipse at 8% 100%,#7cecff55,transparent 38%),linear-gradient(125deg,#eeebff,#e8faff 72%)!important;border-color:#c9c1f4!important;box-shadow:0 22px 60px #33266d22!important}
+body.fjord-public.light main .fjm-home .fjm-hero h1{color:#17172b!important}
+body.fjord-public.light main .fjm-home .fjm-accent{background:linear-gradient(95deg,#4d7600,#008cb5 52%,#7250cf 100%);background-clip:text;-webkit-background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent}
+body.fjord-public.light main .fjm-home .fjm-kicker{color:#4c4788!important}
+body.fjord-public.light main .fjm-home .fjm-hero-lead{color:#34374f!important}
+body.fjord-public.light main .fjm-home .fjm-hero-proof{background:#fffefa!important;border-color:#d7d4ec!important}
+body.fjord-public.light main .fjm-home .fjm-hero-proof h2{color:#17172b!important}
+body.fjord-public.light main .fjm-home .fjm-hero-proof p{color:#555d78!important}
+body.fjord-public main .fjm-home .fjm-hero-actions .btn:first-child,body.fjord-public main .fjm-home .fjm-final .btn,body.fjord-public main .fjm-atelier-actions .btn{background:linear-gradient(110deg,#e1ff59,#b6ef27)!important;border:1px solid #f1ff9e!important;color:#101506!important;box-shadow:0 8px 22px #a5db2944,0 0 20px #d8ff432b!important;font-weight:900}
+body.fjord-public main .fjm-home .fjm-hero-actions .fjm-outline{background:#21213b!important;border-color:#7161a5!important;color:#f5f3ff!important}
+body.fjord-public.light main .fjm-home .fjm-hero-actions .fjm-outline{background:#fffefa!important;border-color:#c5bce9!important;color:#30264f!important}
+body.fjord-public main :is(.btn,button,input[type=submit],.atelier-cta){border-radius:14px!important;background:linear-gradient(110deg,#e1ff59,#b6ef27)!important;border:1px solid #f1ff9e!important;color:#101506!important;box-shadow:0 7px 20px #a5db2938!important;font-weight:850}
+body.fjord-public main :is(.btn,button,input[type=submit],.atelier-cta):hover{filter:brightness(1.06);box-shadow:0 9px 26px #c0ff5555,0 0 20px #c0ff5533!important;transform:translateY(-2px)}
+body.fjord-public main .secondary-btn,body.fjord-public main .fjm-project-actions a:not(:last-child){background:#202740!important;border-color:#58557f!important;color:#e8e9ff!important}
+body.fjord-public.light main .secondary-btn,body.fjord-public.light main .fjm-project-actions a:not(:last-child){background:#efedff!important;border-color:#d1c9f0!important;color:#342b5c!important}
+body.fjord-public main a:not(.btn):not(.fjm-project):not(.fjord-mobile-quote-cta){color:#64eaff}
+body.fjord-public.light main a:not(.btn):not(.fjm-project):not(.fjord-mobile-quote-cta){color:#176b96}
+body.fjord-public main :is(input,textarea,select){border-color:#464f74!important;border-radius:13px!important;background:#0d1423!important;color:#f6f7ff!important}
+body.fjord-public.light main :is(input,textarea,select){border-color:#d0d2e9!important;background:#fff!important;color:#17172b!important}
+body.fjord-public main :is(input,textarea,select):focus-visible{outline:3px solid #35e1ff!important;border-color:#35e1ff!important;box-shadow:0 0 0 4px #35e1ff20!important}
+body.fjord-public main :is(th,thead){background:#272846!important;color:#f1f0ff!important}
+body.fjord-public.light main :is(th,thead){background:#e9e6ff!important;color:#29264a!important}
+body.fjord-public .fjm-home{gap:17px}
+body.fjord-public .fjm-home>#services{order:1!important;margin:10px 0 20px!important;padding:clamp(18px,3vw,34px);border:1px solid #34395f;border-radius:26px;background:linear-gradient(135deg,#101626,#141b2f)!important}
+body.fjord-public .fjm-home>#realisations{order:2!important;margin:8px 0 22px!important;padding:clamp(18px,3vw,34px);border:1px solid #37405f;border-radius:26px;background:linear-gradient(130deg,#101728,#101a24)!important}
+body.fjord-public .fjm-home>#atelier{order:3!important;margin:4px 0 18px!important;border-color:#494478!important;background:radial-gradient(circle at 10% 50%,#7444ff3a,transparent 38%),linear-gradient(115deg,#17142f,#111c2e 72%)!important}
+body.fjord-public .fjm-home>#fonctionnement{order:5!important}
+body.fjord-public .fjm-home>#questions{order:6!important}
+body.fjord-public.light .fjm-home>#services,body.fjord-public.light .fjm-home>#realisations{background:linear-gradient(135deg,#f4f2ff,#edfaff)!important;border-color:#dedaf3!important}
+body.fjord-public.light .fjm-home>#atelier{background:linear-gradient(115deg,#ede9ff,#e5f8ff)!important;border-color:#d5cbf2!important}
+body.fjord-public .fjm-home .fjm-offers{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+body.fjord-public .fjm-home .fjm-offer{position:relative;overflow:hidden;min-height:210px;border-color:#353f61!important;background:linear-gradient(155deg,#1a2038,#101728)!important;transition:transform .2s,border-color .2s,box-shadow .2s}
+body.fjord-public .fjm-home .fjm-offer:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#8b5cff,#35e1ff,#d8ff43)}
+body.fjord-public .fjm-home .fjm-offer:hover{transform:translateY(-5px);border-color:#8b5cff!important;box-shadow:0 16px 36px #04050d,0 0 20px #8b5cff25!important}
+body.fjord-public .fjm-home .fjm-offer h3{color:#f5f7ff!important}
+body.fjord-public .fjm-home .fjm-offer p{color:#bac4dc!important}
+body.fjord-public .fjm-home .fjm-offer a{color:#8beeff!important}
+body.fjord-public .fjm-home .fjm-featured-track .fjm-project{border-color:#343e60!important;background:linear-gradient(160deg,#171e33,#0f1523)!important}
+body.fjord-public .fjm-home .fjm-project-content span{color:#8beeff!important}
+body.fjord-public .fjm-home .fjm-model-available,body.fjord-public .fjm-home .fjm-ready-count{color:#dbff60!important}
+body.fjord-public .fjm-home .fjm-project-actions .fjm-project-quote{background:#d8ff43!important;border-color:#ecff9a!important;color:#11150a!important}
+body.fjord-public .fjord-visitor-counter{border-color:#44416d!important;border-radius:14px!important;background:#15192b!important;color:#dbe1f3!important}
+body.fjord-public .fjord-visitor-counter strong{color:#d8ff43!important}
+body.fjord-public.light .fjord-visitor-counter{background:#fff!important;color:#373650!important}
+body.fjord-public>footer{border-color:#303451!important;background:#080b15!important;color:#c0c6da!important}
+body.fjord-public>footer a{color:#64eaff!important}
+body.fjord-public.light>footer{border-color:#dedff0!important;background:#e9eaf5!important;color:#4d526b!important}
+body.fjord-public.light>footer a{color:#176b96!important}
+body.fjord-public .fjord-mobile-quote-cta{border-color:#f1ff9e!important;background:linear-gradient(105deg,#e1ff59,#b6ef27)!important;color:#101506!important;box-shadow:0 10px 28px #07090f99,0 0 22px #d8ff4355!important}
+body.fjord-public :is(a,button,input,textarea,select):focus-visible{outline-color:#35e1ff!important}
+@keyframes electric-breathe{0%,100%{box-shadow:0 28px 75px #03030caa,0 0 28px #6d48d422}50%{box-shadow:0 28px 78px #03030caa,0 0 46px #8b5cff44}}
+@media(max-width:980px){body.fjord-public .fjm-home .fjm-offers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){body.fjord-public .fjm-home>#services,body.fjord-public .fjm-home>#realisations{padding:16px;border-radius:21px}body.fjord-public .fjm-home .fjm-offers{grid-template-columns:1fr 1fr;gap:10px}body.fjord-public .fjm-home .fjm-offer{min-height:0;padding:15px}body.fjord-public .fjm-home>#atelier{border-radius:21px}body.fjord-public .fjm-home .fjm-hero{animation:none}}
+@media(max-width:460px){body.fjord-public .fjm-home .fjm-offers{grid-template-columns:1fr}body.fjord-public .fjm-home .fjm-offer{min-height:0}body.fjord-public .fjm-home>#services,body.fjord-public .fjm-home>#realisations{padding:13px}}
+@media(prefers-reduced-motion:reduce){body.fjord-public .fjm-home .fjm-hero{animation:none!important}body.fjord-public .fjm-home .fjm-offer{transition:none!important}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
