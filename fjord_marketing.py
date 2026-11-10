@@ -695,13 +695,24 @@ body.fjord-public main .fjm-home .fjm-hero-actions .btn:hover{transform:translat
 body.fjord-public main .fjm-home .fjm-hero .fjm-hero-sub{color:#52617a!important;font-size:13px;font-weight:650}
 body.fjord-public main .fjm-home .fjm-points{display:flex!important;gap:8px;margin-top:16px}
 body.fjord-public main .fjm-home .fjm-points li{border:1px solid #ccd8f4;border-radius:11px;background:#ffffffc9;color:#263b72;font-size:11px;box-shadow:0 5px 15px #15254c0d}
-body.fjord-public main .fjm-home .fjm-hero-proof{position:relative;z-index:1;padding:14px!important;border:1px solid #dbe2f3!important;border-radius:25px!important;background:linear-gradient(160deg,#ffffff,#f0f4ff)!important;box-shadow:0 24px 55px #15254c24!important}
-body.fjord-public main .fjm-home .fjm-hero-photo-grid{border:5px solid #fff;border-radius:19px;background:#0d1930;box-shadow:0 13px 32px #10235030}
+body.fjord-public main .fjm-home .fjm-hero-proof{position:relative;z-index:1;padding:14px!important;border:1px solid #516da8!important;border-radius:25px!important;background:linear-gradient(155deg,#0b1730,#14274a)!important;box-shadow:0 24px 55px #101d3f48!important;color:#f8fbff}
+body.fjord-public main .fjm-home .fjm-hero-photo-grid{border:4px solid #f5f7ff;border-radius:19px;background:#081329;box-shadow:0 13px 32px #02081780}
 body.fjord-public main .fjm-home .fjm-hero-photo-grid>a{border:1px solid #ffffff8a;background:#0c1423}
 body.fjord-public main .fjm-home .fjm-real-photo-label{border-color:#ff684f;background:#101b35ed;color:#fff;font-size:10px;letter-spacing:.09em}
-body.fjord-public main .fjm-home .fjm-proof-eyebrow{color:#1747e8!important}
-body.fjord-public main .fjm-home .fjm-hero-proof h2{color:#101a30!important}
-body.fjord-public main .fjm-home .fjm-hero-proof>p:last-child{color:#59667d!important}
+body.fjord-public main .fjm-home .fjm-proof-eyebrow{color:#a8c4ff!important}
+body.fjord-public main .fjm-home .fjm-hero-proof h2{color:#fff!important;font-size:clamp(23px,2.4vw,31px)!important;letter-spacing:-.035em}
+body.fjord-public main .fjm-home .fjm-hero-proof>p:last-child{color:#d7e2f8!important;font-size:15px;line-height:1.55}
+body.fjord-public main .fjm-home>#atelier{position:relative;isolation:isolate;overflow:hidden;padding:clamp(20px,3vw,30px)!important;border:1px solid #8eafff!important;border-radius:24px!important;background:radial-gradient(circle at 0% 50%,#ff745444,transparent 27%),linear-gradient(118deg,#173fd5,#126fc9 58%,#14274e)!important;box-shadow:0 24px 52px #1747e83b!important;color:#fff}
+body.fjord-public main .fjm-home>#atelier:after{content:"";position:absolute;z-index:-1;right:-105px;top:-150px;width:310px;height:310px;border:1px solid #ffffff28;border-radius:50%;box-shadow:0 0 0 24px #ffffff0c,0 0 0 50px #ff745411}
+body.fjord-public main .fjm-home .fjm-atelier-mark{border:1px solid #ffffff9c;border-radius:20px;background:linear-gradient(145deg,#a0f3ff,#48bfea 54%,#2c65ef);color:#082751;font-size:35px;box-shadow:0 12px 30px #051a4455,0 0 32px #86eaff55}
+body.fjord-public main .fjm-home .fjm-atelier-copy .fjm-kicker{color:#ffe1d7!important}
+body.fjord-public main .fjm-home .fjm-atelier-copy h2{color:#fff!important;font-size:clamp(22px,2.8vw,32px);letter-spacing:-.04em}
+body.fjord-public main .fjm-home .fjm-atelier-copy p{color:#e2ecff!important;font-size:15px;max-width:70ch}
+body.fjord-public main .fjm-home .fjm-atelier-actions .btn{min-height:51px;padding:13px 20px;background:#fff!important;border:1px solid #fff!important;border-radius:13px!important;color:#1747c8!important;box-shadow:0 12px 25px #07184245!important;font-weight:950}
+body.fjord-public main .fjm-home .fjm-atelier-actions .btn:hover{transform:translateY(-2px);box-shadow:0 16px 30px #07184266!important}
+body.fjord-public main .fjm-home .fjm-atelier-secondary{color:#fff!important;font-weight:850;text-decoration-color:#ffb7a7;text-underline-offset:4px}
+body.fjord-public main .fjm-home .fjm-atelier-note{border:1px solid #ffffffc9;border-radius:15px;background:#f8fbff;color:#14264c;box-shadow:0 12px 28px #07184233}
+body.fjord-public main .fjm-home .fjm-atelier-note span{color:#1747c8}
 @media(max-width:760px){body.fjord-public main .fjm-home>.fjm-hero{padding:clamp(14px,4vw,24px)!important;border-radius:22px}body.fjord-public main .fjm-home .fjm-hero-proof{padding:9px!important;border-radius:18px!important}body.fjord-public main .fjm-home .fjm-hero h1{font-size:clamp(39px,10.5vw,58px)!important;line-height:1.02!important}body.fjord-public main .fjm-home .fjm-points{gap:6px}body.fjord-public main .fjm-home .fjm-points li{padding:7px 9px;font-size:10px}}
 @media(max-width:420px){body.fjord-public main .fjm-home .fjm-hero-actions .btn{width:100%;min-height:50px}body.fjord-public main .fjm-home .fjm-hero .fjm-hero-sub{font-size:12px}}
 </style>"""
@@ -723,20 +734,20 @@ MARKETING_HOME_START = """<div class="fjm-home">
     <span class="fjm-real-photo-label">{% if loop.first %}📸 PHOTO DE LA PIÈCE{% else %}📸 AUTRE PHOTO RÉELLE{% endif %}</span>
    </a>{% else %}<a href="/galerie" class="fjm-hero-photo-placeholder" aria-label="Découvrir la galerie">📸<br>Nos vraies réalisations<br>faites au Saguenay</a>{% endfor %}
   </div>
-  <p class="fjm-proof-eyebrow" data-fjm-en="MADE IN SAGUENAY · CUSTOM 3D PRINTING">FABRIQUÉ AU SAGUENAY · IMPRESSION SUR MESURE</p>
-  <h2 data-fjm-en="From a quick idea to a finished part">De votre idée à la pièce finie</h2>
-  <p data-fjm-en="Start with a model, file, photo or sketch. We will confirm the project details before printing.">Modèle, fichier, photo ou croquis : on valide les détails de votre projet avant l’impression.</p>
+  <p class="fjm-proof-eyebrow" data-fjm-en="REAL PROJECTS · MADE IN SAGUENAY">VRAIES RÉALISATIONS · FABRIQUÉES AU SAGUENAY</p>
+  <h2 data-fjm-en="Real parts. Made right here.">Des pièces réelles. Fabriquées ici.</h2>
+  <p data-fjm-en="A look at a few parts made in our local workshop.">Quelques pièces réellement produites dans notre atelier local.</p>
  </aside>
 </section>
 <section class="fjm-atelier" id="atelier" aria-labelledby="fjm-atelier-title">
  <div class="fjm-atelier-mark" aria-hidden="true">🧊</div>
  <div class="fjm-atelier-copy">
-  <span class="fjm-kicker" data-fjm-en="YOUR 3D WORKSHOP, ONLINE">VOTRE ATELIER 3D, EN LIGNE</span>
-  <h2 id="fjm-atelier-title" data-fjm-en="See your model take shape">Visualisez votre pièce avant sa fabrication</h2>
-  <p data-fjm-en="Open the 3D workshop to import an STL or 3MF, inspect your model and explore its production settings before requesting a quote.">Ouvrez l’Atelier 3D pour importer un STL ou 3MF, examiner votre modèle et explorer ses réglages avant de demander une soumission.</p>
-  <div class="fjm-atelier-actions"><a class="btn" href="/atelier-3d" data-fjm-en="Open the 3D workshop">🧊 Ouvrir l’Atelier 3D</a><a class="fjm-atelier-secondary" href="/soumission" data-fjm-en="I need help with my project">Je veux de l’aide pour mon projet</a></div>
+  <span class="fjm-kicker" data-fjm-en="YOUR 3D WORKSHOP · READY WHEN YOU ARE">VOTRE ATELIER 3D · À PORTÉE DE MAIN</span>
+  <h2 id="fjm-atelier-title" data-fjm-en="Bring your idea into 3D">Donnez forme à votre idée en 3D</h2>
+  <p data-fjm-en="Import an STL or 3MF and inspect your model in the workshop before asking for a quote.">Importez un STL ou un 3MF et examinez votre modèle dans l’Atelier avant de demander une soumission.</p>
+  <div class="fjm-atelier-actions"><a class="btn" href="/atelier-3d" data-fjm-en="Explore the 3D workshop">🧊 Explorer l’Atelier 3D</a><a class="fjm-atelier-secondary" href="/soumission" data-fjm-en="I’d like help with my project">Besoin d’un coup de main?</a></div>
  </div>
- <div class="fjm-atelier-note"><strong data-fjm-en="Have a 3D file?">Vous avez un fichier 3D?</strong><span>STL · 3MF</span></div>
+ <div class="fjm-atelier-note"><strong data-fjm-en="Bring your model">Votre fichier 3D</strong><span>STL · 3MF</span></div>
 </section>
 <section class="fjm-section" id="services" aria-labelledby="fjm-services-title">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="What we make">CE QU’ON FABRIQUE</span><h2 id="fjm-services-title" data-fjm-en="Practical parts, prototypes and one-of-a-kind creations">Pièces utiles, prototypes et créations uniques</h2><p data-fjm-en="Tell us what the part needs to do. We will help choose a practical model, material and finish for your project.">Expliquez-nous à quoi doit servir la pièce. On vous aidera à choisir un modèle, un matériau et une finition adaptés à votre projet.</p></div>
