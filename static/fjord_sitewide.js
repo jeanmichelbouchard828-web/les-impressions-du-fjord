@@ -32,7 +32,9 @@
       const empty=document.getElementById("fjmGalleryNoMatch");
       const all=document.getElementById("fjmGalleryAll");
       const ready=document.getElementById("fjmGalleryReady");
-      let category="",readyOnly=new URLSearchParams(window.location.search).get("prets")==="1";
+      const real=document.getElementById("fjmGalleryReal");
+      let category="",readyOnly=new URLSearchParams(window.location.search).get("prets")==="1",realOnly=new URLSearchParams(window.location.search).get("photos")==="1";
+      if(realOnly)readyOnly=false;
       const simplify=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr-CA");
       const categories=Array.from(new Set(cards.map(c=>c.querySelector(".fjm-project-content span")?.textContent.trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr-CA"));
       const chips=[];
@@ -41,15 +43,19 @@
         let visible=0;
         cards.forEach(c=>{
           const cat=c.querySelector(".fjm-project-content span")?.textContent.trim()||"";
-          const matches=(category===""||cat===category)&&(!readyOnly||c.dataset.ready==="1")&&simplify(c.dataset.search||c.textContent).includes(query);
+          const matches=(category===""||cat===category)&&(!readyOnly||c.dataset.ready==="1")&&(!realOnly||c.dataset.real==="1")&&simplify(c.dataset.search||c.textContent).includes(query);
           c.hidden=!matches;
           if(matches) visible++;
         });
         if(empty)empty.hidden=visible!==0||cards.length===0;
-        if(all)all.setAttribute("aria-pressed", String(!category&&!readyOnly));
+        if(all)all.setAttribute("aria-pressed", String(!category&&!readyOnly&&!realOnly));
         if(ready)ready.setAttribute("aria-pressed",String(readyOnly));
+        if(real)real.setAttribute("aria-pressed",String(realOnly));
         chips.forEach(({button,name})=>button.setAttribute("aria-pressed",String(category===name)));
       };
+      const chipGroup=document.createElement("div");
+      chipGroup.className="fjm-category-filters";
+      controls.append(chipGroup);
       if (categories.length>1 && categories.length<=16) {
         categories.forEach(name=>{
           const button=document.createElement("button");
@@ -58,18 +64,21 @@
           button.textContent=name;
           button.setAttribute("aria-pressed","false");
           button.addEventListener("click",()=>{category=category===name?"":name;apply()});
-          controls.append(button);
+          chipGroup.append(button);
           chips.push({button,name});
         });
       }
       search?.addEventListener("input",apply);
-      const syncReadyUrl=enabled=>{
+      const syncCatalogUrl=()=>{
         const url=new URL(window.location.href);
-        if(enabled)url.searchParams.set("prets","1");else url.searchParams.delete("prets");
+        url.searchParams.delete("prets");url.searchParams.delete("photos");
+        if(readyOnly)url.searchParams.set("prets","1");
+        if(realOnly)url.searchParams.set("photos","1");
         window.history.replaceState({}, "", url);
       };
-      all?.addEventListener("click",()=>{category="";readyOnly=false;syncReadyUrl(false);apply()});
-      ready?.addEventListener("click",()=>{readyOnly=!readyOnly;syncReadyUrl(readyOnly);apply()});
+      all?.addEventListener("click",()=>{category="";readyOnly=false;realOnly=false;syncCatalogUrl();apply()});
+      ready?.addEventListener("click",()=>{category="";readyOnly=true;realOnly=false;syncCatalogUrl();apply()});
+      real?.addEventListener("click",()=>{category="";readyOnly=false;realOnly=true;syncCatalogUrl();apply()});
       apply();
     }
 
