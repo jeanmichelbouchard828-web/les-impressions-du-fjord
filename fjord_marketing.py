@@ -820,6 +820,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
 MARKETING_HOME_END = """
 <section class="fjm-final" aria-label="Commencer un projet"><div><span class="fjm-kicker" data-fjm-en="Ready to get started?">Prêt à créer quelque chose?</span><h2 data-fjm-en="Let's bring your idea to life.">On donne vie à votre idée.</h2><p data-fjm-en="Tell us what you need. Your quote request comes with no obligation.">Expliquez-nous votre besoin. Une demande de soumission ne vous engage à rien.</p></div><a href="/soumission" class="btn" data-fjm-en="Request my free quote">Demander ma soumission gratuite</a></section>
 
+<nav class="fjord-mobile-quote-bar" aria-label="Actions rapides"><a href="/soumission" class="fjord-mobile-quote-primary" data-fjm-en="Get a free quote">Soumission gratuite</a><a href="/atelier-3d" class="fjord-mobile-quote-secondary" data-fjm-en="3D workshop">Atelier 3D</a></nav>
 </div>"""
 
 MARKETING_GALLERY = """<section class="fjm-section" style="margin-top:0"><div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Our portfolio">Nos réalisations</span><h1 data-fjm-en="Ideas that took shape">Des idées devenues réalité</h1><p data-fjm-en="Browse real parts made in our workshop, shown in real photos or 3D previews. Choose a project with an STL or 3MF file to request a quote.">Découvrez les pièces réellement fabriquées par notre atelier. Certaines vignettes sont des photos réelles, d’autres des visuels 3D. Choisissez une réalisation avec fichier STL ou 3MF pour demander votre soumission.</p></div>
