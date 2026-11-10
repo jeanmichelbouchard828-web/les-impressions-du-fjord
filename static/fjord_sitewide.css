@@ -320,3 +320,24 @@ body.light.fjord-public .fjm-faq details[open]{background:#edf8ff}
  body.fjord-public .fjm-project-actions a{font-size:13px}
  body.fjord-public .fjord-gallery-detail-cta{gap:10px}
 }
+
+
+/* Hero signature: studio typographique et objet 3D CSS, sans mosaïque photo */
+body.fjord-public .fjm-hero{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);align-items:center}
+body.fjord-public .fjord-hero-studio{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;min-height:440px;padding:clamp(22px,3vw,35px);border:1px solid #4299ba;border-radius:26px;background:radial-gradient(circle at 52% 33%,#147ea0 0,#0b4967 26%,#0a273d 58%,#071b2d 100%);box-shadow:inset 0 1px #ffffff38,0 28px 65px #0015266b}
+body.fjord-public .fjord-hero-studio:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(130deg,transparent 20%,#5cdbff10 50%,transparent 80%);pointer-events:none}
+body.fjord-public .fjord-hero-orbit{position:absolute;inset:0 0 125px;display:grid;place-items:center;pointer-events:none;perspective:700px}
+body.fjord-public .fjord-orbit-ring{position:absolute;width:min(62%,245px);aspect-ratio:1;border:2px solid #89eaff80;border-radius:30%;transform:rotate(-25deg) skew(8deg,8deg);box-shadow:0 0 32px #3edbff22,inset 0 0 30px #3edbff13}
+body.fjord-public .fjord-ring-two{width:min(47%,188px);border-color:#a2f6ff99;border-radius:36%;transform:rotate(30deg) skew(-7deg,-7deg)}
+body.fjord-public .fjord-orbit-core{display:grid;place-items:center;width:110px;aspect-ratio:1;border:1px solid #b7f7ffcc;border-radius:27%;transform:rotate(-12deg);background:linear-gradient(135deg,#75eaff,#157bba 50%,#0b385c);box-shadow:16px 18px 0 #042238,20px 24px 32px #0007,0 0 60px #51eaff55;color:#fff;font-size:46px;font-weight:950;letter-spacing:-.1em;text-shadow:0 3px 14px #073a59}
+body.fjord-public .fjord-orbit-spark{position:absolute;color:#b9faff;font-size:29px;text-shadow:0 0 22px #a5faff}
+body.fjord-public .fjord-spark-a{top:15%;right:16%}
+body.fjord-public .fjord-spark-b{bottom:18%;left:15%}
+body.fjord-public .fjord-studio-content{position:relative;z-index:1}
+body.fjord-public .fjord-studio-eyebrow{color:#9aefff;font-size:11px;font-weight:900;letter-spacing:.14em}
+body.fjord-public .fjord-studio-content h2{margin:8px 0;font-size:clamp(23px,2.6vw,34px);line-height:1.08;letter-spacing:-.035em;color:#fff}
+body.fjord-public .fjord-studio-content p{margin:0 0 16px;color:#d6eefa;font-size:14px;line-height:1.5}
+body.fjord-public .fjord-studio-link{display:inline-flex;align-items:center;min-height:42px;padding:10px 15px;border-radius:12px;background:#c0f6ff;color:#08314b!important;text-decoration:none!important;font-weight:900}
+body.fjord-public .fjord-studio-link:focus-visible{outline:3px solid #fff;outline-offset:4px}
+@media(max-width:1050px){body.fjord-public .fjm-hero{grid-template-columns:1fr}body.fjord-public .fjord-hero-studio{min-height:350px}body.fjord-public .fjord-hero-orbit{inset:0 0 105px}}
+@media(max-width:690px){body.fjord-public .fjord-hero-studio{min-height:330px;padding:20px;border-radius:19px}body.fjord-public .fjord-orbit-core{width:85px;font-size:36px}body.fjord-public .fjord-orbit-ring{width:170px}body.fjord-public .fjord-ring-two{width:135px}body.fjord-public .fjord-studio-content h2{font-size:25px}}
