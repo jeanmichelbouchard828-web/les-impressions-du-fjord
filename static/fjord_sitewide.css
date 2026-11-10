@@ -388,3 +388,18 @@ body.fjord-public .fjord-path-card b{margin-top:auto;display:inline-flex;align-i
 body.fjord-public .fjord-path-card:hover b{text-decoration:underline}
 body.light.fjord-public .fjord-paths-trust span{background:#fff;color:#24536b;border-color:#a8d5e5}
 @media(max-width:690px){body.fjord-public .fjord-paths-trust{gap:6px}body.fjord-public .fjord-paths-trust span{font-size:11px;padding:6px 9px}}
+
+
+/* Ordre commercial cohérent : hero, choix, atelier, réalisations, services */
+body.fjord-public .fjm-home>.fjm-hero{order:0}
+body.fjord-public .fjm-home>.fjord-paths{order:1}
+body.fjord-public .fjm-home>#atelier{order:2}
+body.fjord-public .fjm-home>#realisations{order:3}
+body.fjord-public .fjm-home>#services{order:4}
+body.fjord-public .fjm-home>.fji-section{order:5}
+body.fjord-public .fjm-home>#fonctionnement{order:6}
+body.fjord-public .fjm-home>#questions{order:7}
+body.fjord-public .fjm-home>.fjord-board{order:8}
+body.fjord-public .fjm-home>.fjm-final{order:9}
+body.fjord-public .fjm-home a:focus-visible,body.fjord-public .fjm-home button:focus-visible{outline:3px solid #9beeff;outline-offset:3px}
+@media(max-width:690px){body.fjord-public .fjm-home>.fjord-paths{margin-top:4px}body.fjord-public .fjm-home>.fjm-atelier{scroll-margin-top:75px}body.fjord-public .fjm-home>#realisations{scroll-margin-top:75px}}
