@@ -672,6 +672,7 @@ body.fjord-public .fjm-gallery-controls .fjm-category-filters{display:contents}
 body.fjord-public .fjm-gallery-controls .fjm-category-filters .fjm-filter{background:#112b40;color:#dceaf3;border-color:#39556a}
 body.fjord-public .fjm-gallery-controls .fjm-category-filters .fjm-filter[aria-pressed=true]{background:#d8ff43;color:#14200a;border-color:#efff9b}
 body.fjord-public .fjm-gallery-controls:has(#fjmGalleryReal[aria-pressed="true"]) .fjm-category-filters{display:none!important}
+body.fjord-public.fjm-real-gallery-only .fjm-gallery-controls .fjm-category-filters{display:none!important}
 .fjm-home .fjm-proof-eyebrow{margin-top:13px!important}
 .fjm-home .fjm-hero-proof h2{margin-bottom:4px!important}
 body.light .fjm-home .fjm-hero-photo-grid{background:#dbe6ee}
@@ -798,6 +799,7 @@ MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelector
    if(allButton)allButton.setAttribute('aria-pressed',String(!readyOnly&&!realOnly));
    if(readyButton)readyButton.setAttribute('aria-pressed',String(readyOnly));
    if(realButton)realButton.setAttribute('aria-pressed',String(realOnly));
+   document.body.classList.toggle('fjm-real-gallery-only',realOnly);
    if(empty)empty.hidden=shown!==0;
    if(count)count.textContent=realOnly
     ?shown+' photo'+(shown>1?'s':'')+' réelle'+(shown>1?'s':'')
