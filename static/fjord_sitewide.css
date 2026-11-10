@@ -198,3 +198,30 @@ body.light .fjord-gallery-model-ready{background:#e4f8ef;color:#1a5640}
 /* Présentation plus concentrée du formulaire de soumission sur grand écran. */
 @media(min-width:980px){body.fjord-public main:has(.fjm-quote-form){max-width:960px}}
 body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form{width:100%;max-width:760px!important}
+
+
+/* Refonte conversion 2026-11-09 : pages publiques seulement, administration préservée */
+@media (min-width: 721px) {
+ body.fjord-public .site-header {position:sticky;top:0;z-index:100;backdrop-filter:blur(16px)}
+ body.fjord-public .fjm-hero-actions a,body.fjord-public .fjm-hero-actions button {min-height:52px;display:inline-flex;align-items:center;justify-content:center}
+ body.fjord-public .fjm-project {transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+ body.fjord-public .fjm-project:hover {transform:translateY(-4px);box-shadow:0 18px 40px #0005;border-color:#55c9ee}
+}
+body.fjord-public .fjm-gallery-controls button:focus-visible,
+body.fjord-public .fjm-hero-actions a:focus-visible {outline:3px solid #8cecff;outline-offset:3px}
+body.fjord-public .fjm-quote-form input:focus-visible,
+body.fjord-public .fjm-quote-form textarea:focus-visible,
+body.fjord-public .fjm-quote-form select:focus-visible {outline:2px solid #65d9ff;outline-offset:2px}
+@media (max-width:720px) {
+ body.fjord-public {overflow-x:hidden}
+ body.fjord-public main {min-width:0}
+ body.fjord-public .fjm-hero-actions {display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+ body.fjord-public .fjm-hero-actions a,body.fjord-public .fjm-hero-actions button {width:100%;min-height:52px;margin:0;justify-content:center;text-align:center}
+ body.fjord-public .fjm-gallery-controls {max-width:100%}
+ body.fjord-public .fjm-project {min-width:0}
+ body.fjord-public .fjord-client-contact {grid-template-columns:minmax(0,1fr)}
+ body.fjord-public .fjm-quote-form input,body.fjord-public .fjm-quote-form select,body.fjord-public .fjm-quote-form textarea {font-size:16px}
+}
+@media (prefers-reduced-motion:reduce) {
+ body.fjord-public .fjm-project,body.fjord-public .fjm-hero-actions a {transition:none!important;animation:none!important}
+}
