@@ -1059,14 +1059,14 @@ def home():
  # Carrousel purement visuel : aucune association STL/3MF requise.
  from html import escape as html_escape
  inspiration_cards=[]
- for idea in FJORD_INSPIRATIONS[:16]:
+ for idea_index, idea in enumerate(FJORD_INSPIRATIONS[:16]):
   title=html_escape(str(idea["title"]),quote=True)
   image_url=html_escape(str(idea["image"]),quote=True)
   source_url=html_escape(str(idea["source"]),quote=True)
   author=html_escape(str(idea["author"]),quote=True)
   license_name=html_escape(str(idea["license"]),quote=True)
-  inspiration_cards.append(f'<article class="fjord-idea-card"><img src="{image_url}" alt="{title}" loading="lazy" referrerpolicy="no-referrer"><div class="fjord-idea-caption"><strong>{title}</strong><small>Photo : <a href="{source_url}" target="_blank" rel="noopener noreferrer">{author}</a> · {license_name}</small></div></article>')
- inspiration_carousel='''<section class="fjord-ideas" aria-label="Diaporama d’inspiration"><div class="fjord-ideas-heading"><div><span>DES IDÉES SANS LIMITES</span><h2>Et si on créait quelque chose d’unique?</h2><p>Quelques inspirations pour imaginer votre prochain projet d’impression 3D.</p></div><div class="fjord-ideas-controls"><button type="button" onclick="document.getElementById('fjordIdeasTrack').scrollBy({left:-280,behavior:'smooth'})" aria-label="Inspirations précédentes">‹</button><button type="button" onclick="document.getElementById('fjordIdeasTrack').scrollBy({left:280,behavior:'smooth'})" aria-label="Inspirations suivantes">›</button></div></div><div id="fjordIdeasTrack" class="fjord-ideas-track">'''+''.join(inspiration_cards)+'''</div><style>
+  inspiration_cards.append(f'<article class="fjord-idea-card"><img src="{image_url}" alt="{title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"><div class="fjord-idea-caption"><strong>{title}</strong><a class="fjord-idea-quote" href="/soumission?inspiration={idea_index}" data-fjm-en="Request a similar piece →">Demander une pièce semblable →</a><small>Photo : <a href="{source_url}" target="_blank" rel="noopener noreferrer">{author}</a> · {license_name}</small></div></article>')
+ inspiration_carousel='''<section class="fjord-ideas" aria-label="Diaporama d’inspiration"><div class="fjord-ideas-heading"><div><span>DES IDÉES SANS LIMITES</span><h2>Et si on créait quelque chose d’unique?</h2><p>Quelques inspirations pour imaginer votre prochain projet d’impression 3D.</p></div><div class="fjord-ideas-controls"><button type="button" onclick="document.getElementById('fjordIdeasTrack').scrollBy({left:-280,behavior:'smooth'})" aria-label="Inspirations précédentes">‹</button><button type="button" onclick="document.getElementById('fjordIdeasTrack').scrollBy({left:280,behavior:'smooth'})" aria-label="Inspirations suivantes">›</button></div></div><div id="fjordIdeasTrack" class="fjord-ideas-track">'''+''.join(inspiration_cards)+'''</div><p class="fjord-ideas-note" data-fjm-en="These are inspiration photos, not products in stock. Feasibility and reproduction rights must be confirmed before production.">Ces photos servent d’inspiration et ne représentent pas des produits en stock. La faisabilité et les droits de reproduction restent à confirmer avant fabrication.</p><style>
  .fjord-ideas{max-width:1180px;margin:25px auto;padding:18px 0 26px;color:inherit}
  .fjord-ideas-heading{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:14px}
  .fjord-ideas-heading span{font-size:12px;font-weight:850;letter-spacing:.12em;color:#39bce8}
@@ -1079,6 +1079,13 @@ def home():
  .fjord-idea-card img{display:block;width:100%;height:155px;object-fit:cover}
  .fjord-idea-caption{padding:12px}.fjord-idea-caption strong{display:block;font-size:15px;line-height:1.3}.fjord-idea-caption small{display:block;font-size:11px;margin-top:8px;color:#c4d7e2;line-height:1.4}
  .fjord-idea-caption a{color:#a9eaff}
+ .fjord-idea-caption .fjord-idea-quote{display:inline-flex;align-items:center;min-height:38px;margin-top:9px;padding:7px 10px;border:1px solid #67cde9;border-radius:10px;background:#103b55;color:#fff;font-size:12px;font-weight:850;text-decoration:none}
+ .fjord-idea-caption .fjord-idea-quote:hover{background:#165877}
+ .fjord-idea-caption .fjord-idea-quote:focus-visible{outline:3px solid #9beeff;outline-offset:2px}
+ .fjord-ideas-note{max-width:850px;margin:8px 0 0;color:#b9ccd7;font-size:12px;line-height:1.5}
+ body.light .fjord-idea-card{background:#fff;color:#18384a;border-color:#b7d5e3}
+ body.light .fjord-idea-caption small,body.light .fjord-ideas-note{color:#486577}
+ body.light .fjord-idea-caption .fjord-idea-quote{background:#e6f7fc;color:#17465d;border-color:#81c7df}
  @media(max-width:700px){.fjord-ideas{margin:18px 0;padding:12px 0}.fjord-idea-card{flex-basis:195px}.fjord-idea-card img{height:130px}.fjord-ideas-heading h2{font-size:23px}}
  </style></section>'''
  return page("Accueil",MARKETING_HOME_START + inspiration_carousel + public_inspirations + public_makerworld
