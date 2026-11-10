@@ -744,8 +744,8 @@ body.fjord-public main .fjm-home .fjm-atelier-note span{font-size:12px}
 MARKETING_HOME_START = """<div class="fjm-home">
 <section class="fjm-hero" aria-labelledby="fjm-hero-title">
  <div><span class="fjm-kicker" data-fjm-en="⚡ YOUR IDEA TAKES SHAPE HERE · SAGUENAY">⚡ VOTRE IDÉE PREND FORME ICI · SAGUENAY</span>
- <h1 id="fjm-hero-title"><span data-fjm-en="Your idea.">Une idée.</span> <span class="fjm-accent" data-fjm-en="A part made for you.">Une pièce pour vous.</span></h1>
- <p class="fjm-hero-lead" data-fjm-en="A replacement part, a custom accessory or a one-of-a-kind gift. Tell us what you need and we’ll bring it to life here in Saguenay.">Pièce de remplacement, accessoire sur mesure ou cadeau unique : dites-nous ce qu’il vous faut et on lui donne vie ici, au Saguenay.</p>
+ <h1 id="fjm-hero-title"><span data-fjm-en="Your idea.">Une idée.</span> <span class="fjm-accent" data-fjm-en="A part made for you.">Une pièce créée pour vous.</span></h1>
+ <p class="fjm-hero-lead" data-fjm-en="A replacement part, a custom accessory or a one-of-a-kind gift. Tell us what you need and we’ll bring it to life here in Saguenay.">Une pièce introuvable? Un cadeau unique? Un projet en tête? Envoyez votre idée, une photo ou votre fichier 3D : nous préparons une soumission adaptée à votre besoin, ici au Saguenay.</p>
  <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Explore ready-to-print pieces">Découvrir les pièces prêtes à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Start my project">Parler de mon projet</a></div>
  <p class="fjm-hero-sub" data-fjm-en="No 3D file needed · Free quote · No obligation">Pas besoin de fichier 3D · Soumission gratuite · Sans engagement</p>
  <ul class="fjm-points"><li data-fjm-en="⚡ Custom-made parts">⚡ Pièce faite pour vous</li><li data-fjm-en="📍 Made in Saguenay">📍 Fabriqué au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
