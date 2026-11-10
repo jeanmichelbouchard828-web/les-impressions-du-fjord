@@ -359,3 +359,21 @@ body.fjord-public .fjord-spark-b{animation:fjord-spark-pulse 3.1s ease-in-out 1.
 @keyframes fjord-orbit-counter{from{rotate:360deg}to{rotate:0deg}}
 @keyframes fjord-spark-pulse{0%,100%{opacity:.35;scale:.85}50%{opacity:1;scale:1.15}}
 @media(max-width:420px){body.fjord-public .fjord-studio-progress{gap:5px}body.fjord-public .fjord-studio-progress span{font-size:9px}body.fjord-public .fjord-studio-progress i{width:8px}}
+
+
+/* Studio hero: signature animée respectant les préférences d'accessibilité */
+body.fjord-public .fjord-studio-progress{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0 15px}
+body.fjord-public .fjord-studio-progress span{font-size:10px;font-weight:900;letter-spacing:.045em;color:#c3f6ff;white-space:nowrap}
+body.fjord-public .fjord-studio-progress i{width:15px;height:1px;background:#74c8df;flex-shrink:0}
+@media(prefers-reduced-motion:no-preference){
+body.fjord-public .fjord-orbit-core{animation:fjord-core-float 5.5s ease-in-out infinite}
+body.fjord-public .fjord-ring-one{animation:fjord-orbit-turn 23s linear infinite}
+body.fjord-public .fjord-ring-two{animation:fjord-orbit-counter 19s linear infinite}
+body.fjord-public .fjord-spark-a{animation:fjord-spark-pulse 3.1s ease-in-out infinite}
+body.fjord-public .fjord-spark-b{animation:fjord-spark-pulse 3.1s ease-in-out 1.2s infinite}
+}
+@keyframes fjord-core-float{0%,100%{translate:0 0}50%{translate:0 -12px}}
+@keyframes fjord-orbit-turn{from{rotate:0deg}to{rotate:360deg}}
+@keyframes fjord-orbit-counter{from{rotate:360deg}to{rotate:0deg}}
+@keyframes fjord-spark-pulse{0%,100%{opacity:.35;scale:.85}50%{opacity:1;scale:1.15}}
+@media(max-width:420px){body.fjord-public .fjord-studio-progress{gap:5px}body.fjord-public .fjord-studio-progress span{font-size:9px}body.fjord-public .fjord-studio-progress i{width:8px}}
