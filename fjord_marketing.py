@@ -495,6 +495,113 @@ body.fjord-public :is(a,button,input,textarea,select):focus-visible{outline-colo
 @media(max-width:760px){body.fjord-public .fjm-home>#services,body.fjord-public .fjm-home>#realisations{padding:16px;border-radius:21px}body.fjord-public .fjm-home .fjm-offers{grid-template-columns:1fr 1fr;gap:10px}body.fjord-public .fjm-home .fjm-offer{min-height:0;padding:15px}body.fjord-public .fjm-home>#atelier{border-radius:21px}body.fjord-public .fjm-home .fjm-hero{animation:none}}
 @media(max-width:460px){body.fjord-public .fjm-home .fjm-offers{grid-template-columns:1fr}body.fjord-public .fjm-home .fjm-offer{min-height:0}body.fjord-public .fjm-home>#services,body.fjord-public .fjm-home>#realisations{padding:13px}}
 @media(prefers-reduced-motion:reduce){body.fjord-public .fjm-home .fjm-hero{animation:none!important}body.fjord-public .fjm-home .fjm-offer{transition:none!important}}
+/* Page-wide composition: storefront, catalogue, project detail and quote flow. */
+body.fjord-public>main{display:flex;flex-direction:column;gap:clamp(20px,3vw,36px);width:min(100%,1480px)!important;max-width:1480px!important;margin-inline:auto!important;padding:clamp(22px,4vw,58px) clamp(16px,4vw,58px) clamp(84px,9vw,120px)!important}
+body.fjord-public .site-header{position:sticky!important;top:0;min-height:76px;grid-template-columns:auto minmax(0,1fr) auto;gap:clamp(9px,1.5vw,22px);padding:9px clamp(14px,3vw,46px)!important}
+body.fjord-public .site-header nav{justify-content:center;gap:3px;flex-wrap:nowrap}
+body.fjord-public .site-header nav a{font-size:12px;padding:8px 9px}
+body.fjord-public .fjm-home{display:flex;flex-direction:column;gap:clamp(18px,2.8vw,34px)}
+body.fjord-public .fjm-home>.fjm-hero{order:0!important}
+body.fjord-public .fjm-home>#services{order:1!important}
+body.fjord-public .fjm-home>#realisations{order:2!important}
+body.fjord-public .fjm-home>#atelier{order:3!important}
+body.fjord-public .fjm-home>.fji-section{order:4!important}
+body.fjord-public .fjm-home>#fonctionnement{order:5!important}
+body.fjord-public .fjm-home>#questions{order:6!important}
+body.fjord-public .fjm-home>.fjord-board{order:7!important}
+body.fjord-public .fjm-home>.fjm-final{order:8!important}
+body.fjord-public .fjm-home>#services,body.fjord-public .fjm-home>#realisations{scroll-margin-top:100px}
+body.fjord-public .fjm-home .fjm-heading{max-width:880px;margin-bottom:clamp(16px,2.4vw,27px)}
+body.fjord-public .fjm-home .fjm-heading h2{font-size:clamp(30px,4.4vw,52px);line-height:1.04}
+body.fjord-public .fjm-home .fjm-offers{grid-template-columns:repeat(4,minmax(0,1fr))}
+body.fjord-public .fjm-home .fjm-featured-track{gap:18px;padding:3px 3px 18px}
+body.fjord-public .fjm-home .fjm-featured-track .fjm-project{flex-basis:calc((100% - 36px)/3);border-radius:22px!important}
+body.fjord-public .fjm-home .fjm-featured-track .fjm-project img{height:auto;aspect-ratio:1.35;object-fit:cover}
+body.fjord-public .fjm-home .fjm-final{display:flex;align-items:center;justify-content:space-between;gap:26px;margin-top:0!important;padding:clamp(22px,4vw,44px)!important;border-radius:28px!important;background:radial-gradient(ellipse at 90% 10%,#8b5cff55,transparent 40%),linear-gradient(120deg,#181633,#101d33)!important}
+body.fjord-public .fjm-home .fjm-final h2{font-size:clamp(27px,3.6vw,42px)!important;color:#f5f7ff!important}
+body.fjord-public .fjm-home .fjm-final p{display:block;color:#cbd3e8}
+body.fjord-public.light .fjm-home .fjm-final{background:linear-gradient(120deg,#ebe8ff,#e5f8ff)!important}
+body.fjord-public.light .fjm-home .fjm-final h2{color:#17172b!important}
+body.fjord-public.light .fjm-home .fjm-final p{color:#555d78}
+/* Catalogue becomes a filter bar followed by a four-column product wall. */
+body.fjord-public main:has(#fjmGalleryItems) .fjm-section{width:100%;margin:0!important}
+body.fjord-public main:has(#fjmGalleryItems) .fjm-heading{max-width:900px;margin:0 0 28px}
+body.fjord-public main:has(#fjmGalleryItems) .fjm-heading h1{font-size:clamp(40px,6vw,76px);line-height:.98}
+body.fjord-public .fjm-gallery-controls{display:grid;grid-template-columns:minmax(220px,2fr) minmax(170px,1fr) auto auto;gap:10px;align-items:center;margin:0 0 24px;padding:14px;border:1px solid #343b60;border-radius:20px;background:linear-gradient(130deg,#151a31,#101624)}
+body.fjord-public .fjm-gallery-controls input{width:100%;max-width:none;min-width:0;min-height:48px;margin:0}
+body.fjord-public .fjm-gallery-controls select{width:100%;max-width:none;min-height:48px;margin:0}
+body.fjord-public .fjm-gallery-controls .fjm-filter{min-height:46px;border-radius:13px!important}
+body.fjord-public .fjm-gallery-controls .fjm-gallery-count{grid-column:1/-1;color:#9da9c7;font-size:13px}
+body.fjord-public.light .fjm-gallery-controls{background:linear-gradient(130deg,#f1efff,#effaff);border-color:#d9d9ee}
+body.fjord-public .fjm-gallery{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+body.fjord-public .fjm-project{border-radius:22px!important}
+body.fjord-public .fjm-project-image-link{display:block;overflow:hidden;background:#0b1020}
+body.fjord-public .fjm-project img,body.fjord-public .fjm-project .fjm-project-noimage{height:auto;aspect-ratio:1.25;object-fit:cover}
+body.fjord-public .fjm-project-content{display:flex;flex:1;flex-direction:column;align-items:flex-start;padding:18px}
+body.fjord-public .fjm-project-content strong{font-size:18px;line-height:1.25}
+body.fjord-public .fjm-project-actions{width:100%;margin-top:auto;padding-top:14px}
+body.fjord-public .fjm-project-actions a{flex:1;min-height:44px;border-radius:12px!important;text-align:center}
+body.fjord-public .fjm-gallery-empty{padding:clamp(20px,4vw,40px);border-radius:22px}
+/* Project detail: breadcrumb and action band lead into an image gallery. */
+body.fjord-public .gallery-detail{display:flex;flex-direction:column;gap:14px;max-width:1220px;margin:0 auto}
+body.fjord-public .gallery-detail .fjord-breadcrumbs{display:flex;flex-wrap:wrap;align-items:center;gap:9px;width:100%;margin-bottom:8px;padding:12px 15px;border:1px solid #343b60;border-radius:14px;background:#111729}
+body.fjord-public.light .gallery-detail .fjord-breadcrumbs{background:#fff;border-color:#dedff0}
+body.fjord-public .gallery-detail h1{max-width:18ch;margin:5px 0;font-size:clamp(38px,6vw,70px);line-height:.99}
+body.fjord-public .gallery-detail>.eyebrow{align-self:flex-start;padding:7px 11px;border:1px solid #524786;border-radius:999px;background:#201b3e;color:#a6efff;letter-spacing:.1em}
+body.fjord-public .gallery-detail>.fjord-model-ready{margin:0;border-color:#668a35;background:#23321b;color:#e0ff64}
+body.fjord-public .gallery-detail>p{max-width:78ch;margin:0}
+body.fjord-public .fjord-gallery-detail-cta{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:12px 0;padding:14px;border:1px solid #3a3d66;border-radius:20px;background:linear-gradient(120deg,#171a31,#111827)}
+body.fjord-public .fjord-gallery-detail-cta>.btn,body.fjord-public .fjord-gallery-detail-cta>button{min-width:0;min-height:52px;border-radius:14px!important}
+body.fjord-public .fjord-gallery-detail-cta>.secondary-btn,body.fjord-public .fjord-gallery-detail-cta>.fjord-share-project{background:#222641!important;border-color:#5f5b89!important;color:#eef0ff!important}
+body.fjord-public.light .fjord-gallery-detail-cta{background:linear-gradient(120deg,#f0edff,#eafaff);border-color:#dbd9ef}
+body.fjord-public.light .fjord-gallery-detail-cta>.secondary-btn,body.fjord-public.light .fjord-gallery-detail-cta>.fjord-share-project{background:#fff!important;color:#342b5c!important;border-color:#d1c9f0!important}
+body.fjord-public .gallery-detail .fjord-gallery-linked{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:10px}
+body.fjord-public .fjord-gallery-linked-item{min-width:0;padding:10px;border:1px solid #343b60;border-radius:20px;background:#111729}
+body.fjord-public.light .fjord-gallery-linked-item{background:#fff;border-color:#dedff0}
+body.fjord-public .gallery-detail .gallery-photo-link img{height:auto;aspect-ratio:1.25;object-fit:cover;border-radius:14px}
+body.fjord-public .fjord-gallery-linked-item>p{margin:10px 4px;font-size:13px}
+body.fjord-public .fjord-gallery-linked-quote{display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:10px;padding:9px 12px;border-radius:12px;background:#d8ff43;color:#101506!important;font-weight:850;text-align:center}
+/* Quote page: clear introduction, guided start, then a calm two-column form. */
+body.fjord-public main:has(.fjm-quote-form){max-width:1160px!important}
+body.fjord-public main:has(.fjm-quote-form)>.eyebrow{align-self:flex-start;padding:8px 12px;border:1px solid #51437f;border-radius:99px;background:#1d1938;color:#97edff;font-weight:850}
+body.fjord-public main:has(.fjm-quote-form)>h1{max-width:13ch;margin:0;font-size:clamp(42px,7vw,82px);line-height:.96}
+body.fjord-public main:has(.fjm-quote-form)>.fjm-quote-helper{width:100%;max-width:none;margin:0;padding:22px 25px;border-color:#3d4770!important;border-radius:22px!important;background:linear-gradient(110deg,#171831,#112033)!important}
+body.fjord-public main:has(.fjm-quote-form)>.fjm-quote-helper ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 24px;margin-top:15px;padding-left:20px}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-start{width:100%;max-width:none;margin:0}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-start a{min-height:92px;border:1px solid #3e4670;border-radius:18px;background:linear-gradient(145deg,#171b33,#111827);box-shadow:0 10px 25px #03040b77}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-start a:hover{border-color:#8b5cff;box-shadow:0 0 24px #8b5cff2a}
+body.fjord-public.light main:has(.fjm-quote-form)>.fjm-quote-helper{background:linear-gradient(110deg,#f0edff,#eafaff)!important;border-color:#dbd9ef!important}
+body.fjord-public.light main:has(.fjm-quote-form) .fjm-quote-start a{background:linear-gradient(145deg,#fff,#f4f3ff);border-color:#d9d9ee;color:#24213d!important}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;width:100%;max-width:none;margin:0;padding:clamp(18px,3vw,34px);border:1px solid #3b4569!important;border-radius:25px!important;background:linear-gradient(145deg,#131a2b,#0f1522)!important}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label:nth-of-type(1),body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label:nth-of-type(2){grid-column:span 1}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label:nth-of-type(3),body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>.fjm-quote-options,body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>.fjord-brief,body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label:has(textarea),body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>.fjm-files,body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>.fjm-form-submit,body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>.fjm-quote-note{grid-column:1/-1}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label{margin:0 0 5px;padding:14px;border:1px solid #303a59;border-radius:15px;background:#111827}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label input,body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>label textarea{margin:8px 0 0}
+body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form .fjm-form-submit{margin-top:10px;min-height:58px;font-size:16px}
+body.fjord-public.light main:has(.fjm-quote-form) .fjm-quote-form{background:linear-gradient(145deg,#fff,#f5f4ff)!important;border-color:#dedff0!important}
+body.fjord-public.light main:has(.fjm-quote-form) .fjm-quote-form>label{background:#fff;border-color:#e0e1ef}
+/* Tracking and contact pages get a focused, centered task panel. */
+body.fjord-public .tracking-panel{display:flex;flex-direction:column;gap:14px;width:100%;max-width:820px;margin:0 auto;padding:clamp(22px,4vw,42px);border:1px solid #343b60;border-radius:28px;background:radial-gradient(ellipse at 90% 0%,#8b5cff31,transparent 36%),linear-gradient(145deg,#141a2d,#101625);box-shadow:0 20px 50px #03040b88}
+body.fjord-public .tracking-panel .eyebrow{color:#8beeff;letter-spacing:.14em}
+body.fjord-public .tracking-panel h1{font-size:clamp(36px,5vw,58px);line-height:1}
+body.fjord-public .tracking-panel form{width:100%;max-width:none;margin:8px 0 0;padding:20px;border:1px solid #343b60;border-radius:20px;background:#0e1422}
+body.fjord-public .tracking-panel form button{width:100%;margin-top:6px}
+body.fjord-public .tracking-result{padding:22px!important;border-radius:20px!important}
+body.fjord-public .tracking-billboard{border-radius:26px!important;background:radial-gradient(ellipse at 90% 0%,#8b5cff44,transparent 42%),linear-gradient(120deg,#181731,#102033)!important}
+body.fjord-public.light .tracking-panel,body.fjord-public.light .tracking-panel form{background:linear-gradient(145deg,#f1efff,#effaff);border-color:#dedff0}
+body.fjord-public.light .tracking-panel form{background:#fff}
+body.fjord-public.light .tracking-billboard{background:linear-gradient(120deg,#ece9ff,#e8faff)!important}
+body.fjord-public .contact-section{width:100%;max-width:1000px;margin:20px auto 0;padding:clamp(20px,4vw,40px);border-radius:24px!important}
+body.fjord-public .contact-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+body.fjord-public .contact-actions a{justify-content:flex-start;min-height:56px;border-radius:14px;background:#171d32;color:#eef0ff}
+body.fjord-public.light .contact-actions a{background:#fff;color:#342b5c;border-color:#dedff0}
+body.fjord-public .fjord-thanks{max-width:850px;margin:0 auto;padding:clamp(22px,5vw,52px);border:1px solid #454078;border-radius:28px;background:radial-gradient(ellipse at 100% 0%,#8b5cff44,transparent 40%),linear-gradient(145deg,#17162e,#101b2b)}
+body.fjord-public .fjord-thanks-symbol{color:#d8ff43;text-shadow:0 0 25px #d8ff4366}
+/* Responsive layouts keep the same hierarchy without horizontal scrolling. */
+@media(max-width:1050px){body.fjord-public .fjm-gallery{grid-template-columns:repeat(3,minmax(0,1fr))}body.fjord-public .fjm-home .fjm-featured-track .fjm-project{flex-basis:calc((100% - 18px)/2)}body.fjord-public .fjord-gallery-detail-cta{grid-template-columns:1fr 1fr}body.fjord-public .fjord-gallery-detail-cta>.btn:first-child{grid-column:1/-1}}
+@media(max-width:760px){body.fjord-public>main{gap:20px;padding:20px 14px 95px!important}body.fjord-public .site-header{grid-template-columns:minmax(0,1fr) auto!important;padding:8px 12px!important}body.fjord-public .site-header nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:8px 0}body.fjord-public .site-header nav a{justify-content:center;min-height:44px;white-space:normal;text-align:center}body.fjord-public .site-header .pref-controls{grid-column:1/-1;grid-row:3;justify-content:flex-end}body.fjord-public .fjm-gallery-controls{grid-template-columns:1fr 1fr;padding:10px}body.fjord-public .fjm-gallery-controls input,body.fjord-public .fjm-gallery-controls select{grid-column:1/-1}body.fjord-public .fjm-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}body.fjord-public .fjm-project-content{padding:13px}body.fjord-public .fjm-project-actions{display:grid;grid-template-columns:1fr}body.fjord-public .gallery-detail .fjord-gallery-linked{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}body.fjord-public .fjord-gallery-detail-cta{grid-template-columns:1fr}body.fjord-public .fjord-gallery-detail-cta>.btn:first-child{grid-column:1}body.fjord-public main:has(.fjm-quote-form)>.fjm-quote-helper ul{grid-template-columns:1fr}body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form{grid-template-columns:1fr}body.fjord-public main:has(.fjm-quote-form) .fjm-quote-form>*{grid-column:1/-1!important}body.fjord-public .contact-actions{grid-template-columns:1fr}}
+@media(max-width:460px){body.fjord-public .fjm-gallery{grid-template-columns:1fr}body.fjord-public .gallery-detail .fjord-gallery-linked{grid-template-columns:1fr}body.fjord-public .fjm-home .fjm-featured-track .fjm-project{flex-basis:100%}body.fjord-public .fjm-home .fjm-final{display:flex!important;flex-direction:column!important;align-items:stretch!important}body.fjord-public .fjm-home .fjm-final .btn{width:100%}body.fjord-public .tracking-panel{padding:18px}body.fjord-public .gallery-detail h1{font-size:clamp(32px,10vw,48px)}}
+@media(prefers-reduced-motion:reduce){body.fjord-public *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
