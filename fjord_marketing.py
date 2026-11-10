@@ -685,6 +685,12 @@ body.fjord-public main .fjm-home>.fjm-hero:before{content:"";position:absolute;z
 body.fjord-public main .fjm-home .fjm-hero>div{position:relative;z-index:1}
 body.fjord-public main .fjm-home .fjm-hero .fjm-kicker{display:inline-flex;align-items:center;min-height:31px;padding:7px 12px;border-radius:999px;background:#1747e8;color:#fff;font-size:10px;letter-spacing:.13em;box-shadow:0 7px 20px #1747e82b}
 body.fjord-public main .fjm-home .fjm-hero>div>.fjm-kicker{gap:7px;min-height:36px;padding:8px 14px;border:1px solid #ffb5a5;background:linear-gradient(105deg,#173fd5 0%,#087fc8 68%,#e9473c 100%);box-shadow:0 10px 26px #1747e84f,0 0 24px #f04f3d35;font-size:11px;font-weight:950;letter-spacing:.1em;line-height:1.3}
+/* Photo hero : donner la première place à la sculpture Bouvier-Bernois, une réalisation unique et réelle. */
+body.fjord-public main .fjm-home .fjm-hero-photo-grid{border:3px solid #f9fbff;box-shadow:0 0 0 2px #ef503f,0 0 34px #1747e858,0 20px 52px #08143170}
+body.fjord-public main .fjm-home .fjm-hero-photo-grid img{filter:saturate(1.18) contrast(1.08) brightness(1.06)}
+body.fjord-public main .fjm-home .fjm-hero-photo-grid>a:first-child img{object-position:center 48%}
+@media(max-width:760px){body.fjord-public main .fjm-home .fjm-hero-photo-grid{height:clamp(285px,72vw,390px)!important}}
+@media(max-width:460px){body.fjord-public main .fjm-home .fjm-hero-photo-grid{height:clamp(255px,74vw,320px)!important}}
 body.fjord-public main .fjm-home .fjm-hero h1{color:#101a30!important;max-width:730px;font-size:clamp(42px,6.4vw,82px)!important;line-height:.99!important;letter-spacing:-.065em!important}
 body.fjord-public main .fjm-home .fjm-hero .fjm-accent{background:linear-gradient(95deg,#1847eb 4%,#077fc7 48%,#f04f3d 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent!important}
 body.fjord-public main .fjm-home .fjm-hero .fjm-hero-lead{max-width:610px;color:#43516a!important;font-size:clamp(16px,1.75vw,20px);line-height:1.55}
@@ -737,7 +743,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  </div>
  <aside class="fjm-hero-panel fjm-hero-proof">
   <div class="fjm-hero-photo-grid" aria-label="Photos réelles de pièces imprimées par l’atelier">
-   {% set hero_photos = featured|selectattr('is_real_photo')|list %}
+   {% set hero_photos = featured|selectattr('is_real_photo')|sort(attribute='id')|list %}
    {% for item in hero_photos[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir la photo réelle de {{item.title}}">
     <img src="/gallery/thumb/{{item.id}}" alt="Photo réelle de la pièce : {{item.title}}" width="720" height="520" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
     <span class="fjm-real-photo-label">{% if loop.first %}📸 PHOTO DE LA PIÈCE{% else %}📸 AUTRE PHOTO RÉELLE{% endif %}</span>
