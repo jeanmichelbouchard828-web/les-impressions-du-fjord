@@ -536,7 +536,16 @@ const translations={
 "Vous pouvez joindre une photo, un fichier 3D, les deux ou seulement votre description.":"You can attach a photo, a 3D file, both, or just your description.",
 "Vos coordonnées servent uniquement à répondre à votre demande.":"Your contact information will only be used to respond to your request.",
 "Suivi client":"Customer tracking",
-"Le numéro FJ et le prénom se trouvent dans le courriel de votre soumission. Exemple de numéro : FJ-00011.":"Find the FJ number and first name in your quote email. Example number: FJ-00011."
+"Le numéro FJ et le prénom se trouvent dans le courriel de votre soumission. Exemple de numéro : FJ-00011.":"Find the FJ number and first name in your quote email. Example number: FJ-00011.",
+"🎥 Voir mon impression":"🎥 View my print",
+"Consultez votre soumission et accédez à votre impression lorsque le visionnement est autorisé.":"Review your quote and view your print when viewing is enabled.",
+"Numéro de soumission":"Quote number",
+"Prénom du client":"Customer first name",
+"État de fabrication :":"Production status:",
+"Progression :":"Progress:",
+"Votre lien privé est actif.":"Your private link is active.",
+"🎥 Ouvrir mon impression en direct":"🎥 Open my live print",
+"La caméra n'est pas encore disponible, ou le lien de visionnement a expiré.":"The camera is not available yet, or the viewing link has expired."
 };
 const originals=new WeakMap();
 function apply(){
