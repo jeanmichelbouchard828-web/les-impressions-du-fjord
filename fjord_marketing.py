@@ -739,6 +739,15 @@ body.fjord-public main .fjm-home .fjm-atelier-note span{font-size:12px}
 @media(max-width:460px){body.fjord-public main .fjm-home .fjm-atelier-copy,body.fjord-public main .fjm-home .fjm-atelier-actions,body.fjord-public main .fjm-home .fjm-atelier-features{grid-column:1}body.fjord-public main .fjm-home .fjm-atelier-note{grid-column:1}}
 @media(max-width:760px){body.fjord-public main .fjm-home>.fjm-hero{padding:clamp(14px,4vw,24px)!important;border-radius:22px}body.fjord-public main .fjm-home .fjm-hero-proof{padding:9px!important;border-radius:18px!important}body.fjord-public main .fjm-home .fjm-hero h1{font-size:clamp(39px,10.5vw,58px)!important;line-height:1.02!important}body.fjord-public main .fjm-home .fjm-points{gap:6px}body.fjord-public main .fjm-home .fjm-points li{padding:7px 9px;font-size:10px}}
 @media(max-width:420px){body.fjord-public main .fjm-home .fjm-hero-actions .btn{width:100%;min-height:50px}body.fjord-public main .fjm-home .fjm-hero .fjm-hero-sub{font-size:12px}}
+.fjm-review-nudge{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:15px;padding:14px 17px;border:1px solid #327596;border-radius:13px;background:linear-gradient(110deg,#0b263d,#112c40)}
+.fjm-review-nudge p{margin:0;max-width:68ch;color:#c7dce9;font-size:14px;line-height:1.5}
+.fjm-review-nudge a{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-height:42px;padding:9px 14px;border:1px solid #73d5f2;border-radius:10px;background:#0e405e;color:#f4fcff!important;font-weight:850;text-decoration:none}
+.fjm-review-nudge a:hover{background:#155978}
+.fjm-review-nudge a:focus-visible{outline:3px solid #a3edff;outline-offset:3px}
+body.light .fjm-review-nudge{background:linear-gradient(110deg,#eef9ff,#e2f3fb);border-color:#abd0e2}
+body.light .fjm-review-nudge p{color:#36576d}
+body.light .fjm-review-nudge a{background:#087cae;color:#fff!important}
+@media(max-width:640px){.fjm-review-nudge{align-items:stretch;flex-direction:column}.fjm-review-nudge a{width:100%}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
@@ -796,6 +805,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  {% for item in featured %}<article class="fjm-project" aria-label="Réalisation : {{item.title}}"><a class="fjm-project-image-link" href="/galerie/{{item.id}}" aria-label="Voir les photos de {{item.title}}"><img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250"></a><div class="fjm-project-content"><span>{{item.category}}</span>{% if item.is_real_piece %}<span class="fjm-photo-real-badge" data-fjm-en="✓ Made in our workshop">✓ Pièce réelle de l’atelier</span>{% endif %}{% if item.is_real_photo %}<span class="fjm-photo-real-badge" data-fjm-en="📸 Real photo">📸 Photo réelle</span>{% else %}<span class="fjm-photo-render-badge" data-fjm-en="🧊 3D preview">🧊 Visuel 3D</span>{% endif %}<strong>{{item.title[:1]|upper}}{{item.title[1:]}}</strong><small class="fjm-project-model-state">✓ Le fichier STL/3MF sera joint à votre demande</small><div class="fjm-project-actions"><a class="fjm-project-details" href="/galerie/{{item.id}}"><span data-fjm-en="See photos">Voir les photos</span></a><a class="fjm-project-quote" href="/soumission?galerie={{item.id}}&amp;photo={{item.quote_photo_id}}"><span data-fjm-en="Request a quote">Demander une soumission</span></a></div></div></article>
  {% else %}<div class="card"><h3 data-fjm-en="Printable projects coming soon">Projets avec fichier 3D à venir</h3><p data-fjm-en="You can still request a custom project.">Vous pouvez aussi demander une création sur mesure.</p><a class="btn" href="/soumission" data-fjm-en="Request a quote">Demander une soumission</a></div>{% endfor %}
  </div></div><div class="fjm-section-actions"><a class="btn fjm-outline" href="/galerie" data-fjm-en="See the full gallery">Voir toute la galerie</a></div>
+ <div class="fjm-review-nudge"><p data-fjm-en="Already received a piece? Your review or a photo can help the next customer. We will only publish it with your permission.">Vous avez reçu une pièce? Votre avis ou une photo peut aider les prochains clients. Nous ne publierons rien sans votre accord.</p><a href="mailto:lesimpressionsdufjord@gmail.com?subject=Avis%20et%20photo%20sur%20ma%20commande" data-fjm-en="Share my feedback →">Partager mon avis →</a></div>
 </section>
 <section class="fjm-process-strip" id="fonctionnement" aria-label="Comment commander">
  <span class="fjm-process-label" data-fjm-en="Simple ordering">SIMPLE ET RAPIDE</span>
