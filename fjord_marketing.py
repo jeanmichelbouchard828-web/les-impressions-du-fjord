@@ -668,6 +668,10 @@ body.fjord-public .fjord-thanks-symbol{color:#d8ff43;text-shadow:0 0 25px #d8ff4
 .fjm-home .fjm-real-photo-label{position:absolute;left:12px;bottom:12px;z-index:1;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid #dcff4f;border-radius:999px;background:#10170ee8;color:#f4ffc2;font-size:11px;font-weight:950;letter-spacing:.06em;line-height:1.2;box-shadow:0 6px 20px #0008}
 .fjm-home .fjm-hero-photo-grid>a:nth-child(2) .fjm-real-photo-label{left:7px;bottom:7px;padding:6px 8px;font-size:9px}
 .fjm-filter-real[aria-pressed=true]{background:#d8ff43;color:#14200a;border-color:#efff9b;box-shadow:0 0 22px #d8ff4355}
+body.fjord-public .fjm-gallery-controls .fjm-category-filters{display:contents}
+body.fjord-public .fjm-gallery-controls .fjm-category-filters .fjm-filter{background:#112b40;color:#dceaf3;border-color:#39556a}
+body.fjord-public .fjm-gallery-controls .fjm-category-filters .fjm-filter[aria-pressed=true]{background:#d8ff43;color:#14200a;border-color:#efff9b}
+body.fjord-public .fjm-gallery-controls:has(#fjmGalleryReal[aria-pressed="true"]) .fjm-category-filters{display:none!important}
 .fjm-home .fjm-proof-eyebrow{margin-top:13px!important}
 .fjm-home .fjm-hero-proof h2{margin-bottom:4px!important}
 body.light .fjm-home .fjm-hero-photo-grid{background:#dbe6ee}
