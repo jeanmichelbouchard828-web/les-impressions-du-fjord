@@ -750,21 +750,14 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <p class="fjm-hero-sub" data-fjm-en="No 3D file needed · Free quote · No obligation">Pas besoin de fichier 3D · Soumission gratuite · Sans engagement</p>
  <ul class="fjm-points"><li data-fjm-en="⚡ Custom-made parts">⚡ Pièce faite pour vous</li><li data-fjm-en="📍 Made in Saguenay">📍 Fabriqué au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
  </div>
- <aside class="fjm-hero-panel fjm-hero-proof">
-  <div class="fjm-hero-photo-grid fjm-hero-showcase" aria-label="Exemples de vraies pièces imprimées par l’atelier">
-   <a class="fjm-hero-main-photo" href="/galerie/6" aria-label="Voir la photo réelle de la décoration de mouton imprimée en 3D">
-    <img src="/gallery/image/6" alt="Décoration de mouton en 3D, pièce réellement imprimée par l’atelier" width="720" height="520" loading="eager" fetchpriority="high">
-    <span class="fjm-hero-feature-tag" data-fjm-en="⭐ CUSTOMER FAVOURITE">⭐ PIÈCE COUP DE CŒUR</span>
-    <span class="fjm-real-photo-label" data-fjm-en="📸 REAL PRINTED PIECE">📸 PIÈCE RÉELLEMENT IMPRIMÉE</span>
-   </a>
-   <a class="fjm-hero-secondary-photo" href="/galerie/8" aria-label="Voir une autre pièce réelle, le couvercle jaune DeWalt">
-    <img src="/gallery/image/8" alt="Couvercle jaune DeWalt imprimé en 3D" width="720" height="520" loading="eager">
-    <span class="fjm-real-photo-label" data-fjm-en="⚡ ANOTHER REAL CREATION">⚡ AUTRE CRÉATION RÉELLE</span>
-   </a>
+ <aside class="fjord-hero-studio" aria-label="Votre prochain projet prend forme">
+  <div class="fjord-hero-orbit" aria-hidden="true"><span class="fjord-orbit-ring fjord-ring-one"></span><span class="fjord-orbit-ring fjord-ring-two"></span><span class="fjord-orbit-core">3D</span><span class="fjord-orbit-spark fjord-spark-a">✦</span><span class="fjord-orbit-spark fjord-spark-b">✧</span></div>
+  <div class="fjord-studio-content">
+   <span class="fjord-studio-eyebrow" data-fjm-en="FROM IDEA TO REALITY">DE L'IDÉE À LA RÉALITÉ</span>
+   <h2 data-fjm-en="Your next great idea starts here.">Votre prochaine création commence ici.</h2>
+   <p data-fjm-en="Bring a photo, a sketch or a 3D file. We help turn it into a real part.">Une photo, un croquis ou un fichier 3D : transformons votre projet en pièce réelle.</p>
+   <a class="fjord-studio-link" href="/atelier-3d" data-fjm-en="Explore the 3D workshop →">Explorer l'Atelier 3D →</a>
   </div>
-  <p class="fjm-proof-eyebrow" data-fjm-en="REAL PROJECTS · MADE IN SAGUENAY">VRAIES RÉALISATIONS · FABRIQUÉES AU SAGUENAY</p>
-  <h2 data-fjm-en="Real parts. Made right here.">Des pièces réelles. Fabriquées ici.</h2>
-  <p data-fjm-en="A look at a few parts made in our local workshop.">Quelques pièces réellement produites dans notre atelier local.</p>
  </aside>
 </section>
 <section class="fjord-paths" aria-labelledby="fjord-paths-title">
