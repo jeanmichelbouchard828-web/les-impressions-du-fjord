@@ -746,7 +746,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <div><span class="fjm-kicker" data-fjm-en="⚡ YOUR IDEA TAKES SHAPE HERE · SAGUENAY">⚡ VOTRE IDÉE PREND FORME ICI · SAGUENAY</span>
  <h1 id="fjm-hero-title"><span data-fjm-en="Your idea.">Une idée.</span> <span class="fjm-accent" data-fjm-en="A part made for you.">Une pièce créée pour vous.</span></h1>
  <p class="fjm-hero-lead" data-fjm-en="A replacement part, a custom accessory or a one-of-a-kind gift. Tell us what you need and we’ll bring it to life here in Saguenay.">Une pièce introuvable? Un cadeau unique? Un projet en tête? Envoyez votre idée, une photo ou votre fichier 3D : nous préparons une soumission adaptée à votre besoin, ici au Saguenay.</p>
- <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Explore ready-to-print pieces">Découvrir les pièces prêtes à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Start my project">Parler de mon projet</a></div>
+ <div class="fjm-hero-actions"><a class="btn" href="/soumission" data-fjm-en="Get my free quote">Obtenir ma soumission gratuite</a><a class="btn fjm-outline" href="/galerie?prets=1" data-fjm-en="Explore ready-to-print pieces">Découvrir les créations</a></div>
  <p class="fjm-hero-sub" data-fjm-en="No 3D file needed · Free quote · No obligation">Pas besoin de fichier 3D · Soumission gratuite · Sans engagement</p>
  <ul class="fjm-points"><li data-fjm-en="⚡ Custom-made parts">⚡ Pièce faite pour vous</li><li data-fjm-en="📍 Made in Saguenay">📍 Fabriqué au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
  </div>
@@ -766,6 +766,14 @@ MARKETING_HOME_START = """<div class="fjm-home">
   <h2 data-fjm-en="Real parts. Made right here.">Des pièces réelles. Fabriquées ici.</h2>
   <p data-fjm-en="A look at a few parts made in our local workshop.">Quelques pièces réellement produites dans notre atelier local.</p>
  </aside>
+</section>
+<section class="fjord-paths" aria-labelledby="fjord-paths-title">
+ <div class="fjord-paths-intro"><span class="fjm-kicker" data-fjm-en="YOUR PROJECT, YOUR WAY">VOTRE PROJET, VOTRE FAÇON</span><h2 id="fjord-paths-title" data-fjm-en="What would you like to create?">On commence par quoi?</h2><p data-fjm-en="With a file or just an idea, there is a simple way to get started.">Que vous ayez un fichier ou simplement une idée, on a une solution pour vous.</p></div>
+ <div class="fjord-paths-grid">
+  <a class="fjord-path-card" href="/atelier-3d"><span aria-hidden="true">⬡</span><strong data-fjm-en="I already have a 3D file">J'ai déjà mon fichier 3D</strong><small data-fjm-en="Open the 3D workshop and import your STL or 3MF.">Ouvrir l'Atelier 3D et importer mon STL ou 3MF.</small><b data-fjm-en="Open the workshop →">Ouvrir l'atelier →</b></a>
+  <a class="fjord-path-card" href="/soumission"><span aria-hidden="true">✦</span><strong data-fjm-en="Create my custom part">Créer ma pièce sur mesure</strong><small data-fjm-en="Describe your idea or send a photo to request a quote.">Décrire mon idée ou envoyer une photo pour obtenir un prix.</small><b data-fjm-en="Request my quote →">Demander mon prix →</b></a>
+  <a class="fjord-path-card" href="/galerie?prets=1"><span aria-hidden="true">◈</span><strong data-fjm-en="Find a ready-to-print creation">Choisir une création existante</strong><small data-fjm-en="Browse projects and find a piece you like.">Parcourir les réalisations et choisir une pièce.</small><b data-fjm-en="Explore the gallery →">Voir les créations →</b></a>
+ </div>
 </section>
 <section class="fjm-atelier" id="atelier" aria-labelledby="fjm-atelier-title">
  <div class="fjm-atelier-mark" aria-hidden="true">🧊</div>
