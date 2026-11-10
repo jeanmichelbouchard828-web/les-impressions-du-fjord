@@ -271,3 +271,26 @@ body.fjord-public .fjm-final{border-radius:24px;box-shadow:0 20px 45px #0004}
  body.fjord-public .fjm-steps{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:370px){body.fjord-public .fjm-gallery{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Choix rapide du parcours client, accessible sur mobile */
+body.fjord-public .fjord-paths{order:1;display:block;margin:20px 0 30px;padding:clamp(17px,3vw,30px);border:1px solid #327d9e;border-radius:23px;background:linear-gradient(140deg,#091f32,#0b3148)}
+body.fjord-public .fjord-paths-intro h2{margin:8px 0;font-size:clamp(26px,3vw,39px);letter-spacing:-.035em;color:#f2fcff}
+body.fjord-public .fjord-paths-intro p{margin:0 0 18px;color:#c8e3ef}
+body.fjord-public .fjord-paths-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+body.fjord-public .fjord-path-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;padding:20px;border:1px solid #367f9f;border-radius:17px;background:linear-gradient(155deg,#123c55,#082335);color:#effbff!important;text-decoration:none!important;transition:transform .2s,border-color .2s}
+body.fjord-public .fjord-path-card:hover{transform:translateY(-3px);border-color:#8de7fa}
+body.fjord-public .fjord-path-card:focus-visible{outline:3px solid #a5edff;outline-offset:3px}
+body.fjord-public .fjord-path-card>span{font-size:29px;color:#7fe4fa}
+body.fjord-public .fjord-path-card strong{font-size:clamp(17px,2vw,22px);line-height:1.2}
+body.fjord-public .fjord-path-card small{font-size:13px;line-height:1.5;color:#c1dce8;flex:1}
+body.fjord-public .fjord-path-card b{font-size:14px;color:#8eeaff}
+body.light.fjord-public .fjord-paths{background:#e9f7fd;border-color:#a1d2e8}
+body.light.fjord-public .fjord-paths-intro h2{color:#153c53}
+body.light.fjord-public .fjord-paths-intro p{color:#345d73}
+body.light.fjord-public .fjord-path-card{background:#fff;border-color:#afd6e6;color:#163e53!important}
+body.light.fjord-public .fjord-path-card small{color:#3a6477}
+body.light.fjord-public .fjord-path-card b{color:#086f9a}
+@media(max-width:800px){body.fjord-public .fjord-paths-grid{grid-template-columns:1fr}}
+@media(max-width:690px){body.fjord-public .fjord-paths{padding:18px 13px;margin:12px 0 22px}body.fjord-public .fjord-path-card{padding:16px;gap:7px}body.fjord-public .fjord-path-card>span{font-size:24px}}
+@media(prefers-reduced-motion:reduce){body.fjord-public .fjord-path-card{transition:none}}
