@@ -294,3 +294,29 @@ body.light.fjord-public .fjord-path-card b{color:#086f9a}
 @media(max-width:800px){body.fjord-public .fjord-paths-grid{grid-template-columns:1fr}}
 @media(max-width:690px){body.fjord-public .fjord-paths{padding:18px 13px;margin:12px 0 22px}body.fjord-public .fjord-path-card{padding:16px;gap:7px}body.fjord-public .fjord-path-card>span{font-size:24px}}
 @media(prefers-reduced-motion:reduce){body.fjord-public .fjord-path-card{transition:none}}
+
+
+/* Finition boutique: galerie, soumission et confiance, sans toucher aux flux backend */
+body.fjord-public .fjm-project-image-link{display:block;overflow:hidden;background:#081d2d}
+body.fjord-public .fjm-project-image-link img{transition:transform .28s ease,filter .28s ease}
+@media(hover:hover){body.fjord-public .fjm-project:hover .fjm-project-image-link img{transform:scale(1.055);filter:contrast(1.045)}}
+body.fjord-public .fjm-project-content strong{line-height:1.3;text-wrap:pretty}
+body.fjord-public .fjm-project-actions a:focus-visible{outline:3px solid #a3eeff;outline-offset:2px}
+body.fjord-public .fjm-quote-form{box-shadow:0 18px 50px #0003}
+body.fjord-public .fjm-quote-form label{line-height:1.5}
+body.fjord-public .fjm-quote-form input[type=file]{border-width:2px;border-color:#4baac9;background:#0a3045;min-height:58px}
+body.fjord-public .fjm-quote-form .fjm-form-submit{min-height:56px;font-weight:900;box-shadow:0 8px 24px #098ec04d}
+body.fjord-public .fjm-quote-helper{border-radius:18px;box-shadow:0 12px 30px #0002}
+body.fjord-public .fjord-gallery-detail-cta .btn{font-weight:900}
+body.fjord-public .fjm-faq details[open]{border-color:#6ec9e6;background:#10364b}
+body.fjord-public .fjm-faq summary{min-height:28px}
+body.fjord-public .fjm-faq summary:focus-visible{outline:3px solid #a0eaff;outline-offset:4px}
+body.fjord-public .fjm-final .btn{min-height:54px;display:inline-flex;align-items:center;justify-content:center}
+body.light.fjord-public .fjm-quote-form input[type=file]{background:#f4fbff;color:#173b51}
+body.light.fjord-public .fjm-faq details[open]{background:#edf8ff}
+@media(max-width:690px){
+ body.fjord-public .fjm-quote-helper{padding:15px}
+ body.fjord-public .fjm-quote-form{border-radius:15px}
+ body.fjord-public .fjm-project-actions a{font-size:13px}
+ body.fjord-public .fjord-gallery-detail-cta{gap:10px}
+}
