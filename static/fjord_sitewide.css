@@ -441,3 +441,11 @@ body.fjord-public .fjm-home .fjm-section{scroll-margin-top:75px}
 body.fjord-public .fjord-path-card{border-width:2px}
 body.fjord-public .fjord-studio-link{outline:2px solid currentColor}
 }
+
+
+/* Aide commerciale claire sans formulaire supplémentaire */
+body.fjord-public .fjord-project-guide{display:flex;flex-wrap:wrap;align-items:center;gap:9px 18px;margin-top:20px;padding:17px 20px;border:1px solid rgba(106,202,230,.35);border-radius:16px;background:rgba(38,126,158,.09)}
+body.fjord-public .fjord-project-guide strong{font-size:16px}
+body.fjord-public .fjord-project-guide p{flex:1 1 340px;margin:0;font-size:14px;line-height:1.6}
+body.fjord-public .fjord-project-guide a{font-weight:800;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:690px){body.fjord-public .fjord-project-guide{display:block;padding:17px}body.fjord-public .fjord-project-guide p{margin:9px 0 12px}body.fjord-public .fjord-project-guide a{display:inline-flex;align-items:center;min-height:44px}}
