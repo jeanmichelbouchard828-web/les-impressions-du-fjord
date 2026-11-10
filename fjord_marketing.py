@@ -689,6 +689,15 @@ body.fjord-public main .fjm-home .fjm-hero>div>.fjm-kicker{gap:7px;min-height:36
 body.fjord-public main .fjm-home .fjm-hero-photo-grid{border:3px solid #f9fbff;box-shadow:0 0 0 2px #ef503f,0 0 34px #1747e858,0 20px 52px #08143170}
 body.fjord-public main .fjm-home .fjm-hero-photo-grid img{filter:saturate(1.18) contrast(1.08) brightness(1.06)}
 body.fjord-public main .fjm-home .fjm-hero-photo-grid>a:first-child img{object-position:center 48%}
+body.fjord-public main .fjm-home .fjm-hero-showcase{position:relative;border:3px solid transparent!important;border-radius:26px!important;background:linear-gradient(135deg,#f8fbff,#f8fbff) padding-box,linear-gradient(140deg,#36dcff,#3857ff 46%,#ff624d) border-box!important;box-shadow:0 0 0 1px #b5cfff66,0 24px 58px #06133480!important}
+body.fjord-public main .fjm-home .fjm-hero-showcase>a:first-child{border:0!important;border-radius:22px!important}
+body.fjord-public main .fjm-home .fjm-hero-showcase>a:first-child:after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:linear-gradient(180deg,#07182d12 28%,transparent 48%,#07182da6 100%)}
+body.fjord-public main .fjm-home .fjm-hero-feature-tag{position:absolute;z-index:2;top:16px;left:16px;padding:10px 14px;border:1px solid #fff9;border-radius:999px;background:linear-gradient(105deg,#163fd9ed,#067fc7ed 62%,#e94d43ed);color:#fff;font-size:11px;font-weight:950;letter-spacing:.08em;box-shadow:0 9px 24px #08133488}
+body.fjord-public main .fjm-home .fjm-hero-showcase .fjm-real-photo-label{border:1px solid #ffffffd4;background:#08152fe8;color:#fff;box-shadow:0 7px 22px #03081780}
+body.fjord-public main .fjm-home .fjm-hero-showcase>a:nth-child(2){right:16px;bottom:16px;width:34%;height:40%!important;border:3px solid #fff!important;border-radius:18px!important;box-shadow:0 14px 34px #03081799}
+body.fjord-public main .fjm-home .fjm-hero-showcase>a:nth-child(2) .fjm-real-photo-label{left:7px;bottom:7px;padding:6px 8px;font-size:9px}
+@media(max-width:760px){body.fjord-public main .fjm-home .fjm-hero-showcase{height:clamp(330px,82vw,470px)!important;border-radius:25px!important}body.fjord-public main .fjm-home .fjm-hero-feature-tag{top:12px;left:12px;padding:9px 11px;font-size:10px}body.fjord-public main .fjm-home .fjm-hero-showcase>a:nth-child(2){right:12px;bottom:12px;width:38%;height:37%!important}}
+@media(max-width:460px){body.fjord-public main .fjm-home .fjm-hero-showcase{height:clamp(290px,83vw,360px)!important}body.fjord-public main .fjm-home .fjm-hero-showcase>a:nth-child(2){width:39%;height:36%!important}body.fjord-public main .fjm-home .fjm-hero-feature-tag{font-size:9px;letter-spacing:.05em}}
 @media(max-width:760px){body.fjord-public main .fjm-home .fjm-hero-photo-grid{height:clamp(285px,72vw,390px)!important}}
 @media(max-width:460px){body.fjord-public main .fjm-home .fjm-hero-photo-grid{height:clamp(255px,74vw,320px)!important}}
 body.fjord-public main .fjm-home .fjm-hero h1{color:#101a30!important;max-width:730px;font-size:clamp(42px,6.4vw,82px)!important;line-height:.99!important;letter-spacing:-.065em!important}
@@ -742,12 +751,16 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <ul class="fjm-points"><li data-fjm-en="⚡ Custom-made parts">⚡ Pièce faite pour vous</li><li data-fjm-en="📍 Made in Saguenay">📍 Fabriqué au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
  </div>
  <aside class="fjm-hero-panel fjm-hero-proof">
-  <div class="fjm-hero-photo-grid" aria-label="Photos réelles de pièces imprimées par l’atelier">
-   {% set hero_photos = featured|selectattr('is_real_photo')|list|reverse|list %}
-   {% for item in hero_photos[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir la photo réelle de {{item.title}}">
-    <img src="/gallery/thumb/{{item.id}}" alt="Photo réelle de la pièce : {{item.title}}" width="720" height="520" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
-    <span class="fjm-real-photo-label">{% if loop.first %}📸 PHOTO DE LA PIÈCE{% else %}📸 AUTRE PHOTO RÉELLE{% endif %}</span>
-   </a>{% else %}<a href="/galerie" class="fjm-hero-photo-placeholder" aria-label="Découvrir la galerie">📸<br>Nos vraies réalisations<br>faites au Saguenay</a>{% endfor %}
+  <div class="fjm-hero-photo-grid fjm-hero-showcase" aria-label="Exemples de vraies pièces imprimées par l’atelier">
+   <a class="fjm-hero-main-photo" href="/galerie/6" aria-label="Voir la photo réelle de la décoration de mouton imprimée en 3D">
+    <img src="/gallery/image/6" alt="Décoration de mouton en 3D, pièce réellement imprimée par l’atelier" width="720" height="520" loading="eager" fetchpriority="high">
+    <span class="fjm-hero-feature-tag" data-fjm-en="⭐ CUSTOMER FAVOURITE">⭐ PIÈCE COUP DE CŒUR</span>
+    <span class="fjm-real-photo-label" data-fjm-en="📸 REAL PRINTED PIECE">📸 PIÈCE RÉELLEMENT IMPRIMÉE</span>
+   </a>
+   <a class="fjm-hero-secondary-photo" href="/galerie/8" aria-label="Voir une autre pièce réelle, le couvercle jaune DeWalt">
+    <img src="/gallery/image/8" alt="Couvercle jaune DeWalt imprimé en 3D" width="720" height="520" loading="eager">
+    <span class="fjm-real-photo-label" data-fjm-en="⚡ ANOTHER REAL CREATION">⚡ AUTRE CRÉATION RÉELLE</span>
+   </a>
   </div>
   <p class="fjm-proof-eyebrow" data-fjm-en="REAL PROJECTS · MADE IN SAGUENAY">VRAIES RÉALISATIONS · FABRIQUÉES AU SAGUENAY</p>
   <h2 data-fjm-en="Real parts. Made right here.">Des pièces réelles. Fabriquées ici.</h2>
