@@ -658,6 +658,21 @@ body.fjord-public .fjord-thanks-symbol{color:#d8ff43;text-shadow:0 0 25px #d8ff4
  body.fjord-public>footer{gap:10px;padding:20px 14px}
 }
 @media(max-width:380px){body.fjord-public .fjm-home .fjm-offers,body.fjord-public .fjm-gallery{grid-template-columns:1fr}body.fjord-public .fjm-home .fjm-offer{padding:14px}body.fjord-public .fjm-project img,body.fjord-public .fjm-project .fjm-project-noimage{aspect-ratio:1.35}}
+/* Featured photographs are actual printed parts, large enough to register immediately. */
+.fjm-home .fjm-hero-proof{padding:15px!important}
+.fjm-home .fjm-hero-photo-grid{position:relative;display:block!important;height:clamp(300px,34vw,430px)!important;overflow:hidden;border-radius:20px;background:#08111b}
+.fjm-home .fjm-hero-photo-grid>a{position:absolute;display:block!important;overflow:hidden;border:1px solid #ffffff55;border-radius:18px;background:#101923;box-shadow:0 18px 42px #0008}
+.fjm-home .fjm-hero-photo-grid>a:first-child{inset:0;width:100%;height:100%!important;min-height:0!important}
+.fjm-home .fjm-hero-photo-grid>a:nth-child(2){right:14px;bottom:14px;width:38%;height:43%!important;min-height:0!important;border:3px solid #f6fdff;box-shadow:0 12px 30px #000a}
+.fjm-home .fjm-hero-photo-grid img{display:block;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;object-fit:cover;border-radius:inherit!important;filter:saturate(1.12) contrast(1.04)}
+.fjm-home .fjm-real-photo-label{position:absolute;left:12px;bottom:12px;z-index:1;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid #dcff4f;border-radius:999px;background:#10170ee8;color:#f4ffc2;font-size:11px;font-weight:950;letter-spacing:.06em;line-height:1.2;box-shadow:0 6px 20px #0008}
+.fjm-home .fjm-hero-photo-grid>a:nth-child(2) .fjm-real-photo-label{left:7px;bottom:7px;padding:6px 8px;font-size:9px}
+.fjm-home .fjm-proof-eyebrow{margin-top:13px!important}
+.fjm-home .fjm-hero-proof h2{margin-bottom:4px!important}
+body.light .fjm-home .fjm-hero-photo-grid{background:#dbe6ee}
+@media(max-width:760px){.fjm-home .fjm-hero-photo-grid{height:clamp(240px,61vw,330px)!important}.fjm-home .fjm-hero-photo-grid>a:nth-child(2){right:10px;bottom:10px;width:40%;height:42%!important}.fjm-home .fjm-real-photo-label{left:9px;bottom:9px;padding:8px 10px;font-size:10px}}
+@media(max-width:640px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr)!important}.fjm-home .fjm-hero-proof{grid-row:1!important;margin:0 0 15px!important;padding:8px!important}.fjm-home .fjm-hero>div>.fjm-kicker{grid-row:2!important}.fjm-home .fjm-hero>div>h1{grid-row:3!important}.fjm-home .fjm-hero>div>.fjm-hero-lead{grid-row:4!important}.fjm-home .fjm-hero>div>.fjm-hero-actions{grid-row:5!important}.fjm-home .fjm-hero>div>.fjm-hero-sub{grid-row:6!important}.fjm-home .fjm-hero-photo-grid{height:clamp(235px,66vw,290px)!important}.fjm-home .fjm-proof-eyebrow,.fjm-home .fjm-hero-proof h2,.fjm-home .fjm-hero-proof>p:last-child{display:none!important}}
+@media(max-width:380px){.fjm-home .fjm-hero-photo-grid{height:225px!important}.fjm-home .fjm-hero-photo-grid>a:nth-child(2){width:41%;height:40%!important}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
@@ -670,10 +685,12 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <ul class="fjm-points"><li data-fjm-en="⚡ Automatic STL/3MF attachment">⚡ Fichier STL/3MF joint automatiquement</li><li data-fjm-en="📍 Printed in Saguenay">📍 Imprimé au Saguenay</li><li data-fjm-en="✓ Free quote">✓ Soumission gratuite</li></ul>
  </div>
  <aside class="fjm-hero-panel fjm-hero-proof">
-  <div class="fjm-hero-photo-grid" aria-label="Exemples de projets disponibles">
-   {% for item in featured[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir {{item.title}}">
-    <img src="/gallery/thumb/{{item.id}}" alt="{{item.title}}{% if item.is_real_photo %} — pièce imprimée en photo{% else %} — aperçu du modèle 3D{% endif %}" width="420" height="260" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
-   </a>{% else %}<a href="/galerie" class="fjm-hero-photo-placeholder" aria-label="Découvrir la galerie">🧊<br>Projets sur mesure<br>faits au Saguenay</a>{% endfor %}
+  <div class="fjm-hero-photo-grid" aria-label="Photos de vraies pièces imprimées">
+   {% set hero_photos = featured|selectattr('is_real_photo')|list %}
+   {% for item in hero_photos[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir la vraie photo : {{item.title}}">
+    <img src="/gallery/thumb/{{item.id}}" alt="Photo réelle de la pièce imprimée : {{item.title}}" width="720" height="520" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
+    <span class="fjm-real-photo-label">📸 VRAIE PIÈCE · {{item.title}}</span>
+   </a>{% else %}<a href="/galerie" class="fjm-hero-photo-placeholder" aria-label="Découvrir la galerie">📸<br>Nos vraies réalisations<br>faites au Saguenay</a>{% endfor %}
   </div>
   <p class="fjm-proof-eyebrow" data-fjm-en="MADE IN SAGUENAY · CUSTOM 3D PRINTING">FABRIQUÉ AU SAGUENAY · IMPRESSION SUR MESURE</p>
   <h2 data-fjm-en="From a quick idea to a finished part">De votre idée à la pièce finie</h2>
