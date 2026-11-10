@@ -689,7 +689,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
    {% set hero_photos = featured|selectattr('is_real_photo')|list %}
    {% for item in hero_photos[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir la vraie photo : {{item.title}}">
     <img src="/gallery/thumb/{{item.id}}" alt="Photo réelle de la pièce imprimée : {{item.title}}" width="720" height="520" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
-    <span class="fjm-real-photo-label">📸 VRAIE PIÈCE · {{item.title}}</span>
+    <span class="fjm-real-photo-label">{% if loop.first %}📸 VRAIE PIÈCE{% else %}📸 AUTRE RÉALISATION{% endif %}</span>
    </a>{% else %}<a href="/galerie" class="fjm-hero-photo-placeholder" aria-label="Découvrir la galerie">📸<br>Nos vraies réalisations<br>faites au Saguenay</a>{% endfor %}
   </div>
   <p class="fjm-proof-eyebrow" data-fjm-en="MADE IN SAGUENAY · CUSTOM 3D PRINTING">FABRIQUÉ AU SAGUENAY · IMPRESSION SUR MESURE</p>
