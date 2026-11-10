@@ -713,6 +713,14 @@ body.fjord-public main .fjm-home .fjm-atelier-actions .btn:hover{transform:trans
 body.fjord-public main .fjm-home .fjm-atelier-secondary{color:#fff!important;font-weight:850;text-decoration-color:#ffb7a7;text-underline-offset:4px}
 body.fjord-public main .fjm-home .fjm-atelier-note{border:1px solid #ffffffc9;border-radius:15px;background:#f8fbff;color:#14264c;box-shadow:0 12px 28px #07184233}
 body.fjord-public main .fjm-home .fjm-atelier-note span{color:#1747c8}
+body.fjord-public main .fjm-home .fjm-atelier-copy h2{max-width:760px}
+body.fjord-public main .fjm-home .fjm-atelier-copy p{max-width:72ch}
+body.fjord-public main .fjm-home .fjm-atelier-features{display:flex;flex-wrap:wrap;gap:7px;margin:13px 0 0;padding:0;list-style:none}
+body.fjord-public main .fjm-home .fjm-atelier-features li{padding:6px 9px;border:1px solid #ffffff70;border-radius:999px;background:#081e4740;color:#f5f8ff;font-size:11px;font-weight:800;line-height:1.2}
+body.fjord-public main .fjm-home .fjm-atelier-note strong{font-size:13px}
+body.fjord-public main .fjm-home .fjm-atelier-note span{font-size:12px}
+@media(max-width:760px){body.fjord-public main .fjm-home .fjm-atelier-features{grid-column:1/-1;margin-top:0}body.fjord-public main .fjm-home .fjm-atelier-note{grid-column:1/-1;width:fit-content;max-width:100%;flex-wrap:wrap}body.fjord-public main .fjm-home .fjm-atelier-copy{grid-column:2}body.fjord-public main .fjm-home .fjm-atelier-actions{grid-column:2}}
+@media(max-width:460px){body.fjord-public main .fjm-home .fjm-atelier-copy,body.fjord-public main .fjm-home .fjm-atelier-actions,body.fjord-public main .fjm-home .fjm-atelier-features{grid-column:1}body.fjord-public main .fjm-home .fjm-atelier-note{grid-column:1}}
 @media(max-width:760px){body.fjord-public main .fjm-home>.fjm-hero{padding:clamp(14px,4vw,24px)!important;border-radius:22px}body.fjord-public main .fjm-home .fjm-hero-proof{padding:9px!important;border-radius:18px!important}body.fjord-public main .fjm-home .fjm-hero h1{font-size:clamp(39px,10.5vw,58px)!important;line-height:1.02!important}body.fjord-public main .fjm-home .fjm-points{gap:6px}body.fjord-public main .fjm-home .fjm-points li{padding:7px 9px;font-size:10px}}
 @media(max-width:420px){body.fjord-public main .fjm-home .fjm-hero-actions .btn{width:100%;min-height:50px}body.fjord-public main .fjm-home .fjm-hero .fjm-hero-sub{font-size:12px}}
 </style>"""
@@ -742,12 +750,13 @@ MARKETING_HOME_START = """<div class="fjm-home">
 <section class="fjm-atelier" id="atelier" aria-labelledby="fjm-atelier-title">
  <div class="fjm-atelier-mark" aria-hidden="true">🧊</div>
  <div class="fjm-atelier-copy">
-  <span class="fjm-kicker" data-fjm-en="YOUR 3D WORKSHOP · READY WHEN YOU ARE">VOTRE ATELIER 3D · À PORTÉE DE MAIN</span>
-  <h2 id="fjm-atelier-title" data-fjm-en="Bring your idea into 3D">Donnez forme à votre idée en 3D</h2>
-  <p data-fjm-en="Import an STL or 3MF and inspect your model in the workshop before asking for a quote.">Importez un STL ou un 3MF et examinez votre modèle dans l’Atelier avant de demander une soumission.</p>
-  <div class="fjm-atelier-actions"><a class="btn" href="/atelier-3d" data-fjm-en="Explore the 3D workshop">🧊 Explorer l’Atelier 3D</a><a class="fjm-atelier-secondary" href="/soumission" data-fjm-en="I’d like help with my project">Besoin d’un coup de main?</a></div>
+  <span class="fjm-kicker" data-fjm-en="CREATE YOUR PART RIGHT HERE · NO CAD SOFTWARE NEEDED">CRÉEZ VOTRE PIÈCE ICI · SANS LOGICIEL DE CAO</span>
+  <h2 id="fjm-atelier-title" data-fjm-en="Imagine it. Build it in 3D. Make it yours.">Imaginez-la. Créez-la en 3D. À votre façon.</h2>
+  <p data-fjm-en="Build a custom part right in your browser with 40 customizable 3D generators, or import an STL/3MF. Explore mechanical parts, useful accessories, reliefs and more before requesting a quote.">Créez une pièce sur mesure directement dans votre navigateur avec 40 générateurs 3D personnalisables, ou importez un STL/3MF. Explorez les pièces mécaniques, accessoires pratiques, reliefs et plus encore avant de demander une soumission.</p>
+  <ul class="fjm-atelier-features" aria-label="Outils de création disponibles"><li data-fjm-en="⚙ Mechanical parts">⚙ Pièces mécaniques</li><li data-fjm-en="🧩 Custom accessories">🧩 Accessoires sur mesure</li><li data-fjm-en="📷 Photo to 3D relief">📷 Photo en relief 3D</li><li data-fjm-en="▦ Personalized QR codes">▦ Codes QR personnalisés</li></ul>
+  <div class="fjm-atelier-actions"><a class="btn" href="/atelier-3d" data-fjm-en="✨ Create my part in 3D">✨ Créer ma pièce en 3D</a><a class="fjm-atelier-secondary" href="/soumission" data-fjm-en="I’d like help with my idea">Je veux être accompagné</a></div>
  </div>
- <div class="fjm-atelier-note"><strong data-fjm-en="Bring your model">Votre fichier 3D</strong><span>STL · 3MF</span></div>
+ <div class="fjm-atelier-note"><strong data-fjm-en="No model file? No problem.">Pas de fichier 3D? Aucun problème.</strong><span data-fjm-en="Create online · STL · 3MF">Création en ligne · STL · 3MF</span></div>
 </section>
 <section class="fjm-section" id="services" aria-labelledby="fjm-services-title">
  <div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="What we make">CE QU’ON FABRIQUE</span><h2 id="fjm-services-title" data-fjm-en="Practical parts, prototypes and one-of-a-kind creations">Pièces utiles, prototypes et créations uniques</h2><p data-fjm-en="Tell us what the part needs to do. We will help choose a practical model, material and finish for your project.">Expliquez-nous à quoi doit servir la pièce. On vous aidera à choisir un modèle, un matériau et une finition adaptés à votre projet.</p></div>
