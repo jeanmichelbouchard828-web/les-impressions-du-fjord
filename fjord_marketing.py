@@ -680,30 +680,30 @@ body.light .fjm-home .fjm-hero-photo-grid{background:#dbe6ee}
 @media(max-width:640px){.fjm-home .fjm-hero{grid-template-columns:minmax(0,1fr)!important}.fjm-home .fjm-hero-proof{grid-row:1!important;margin:0 0 15px!important;padding:8px!important}.fjm-home .fjm-hero>div>.fjm-kicker{grid-row:2!important}.fjm-home .fjm-hero>div>h1{grid-row:3!important}.fjm-home .fjm-hero>div>.fjm-hero-lead{grid-row:4!important}.fjm-home .fjm-hero>div>.fjm-hero-actions{grid-row:5!important}.fjm-home .fjm-hero>div>.fjm-hero-sub{grid-row:6!important}.fjm-home .fjm-hero-photo-grid{height:clamp(235px,66vw,290px)!important}.fjm-home .fjm-proof-eyebrow,.fjm-home .fjm-hero-proof h2,.fjm-home .fjm-hero-proof>p:last-child{display:none!important}}
 @media(max-width:380px){.fjm-home .fjm-hero-photo-grid{height:225px!important}.fjm-home .fjm-hero-photo-grid>a:nth-child(2){width:41%;height:40%!important}}
 /* Hero v2: studio clair, cobalt électrique et corail pour un impact mobile immédiat. */
-body.fjord-public .fjm-home>.fjm-hero{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(circle at 8% 96%,#ff735329,transparent 32%),radial-gradient(circle at 91% 7%,#3b6cff2b,transparent 35%),linear-gradient(132deg,#fffdf7 0%,#f4f7ff 57%,#fff0e8 100%)!important;border:2px solid #ffffff;border-radius:30px;box-shadow:0 30px 90px #03144038;color:#101a30}
-body.fjord-public .fjm-home>.fjm-hero:before{content:"";position:absolute;z-index:-1;right:42%;bottom:-210px;width:430px;height:430px;border:1px solid #355fff20;border-radius:50%;box-shadow:0 0 0 28px #355fff08,0 0 0 58px #ff573508}
-body.fjord-public .fjm-home .fjm-hero>div{position:relative;z-index:1}
-body.fjord-public .fjm-home .fjm-hero .fjm-kicker{display:inline-flex;align-items:center;min-height:31px;padding:7px 12px;border-radius:999px;background:#1747e8;color:#fff;font-size:10px;letter-spacing:.13em;box-shadow:0 7px 20px #1747e82b}
-body.fjord-public .fjm-home .fjm-hero h1{color:#101a30!important;max-width:730px;font-size:clamp(42px,6.4vw,82px)!important;line-height:.99!important;letter-spacing:-.065em!important}
-body.fjord-public .fjm-home .fjm-hero .fjm-accent{background:linear-gradient(95deg,#1847eb 4%,#077fc7 48%,#f04f3d 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-body.fjord-public .fjm-home .fjm-hero .fjm-hero-lead{max-width:610px;color:#43516a;font-size:clamp(16px,1.75vw,20px);line-height:1.55}
-body.fjord-public .fjm-home .fjm-hero-actions{gap:12px;margin-top:23px}
-body.fjord-public .fjm-home .fjm-hero-actions .btn{min-height:54px;padding:14px 22px;border-radius:14px!important;font-weight:900;box-shadow:0 11px 24px #142d6240;transition:transform .18s,box-shadow .18s}
-body.fjord-public .fjm-home .fjm-hero-actions .btn:first-child{background:linear-gradient(105deg,#1747e8,#087fc8)!important;border:1px solid #1747e8!important;color:#fff!important}
-body.fjord-public .fjm-home .fjm-hero-actions .btn:last-child{background:#fff!important;border:1px solid #ff6b50!important;color:#bd382a!important;box-shadow:0 8px 20px #f04f3d18}
-body.fjord-public .fjm-home .fjm-hero-actions .btn:hover{transform:translateY(-3px);box-shadow:0 16px 29px #1747e83c}
-body.fjord-public .fjm-home .fjm-hero .fjm-hero-sub{color:#52617a;font-size:13px;font-weight:650}
-body.fjord-public .fjm-home .fjm-points{display:flex!important;gap:8px;margin-top:16px}
-body.fjord-public .fjm-home .fjm-points li{border:1px solid #ccd8f4;border-radius:11px;background:#ffffffc9;color:#263b72;font-size:11px;box-shadow:0 5px 15px #15254c0d}
-body.fjord-public .fjm-home .fjm-hero-proof{position:relative;z-index:1;padding:14px!important;border:1px solid #dbe2f3!important;border-radius:25px!important;background:linear-gradient(160deg,#ffffff,#f0f4ff)!important;box-shadow:0 24px 55px #15254c24!important}
-body.fjord-public .fjm-home .fjm-hero-photo-grid{border:5px solid #fff;border-radius:19px;background:#0d1930;box-shadow:0 13px 32px #10235030}
-body.fjord-public .fjm-home .fjm-hero-photo-grid>a{border:1px solid #ffffff8a;background:#0c1423}
-body.fjord-public .fjm-home .fjm-real-photo-label{border-color:#ff684f;background:#101b35ed;color:#fff;font-size:10px;letter-spacing:.09em}
-body.fjord-public .fjm-home .fjm-proof-eyebrow{color:#1747e8!important}
-body.fjord-public .fjm-home .fjm-hero-proof h2{color:#101a30!important}
-body.fjord-public .fjm-home .fjm-hero-proof>p:last-child{color:#59667d!important}
-@media(max-width:760px){body.fjord-public .fjm-home>.fjm-hero{padding:clamp(14px,4vw,24px)!important;border-radius:22px}body.fjord-public .fjm-home .fjm-hero-proof{padding:9px!important;border-radius:18px!important}body.fjord-public .fjm-home .fjm-hero h1{font-size:clamp(39px,10.5vw,58px)!important;line-height:1.02!important}body.fjord-public .fjm-home .fjm-points{gap:6px}body.fjord-public .fjm-home .fjm-points li{padding:7px 9px;font-size:10px}}
-@media(max-width:420px){body.fjord-public .fjm-home .fjm-hero-actions .btn{width:100%;min-height:50px}body.fjord-public .fjm-home .fjm-hero .fjm-hero-sub{font-size:12px}}
+body.fjord-public main .fjm-home>.fjm-hero{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(circle at 8% 96%,#ff735329,transparent 32%),radial-gradient(circle at 91% 7%,#3b6cff2b,transparent 35%),linear-gradient(132deg,#fffdf7 0%,#f4f7ff 57%,#fff0e8 100%)!important;border:2px solid #ffffff;border-radius:30px;box-shadow:0 30px 90px #03144038;color:#101a30}
+body.fjord-public main .fjm-home>.fjm-hero:before{content:"";position:absolute;z-index:-1;right:42%;bottom:-210px;width:430px;height:430px;border:1px solid #355fff20;border-radius:50%;box-shadow:0 0 0 28px #355fff08,0 0 0 58px #ff573508}
+body.fjord-public main .fjm-home .fjm-hero>div{position:relative;z-index:1}
+body.fjord-public main .fjm-home .fjm-hero .fjm-kicker{display:inline-flex;align-items:center;min-height:31px;padding:7px 12px;border-radius:999px;background:#1747e8;color:#fff;font-size:10px;letter-spacing:.13em;box-shadow:0 7px 20px #1747e82b}
+body.fjord-public main .fjm-home .fjm-hero h1{color:#101a30!important;max-width:730px;font-size:clamp(42px,6.4vw,82px)!important;line-height:.99!important;letter-spacing:-.065em!important}
+body.fjord-public main .fjm-home .fjm-hero .fjm-accent{background:linear-gradient(95deg,#1847eb 4%,#077fc7 48%,#f04f3d 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent!important}
+body.fjord-public main .fjm-home .fjm-hero .fjm-hero-lead{max-width:610px;color:#43516a!important;font-size:clamp(16px,1.75vw,20px);line-height:1.55}
+body.fjord-public main .fjm-home .fjm-hero-actions{gap:12px;margin-top:23px}
+body.fjord-public main .fjm-home .fjm-hero-actions .btn{min-height:54px;padding:14px 22px;border-radius:14px!important;font-weight:900;box-shadow:0 11px 24px #142d6240;transition:transform .18s,box-shadow .18s}
+body.fjord-public main .fjm-home .fjm-hero-actions .btn:first-child{background:linear-gradient(105deg,#1747e8,#087fc8)!important;border:1px solid #1747e8!important;color:#fff!important}
+body.fjord-public main .fjm-home .fjm-hero-actions .btn:last-child{background:#fff!important;border:1px solid #ff6b50!important;color:#bd382a!important;box-shadow:0 8px 20px #f04f3d18}
+body.fjord-public main .fjm-home .fjm-hero-actions .btn:hover{transform:translateY(-3px);box-shadow:0 16px 29px #1747e83c}
+body.fjord-public main .fjm-home .fjm-hero .fjm-hero-sub{color:#52617a!important;font-size:13px;font-weight:650}
+body.fjord-public main .fjm-home .fjm-points{display:flex!important;gap:8px;margin-top:16px}
+body.fjord-public main .fjm-home .fjm-points li{border:1px solid #ccd8f4;border-radius:11px;background:#ffffffc9;color:#263b72;font-size:11px;box-shadow:0 5px 15px #15254c0d}
+body.fjord-public main .fjm-home .fjm-hero-proof{position:relative;z-index:1;padding:14px!important;border:1px solid #dbe2f3!important;border-radius:25px!important;background:linear-gradient(160deg,#ffffff,#f0f4ff)!important;box-shadow:0 24px 55px #15254c24!important}
+body.fjord-public main .fjm-home .fjm-hero-photo-grid{border:5px solid #fff;border-radius:19px;background:#0d1930;box-shadow:0 13px 32px #10235030}
+body.fjord-public main .fjm-home .fjm-hero-photo-grid>a{border:1px solid #ffffff8a;background:#0c1423}
+body.fjord-public main .fjm-home .fjm-real-photo-label{border-color:#ff684f;background:#101b35ed;color:#fff;font-size:10px;letter-spacing:.09em}
+body.fjord-public main .fjm-home .fjm-proof-eyebrow{color:#1747e8!important}
+body.fjord-public main .fjm-home .fjm-hero-proof h2{color:#101a30!important}
+body.fjord-public main .fjm-home .fjm-hero-proof>p:last-child{color:#59667d!important}
+@media(max-width:760px){body.fjord-public main .fjm-home>.fjm-hero{padding:clamp(14px,4vw,24px)!important;border-radius:22px}body.fjord-public main .fjm-home .fjm-hero-proof{padding:9px!important;border-radius:18px!important}body.fjord-public main .fjm-home .fjm-hero h1{font-size:clamp(39px,10.5vw,58px)!important;line-height:1.02!important}body.fjord-public main .fjm-home .fjm-points{gap:6px}body.fjord-public main .fjm-home .fjm-points li{padding:7px 9px;font-size:10px}}
+@media(max-width:420px){body.fjord-public main .fjm-home .fjm-hero-actions .btn{width:100%;min-height:50px}body.fjord-public main .fjm-home .fjm-hero .fjm-hero-sub{font-size:12px}}
 </style>"""
 
 MARKETING_HOME_START = """<div class="fjm-home">
