@@ -416,3 +416,10 @@ body.fjord-public .fjord-mobile-quote-secondary{background:#173c56;border:1px so
 body.fjord-public .fjord-mobile-quote-bar a:focus-visible{outline:3px solid #fff;outline-offset:2px}
 }
 @media print{body.fjord-public .fjord-mobile-quote-bar{display:none!important}}
+
+
+/* Conversion : galerie en lien discret, atelier en action principale */
+body.fjord-public .fjm-hero-actions .fjord-hero-gallery-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 13px;color:#b8f3ff!important;font-weight:800;text-underline-offset:4px;text-align:center}
+body.fjord-public .fjm-hero-actions .fjord-hero-gallery-link:hover{text-decoration-thickness:2px}
+body.light.fjord-public .fjm-hero-actions .fjord-hero-gallery-link{color:#08668d!important}
+@media(max-width:690px){body.fjord-public .fjm-hero-actions .fjord-hero-gallery-link{width:100%;font-size:14px;min-height:40px}}
