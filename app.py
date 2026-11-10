@@ -1887,7 +1887,7 @@ GALLERY_FORM='''<section class="fjord-gallery-manage"><h1>{{heading}}</h1>
  <label>Titre<input name="title" value="{{item.title if item else ''}}" maxlength="120" required></label>
  <label>Catégorie<input name="category" value="{{item.category if item else ''}}" maxlength="120" required></label>
  <label>Description<textarea name="description" maxlength="2000" required>{{item.description if item else ''}}</textarea></label>
- <label class="fjord-real-photo-toggle" style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #347593;border-radius:10px"><input type="checkbox" name="is_real_photo" style="display:inline-block;width:20px;min-width:20px;height:20px;margin:0" {% if not item or item.is_real_photo %}checked{% endif %}> Pièce réellement imprimée (à afficher en priorité)</label>
+ <label class="fjord-real-photo-toggle" style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #347593;border-radius:10px"><input type="checkbox" name="is_real_photo" style="display:inline-block;width:20px;min-width:20px;height:20px;margin:0" {% if not item or item.is_real_photo %}checked{% endif %}> Pièce réalisée par l’atelier (à afficher en priorité)</label>
  <label>Modèle STL/3MF commun à cette réalisation (20 Mo maximum)
  <input type="file" name="default_model" accept=".stl,.3mf"></label>
  {% if item and item.model_filename %}
