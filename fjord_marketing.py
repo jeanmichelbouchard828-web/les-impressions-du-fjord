@@ -667,6 +667,7 @@ body.fjord-public .fjord-thanks-symbol{color:#d8ff43;text-shadow:0 0 25px #d8ff4
 .fjm-home .fjm-hero-photo-grid img{display:block;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;object-fit:cover;border-radius:inherit!important;filter:saturate(1.12) contrast(1.04)}
 .fjm-home .fjm-real-photo-label{position:absolute;left:12px;bottom:12px;z-index:1;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid #dcff4f;border-radius:999px;background:#10170ee8;color:#f4ffc2;font-size:11px;font-weight:950;letter-spacing:.06em;line-height:1.2;box-shadow:0 6px 20px #0008}
 .fjm-home .fjm-hero-photo-grid>a:nth-child(2) .fjm-real-photo-label{left:7px;bottom:7px;padding:6px 8px;font-size:9px}
+.fjm-filter-real[aria-pressed=true]{background:#d8ff43;color:#14200a;border-color:#efff9b;box-shadow:0 0 22px #d8ff4355}
 .fjm-home .fjm-proof-eyebrow{margin-top:13px!important}
 .fjm-home .fjm-hero-proof h2{margin-bottom:4px!important}
 body.light .fjm-home .fjm-hero-photo-grid{background:#dbe6ee}
@@ -751,8 +752,8 @@ MARKETING_HOME_END = """
 </div>"""
 
 MARKETING_GALLERY = """<section class="fjm-section" style="margin-top:0"><div class="fjm-heading"><span class="fjm-kicker" data-fjm-en="Our portfolio">Nos réalisations</span><h1 data-fjm-en="Ideas that took shape">Des idées devenues réalité</h1><p data-fjm-en="See real photos of printed parts and 3D model previews. Choose a project with an STL or 3MF file to attach it to your quote request.">Repérez les pièces réellement imprimées et les aperçus de modèles 3D. Choisissez un projet avec fichier STL ou 3MF pour le joindre à votre demande de soumission.</p></div>
-<div class="fjm-gallery-controls"><input type="search" id="fjmGallerySearch" placeholder="Rechercher une création…" aria-label="Rechercher dans la galerie" autocomplete="off"><select id="fjmGalleryCategory" aria-label="Filtrer par catégorie"><option value="" data-fjm-en="All categories">Toutes les catégories</option>{% for category in items|map(attribute='category')|select|unique|sort %}<option value="{{category|lower}}">{{category}}</option>{% endfor %}</select><button class="fjm-filter" id="fjmGalleryAll" type="button" aria-pressed="true" data-fjm-en="All creations">Toutes les créations</button><button class="fjm-filter" id="fjmGalleryReady" type="button" aria-pressed="false" data-fjm-en="Ready to print">Prêts à imprimer</button><span id="fjmGalleryCount" class="fjm-gallery-count" aria-live="polite"></span></div>
-<div class="fjm-gallery" id="fjmGalleryItems">{% for item in items %}<article class="fjm-project" data-category="{{(item.category or '')|lower}}" data-ready="{{'1' if item.has_model else '0'}}" data-search="{{(item.title ~ ' ' ~ item.category ~ ' ' ~ item.description)|lower}}" aria-label="{{item.title}}"><a class="fjm-project-image-link" href="/galerie/{{item.id}}" aria-label="Voir {{item.title}}">{% if item.has_photo %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250">{% else %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fjm-project-noimage',textContent:'🧩'}))">{% endif %}</a><div class="fjm-project-content"><span>{{item.category}}</span>{% if item.is_real_photo %}<span class="fjm-photo-real-badge" data-fjm-en="Photo of a real printed part">📷 Pièce imprimée en photo</span>{% else %}<span class="fjm-photo-render-badge" data-fjm-en="3D model preview">🧩 Aperçu du modèle 3D</span>{% endif %}<strong>{{item.title[:1]|upper}}{{item.title[1:]}}</strong>{% if item.has_model %}<small class="fjm-model-available" data-fjm-en="✓ STL/3MF file available">✓ Fichier STL/3MF disponible</small>{% endif %}<div class="fjm-project-actions"><a href="/galerie/{{item.id}}" data-fjm-en="View project">Voir le projet</a><a href="/soumission?galerie={{item.id}}&amp;photo={{item.quote_photo_id}}" data-fjm-en="Request a quote">Demander une soumission</a></div></div></article>{% else %}<p data-fjm-en="No projects published yet.">Aucune réalisation publiée pour le moment.</p>{% endfor %}</div>
+<div class="fjm-gallery-controls"><input type="search" id="fjmGallerySearch" placeholder="Rechercher une création…" aria-label="Rechercher dans la galerie" autocomplete="off"><select id="fjmGalleryCategory" aria-label="Filtrer par catégorie"><option value="" data-fjm-en="All categories">Toutes les catégories</option>{% for category in items|map(attribute='category')|select|unique|sort %}<option value="{{category|lower}}">{{category}}</option>{% endfor %}</select><button class="fjm-filter" id="fjmGalleryAll" type="button" aria-pressed="true" data-fjm-en="All creations">Toutes les créations</button><button class="fjm-filter" id="fjmGalleryReady" type="button" aria-pressed="false" data-fjm-en="Ready to print">Prêts à imprimer</button><button class="fjm-filter fjm-filter-real" id="fjmGalleryReal" type="button" aria-pressed="false" data-fjm-en="📸 Real photos">📸 Photos réelles</button><span id="fjmGalleryCount" class="fjm-gallery-count" aria-live="polite"></span></div>
+<div class="fjm-gallery" id="fjmGalleryItems">{% for item in items %}<article class="fjm-project" data-category="{{(item.category or '')|lower}}" data-ready="{{'1' if item.has_model else '0'}}" data-real="{{'1' if item.is_real_photo else '0'}}" data-search="{{(item.title ~ ' ' ~ item.category ~ ' ' ~ item.description)|lower}}" aria-label="{{item.title}}"><a class="fjm-project-image-link" href="/galerie/{{item.id}}" aria-label="Voir {{item.title}}">{% if item.has_photo %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250">{% else %}<img src="/gallery/thumb/{{item.id}}" loading="lazy" alt="{{item.title}}" width="400" height="250" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fjm-project-noimage',textContent:'🧩'}))">{% endif %}</a><div class="fjm-project-content"><span>{{item.category}}</span>{% if item.is_real_photo %}<span class="fjm-photo-real-badge" data-fjm-en="Photo of a real printed part">📷 Pièce imprimée en photo</span>{% else %}<span class="fjm-photo-render-badge" data-fjm-en="3D model preview">🧩 Aperçu du modèle 3D</span>{% endif %}<strong>{{item.title[:1]|upper}}{{item.title[1:]}}</strong>{% if item.has_model %}<small class="fjm-model-available" data-fjm-en="✓ STL/3MF file available">✓ Fichier STL/3MF disponible</small>{% endif %}<div class="fjm-project-actions"><a href="/galerie/{{item.id}}" data-fjm-en="View project">Voir le projet</a><a href="/soumission?galerie={{item.id}}&amp;photo={{item.quote_photo_id}}" data-fjm-en="Request a quote">Demander une soumission</a></div></div></article>{% else %}<p data-fjm-en="No projects published yet.">Aucune réalisation publiée pour le moment.</p>{% endfor %}</div>
 <div id="fjmGalleryNoMatch" class="fjm-gallery-empty" hidden><span data-fjm-en="No project matches? Tell us what you need and we will review a custom request.">Vous ne trouvez pas le modèle recherché? Décrivez-nous votre besoin pour une création sur mesure.</span><a href="/soumission" data-fjm-en="Describe my project">Décrire mon projet</a></div><div class="fjm-section-actions"><a class="btn" href="/soumission" data-fjm-en="Request my custom project">Demander une création personnalisée</a></div></section>
 """
 
@@ -767,6 +768,7 @@ MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelector
   const category=document.getElementById('fjmGalleryCategory');
   const allButton=document.getElementById('fjmGalleryAll');
   const readyButton=document.getElementById('fjmGalleryReady');
+  const realButton=document.getElementById('fjmGalleryReal');
   const empty=document.getElementById('fjmGalleryNoMatch');
   let count=document.getElementById('fjmGalleryCount');
   if(!count){
@@ -774,6 +776,8 @@ MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelector
    if(controls){count=document.createElement('span');count.id='fjmGalleryCount';count.className='fjm-gallery-count';count.setAttribute('aria-live','polite');controls.append(count);}
   }
   let readyOnly=new URLSearchParams(location.search).get('prets')==='1';
+  let realOnly=new URLSearchParams(location.search).get('photos')==='1';
+  if(realOnly)readyOnly=false;
   function filterGallery(){
    const query=(search?.value||'').trim().toLocaleLowerCase();
    const selectedCategory=(category?.value||'').trim().toLocaleLowerCase();
@@ -782,26 +786,34 @@ MARKETING_SCRIPT = """<script>(function(){const nodes=[...document.querySelector
     const isReady=card.dataset.ready==='1';
     const matchesText=(card.dataset.search||card.textContent).toLocaleLowerCase().includes(query);
     const matchesCategory=!selectedCategory||card.dataset.category===selectedCategory;
-    const visible=(!readyOnly||isReady)&&matchesText&&matchesCategory;
+    const isReal=card.dataset.real==='1';
+    const visible=(!readyOnly||isReady)&&(!realOnly||isReal)&&matchesText&&matchesCategory;
     card.hidden=!visible;
     if(visible){shown++;if(isReady)readyShown++}
    }
-   if(allButton)allButton.setAttribute('aria-pressed',String(!readyOnly));
+   if(allButton)allButton.setAttribute('aria-pressed',String(!readyOnly&&!realOnly));
    if(readyButton)readyButton.setAttribute('aria-pressed',String(readyOnly));
+   if(realButton)realButton.setAttribute('aria-pressed',String(realOnly));
    if(empty)empty.hidden=shown!==0;
-   if(count)count.textContent=readyOnly
+   if(count)count.textContent=realOnly
+    ?shown+' photo'+(shown>1?'s':'')+' réelle'+(shown>1?'s':'')
+    :readyOnly
     ?shown+' modèle'+(shown>1?'s':'')+' avec fichier STL/3MF'
     :shown+' réalisation'+(shown>1?'s':'');
   }
-  function setReadyFilter(enabled){
-   readyOnly=enabled;
+  function setCatalogMode(mode){
+   readyOnly=mode==='ready';
+   realOnly=mode==='real';
    const url=new URL(location.href);
-   if(enabled)url.searchParams.set('prets','1');else url.searchParams.delete('prets');
+   url.searchParams.delete('prets');url.searchParams.delete('photos');
+   if(readyOnly)url.searchParams.set('prets','1');
+   if(realOnly)url.searchParams.set('photos','1');
    history.replaceState(null,'',url);
    filterGallery();
   }
-  allButton?.addEventListener('click',()=>setReadyFilter(false));
-  readyButton?.addEventListener('click',()=>setReadyFilter(true));
+  allButton?.addEventListener('click',()=>setCatalogMode('all'));
+  readyButton?.addEventListener('click',()=>setCatalogMode('ready'));
+  realButton?.addEventListener('click',()=>setCatalogMode('real'));
   search?.addEventListener('input',filterGallery);
   category?.addEventListener('change',filterGallery);
   filterGallery();
