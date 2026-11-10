@@ -533,3 +533,34 @@ body.fjord-public .fjm-home .fjord-paths-trust span{font-size:10px!important;pad
 body.fjord-public .fjord-mobile-quote-bar{padding-top:7px!important;padding-bottom:calc(7px + env(safe-area-inset-bottom,0px))!important}
 body.fjord-public .fjord-mobile-quote-bar a{min-height:45px!important}
 }
+
+
+/* Desktop 2026-11-10 : header donation alignment */
+@media(min-width:1451px){
+  .site-header:has(.fjord-header-gift){
+    grid-template-columns:minmax(245px,300px) minmax(205px,245px) minmax(0,1fr) auto!important;
+    grid-template-rows:auto!important;
+    min-height:92px!important;
+    padding:12px clamp(16px,2vw,34px)!important;
+    column-gap:clamp(10px,1.1vw,20px)!important;
+    align-items:center!important;
+  }
+  .site-header:has(.fjord-header-gift) .brand{grid-column:1!important;grid-row:1!important;align-self:center!important;line-height:1.15!important}
+  .site-header:has(.fjord-header-gift) .fjord-header-gift{grid-column:2!important;grid-row:1!important;width:auto!important;max-width:245px!important;min-height:60px!important;margin:0!important;padding:10px 14px!important;border-radius:14px!important;text-align:left!important}
+  .site-header:has(.fjord-header-gift) .fjord-header-gift span{font-size:12px!important;line-height:1.25!important}
+  .site-header:has(.fjord-header-gift) .fjord-header-gift strong{font-size:13px!important;line-height:1.25!important}
+  .site-header:has(.fjord-header-gift) .site-nav-toggle{display:none!important}
+  .site-header:has(.fjord-header-gift) nav{grid-column:3!important;grid-row:1!important;justify-content:flex-end!important;gap:3px!important;flex-wrap:nowrap!important}
+  .site-header:has(.fjord-header-gift) nav a{padding:8px clamp(6px,.55vw,10px)!important;font-size:12px!important}
+  .site-header:has(.fjord-header-gift) .pref-controls{grid-column:4!important;grid-row:1!important;justify-content:flex-end!important;gap:6px!important}
+  .site-header:has(.fjord-header-gift) .pref-controls select{min-width:0!important;width:auto!important;max-width:125px!important}
+}
+@media(min-width:1121px) and (max-width:1450px){
+  .site-header:has(.fjord-header-gift){grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:auto auto auto!important;gap:9px 14px!important;padding:11px clamp(16px,2.3vw,30px)!important;min-height:0!important}
+  .site-header:has(.fjord-header-gift) .brand{grid-column:1!important;grid-row:1!important}
+  .site-header:has(.fjord-header-gift) .fjord-header-gift{grid-column:2!important;grid-row:1!important;max-width:245px!important;margin:0!important}
+  .site-header:has(.fjord-header-gift) .site-nav-toggle{display:inline-flex!important;grid-column:2!important;grid-row:2!important;justify-self:end!important;min-height:40px!important}
+  .site-header:has(.fjord-header-gift) .pref-controls{grid-column:1!important;grid-row:2!important;justify-content:flex-start!important}
+  .site-header:has(.fjord-header-gift) nav{display:none!important;grid-column:1/-1!important;grid-row:3!important;justify-content:flex-start!important;flex-wrap:wrap!important;padding:4px 0 8px!important}
+  .site-header:has(.fjord-header-gift).menu-open nav{display:flex!important}
+}
