@@ -684,6 +684,7 @@ body.fjord-public main .fjm-home>.fjm-hero{position:relative;isolation:isolate;o
 body.fjord-public main .fjm-home>.fjm-hero:before{content:"";position:absolute;z-index:-1;right:42%;bottom:-210px;width:430px;height:430px;border:1px solid #355fff20;border-radius:50%;box-shadow:0 0 0 28px #355fff08,0 0 0 58px #ff573508}
 body.fjord-public main .fjm-home .fjm-hero>div{position:relative;z-index:1}
 body.fjord-public main .fjm-home .fjm-hero .fjm-kicker{display:inline-flex;align-items:center;min-height:31px;padding:7px 12px;border-radius:999px;background:#1747e8;color:#fff;font-size:10px;letter-spacing:.13em;box-shadow:0 7px 20px #1747e82b}
+body.fjord-public main .fjm-home .fjm-hero>div>.fjm-kicker{gap:7px;min-height:36px;padding:8px 14px;border:1px solid #ffb5a5;background:linear-gradient(105deg,#173fd5 0%,#087fc8 68%,#e9473c 100%);box-shadow:0 10px 26px #1747e84f,0 0 24px #f04f3d35;font-size:11px;font-weight:950;letter-spacing:.1em;line-height:1.3}
 body.fjord-public main .fjm-home .fjm-hero h1{color:#101a30!important;max-width:730px;font-size:clamp(42px,6.4vw,82px)!important;line-height:.99!important;letter-spacing:-.065em!important}
 body.fjord-public main .fjm-home .fjm-hero .fjm-accent{background:linear-gradient(95deg,#1847eb 4%,#077fc7 48%,#f04f3d 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent!important}
 body.fjord-public main .fjm-home .fjm-hero .fjm-hero-lead{max-width:610px;color:#43516a!important;font-size:clamp(16px,1.75vw,20px);line-height:1.55}
@@ -727,7 +728,7 @@ body.fjord-public main .fjm-home .fjm-atelier-note span{font-size:12px}
 
 MARKETING_HOME_START = """<div class="fjm-home">
 <section class="fjm-hero" aria-labelledby="fjm-hero-title">
- <div><span class="fjm-kicker" data-fjm-en="LOCAL 3D PRINT STUDIO · SAGUENAY, QUÉBEC">ATELIER D’IMPRESSION 3D · SAGUENAY, QUÉBEC</span>
+ <div><span class="fjm-kicker" data-fjm-en="⚡ YOUR IDEA TAKES SHAPE HERE · SAGUENAY">⚡ VOTRE IDÉE PREND FORME ICI · SAGUENAY</span>
  <h1 id="fjm-hero-title"><span data-fjm-en="Your idea.">Une idée.</span> <span class="fjm-accent" data-fjm-en="A part made for you.">Une pièce pour vous.</span></h1>
  <p class="fjm-hero-lead" data-fjm-en="A replacement part, a custom accessory or a one-of-a-kind gift. Tell us what you need and we’ll bring it to life here in Saguenay.">Pièce de remplacement, accessoire sur mesure ou cadeau unique : dites-nous ce qu’il vous faut et on lui donne vie ici, au Saguenay.</p>
  <div class="fjm-hero-actions"><a class="btn" href="/galerie?prets=1" data-fjm-en="Explore ready-to-print pieces">Découvrir les pièces prêtes à imprimer</a><a class="btn fjm-outline" href="/soumission" data-fjm-en="Start my project">Parler de mon projet</a></div>
