@@ -377,3 +377,14 @@ body.fjord-public .fjord-spark-b{animation:fjord-spark-pulse 3.1s ease-in-out 1.
 @keyframes fjord-orbit-counter{from{rotate:360deg}to{rotate:0deg}}
 @keyframes fjord-spark-pulse{0%,100%{opacity:.35;scale:.85}50%{opacity:1;scale:1.15}}
 @media(max-width:420px){body.fjord-public .fjord-studio-progress{gap:5px}body.fjord-public .fjord-studio-progress span{font-size:9px}body.fjord-public .fjord-studio-progress i{width:8px}}
+
+
+/* Parcours client: preuves de confiance et finition responsive */
+body.fjord-public .fjord-paths-trust{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 19px}
+body.fjord-public .fjord-paths-trust span{display:inline-flex;align-items:center;padding:7px 11px;border:1px solid #4c9db4;border-radius:999px;background:#123b50;color:#d5f7ff;font-size:12px;font-weight:800}
+body.fjord-public .fjord-path-card{position:relative;overflow:hidden}
+body.fjord-public .fjord-path-card:after{content:"";position:absolute;right:-55px;top:-65px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,#4de0ff25,transparent 70%);pointer-events:none}
+body.fjord-public .fjord-path-card b{margin-top:auto;display:inline-flex;align-items:center;min-height:32px}
+body.fjord-public .fjord-path-card:hover b{text-decoration:underline}
+body.light.fjord-public .fjord-paths-trust span{background:#fff;color:#24536b;border-color:#a8d5e5}
+@media(max-width:690px){body.fjord-public .fjord-paths-trust{gap:6px}body.fjord-public .fjord-paths-trust span{font-size:11px;padding:6px 9px}}
