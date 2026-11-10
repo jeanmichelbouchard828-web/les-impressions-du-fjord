@@ -753,7 +753,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  <aside class="fjord-hero-studio" aria-label="Votre prochain projet prend forme">
   <div class="fjord-hero-orbit" aria-hidden="true"><span class="fjord-orbit-ring fjord-ring-one"></span><span class="fjord-orbit-ring fjord-ring-two"></span><span class="fjord-orbit-core">3D</span><span class="fjord-orbit-spark fjord-spark-a">✦</span><span class="fjord-orbit-spark fjord-spark-b">✧</span></div>
   <div class="fjord-studio-content">
-   <span class="fjord-studio-eyebrow" data-fjm-en="FROM IDEA TO REALITY">DE L'IDÉE À LA RÉALITÉ</span>
+   <span class="fjord-studio-eyebrow" data-fjm-en="FROM IDEA TO REALITY">DE L'IDÉE À LA RÉALITÉ</span><div class="fjord-studio-progress" aria-label="Les étapes de votre création"><span data-fjm-en="01 · IMAGINE">01 · IMAGINER</span><i aria-hidden="true"></i><span data-fjm-en="02 · DESIGN">02 · CONCEVOIR</span><i aria-hidden="true"></i><span data-fjm-en="03 · PRINT">03 · IMPRIMER</span></div>
    <h2 data-fjm-en="Your next great idea starts here.">Votre prochaine création commence ici.</h2>
    <p data-fjm-en="Bring a photo, a sketch or a 3D file. We help turn it into a real part.">Une photo, un croquis ou un fichier 3D : transformons votre projet en pièce réelle.</p>
    <a class="fjord-studio-link" href="/atelier-3d" data-fjm-en="Explore the 3D workshop →">Explorer l'Atelier 3D →</a>
