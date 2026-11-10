@@ -449,3 +449,46 @@ body.fjord-public .fjord-project-guide strong{font-size:16px}
 body.fjord-public .fjord-project-guide p{flex:1 1 340px;margin:0;font-size:14px;line-height:1.6}
 body.fjord-public .fjord-project-guide a{font-weight:800;text-decoration:underline;text-underline-offset:4px}
 @media(max-width:690px){body.fjord-public .fjord-project-guide{display:block;padding:17px}body.fjord-public .fjord-project-guide p{margin:9px 0 12px}body.fjord-public .fjord-project-guide a{display:inline-flex;align-items:center;min-height:44px}}
+
+
+/* 2026 REBRAND — OBSIDIENNE / CORAIL ÉLECTRIQUE / VIOLET. Vitrine seulement. */
+body.fjord-public:has(.fjm-home){--fjord-2026-blue:#ff684e;--fjord-2026-ice:#ffe1a8;--fjord-2026-dark:#100e1c;background:#100e1c!important;color:#fff5ee!important}
+body.fjord-public:has(.fjm-home) .site-header{background:#151022!important;border-bottom:1px solid #ff86684d!important;box-shadow:0 10px 35px #090611aa!important}
+body.fjord-public .fjm-home{color:#fff5ee}
+body.fjord-public .fjm-home .fjm-hero{background:radial-gradient(ellipse at 90% 15%,#ff653b44,transparent 44%),radial-gradient(ellipse at 18% 90%,#7d38f355,transparent 48%),linear-gradient(125deg,#22102f,#100e1c 76%)!important;border:1px solid #a36af2!important;box-shadow:0 25px 75px #08041299,0 0 0 1px #ff704522!important;border-radius:30px!important}
+body.fjord-public .fjm-home .fjm-kicker{color:#ffb16c!important}
+body.fjord-public .fjm-home .fjm-hero h1{color:#fffaf4!important;text-shadow:0 3px 22px #14082177}
+body.fjord-public .fjm-home .fjm-accent{color:#ff9a65!important;background:linear-gradient(105deg,#ffcd74,#ff7655 52%,#f5a2ff);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+body.fjord-public .fjm-home .fjm-hero-lead,body.fjord-public .fjm-home .fjm-hero-sub{color:#e9dce9!important}
+body.fjord-public .fjm-home .fjm-hero-actions .btn:not(.fjm-outline),body.fjord-public .fjm-home .fjm-final .btn{background:linear-gradient(110deg,#ffcc75,#ff7753)!important;border:1px solid #ffe3a5!important;color:#241022!important;box-shadow:0 9px 30px #ff653e55!important;font-weight:950!important}
+body.fjord-public .fjm-home .fjm-hero-actions .fjm-outline{background:#2c1940!important;border:1px solid #d5a5ff!important;color:#fff2ff!important}
+body.fjord-public .fjm-home .fjord-hero-gallery-link{color:#ffd49e!important}
+body.fjord-public .fjm-home .fjm-points li{background:#2a1a39!important;border:1px solid #8b578e!important;color:#ffe8d9!important}
+body.fjord-public .fjm-home .fjord-hero-studio{background:radial-gradient(circle at 52% 40%,#b45bff55,transparent 55%),linear-gradient(140deg,#321647,#140f27)!important;border-color:#b777f5!important;box-shadow:0 15px 55px #0007!important}
+body.fjord-public .fjm-home .fjord-studio-eyebrow{color:#ffb17e!important}
+body.fjord-public .fjm-home .fjord-studio-content h2{color:#fff7f0!important}
+body.fjord-public .fjm-home .fjord-studio-content p{color:#e7d9ed!important}
+body.fjord-public .fjm-home .fjord-studio-link{color:#ffcd86!important}
+body.fjord-public .fjm-home .fjord-paths{background:linear-gradient(145deg,#1c1429,#22162e)!important;border-color:#68436f!important;border-radius:26px!important}
+body.fjord-public .fjm-home .fjord-path-card{background:linear-gradient(150deg,#35203d,#1b152b)!important;border:1px solid #8e5a9b!important;box-shadow:0 10px 25px #0003!important;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+body.fjord-public .fjm-home .fjord-path-card:hover{transform:translateY(-4px);border-color:#ffad76!important;box-shadow:0 18px 36px #0006!important}
+body.fjord-public .fjm-home .fjord-path-card strong{color:#fff6ed!important}
+body.fjord-public .fjm-home .fjord-path-card small{color:#e3d3e8!important}
+body.fjord-public .fjm-home .fjord-path-card b{color:#ffbf84!important}
+body.fjord-public .fjm-home .fjord-paths-trust span{background:#352038!important;color:#ffdec7!important;border-color:#895779!important}
+body.fjord-public .fjm-home .fjord-project-guide{background:#29182f!important;border-color:#b46c9b!important}
+body.fjord-public .fjm-home .fjord-project-guide a{color:#ffbe80!important}
+body.fjord-public .fjm-home .fjm-atelier{background:radial-gradient(circle at 10% 35%,#e56d5440,transparent 35%),linear-gradient(115deg,#392043,#1a142b 76%)!important;border:1px solid #e1808b!important;box-shadow:0 16px 45px #0006!important}
+body.fjord-public .fjm-home .fjm-atelier-mark{background:linear-gradient(135deg,#e86e64,#7b46c8)!important;border-color:#ffb68c!important}
+body.fjord-public .fjm-home .fjm-atelier-copy h2{color:#fff7f0!important}
+body.fjord-public .fjm-home .fjm-atelier-copy p,body.fjord-public .fjm-home .fjm-atelier-secondary{color:#f0dfea!important}
+body.fjord-public .fjm-home .fjm-atelier-actions .btn{background:linear-gradient(110deg,#ffd37d,#ff8464)!important;border-color:#ffe6b3!important;color:#2b1530!important}
+body.fjord-public .fjm-home .fjm-atelier-note{background:#281b35!important;border-color:#8d628b!important;color:#fff4e8!important}
+body.fjord-public .fjm-home .fjm-atelier-note span{color:#f5c8db!important}
+body.fjord-public .fjm-home .fjm-final{background:linear-gradient(120deg,#4a2451,#22132d)!important;border-color:#ee8f9c!important}
+body.fjord-public .fjm-home .fjm-final h2{color:#fff5ed!important}
+body.fjord-public .fjm-home .fjord-mobile-quote-bar{background:#180f25f5!important;border-top-color:#f28c75!important}
+body.fjord-public .fjm-home .fjord-mobile-quote-primary{background:linear-gradient(105deg,#ffce77,#ff805c)!important;color:#281326!important}
+body.fjord-public .fjm-home .fjord-mobile-quote-secondary{background:#43254f!important;border-color:#d5a0ef!important;color:#fff!important}
+body.fjord-public .fjm-home a:focus-visible{outline:3px solid #ffcc77!important;outline-offset:3px}
+@media(max-width:690px){body.fjord-public .fjm-home .fjm-hero{border-radius:20px!important}body.fjord-public .fjm-home .fjord-paths{border-radius:18px!important}}
