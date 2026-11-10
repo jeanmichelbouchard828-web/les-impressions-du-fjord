@@ -1033,6 +1033,31 @@ def home():
   public_inspirations=fjord_inspiration_html({row["source"] for row in inspiration_rows})
   makerworld_rows=c.execute("""SELECT id,title,source_url FROM fjord_makerworld_slides WHERE rights_confirmed=TRUE AND octet_length(model_data)>0 ORDER BY id DESC""").fetchall()
   public_makerworld=fjord_makerworld_html(makerworld_rows)
+ # Carrousel purement visuel : aucune association STL/3MF requise.
+ from html import escape as html_escape
+ inspiration_cards=[]
+ for idea in FJORD_INSPIRATIONS[:16]:
+  title=html_escape(str(idea["title"]),quote=True)
+  image_url=html_escape(str(idea["image"]),quote=True)
+  source_url=html_escape(str(idea["source"]),quote=True)
+  author=html_escape(str(idea["author"]),quote=True)
+  license_name=html_escape(str(idea["license"]),quote=True)
+  inspiration_cards.append(f'<article class="fjord-idea-card"><img src="{image_url}" alt="{title}" loading="lazy" referrerpolicy="no-referrer"><div class="fjord-idea-caption"><strong>{title}</strong><small>Photo : <a href="{source_url}" target="_blank" rel="noopener noreferrer">{author}</a> · {license_name}</small></div></article>')
+ inspiration_carousel='''<section class="fjord-ideas" aria-label="Diaporama d’inspiration"><div class="fjord-ideas-heading"><div><span>DES IDÉES SANS LIMITES</span><h2>Et si on créait quelque chose d’unique?</h2><p>Quelques inspirations pour imaginer votre prochain projet d’impression 3D.</p></div><div class="fjord-ideas-controls"><button type="button" onclick="document.getElementById('fjordIdeasTrack').scrollBy({left:-280,behavior:'smooth'})" aria-label="Inspirations précédentes">‹</button><button type="button" onclick="document.getElementById('fjordIdeasTrack').scrollBy({left:280,behavior:'smooth'})" aria-label="Inspirations suivantes">›</button></div></div><div id="fjordIdeasTrack" class="fjord-ideas-track">'''+''.join(inspiration_cards)+'''</div><style>
+ .fjord-ideas{max-width:1180px;margin:25px auto;padding:18px 0 26px;color:inherit}
+ .fjord-ideas-heading{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:14px}
+ .fjord-ideas-heading span{font-size:12px;font-weight:850;letter-spacing:.12em;color:#39bce8}
+ .fjord-ideas-heading h2{font-size:clamp(22px,2.5vw,32px);margin:6px 0}
+ .fjord-ideas-heading p{margin:0;opacity:.82}
+ .fjord-ideas-controls{display:flex;gap:8px}
+ .fjord-ideas-controls button{border:1px solid #62cbea;border-radius:50%;width:40px;height:40px;background:#0a4267;color:white;font-size:28px;cursor:pointer}
+ .fjord-ideas-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin;padding:4px 2px 12px}
+ .fjord-idea-card{flex:0 0 235px;overflow:hidden;border-radius:16px;border:1px solid #2e6178;background:#0b263a;scroll-snap-align:start;color:white}
+ .fjord-idea-card img{display:block;width:100%;height:155px;object-fit:cover}
+ .fjord-idea-caption{padding:12px}.fjord-idea-caption strong{display:block;font-size:15px;line-height:1.3}.fjord-idea-caption small{display:block;font-size:11px;margin-top:8px;color:#c4d7e2;line-height:1.4}
+ .fjord-idea-caption a{color:#a9eaff}
+ @media(max-width:700px){.fjord-ideas{margin:18px 0;padding:12px 0}.fjord-idea-card{flex-basis:195px}.fjord-idea-card img{height:130px}.fjord-ideas-heading h2{font-size:23px}}
+ </style></section>'''
  return page("Accueil",MARKETING_HOME_START.replace(
   '<section class="fjm-section" id="fonctionnement">',
   '''<section class="fjord-home-support" aria-label="Soutenir Les Impressions du Fjord">
@@ -1048,7 +1073,7 @@ def home():
   .fjord-home-support-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:13px 22px;border-radius:14px;background:#e5f8ff;color:#06446d!important;font-weight:850;text-decoration:none;white-space:nowrap;box-shadow:0 5px 18px #001b3440}
   .fjord-home-support-btn:hover{background:white;transform:translateY(-1px)}
   @media(max-width:700px){.fjord-home-support{flex-direction:column;align-items:stretch;margin:16px 0}.fjord-home-support-btn{width:100%}}
-  </style>''' + public_inspirations + public_makerworld + '<section class="fjm-section" id="fonctionnement">', 1)
+  </style>''' + inspiration_carousel + public_inspirations + public_makerworld + '<section class="fjm-section" id="fonctionnement">', 1)
   + '''<section class="tracking-billboard fjord-board" aria-label="Tableau interactif de production" hidden><div class="fjord-board-inner"><div class="fjord-board-heading"><strong>LES IMPRESSIONS DU FJORD</strong><span class="fjord-board-badge">Production</span></div><h2>Suivi de production</h2><p>Consultez les progressions partagées par l’atelier.</p><div id="fjordProductionLive" role="tabpanel" aria-live="polite"><p>Chargement du tableau de production…</p></div><div class="fjord-board-footer"><p class="production-updated" id="fjordProductionUpdated">Mise à jour automatique toutes les 30 secondes.</p><div class="fjord-board-actions"><a class="btn fjord-board-see" href="/voir-mon-impression">📍 Suivre ma soumission</a><p class="fjord-board-private">Votre suivi individuel reste privé.</p></div></div></div></section><style>
 .fjord-board[hidden]{display:none!important}.fjord-board{display:block;padding:24px;background:#0b1725;border-color:#3a6076}.fjord-board-inner{width:100%}.fjord-board-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:18px}.fjord-board-badge{background:#103c27;color:#50d78a;border-radius:30px;padding:5px 12px;font-size:14px}.fjord-board h2{font-size:clamp(24px,3vw,30px);margin:22px 0 6px}.fjord-board-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0}.fjord-board-tab{background:transparent;border:0;border-radius:30px;color:#c4d5e0;font:inherit;font-weight:700;padding:12px 5px;cursor:pointer}.fjord-board-tab.active{background:#304151;color:white}.fjord-board-tab:focus-visible{outline:2px solid #64d9ff;outline-offset:2px}.fjord-board .public-print-list{margin:0}.fjord-board .public-print-job{background:#10283b;display:block}.fjord-board .public-print-job strong{display:block}.fjord-board .public-print-job span{display:block;margin:8px 0}.fjord-board .tracking-progress{height:12px}.fjord-board .tracking-progress span{margin:0;background:#24b46a}.fjord-board-see{display:inline-block;margin-top:12px}.fjord-board-private{font-size:13px;margin:8px 0 0}.fjord-board .production-updated{font-size:13px;margin:14px 0 0}@media(max-width:480px){.fjord-board{padding:16px}.fjord-board-tab{font-size:13px;padding:10px 3px}}
 .fjord-board{padding:20px 24px}.fjord-board h2{margin:12px 0 3px}.fjord-board-inner>p{margin:6px 0 12px}.fjord-board-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;flex-wrap:wrap}.fjord-board-actions{display:flex;align-items:center;gap:12px;margin-left:auto}.fjord-board .fjord-board-see{margin:0;padding:10px 16px;font-size:14px;white-space:nowrap}.fjord-board .fjord-board-private{margin:0;max-width:185px;font-size:11px;line-height:1.3;color:#a9c3d4}.fjord-board .production-updated{margin:0}.fjord-public-table{display:grid;gap:5px}.fjord-public-row{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,1.5fr) minmax(100px,1fr);gap:12px;align-items:center;padding:8px 12px;border:1px solid #37546a;border-radius:8px}.fjord-public-head{border:0;color:#c5d9e8}.fjord-public-empty{color:#a9c3d4;background:#0e2334}.fjord-public-progress{display:grid;gap:5px}.fjord-public-progress .tracking-progress{height:6px}@media(max-width:520px){.fjord-public-row{grid-template-columns:minmax(80px,1fr) minmax(110px,1.4fr) minmax(70px,1fr);gap:7px;padding:7px;font-size:12px}}
