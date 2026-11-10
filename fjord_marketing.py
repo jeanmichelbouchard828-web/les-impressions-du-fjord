@@ -743,7 +743,7 @@ MARKETING_HOME_START = """<div class="fjm-home">
  </div>
  <aside class="fjm-hero-panel fjm-hero-proof">
   <div class="fjm-hero-photo-grid" aria-label="Photos réelles de pièces imprimées par l’atelier">
-   {% set hero_photos = featured|selectattr('is_real_photo')|sort(attribute='id')|list %}
+   {% set hero_photos = featured|selectattr('is_real_photo')|list|reverse|list %}
    {% for item in hero_photos[:2] %}<a href="/galerie/{{item.id}}" aria-label="Voir la photo réelle de {{item.title}}">
     <img src="/gallery/thumb/{{item.id}}" alt="Photo réelle de la pièce : {{item.title}}" width="720" height="520" loading="eager" {% if loop.first %}fetchpriority="high"{% endif %}>
     <span class="fjm-real-photo-label">{% if loop.first %}📸 PHOTO DE LA PIÈCE{% else %}📸 AUTRE PHOTO RÉELLE{% endif %}</span>
